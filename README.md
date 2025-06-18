@@ -9,28 +9,28 @@ Issue tracker: https://github.com/gc-os-ai/pyaptamer/issues
 
 ##### GC.OS
 
-Franz Kiraly (@fkiraly) - primary point of contact and tech contributor
+Franz Kiraly ([@fkiraly](www.github.com/fkiraly)) - primary point of contact and tech contributor
 
-Simon Blanke (@simonblanke) - advisory, optimization algorithms
+Simon Blanke ([@simonblanke](www.github.com/simonblanke)) - advisory, optimization algorithms
 
 
 ##### ecoSPECS
 
-Daniel Kubiczek (@KubiczekD) tech lead and primary point of contact: 
+Daniel Kubiczek ([@KubiczekD](www.github.com/KubiczekD) tech lead and primary point of contact: 
 
-Jakob Birke (@jabirke) - contributor and domain expert
+Jakob Birke ([@jabirke](www.github.com/jabirke) - contributor and domain expert
 
-Kerstin Moser (@KerstinMoser) - stakeholder, head of R&D
+Kerstin Moser ([@KerstinMoser](www.github.com/KerstinMoser) - stakeholder, head of R&D
 
 
 ##### ESoC
 
-Franz Kiraly (@fkiraly) - primary point of contact for ESoC
+Franz Kiraly ([@fkiraly](www.github.com/fkiraly) - primary point of contact for ESoC
 
-Avinab Neogy (@avinab-neogy) - ESoC contributor
+Avinab Neogy ([@avinab-neogy](www.github.com/avinab-neogy) - ESoC contributor
 
-Matteo Pinna (@nennomp) - ESoC contributor
+Matteo Pinna ([@nennomp](www.github.com/nennomp) - ESoC contributor
 
-Satvik Mishra (@satvshr) - ESoC contributor
+Satvik Mishra ([@satvshr](www.github.com/satvshr) - ESoC contributor
 
-Siddharth (@siddharth7113) - ESoC contributor
+Siddharth ([@siddharth7113](www.github.com/siddharth7113) - ESoC contributor
