@@ -1,6 +1,7 @@
 ### Repository of the "AI for drug discovery" project with GC.OS and ecoSPECS
 
 Project board: https://github.com/orgs/gc-os-ai/projects/1
+
 Issue tracker: https://github.com/gc-os-ai/pyaptamer/issues
 
 
