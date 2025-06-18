@@ -27,5 +27,10 @@ Kerstin Moser (@KerstinMoser) - stakeholder, head of R&D
 
 Franz Kiraly (@fkiraly) - primary point of contact for ESoC
 
-to be filled
+Avinab Neogy (@avinab-neogy) - ESoC contributor
 
+Matteo Pinna (@nennomp) - ESoC contributor
+
+Satvik Mishra (@satvshr) - ESoC contributor
+
+Siddharth (@siddharth7113) - ESoC contributor
