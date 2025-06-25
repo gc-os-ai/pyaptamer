@@ -16,7 +16,7 @@ Simon Blanke ([@simonblanke](https://www.github.com/simonblanke)) - advisory, op
 
 ##### ecoSPECS
 
-Daniel Kubiczek ([@KubiczekD](https://www.github.com/KubiczekD)) tech lead and primary point of contact: 
+Dennis Kubiczek ([@KubiczekD](https://www.github.com/KubiczekD)) tech lead and primary point of contact: 
 
 Jakob Birke ([@jabirke](https://www.github.com/jabirke)) - contributor and domain expert
 
