@@ -70,7 +70,14 @@ class Structure:
     # ------------------------------------------------------------------
     def __post_init__(self) -> None:  # noqa: D401
         """Validate inputs and build defaults, then compose `init_string`."""
-        self._validate_residue_names()
+        Structure._validate_residue_names(
+            set(self.residue_names),
+            self.residue_length,
+            self.connect,
+            self.alias,
+            self.rotating_elements,
+            self.backbone_elements,
+        )
         self._fill_defaults()
         self.init_string = self._build_init_string()
 
@@ -120,17 +127,24 @@ class Structure:
     # ==================================================================
     # private helpers
     # ==================================================================
-    def _validate_residue_names(self) -> None:
-        """Raise early if any dict key refers to an unknown residue."""
-        known = set(self.residue_names)
-        for name_set, label in [
-            (self.residue_length, "residue_length"),
-            (self.connect, "connect"),
-            (self.alias, "alias"),
-            (self.rotating_elements, "rotating_elements"),
-            (self.backbone_elements, "backbone_elements"),
+    @staticmethod
+    def _validate_residue_names(
+        allowed: set[str],
+        residue_length: dict[str, int],
+        connect: dict[str, ConnectSpec],
+        alias: dict[str, list[str]],
+        rotating: dict[str, RotationList],
+        backbone: dict[str, list[list[int]]],
+    ) -> None:
+        """Raise if any mapping contains a name not present in *allowed*."""
+        for mapping, label in [
+            (residue_length, "residue_length"),
+            (connect, "connect"),
+            (alias, "alias"),
+            (rotating, "rotating_elements"),
+            (backbone, "backbone_elements"),
         ]:
-            unknown = set(name_set) - known
+            unknown = set(mapping) - allowed
             if unknown:
                 raise ValueError(f"{label}: unknown residue(s): {', '.join(unknown)}")
 
