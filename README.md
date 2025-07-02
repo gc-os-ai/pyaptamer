@@ -1,6 +1,31 @@
 # PyAptamer: Quick Start
 
-## 1. Download Sample PDB Files
+## 1.Prerequisites
+
+To use this package, **you must be added as a collaborator**.
+Ask the repository owner to invite you if you don’t have access.
+
+- Get the HTTPS URL from the green "Code" button on the repo page (`https://github.com/avinab/pyaptamer`).
+- Open a terminal and run:
+
+```bash
+git clone https://github.com/avinab/pyaptamer.git
+```
+
+- When prompted:
+    - Enter **your own GitHub username**.
+    - For password, use **your own Personal Access Token (PAT)** if you have two-factor authentication enabled.
+(Generate one at [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens))
+- Change into the project directory:
+
+```bash
+cd pyaptamer
+```
+
+**Now you can proceed to install requirements and use the package!**
+
+
+## 2. Download Sample PDB Files
 
 First, download some PDB files to work with:
 
@@ -12,7 +37,7 @@ python download_user_pdbs.py
 - Enter your own IDs separated by commas, or just press Enter to download the examples.
 
 
-## 2. Process a PDB File
+## 3. Process a PDB File
 
 Next, run the main workflow:
 
