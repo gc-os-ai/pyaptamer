@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: pyaptamer
+Version: 0.1.0
+Summary: Aptamer toolkit for PDB/mmCIF structure handling
+Author-email: Avinab Neogy <avinabneogy.bits@gmail.com>
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: biopython>=1.80
+Requires-Dist: requests>=2.28.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: gemmi>=0.6.3

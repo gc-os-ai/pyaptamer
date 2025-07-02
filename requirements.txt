@@ -1,0 +1,5 @@
+biopython>=1.80
+requests>=2.28.0
+numpy>=1.21.0
+gemmi>=0.6.3
+tkinter>=8.6.0
