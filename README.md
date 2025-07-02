@@ -46,7 +46,7 @@ pip install -e .
 First, download some PDB files to work with:
 
 ```bash
-python download_user_pdbs.py
+python download_samples.py
 ```
 
 - You will see a list of suggested PDB IDs.
