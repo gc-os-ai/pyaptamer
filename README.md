@@ -2,6 +2,8 @@
 
 ## 1.Prerequisites
 
+### Cloning the repo
+
 To use this package, **you must be added as a collaborator**.
 Ask the repository owner to invite you if you don’t have access.
 
@@ -23,6 +25,20 @@ cd pyaptamer
 ```
 
 **Now you can proceed to install requirements and use the package!**
+
+### Install all dependencies using pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Install the Package (Editable Mode)
+
+This lets you use the package anywhere on your system and see changes immediately:
+
+```bash
+pip install -e .
+```
 
 
 ## 2. Download Sample PDB Files
