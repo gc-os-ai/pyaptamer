@@ -15,7 +15,8 @@ authors = [
 
 dependencies = [
     "einops>=0.8.1",
-    "numpy>=2.0.2",
+    "jupyterlab>=4.2.6",
+    "numpy>=2.0.2,<2.0.3",
     "openmm>=8.3.0,<8.4.0",
     "pandas>=2.2.3",
     "torch>=2.5.1",
