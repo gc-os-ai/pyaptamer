@@ -1,6 +1,0 @@
-pyproject.toml
-pyaptamer.egg-info/PKG-INFO
-pyaptamer.egg-info/SOURCES.txt
-pyaptamer.egg-info/dependency_links.txt
-pyaptamer.egg-info/requires.txt
-pyaptamer.egg-info/top_level.txt
