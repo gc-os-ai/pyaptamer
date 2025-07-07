@@ -1,111 +1,36 @@
-# PyAptamer: Quick Start
+### Repository of the "AI for drug discovery" project with GC.OS and ecoSPECS
 
-## 1.Prerequisites
+Project board: https://github.com/orgs/gc-os-ai/projects/1
 
-### Cloning the repo
-
-To use this package, **you must be added as a collaborator**.
-Ask the repository owner to invite you if you don’t have access.
-
-- Get the HTTPS URL from the green "Code" button on the repo page (`https://github.com/avinab/pyaptamer`).
-- Open a terminal and run:
-
-```bash
-git clone https://github.com/avinab/pyaptamer.git
-```
-
-- When prompted:
-    - Enter **your own GitHub username**.
-    - For password, use **your own Personal Access Token (PAT)** if you have two-factor authentication enabled.
-(Generate one at [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens))
-- Change into the project directory:
-
-```bash
-cd pyaptamer
-```
-
-**Now you can proceed to install requirements and use the package!**
-
-### Install all dependencies using pip:
-
-```bash
-pip install -r requirements.txt
-```
-
-### Install the Package (Editable Mode)
-
-This lets you use the package anywhere on your system and see changes immediately:
-
-```bash
-pip install -e .
-```
+Issue tracker: https://github.com/gc-os-ai/pyaptamer/issues
 
 
-## 2. Download Sample PDB Files
+#### Team
 
-First, download some PDB files to work with:
+##### GC.OS
 
-```bash
-python download_samples.py
-```
+Franz Kiraly ([@fkiraly](https://www.github.com/fkiraly)) - primary point of contact and tech contributor
 
-- You will see a list of suggested PDB IDs.
-- Enter your own IDs separated by commas, or just press Enter to download the examples.
+Simon Blanke ([@simonblanke](https://www.github.com/simonblanke)) - advisory, optimization algorithms
 
 
-## 3. Process a PDB File
+##### ecoSPECS
 
-Next, run the main workflow:
+Dennis Kubiczek ([@KubiczekD](https://www.github.com/KubiczekD)) tech lead and primary point of contact: 
 
-```bash
-python -m pyaptamer.process_pdb
-```
+Jakob Birke ([@jabirke](https://www.github.com/jabirke)) - contributor and domain expert
 
-- A file dialog will appear. Select any `.pdb` or `.cif` file from the `data/pdb` folder (or elsewhere).
-- The script will:
-    - Analyze the structure (chains, residues, atoms, waters, ligands)
-    - Clean the structure (remove waters/ligands)
-    - Convert the cleaned structure to mmCIF
-    - Verify the conversion and print a summary
+Kerstin Moser ([@KerstinMoser](https://www.github.com/KerstinMoser)) - stakeholder, head of R&D
 
 
-## Example Output
+##### ESoC
 
-```
-===== PyAptamer PDB Processing Workflow =====
+Franz Kiraly ([@fkiraly](https://www.github.com/fkiraly)) - primary point of contact for ESoC
 
-Selected file: /home/avinab/pyaptamer/data/pdb/1bna.pdb
+Avinab Neogy ([@avinab-neogy](https://www.github.com/avinab-neogy)) - ESoC contributor
 
-🔬 Analyzing structure...
-• Chains: B, A
-• Residues: 104
-• Atoms: 566
-• Waters: 80
-• Ligands: []
+Matteo Pinna ([@nennomp](https://www.github.com/nennomp)) - ESoC contributor
 
-🧹 Cleaning structure...
-✅ Saved cleaned structure: cleaned_structure.pdb
+Satvik Mishra ([@satvshr](https://www.github.com/satvshr)) - ESoC contributor
 
-🔄 Converting format...
-✅ Converted to mmCIF: converted_structure.cif
-
-🔍 Verifying conversion...
-• Format: mmCIF
-• Waters in converted: 0
-
-🎉 Workflow completed successfully!
-```
-
-
-## Requirements
-
-- Python 3.8+
-- Biopython
-- gemmi
-- tkinter (for GUI file dialog)
-
-
-## Troubleshooting
-
-- If the file dialog does not appear, make sure you are running on a machine with a graphical desktop and have `tkinter` installed (`sudo apt-get install python3-tk` on Ubuntu).
-- If you get import errors, ensure you are running from the project root and using the `-m` flag as shown above.
+Siddharth ([@siddharth7113](https://www.github.com/siddharth7113)) - ESoC contributor
