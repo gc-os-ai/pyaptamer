@@ -548,8 +548,8 @@ class PSeAAC:
                     f"Invalid amino acid '{aa}' found in protein_sequence. Only {self.amino_acid} are allowed."
                 )
 
-    # Function to normalize amino acid composition
-    def _normalize_aa(self, seq):
+    # Function to average the amino acid composition
+    def _average_aa(self, seq):
         count = {aa: 0 for aa in self.amino_acid}
         for aa in seq:
             if aa in count:
@@ -558,12 +558,12 @@ class PSeAAC:
 
         return {aa: count[aa] / total if total > 0 else 0 for aa in count}
 
-    def _theta_RiRj(self, Ri, Rj, norm_props):
-        return sum((prop[Rj] - prop[Ri]) ** 2 for prop in norm_props) / len(norm_props)
+    def _theta_RiRj(self, Ri, Rj, prop_group):
+        return sum((prop[Rj] - prop[Ri]) ** 2 for prop in prop_group) / len(prop_group)
 
-    def _sum_theta_val(self, seq, seq_len, LVal, n, norm_props):
+    def _sum_theta_val(self, seq, seq_len, lambda_val, n, prop_group):
         return sum(
-            self._theta_RiRj(seq[i], seq[i + n], norm_props) for i in range(seq_len - LVal)
+            self._theta_RiRj(seq[i], seq[i + n], prop_group) for i in range(seq_len - lambda_val)
         ) / (seq_len - n)
 
     def vectorize(self):
@@ -578,15 +578,15 @@ class PSeAAC:
                 f"Sequence too short for Lambda={lambda_val}. Must be > {lambda_val}."
             )
 
-        for group in self.prop_groups:
-            aa_freq = self._normalize_aa(self.protein_sequence)
+        for prop_group in self.prop_groups:
+            aa_freq = self._average_aa(self.protein_sequence)
             sum_all_aa_freq = sum(aa_freq.values())
 
             all_theta_val = []
             sum_all_theta_val = 0
             for n in range(1, lambda_val + 1):
                 theta_val = self._sum_theta_val(
-                    self.protein_sequence, len(self.protein_sequence), lambda_val, n, group
+                    self.protein_sequence, len(self.protein_sequence), lambda_val, n, prop_group
                 )
                 all_theta_val.append(theta_val)
                 sum_all_theta_val += theta_val

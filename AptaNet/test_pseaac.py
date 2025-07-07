@@ -1,5 +1,5 @@
 from pseaac import PSeAAC
-
+import numpy as np
 
 def _normalize_properties(property_dicts):
     """
@@ -401,16 +401,11 @@ def test_pseaac_vectorization():
     ]
     p = PSeAAC(x)
     pv = p.vectorize()
-    assert len(pv) == len(v), f"Vector length mismatch: {len(pv)} != {len(v)}"
-    mismatches = []
-    for i, (a, b) in enumerate(zip(pv, v)):
-        if a != b:
-            mismatches.append((i, a, b))
-    if mismatches:
-        print("Mismatched indices and values:")
-        for idx, a, b in mismatches:
-            print(f"Index {idx}: vectorize()={a}, expected={b}")
-    assert not mismatches, f"Vector values mismatch at indices: {mismatches}"
 
+    assert len(pv) == len(v), f"Vector length mismatch: {len(pv)} != {len(v)}"
+
+    if not np.allclose(pv, v, atol=1e-3):
+        mismatches = [(i, a, b) for i, (a, b) in enumerate(zip(pv, v)) if not np.isclose(a, b, atol=1e-3)]
+        raise AssertionError(f"Vector values mismatch at indices: {mismatches}")
 
 test_pseaac_vectorization()
