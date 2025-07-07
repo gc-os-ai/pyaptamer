@@ -1,24 +1,21 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyaptamer"
-version = "0.0.1.dev0"
-description = "Python library for aptamer simulation"
+version = "0.1.0"
+description = "Aptamer toolkit for PDB/mmCIF structure handling"
+authors = [{name = "Avinab Neogy", email = "avinabneogy.bits@gmail.com"}]
 readme = "README.md"
-requires-python = ">=3.10"
-authors = [
-    { name="Your Name", email="your@email.com" }
-]
-
+requires-python = ">=3.8"
 dependencies = [
-    "openmm>=8.3.0,<8.4.0"
+    "biopython>=1.80",
+    "requests>=2.28.0", 
+    "numpy>=1.21.0",
+    "gemmi>=0.6.3"
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.12.0",
-    "black>=25.0",
-    "pytest>=8.0.0"
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyaptamer*"]
