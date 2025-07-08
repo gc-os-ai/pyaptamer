@@ -165,24 +165,3 @@ class Structure:
             log.debug("Building force-field load string for %s", path)
             lines.append(f"loadoff {path}.lib\nloadamberparams {path}.frcmod")
         return "\n".join(lines)
-
-
-# ----------------------------------------------------------------------
-#  quick check
-# ----------------------------------------------------------------------
-if __name__ == "__main__":
-    # 1. build the tiniest valid Structure (one residue, aliases required)
-    s = Structure(
-        residue_names=["ALA"],
-        alias={"ALA": ["ALA", "ALA", "ALA", "ALA"]},
-    )
-
-    # 2. sanity: defaults were filled
-    assert s.connect["ALA"][2:] == [1.6, 1.6]
-
-    # 3. public helpers still work
-    assert s.translate("ALA") == "ALA"
-    s.add_rotation("ALA", "chi1")
-    assert s.rotating_elements["ALA"][-1] == "chi1"
-
-    print("check passed")
