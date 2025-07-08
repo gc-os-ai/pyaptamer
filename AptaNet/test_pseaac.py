@@ -21,11 +21,8 @@ def _normalize_properties(property_dicts):
 # Test case for PSeAAC normalization
 def test_normalized_values():
     apt = PSeAAC("ACDEFGHIKLMNPQRSTVWY")
-    # Collect all P properties from the instance
     P_props = [getattr(apt, f"P{i}") for i in range(1, 21)]
-    # Normalize all P properties
     normalized = _normalize_properties(P_props)
-    # Compare with NP properties
     for i in range(1, 21):
         np_dict = getattr(apt, f"NP{i}")
         norm_dict = normalized[i - 1]
