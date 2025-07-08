@@ -1,5 +1,6 @@
-from pseaac import PSeAAC
 import numpy as np
+import pytest
+from pseaac import PSeAAC
 
 def _normalize_properties(property_dicts):
     """
@@ -17,8 +18,6 @@ def _normalize_properties(property_dicts):
         )
     return normalized
 
-
-# Test case for PSeAAC normalization
 def test_normalized_values():
     apt = PSeAAC("ACDEFGHIKLMNPQRSTVWY")
     P_props = [getattr(apt, f"P{i}") for i in range(1, 21)]
@@ -27,24 +26,13 @@ def test_normalized_values():
         np_dict = getattr(apt, f"NP{i}")
         norm_dict = normalized[i - 1]
         for aa in np_dict:
-            assert (
-                np_dict[aa] == norm_dict[aa]
-            ), f"Mismatch in NP{i} for {aa}: {np_dict[aa]} != {norm_dict[aa]}"
+            assert np_dict[aa] == norm_dict[aa], f"Mismatch in NP{i} for {aa}: {np_dict[aa]} != {norm_dict[aa]}"
 
-# Test case for PSeAAC vectorization
-# def test_pseaac_vectorization():
-#     x = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
-#     # Vector from the original PSeAAC implementation
-#     v = [0.012, 0.012, 0.012, 0.0, 0.025, 0.0, 0.0, 0.074, 0.05, 0.025, 0.025, 0.025, 0.025, 0.037, 0.087, 0.0, 0.0, 0.0, 0.0, 0.0, 0.008, 0.01, 0.005, 0.007, 0.014, 0.012, 0.002, 0.006, 0.016, 0.013, 0.007, 0.007, 0.005, 0.005, 0.007, 0.006, 0.003, 0.005, 0.01, 0.013, 0.028, 0.048, 0.053, 0.069, 0.055, 0.029, 0.034, 0.023, 0.074, 0.177, 0.016, 0.016, 0.016, 0.0, 0.031, 0.0, 0.0, 0.094, 0.063, 0.031, 0.031, 0.031, 0.031, 0.047, 0.11, 0.0, 0.0, 0.0, 0.0, 0.0, 0.007, 0.012, 0.017, 0.012, 0.005, 0.009, 0.017, 0.013, 0.007, 0.013, 0.01, 0.01, 0.022, 0.017, 0.009, 0.013, 0.013, 0.012, 0.012, 0.019, 0.018, 0.02, 0.022, 0.022, 0.038, 0.049, 0.057, 0.073, 0.066, 0.074, 0.012, 0.012, 0.012, 0.0, 0.025, 0.0, 0.0, 0.074, 0.05, 0.025, 0.025, 0.025, 0.025, 0.037, 0.087, 0.0, 0.0, 0.0, 0.0, 0.0, 0.009, 0.01, 0.016, 0.01, 0.002, 0.01, 0.018, 0.011, 0.003, 0.011, 0.011, 0.012, 0.02, 0.011, 0.01, 0.011, 0.014, 0.015, 0.017, 0.022, 0.025, 0.03, 0.033, 0.015, 0.039, 0.04, 0.047, 0.094, 0.074, 0.108, 0.019, 0.019, 0.019, 0.0, 0.039, 0.0, 0.0, 0.117, 0.078, 0.039, 0.039, 0.039, 0.039, 0.058, 0.136, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004, 0.007, 0.01, 0.008, 0.006, 0.01, 0.013, 0.009, 0.005, 0.009, 0.011, 0.011, 0.017, 0.012, 0.036, 0.06, 0.051, 0.031, 0.007, 0.006, 0.006, 0.005, 0.006, 0.01, 0.031, 0.05, 0.058, 0.063, 0.039, 0.019, 0.015, 0.015, 0.015, 0.0, 0.031, 0.0, 0.0, 0.092, 0.061, 0.031, 0.031, 0.031, 0.031, 0.046, 0.107, 0.0, 0.0, 0.0, 0.0, 0.0, 0.005, 0.006, 0.009, 0.004, 0.004, 0.016, 0.023, 0.01, 0.001, 0.007, 0.009, 0.008, 0.012, 0.007, 0.01, 0.011, 0.004, 0.01, 0.008, 0.012, 0.01, 0.011, 0.012, 0.017, 0.056, 0.086, 0.101, 0.115, 0.07, 0.041, 0.009, 0.009, 0.009, 0.0, 0.018, 0.0, 0.0, 0.053, 0.035, 0.018, 0.018, 0.018, 0.018, 0.027, 0.062, 0.0, 0.0, 0.0, 0.0, 0.0, 0.006, 0.009, 0.011, 0.012, 0.01, 0.01, 0.011, 0.012, 0.012, 0.012, 0.009, 0.008, 0.006, 0.004, 0.012, 0.02, 0.011, 0.004, 0.007, 0.024, 0.037, 0.044, 0.049, 0.037, 0.031, 0.03, 0.036, 0.074, 0.113, 0.163, 0.011, 0.011, 0.011, 0.0, 0.021, 0.0, 0.0, 0.064, 0.043, 0.021, 0.021, 0.021, 0.021, 0.032, 0.075, 0.0, 0.0, 0.0, 0.0, 0.0, 0.014, 0.008, 0.009, 0.015, 0.007, 0.004, 0.005, 0.008, 0.008, 0.005, 0.007, 0.003, 0.004, 0.015, 0.013, 0.008, 0.008, 0.015, 0.016, 0.023, 0.04, 0.05, 0.054, 0.051, 0.023, 0.016, 0.018, 0.039, 0.118, 0.182]
-#     p = PSeAAC(x)
-#     print(p.vectorize())
-#     assert len(p.vectorize()) == len(v), "Vector length mismatch"
-#     assert p.vectorize() == v, "Vector values mismatch"
 
-# Test case for PSeAAC vectorization
-def test_pseaac_vectorization():
-    x = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
-    v = [
+@pytest.mark.parametrize("seq,expected_vector", [
+    (
+        "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR",
+    [
         0.012,
         0.012,
         0.012,
@@ -396,13 +384,15 @@ def test_pseaac_vectorization():
         0.118,
         0.182,
     ]
-    p = PSeAAC(x)
+    )
+])
+def test_pseaac_vectorization(seq, expected_vector):
+    p = PSeAAC(seq)
     pv = p.vectorize()
 
-    assert len(pv) == len(v), f"Vector length mismatch: {len(pv)} != {len(v)}"
-
-    if not np.allclose(pv, v, atol=1e-3):
-        mismatches = [(i, a, b) for i, (a, b) in enumerate(zip(pv, v)) if not np.isclose(a, b, atol=1e-3)]
-        raise AssertionError(f"Vector values mismatch at indices: {mismatches}")
-
-test_pseaac_vectorization()
+    assert len(pv) == len(expected_vector), f"Vector length mismatch: {len(pv)} != {len(expected_vector)}"
+    mismatches = [
+        (i, a, b) for i, (a, b) in enumerate(zip(pv, expected_vector))
+        if not np.isclose(a, b, atol=1e-3)
+    ]
+    assert not mismatches, f"Vector values mismatch at indices: {mismatches}"
