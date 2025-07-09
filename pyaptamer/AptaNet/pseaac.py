@@ -6,6 +6,13 @@ class PSeAAC:
     ----------
     protein_sequence : str
         Protein sequence using single-letter amino acid codes.
+
+    Example
+    -------
+    >>> pse = PSeAAC("ACDEFGHIKLMNPQRSTVWY")
+    >>> features = pse.vectorize()
+    >>> print(features[:10])
+    [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
     """
 
     def __init__(self, protein_sequence):
