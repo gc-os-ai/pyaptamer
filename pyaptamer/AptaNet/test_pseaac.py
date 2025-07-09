@@ -415,8 +415,8 @@ def test_pseaac_vectorization(seq, expected_vector):
     -------
     The produced vector matches the expected vector in length and values (within tolerance).
     """
-    p = PSeAAC(seq)
-    pv = p.vectorize()
+    p = PSeAAC()
+    pv = p.vectorize(seq)
 
     assert len(pv) == len(expected_vector), (
         f"Vector length mismatch: {len(pv)} != {len(expected_vector)}"
