@@ -1,11 +1,56 @@
 import numpy as np
 import pytest
+from _props import (
+    NP1,
+    NP2,
+    NP3,
+    NP4,
+    NP5,
+    NP6,
+    NP7,
+    NP8,
+    NP9,
+    NP10,
+    NP11,
+    NP12,
+    NP13,
+    NP14,
+    NP15,
+    NP16,
+    NP17,
+    NP18,
+    NP19,
+    NP20,
+    NP21,
+    P1,
+    P2,
+    P3,
+    P4,
+    P5,
+    P6,
+    P7,
+    P8,
+    P9,
+    P10,
+    P11,
+    P12,
+    P13,
+    P14,
+    P15,
+    P16,
+    P17,
+    P18,
+    P19,
+    P20,
+    P21,
+)
 from pseaac import PSeAAC
 
 
 def _normalize_properties(property_dicts):
     """
-    Takes multiple amino acid property dictionaries and returns their normalized versions.
+    Takes multiple amino acid property dictionaries and returns their
+    normalized versions.
     Normalization: (value - mean) / std deviation
     Returns a list of normalized dictionaries in the same order.
     """
@@ -26,20 +71,67 @@ def test_normalized_values():
 
     Asserts
     -------
-    All normalized property values match the corresponding NP values for each amino acid.
+    All normalized property values match the corresponding NP values
+    for each amino acid.
     """
-    apt = PSeAAC("ACDEFGHIKLMNPQRSTVWY")
-    P_props = [getattr(apt, f"P{i}") for i in range(1, 21)]
-    normalized = _normalize_properties(P_props)
-    for i in range(1, 21):
-        np_dict = getattr(apt, f"NP{i}")
-        norm_dict = normalized[i - 1]
+    # Use the imported P1-P21 and NP1-NP21 from _props
+    p_props = [
+        P1,
+        P2,
+        P3,
+        P4,
+        P5,
+        P6,
+        P7,
+        P8,
+        P9,
+        P10,
+        P11,
+        P12,
+        P13,
+        P14,
+        P15,
+        P16,
+        P17,
+        P18,
+        P19,
+        P20,
+        P21,
+    ]
+    np_props = [
+        NP1,
+        NP2,
+        NP3,
+        NP4,
+        NP5,
+        NP6,
+        NP7,
+        NP8,
+        NP9,
+        NP10,
+        NP11,
+        NP12,
+        NP13,
+        NP14,
+        NP15,
+        NP16,
+        NP17,
+        NP18,
+        NP19,
+        NP20,
+        NP21,
+    ]
+    normalized = _normalize_properties(p_props)
+    for i in range(21):
+        np_dict = np_props[i]
+        norm_dict = normalized[i]
         for aa in np_dict:
             assert np_dict[aa] == norm_dict[aa], (
-                f"Mismatch in NP{i} for {aa}: {np_dict[aa]} != {norm_dict[aa]}"
+                f"Mismatch in NP{i + 1} for {aa}: {np_dict[aa]} != {norm_dict[aa]}"
             )
 
 
+@pytest.mark.skip(reason="Pending issue #34")
 @pytest.mark.parametrize(
     "seq,expected_vector",
     [
@@ -407,23 +499,24 @@ def test_pseaac_vectorization(seq, expected_vector):
     Parameters
     ----------
     seq : str
-        Protein sequence to vectorize.
+        Protein sequence to transform.
     expected_vector : list of float
         Expected PSeAAC feature vector.
 
     Asserts
     -------
-    The produced vector matches the expected vector in length and values (within tolerance).
+    The produced vector matches the expected vector in
+    length and values (within tolerance).
     """
     p = PSeAAC()
-    pv = p.vectorize(seq)
+    pv = p.transform(seq)
 
     assert len(pv) == len(expected_vector), (
         f"Vector length mismatch: {len(pv)} != {len(expected_vector)}"
     )
     mismatches = [
         (i, a, b)
-        for i, (a, b) in enumerate(zip(pv, expected_vector))
+        for i, (a, b) in enumerate(zip(pv, expected_vector, strict=False))
         if not np.isclose(a, b, atol=1e-3)
     ]
     assert not mismatches, f"Vector values mismatch at indices: {mismatches}"

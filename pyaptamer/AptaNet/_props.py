@@ -1,3 +1,24 @@
+"""
+Amino acid physicochemical property constants for PSeAAC.
+
+This module provides hard-coded dictionaries for 21 different physicochemical
+properties (P1–P21) of the 20 standard amino acids, as well as their normalized
+versions (NP1–NP21).
+
+Each Pi dictionary maps single-letter amino acid codes to a specific property
+value. The properties include hydrophobicity, hydrophilicity, side-chain mass,
+polarity, molecular weight, melting point, transfer free energy, buriability,
+bulkiness, solvation free energy, relative mutability, residue volume, volume,
+amino acid distribution, hydration number, isoelectric point, compressibility,
+chromatographic index, unfolding entropy change, unfolding enthalpy change,
+and unfolding Gibbs free energy change.
+
+Each NPi dictionary contains the z-score normalized values of the corresponding
+Pi property, rounded to three decimal places, for use in feature calculations.
+
+These constants are intended for internal use by the PSeAAC feature generator.
+"""
+
 # The hydrophobicity values are from JACS, 1962, 84: 4240-4246. (C. Tanford).
 P1 = {
     "A": 0.62,
@@ -238,7 +259,8 @@ P10 = {
     "Y": 2.67,
 }
 
-# The Relative_mutability values are from PNAS, 1981, 78:3824-3828 (T.P.Hopp & K.R.Woods).
+# The Relative_mutability values are from PNAS, 1981, 78:3824-3828
+# (T.P.Hopp & K.R.Woods).
 P11 = {
     "A": 1.09,
     "C": 0.77,
@@ -310,7 +332,8 @@ P13 = {
     "Y": 1.53,
 }
 
-# The Amino_acid_distribution values are from PNAS, 1981, 78:3824-3828 (T.P.Hopp & K.R.Woods).
+# The Amino_acid_distribution values are from PNAS, 1981, 78:3824-3828
+# (T.P.Hopp & K.R.Woods).
 P14 = {
     "A": 0.96,
     "C": 0.9,
@@ -454,7 +477,8 @@ P19 = {
     "Y": -2.82,
 }
 
-# The Unfolding_entalpy_change values are from PNAS, 1981, 78:3824-3828 (T.P.Hopp & K.R.Woods).
+# The Unfolding_entalpy_change values are from PNAS, 1981, 78:3824-3828
+# (T.P.Hopp & K.R.Woods).
 P20 = {
     "A": 0.51,
     "C": 5.21,

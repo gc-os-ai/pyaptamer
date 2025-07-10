@@ -1,9 +1,29 @@
 import numpy as np
-from pyaptamer.AptaNet.utils import is_valid_aa
-from pyaptamer.AptaNet._props import (
-    NP1, NP2, NP3, NP4, NP5, NP6, NP7, NP8, NP9,
-    NP10, NP11, NP12, NP13, NP14, NP15, NP16, NP17, NP18, NP19, NP20, NP21
+from _props import (
+    NP1,
+    NP2,
+    NP3,
+    NP4,
+    NP5,
+    NP6,
+    NP7,
+    NP8,
+    NP9,
+    NP10,
+    NP11,
+    NP12,
+    NP13,
+    NP14,
+    NP15,
+    NP16,
+    NP17,
+    NP18,
+    NP19,
+    NP20,
+    NP21,
 )
+from utils import is_valid_aa
+
 
 class PSeAAC:
     """
@@ -14,18 +34,18 @@ class PSeAAC:
 
     Parameters
     ----------
-    None (see `vectorize` method for usage)
+    None (see `transform` method for usage)
 
     Example
     -------
     >>> pse = PSeAAC()
-    >>> features = pse.vectorize("ACDEFGHIKLMNPQRSTVWY")
+    >>> features = pse.transform("ACDEFGHIKLMNPQRSTVWY")
     >>> print(features[:10])
     [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
 
     Methods
     -------
-    vectorize(protein_sequence)
+    transform(protein_sequence)
         Generate the PseAAC feature vector for the given protein sequence.
     """
 
@@ -65,17 +85,19 @@ class PSeAAC:
 
         counts = Counter(seq)
         total = len(self.amino_acid)
-        return {aa: counts.get(aa, 0) / total if total > 0 else 0 for aa in self.amino_acid}
+        return {
+            aa: counts.get(aa, 0) / total if total > 0 else 0 for aa in self.amino_acid
+        }
 
-    def _theta_RiRj(self, Ri, Rj, prop_group):
+    def _theta_rirj(self, ri, rj, prop_group):
         """
         Compute the theta value between two amino acids for a group of properties.
 
         Parameters
         ----------
-        Ri : str
+        ri : str
             First amino acid.
-        Rj : str
+        rj : str
             Second amino acid.
         prop_group : tuple of dict
             Tuple of property dictionaries.
@@ -85,8 +107,8 @@ class PSeAAC:
         float
             Theta value.
         """
-        diffs = np.array([prop[Rj] - prop[Ri] for prop in prop_group], dtype=float)
-        return np.mean(diffs ** 2)
+        diffs = np.array([prop[rj] - prop[ri] for prop in prop_group], dtype=float)
+        return np.mean(diffs**2)
 
     def _sum_theta_val(self, seq, seq_len, lambda_val, n, prop_group):
         """
@@ -115,13 +137,14 @@ class PSeAAC:
             for i in range(seq_len - lambda_val)
         ) / (seq_len - n)
 
-    def vectorize(self, protein_sequence):
+    def transform(self, protein_sequence):
         """
         Generate the PseAAC feature vector for the protein sequence.
         """
         if not is_valid_aa(protein_sequence):
             raise ValueError(
-                f"Invalid amino acid found in protein_sequence. Only {''.join(sorted(self.amino_acid))} are allowed."
+                "Invalid amino acid found in protein_sequence. Only "
+                f"{''.join(sorted(self.amino_acid))} are allowed."
             )
 
         lambda_val = 30
@@ -138,14 +161,17 @@ class PSeAAC:
             aa_freq = self._average_aa(protein_sequence)
             sum_all_aa_freq = sum(aa_freq.values())
 
-            all_theta_val = np.array([
-                self._sum_theta_val(protein_sequence, seq_len, lambda_val, n, prop_group)
-                for n in range(1, lambda_val + 1)
-            ])
+            all_theta_val = np.array(
+                [
+                    self._sum_theta_val(
+                        protein_sequence, seq_len, lambda_val, n, prop_group
+                    )
+                    for n in range(1, lambda_val + 1)
+                ]
+            )
             sum_all_theta_val = np.sum(all_theta_val)
 
             denominator_val = sum_all_aa_freq + (weight * sum_all_theta_val)
-            print(f"Denominator value: {denominator_val}")
 
             # First 20 features: normalized amino acid composition
             aa_composition = np.array([aa_freq[aa] for aa in self.amino_acid])

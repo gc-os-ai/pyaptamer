@@ -1,4 +1,19 @@
+"""
+Utility functions for amino acid sequence validation in AptaNet.
+
+This module provides helper functions for checking whether a string consists only of
+valid amino acid single-letter codes (the 20 standard amino acids). The set AMINO_ACIDS
+is used for efficient membership testing.
+
+Functions
+---------
+is_valid_aa(seq)
+    Returns True if all characters in the input string are valid amino acid
+    codes, False otherwise.
+"""
+
 AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")
+
 
 def is_valid_aa(seq):
     """
