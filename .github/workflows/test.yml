@@ -94,4 +94,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest pyaptamer/
+          python -m pytest pyaptamer -p no:warnings
