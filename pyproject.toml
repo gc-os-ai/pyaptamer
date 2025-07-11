@@ -28,7 +28,7 @@ line-length = 88
 target-version = "py310"  # Match your `>=3.10` requirement
 
 # Choose what to check for
-lint.select = ["E", "F", "B", "I", "UP", "N", "C4"]
+select = ["E", "F", "B", "I", "UP", "N", "C4"]
 
 exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
 
