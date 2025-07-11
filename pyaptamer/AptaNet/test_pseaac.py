@@ -4,24 +4,6 @@ from _props import aa_props, solution
 from pseaac import PSeAAC
 
 
-def _normalize_properties(property_dicts):
-    """
-    Takes multiple amino acid property dictionaries and returns their
-    normalized versions.
-    Normalization: (value - mean) / std deviation
-    Returns a list of normalized dictionaries in the same order.
-    """
-    normalized = []
-    for prop in property_dicts:
-        values = list(prop.values())
-        mean_val = sum(values) / len(values)
-        std_val = (sum((v - mean_val) ** 2 for v in values) / len(values)) ** 0.5
-        normalized.append(
-            {aa: round((val - mean_val) / std_val, 3) for aa, val in prop.items()}
-        )
-    return normalized
-
-
 def test_normalized_values():
     """
     Test that normalized property matrix matches expected normalized values.

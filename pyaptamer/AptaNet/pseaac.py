@@ -1,7 +1,7 @@
 import numpy as np
 from _props import aa_props
 
-from pyaptamer.utils import is_valid_aa
+from pyaptamer.utils import AMINO_ACIDS, is_valid_aa
 
 
 class PSeAAC:
@@ -32,28 +32,6 @@ class PSeAAC:
         """
         Initialize PSeAAC with a protein sequence.
         """
-        self.amino_acid = [
-            "A",
-            "C",
-            "D",
-            "E",
-            "F",
-            "G",
-            "H",
-            "I",
-            "K",
-            "L",
-            "M",
-            "N",
-            "P",
-            "Q",
-            "R",
-            "S",
-            "T",
-            "V",
-            "W",
-            "Y",
-        ]
 
         # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
         self.np_matrix = aa_props(type="numpy", normalize=True)
@@ -86,10 +64,8 @@ class PSeAAC:
         from collections import Counter
 
         counts = Counter(seq)
-        total = len(self.amino_acid)
-        return {
-            aa: counts.get(aa, 0) / total if total > 0 else 0 for aa in self.amino_acid
-        }
+        total = len(AMINO_ACIDS)
+        return {aa: counts.get(aa, 0) / total if total > 0 else 0 for aa in AMINO_ACIDS}
 
     def _theta_rirj(self, ri, rj, prop_group):
         """
@@ -109,8 +85,8 @@ class PSeAAC:
         float
             Theta value.
         """
-        idx_ri = self.amino_acid.index(ri)
-        idx_rj = self.amino_acid.index(rj)
+        idx_ri = AMINO_ACIDS.index(ri)
+        idx_rj = AMINO_ACIDS.index(rj)
         diffs = (
             self.np_matrix[idx_rj, list(prop_group)]
             - self.np_matrix[idx_ri, list(prop_group)]
@@ -151,7 +127,7 @@ class PSeAAC:
         if not is_valid_aa(protein_sequence):
             raise ValueError(
                 "Invalid amino acid found in protein_sequence. Only "
-                f"{''.join(self.amino_acid)} are allowed."
+                f"{''.join(AMINO_ACIDS)} are allowed."
             )
 
         lambda_val = 30
@@ -181,7 +157,7 @@ class PSeAAC:
             denominator_val = sum_all_aa_freq + (weight * sum_all_theta_val)
 
             # First 20 features: normalized amino acid composition
-            aa_composition = np.array([aa_freq[aa] for aa in self.amino_acid])
+            aa_composition = np.array([aa_freq[aa] for aa in AMINO_ACIDS])
             all_pseaac.extend(np.round(aa_composition / denominator_val, 3))
 
             # Next 30 features: theta values
