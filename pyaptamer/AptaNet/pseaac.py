@@ -1,28 +1,7 @@
 import numpy as np
-from _props import (
-    NP1,
-    NP2,
-    NP3,
-    NP4,
-    NP5,
-    NP6,
-    NP7,
-    NP8,
-    NP9,
-    NP10,
-    NP11,
-    NP12,
-    NP13,
-    NP14,
-    NP15,
-    NP16,
-    NP17,
-    NP18,
-    NP19,
-    NP20,
-    NP21,
-)
-from utils import is_valid_aa
+from _props import aa_props
+
+from pyaptamer.utils import is_valid_aa
 
 
 class PSeAAC:
@@ -53,17 +32,40 @@ class PSeAAC:
         """
         Initialize PSeAAC with a protein sequence.
         """
-        self.amino_acid = set("ACDEFGHIKLMNPQRSTVWY")
+        self.amino_acid = [
+            "A",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "K",
+            "L",
+            "M",
+            "N",
+            "P",
+            "Q",
+            "R",
+            "S",
+            "T",
+            "V",
+            "W",
+            "Y",
+        ]
 
-        # Define 7 selected groups of 3 properties each
+        # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
+        self.np_matrix = aa_props(type="numpy", normalize=True)
+        # Each prop_group is a tuple of 3 columns (property indices)
         self.prop_groups = [
-            (NP1, NP2, NP3),
-            (NP4, NP5, NP6),
-            (NP7, NP8, NP9),
-            (NP10, NP11, NP12),
-            (NP13, NP14, NP15),
-            (NP16, NP17, NP18),
-            (NP19, NP20, NP21),
+            (0, 1, 2),
+            (3, 4, 5),
+            (6, 7, 8),
+            (9, 10, 11),
+            (12, 13, 14),
+            (15, 16, 17),
+            (18, 19, 20),
         ]
 
     # Function to average the amino acid composition
@@ -99,15 +101,20 @@ class PSeAAC:
             First amino acid.
         rj : str
             Second amino acid.
-        prop_group : tuple of dict
-            Tuple of property dictionaries.
+        prop_group : tuple of int
+            Tuple of property indices.
 
         Returns
         -------
         float
             Theta value.
         """
-        diffs = np.array([prop[rj] - prop[ri] for prop in prop_group], dtype=float)
+        idx_ri = self.amino_acid.index(ri)
+        idx_rj = self.amino_acid.index(rj)
+        diffs = (
+            self.np_matrix[idx_rj, list(prop_group)]
+            - self.np_matrix[idx_ri, list(prop_group)]
+        )
         return np.mean(diffs**2)
 
     def _sum_theta_val(self, seq, seq_len, lambda_val, n, prop_group):
@@ -124,8 +131,8 @@ class PSeAAC:
             Lambda parameter.
         n : int
             Offset for theta calculation.
-        prop_group : tuple of dict
-            Tuple of property dictionaries.
+        prop_group : tuple of int
+            Tuple of property indices.
 
         Returns
         -------
@@ -133,7 +140,7 @@ class PSeAAC:
             Average theta value.
         """
         return sum(
-            self._theta_RiRj(seq[i], seq[i + n], prop_group)
+            self._theta_rirj(seq[i], seq[i + n], prop_group)
             for i in range(seq_len - lambda_val)
         ) / (seq_len - n)
 
@@ -144,7 +151,7 @@ class PSeAAC:
         if not is_valid_aa(protein_sequence):
             raise ValueError(
                 "Invalid amino acid found in protein_sequence. Only "
-                f"{''.join(sorted(self.amino_acid))} are allowed."
+                f"{''.join(self.amino_acid)} are allowed."
             )
 
         lambda_val = 30
