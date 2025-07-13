@@ -9,7 +9,7 @@ description = "Python library for aptamer simulation"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    { name="Your Name", email="your@email.com" }
+    {name="German Center for Open Source AI", email="info@gcos.ai"}
 ]
 
 dependencies = [
@@ -19,6 +19,21 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.12.0",
-    "black>=25.0",
-    "pytest>=8.0.0"
+    "pytest>=8.0.0",
+    "pre-commit"
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"  # Match your `>=3.10` requirement
+
+# Choose what to check for
+lint.select = ["E", "F", "B", "I", "UP", "N", "C4"]
+
+exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "lf"
+indent-style = "space"
+docstring-code-format = true
