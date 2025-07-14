@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyaptamer._utils.pseaac_utils import AMINO_ACIDS, is_valid_aa
-from pyaptamer.pseaac._props import aa_props
+from pyaptamer.hi._props import aa_props
 
 
 class PSeAAC:

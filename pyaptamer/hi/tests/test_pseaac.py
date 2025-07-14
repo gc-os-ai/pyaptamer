@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from pyaptamer.pseaac._props import aa_props
-from pyaptamer.pseaac.features import PSeAAC
-from pyaptamer.pseaac.tests._props import solution
+from pyaptamer.hi._props import aa_props
+from pyaptamer.hi.features import PSeAAC
+from pyaptamer.hi.tests._props import solution
 
 
 def test_normalized_values():
