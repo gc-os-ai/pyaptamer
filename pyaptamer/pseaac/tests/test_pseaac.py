@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from pyaptamer.pseaac import PSeAAC
 from pyaptamer.pseaac._props import aa_props
-from pyaptamer.pseaac.features import PSeAAC
 from pyaptamer.pseaac.tests._props import solution
 
 

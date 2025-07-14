@@ -1,7 +1,7 @@
 import numpy as np
 
-from pyaptamer._utils.pseaac_utils import AMINO_ACIDS, is_valid_aa
 from pyaptamer.pseaac._props import aa_props
+from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, is_valid_aa
 
 
 class PSeAAC:
@@ -20,7 +20,7 @@ class PSeAAC:
     >>> pse = PSeAAC()
     >>> features = pse.transform("ACDEFGHIKLMNPQRSTVWY")
     >>> print(features[:10])
-    [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+    np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
 
     Methods
     -------
