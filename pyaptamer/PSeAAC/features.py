@@ -1,7 +1,7 @@
 import numpy as np
 
-from pyaptamer.PSeAAC._props import aa_props
-from pyaptamer.utils import AMINO_ACIDS, is_valid_aa
+from pyaptamer._utils.pseaac_utils import AMINO_ACIDS, is_valid_aa
+from pyaptamer.pseaac._props import aa_props
 
 
 class PSeAAC:
@@ -122,7 +122,31 @@ class PSeAAC:
 
     def transform(self, protein_sequence):
         """
-        Generate the PseAAC feature vector for the protein sequence.
+        Generate the PseAAC feature vector for the given protein sequence.
+
+        This method computes a set of features based on amino acid composition
+        and sequence-order correlations using physicochemical properties, as
+        described in the Pseudo Amino Acid Composition (PseAAC) model.
+
+        Parameters
+        ----------
+        protein_sequence : str
+            The input protein sequence consisting of valid amino acid characters
+            (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
+
+        Returns
+        -------
+        np.ndarray
+            A 1D NumPy array of length 50 * len(prop_groups), where each 50-element
+            block consists of:
+            - 20 normalized amino acid composition features
+            - 30 normalized sequence-order correlation factors (theta values)
+
+        Raises
+        ------
+        ValueError
+            If the sequence contains invalid amino acids or is shorter than
+            the required lambda value (default = 30).
         """
         if not is_valid_aa(protein_sequence):
             raise ValueError(
@@ -163,4 +187,4 @@ class PSeAAC:
             # Next 30 features: theta values
             all_pseaac.extend(np.round((weight * all_theta_val) / denominator_val, 3))
 
-        return all_pseaac
+        return np.array(all_pseaac)

@@ -1,8 +1,8 @@
 """
-Utility functions for amino acid sequence validation in AptaNet.
+Utility functions for amino acid sequence validation in PSeAAC.
 
 This module provides helper functions for checking whether a string consists only of
-valid amino acid single-letter codes (the 20 standard amino acids). The set AMINO_ACIDS
+valid amino acid single-letter codes (the 20 standard amino acids). The list AMINO_ACIDS
 is used for efficient membership testing.
 
 Functions
@@ -12,7 +12,7 @@ is_valid_aa(seq)
     codes, False otherwise.
 """
 
-AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")
+AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 
 def is_valid_aa(seq):

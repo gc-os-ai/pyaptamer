@@ -9,13 +9,28 @@ def aa_props(type="numpy", normalize=True):
     This function provides a 20x21 matrix of physicochemical properties for the
     20 standard amino acids. Each row corresponds to an amino acid (in the order:
     A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y), and each column
-    corresponds to a property (P1–P21). The properties include hydrophobicity,
-    hydrophilicity, side-chain mass, polarity, molecular weight, melting point,
-    transfer free energy, buriability, bulkiness,
-    solvation free energy, relative mutability, residue volume, volume, amino acid
-    distribution, hydration number, isoelectric point, compressibility, chromatographic
-    index, unfolding entropy change, unfolding enthalpy change, and unfolding Gibbs free
-    energy change.
+    corresponds to a property (P1–P21). The properties are in the order:
+    - Hydrophobicity
+    - Hydrophilicity
+    - Side-chain Mass
+    - Polarity
+    - Molecular Weight
+    - Melting Point
+    - Transfer Free Energy
+    - Buriability
+    - Bulkiness
+    - Solvation Free Energy
+    - Relative Mutability
+    - Residue Volume
+    - Volume
+    - Amino Acid Distribution
+    - Hydration Number
+    - Isoelectric Point
+    - Compressibility
+    - Chromatographic Index
+    - Unfolding Entropy Change
+    - Unfolding Enthalpy Change
+    - Unfolding Gibbs Free Energy Change
 
     References
     ----------
@@ -62,7 +77,9 @@ def aa_props(type="numpy", normalize=True):
     -------
     props : numpy.ndarray or pandas.DataFrame (depending on `type`)
         - Rows: standard amino acids (A, C, D, ..., Y)
-        - Columns: physicochemical properties (P1–P21)
+        - Columns: physicochemical properties (P1–P21) of the standard amino acids, as
+        mentioned in the original implementation:
+         https://github.com/nedaemami/AptaNet/blob/main/feature_extraction.py
         - Entries: raw or normalized property values depending on `normalize`.
 
     Examples
