@@ -8,8 +8,17 @@ class PSeAAC:
     """
     Compute Pseudo Amino Acid Composition (PseAAC) features for a protein sequence.
 
-    This class generates a feature vector for a given protein sequence using selected
-    physicochemical properties and sequence-order information.
+    This class generates a numerical feature vector that encodes both the composition
+    and local order of amino acids in a protein sequence. The features are derived from
+    selected physicochemical properties and sequence-order correlations as described in
+    the PseAAC model by Chou.
+
+    Each feature vector consists of:
+    - 20 normalized amino acid composition features (frequency of each standard
+    amino acid)
+    - 30 sequence-order correlation features based on physicochemical similarity between
+    residues These 50 features are computed for each of 7 predefined property groups,
+    resulting in a final vector of length 350.
 
     Parameters
     ----------
@@ -137,8 +146,9 @@ class PSeAAC:
         Returns
         -------
         np.ndarray
-            A 1D NumPy array of length 50 * len(prop_groups), where each 50-element
-            block consists of:
+            A 1D NumPy array of length 50 * len(prop_groups), where len(prop_groups)
+            is the number of property groups used for feature extraction (default = 7).
+            Each 50-element block consists of:
             - 20 normalized amino acid composition features
             - 30 normalized sequence-order correlation factors (theta values)
 
