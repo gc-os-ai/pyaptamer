@@ -37,3 +37,6 @@ quote-style = "double"
 line-ending = "lf"
 indent-style = "space"
 docstring-code-format = true
+
+[tool.setuptools.packages.find]
+include = ["pyaptamer*"]
