@@ -20,6 +20,12 @@ class PSeAAC:
     residues These 50 features are computed for each of 7 predefined property groups,
     resulting in a final vector of length 350.
 
+    References
+    ----------
+    Shen HB, Chou KC. PseAAC: a flexible web server for generating various kinds of
+    protein pseudo amino acid composition. Anal Biochem. 2008 Feb 15;373(2):386-8.
+    doi: 10.1016/j.ab.2007.10.012. Epub 2007 Oct 13. PMID: 17976365.
+
     Parameters
     ----------
     None (see `transform` method for usage)
@@ -147,7 +153,7 @@ class PSeAAC:
         -------
         np.ndarray
             A 1D NumPy array of length 50 * len(prop_groups), where len(prop_groups)
-            is the number of property groups used for feature extraction (default = 7).
+            is the number of property groups used for feature extraction (7).
             Each 50-element block consists of:
             - 20 normalized amino acid composition features
             - 30 normalized sequence-order correlation factors (theta values)
@@ -156,7 +162,7 @@ class PSeAAC:
         ------
         ValueError
             If the sequence contains invalid amino acids or is shorter than
-            the required lambda value (default = 30).
+            the required lambda value (30).
         """
         if not is_valid_aa(protein_sequence):
             raise ValueError(
