@@ -42,8 +42,9 @@ class PSeAAC:
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
     - 30 sequence-order correlation features based on physicochemical similarity between
-    residues These 50 features are computed for each of 7 predefined property groups,
-    resulting in a final vector of length 350.
+    residues.
+    - These 50 features are computed for each of 7 predefined property groups,
+    resulting in a final vector of length 350 ((20 + 30) * 7 = 350).
 
     References
     ----------
@@ -177,8 +178,8 @@ class PSeAAC:
         Returns
         -------
         np.ndarray
-            A 1D NumPy array of length 50 * number of property groups used for
-            feature extraction (7).
+            A 1D NumPy array of length 50 * number of normalized physiochemical (NP)
+            properties of amino acids (7).
             Each 50-element block consists of:
             - 20 normalized amino acid composition features
             - 30 normalized sequence-order correlation factors (theta values)
