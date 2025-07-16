@@ -71,7 +71,7 @@ class PSeAAC:
 
     def __init__(self):
         """
-        Initialize PSeAAC with a protein sequence.
+        Initialize PSeAAC.
         """
 
         # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
@@ -179,7 +179,7 @@ class PSeAAC:
         -------
         np.ndarray
             A 1D NumPy array of length 50 * number of normalized physiochemical (NP)
-            properties of amino acids (7).
+            property groups of amino acids (7).
             Each 50-element block consists of:
             - 20 normalized amino acid composition features
             - 30 normalized sequence-order correlation factors (theta values)
