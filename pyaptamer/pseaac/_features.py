@@ -14,8 +14,11 @@ class PSeAAC:
     the PseAAC model by Chou.
 
     The PSeAAC algorith uses 21 normalized physiochemical (NP) properties of amino
-    acids, which we load from a predefined matrix using `aa_props`, the properties in
-    order are:
+    acids, which we load from a predefined matrix using `aa_props`.These 21 properties
+    are grouped into 7 distinct property groups, with each group containing
+    3 consecutive properties. Specifically, the groups are arranged in order as follows:
+    Group 1 includes properties 1–3, Group 2 includes properties 4–6, and so on, up to
+    Group 7, which includes properties 19–21. the properties in order are:
     - Hydrophobicity
     - Hydrophilicity
     - Side-chain Mass
