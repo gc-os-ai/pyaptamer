@@ -13,6 +13,31 @@ class PSeAAC:
     selected physicochemical properties and sequence-order correlations as described in
     the PseAAC model by Chou.
 
+    The PSeAAC algorith uses 21 normalized physiochemical (NP) properties of amino
+    acids, which we load from a predefined matrix using `aa_props`, the properties in
+    order are:
+    - Hydrophobicity
+    - Hydrophilicity
+    - Side-chain Mass
+    - Polarity
+    - Molecular Weight
+    - Melting Point
+    - Transfer Free Energy
+    - Buriability
+    - Bulkiness
+    - Solvation Free Energy
+    - Relative Mutability
+    - Residue Volume
+    - Volume
+    - Amino Acid Distribution
+    - Hydration Number
+    - Isoelectric Point
+    - Compressibility
+    - Chromatographic Index
+    - Unfolding Entropy Change
+    - Unfolding Enthalpy Change
+    - Unfolding Gibbs Free Energy Change
+
     Each feature vector consists of:
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
@@ -152,8 +177,8 @@ class PSeAAC:
         Returns
         -------
         np.ndarray
-            A 1D NumPy array of length 50 * len(prop_groups), where len(prop_groups)
-            is the number of property groups used for feature extraction (7).
+            A 1D NumPy array of length 50 * number of property groups used for
+            feature extraction (7).
             Each 50-element block consists of:
             - 20 normalized amino acid composition features
             - 30 normalized sequence-order correlation factors (theta values)
