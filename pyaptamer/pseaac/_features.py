@@ -73,10 +73,6 @@ class PSeAAC:
     """
 
     def __init__(self):
-        """
-        Initialize PSeAAC.
-        """
-
         # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
         self.np_matrix = aa_props(type="numpy", normalize=True)
         # Each prop_group is a tuple of 3 columns (property indices)
