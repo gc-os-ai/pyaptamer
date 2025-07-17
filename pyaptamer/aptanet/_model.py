@@ -239,11 +239,14 @@ class AptaNet(nn.Module):
         self.aptamer_sequence = aptamer_sequence
         self.protein_sequence = protein_sequence
 
-        # Initialize the PseAAC object with the protein sequence
-        self.pseaac = PSeAAC.transform(self.protein_sequence)
+        self.pseaac = PSeAAC()
+        self.pseaac_sequence = self.pseaac.transform(protein_sequence)
 
         final_vector = np.concatenate(
-            [generate_kmer_vecs(self.aptamer_sequence, k=4), np.array(self.pseaac)]
+            [
+                generate_kmer_vecs(self.aptamer_sequence, k=4),
+                np.array(self.pseaac_sequence),
+            ]
         )
 
         return final_vector
