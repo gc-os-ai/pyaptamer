@@ -202,7 +202,7 @@ class PSeAAC:
         seq_len = len(protein_sequence)
         if seq_len <= lambda_val:
             raise ValueError(
-                f"Sequence too short for Lambda={lambda_val}. Must be > {lambda_val}."
+                f"Protein sequence too short for {lambda_val}. Must be > {lambda_val}."
             )
 
         for prop_group in self.prop_groups:
