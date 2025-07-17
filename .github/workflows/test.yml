@@ -59,6 +59,9 @@ jobs:
             echo "No changed files to check."
           fi
 
+      - name: check missing __init__ files
+        run: bash build_tools/fail_on_missing_init_files.sh
+
   run-tests-no-extras:
     needs: code-quality
     strategy:

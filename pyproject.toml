@@ -25,6 +25,7 @@ dev = [
 
 [tool.ruff]
 line-length = 88
+ignore = ["N803", "N806"]
 target-version = "py310"  # Match your `>=3.10` requirement
 
 # Choose what to check for
@@ -37,3 +38,6 @@ quote-style = "double"
 line-ending = "lf"
 indent-style = "space"
 docstring-code-format = true
+
+[tool.setuptools.packages.find]
+include = ["pyaptamer*"]
