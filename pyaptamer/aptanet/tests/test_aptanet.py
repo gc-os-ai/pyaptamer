@@ -10,7 +10,7 @@ from pyaptamer.pseaac import PSeAAC
     [
         (
             "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
-            "AGCTTAGCGTACAGCTTAGCGTAC",
+            "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC",
         )
     ],
 )
