@@ -18,10 +18,9 @@ class PSeAAC:
     are grouped into 7 distinct property groups, with each group containing
     3 consecutive properties. Specifically, the groups are arranged in order as follows:
     Group 1 includes properties 1–3, Group 2 includes properties 4–6, and so on, up to
-    Group 7, which includes properties 19–21.
+    Group 7, which includes properties 19–21. The properties in order are:
 
 
-    The properties in order are:
     1. Hydrophobicity
     2. Hydrophilicity
     3. Side-chain Mass
@@ -46,12 +45,15 @@ class PSeAAC:
 
 
     Each feature vector consists of:
+
+
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
     - 30 sequence-order correlation features based on physicochemical similarity between
     residues.
     These 50 features are computed for each of 7 predefined property groups,
     resulting in a final vector of length 350 ((20 + 30) * 7 = 350).
+
 
     References
     ----------
