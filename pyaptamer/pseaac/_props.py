@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def aa_props(type="numpy", normalize=True):
+def aa_props(list_props=None, type="numpy", normalize=True):
     """
     Amino acid physicochemical property matrix for PSeAAC.
 
@@ -63,6 +63,9 @@ def aa_props(type="numpy", normalize=True):
 
     Parameters
     ----------
+    n_props : list of int, optional
+        List of indices (0-based) of properties to include (e.g., [0, 4, 7]).
+        If None, returns all 21 properties.
     type : {'numpy', 'pandas'}, default='numpy'
         If 'pandas', returns a DataFrame with amino acid and property labels.
         If 'numpy', returns a numpy array.
@@ -77,9 +80,7 @@ def aa_props(type="numpy", normalize=True):
     -------
     props : numpy.ndarray or pandas.DataFrame (depending on `type`)
         - Rows: standard amino acids (A, C, D, ..., Y)
-        - Columns: physicochemical properties (P1–P21) of the standard amino acids, as
-        mentioned in the original implementation:
-         https://github.com/nedaemami/AptaNet/blob/main/feature_extraction.py
+        - Columns: physicochemical properties of the standard amino acids.
         - Entries: raw or normalized property values depending on `normalize`.
 
     Examples
@@ -1068,8 +1069,14 @@ def aa_props(type="numpy", normalize=True):
             ]
         ).T  # shape (20, 21)
 
+    if list_props is not None:
+        props = props[:, list_props]
+        selected_names = [prop_names[i] for i in list_props]
+    else:
+        selected_names = prop_names
+
     if type == "pandas":
-        return pd.DataFrame(props, index=aa_order, columns=prop_names)
+        return pd.DataFrame(props, index=aa_order, columns=selected_names)
     elif type == "numpy":
         return props
     else:

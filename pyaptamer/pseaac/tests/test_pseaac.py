@@ -5,6 +5,8 @@ from pyaptamer.pseaac import PSeAAC
 from pyaptamer.pseaac._props import aa_props
 from pyaptamer.pseaac.tests._props import solution
 
+vector = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
+
 
 def test_normalized_values():
     """
@@ -38,7 +40,7 @@ def test_normalized_values():
     "seq,expected_vector",
     [
         (
-            "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR",
+            vector,
             solution,
         )
     ],
@@ -71,3 +73,51 @@ def test_pseaac_vectorization(seq, expected_vector):
         if not np.isclose(a, b, atol=1e-3)
     ]
     assert not mismatches, f"Vector values mismatch at indices: {mismatches}"
+
+
+@pytest.mark.parametrize(
+    "seq,prop_indices,group_props,custom_groups,expected_len",
+    [
+        # Test case 1: default props, group of 3 (should result in 7 groups × 50 = 350)
+        (vector, None, 3, None, 350),
+        # Test case 2: select only 6 props, group into 2 (3 groups × 50 = 150)
+        (vector, [0, 1, 2, 3, 4, 5], 2, None, 150),
+        # Test case 3: custom grouping of 4 groups → 4 × 50 = 200
+        (vector, [0, 1, 2, 3, 4, 5, 6, 7], None, [[0, 1], [2, 3], [4, 5], [6, 7]], 200),
+    ],
+)
+def test_pseaac_configurations(
+    seq,
+    prop_indices,
+    group_props,
+    custom_groups,
+    expected_len,
+):
+    """
+    Test different PSeAAC configurations with various property groupings.
+
+    Parameters
+    ----------
+    seq : str
+        Protein sequence to transform.
+    prop_indices : list of int or None
+        Property indices to use (0-based).
+    group_props : int or None
+        Grouping size for automatic chunking.
+    custom_groups : list of list of int or None
+        Custom property groups.
+    expected_len : int
+        Expected length of resulting feature vector.
+
+    Asserts
+    -------
+    Output feature vector has the expected length.
+    """
+    pse = PSeAAC(
+        prop_indices=prop_indices, group_props=group_props, custom_groups=custom_groups
+    )
+    vec = pse.transform(seq)
+
+    assert len(vec) == expected_len, (
+        f"Expected vector length {expected_len}, but got {len(vec)}"
+    )
