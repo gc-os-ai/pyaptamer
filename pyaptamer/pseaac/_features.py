@@ -70,7 +70,7 @@ class PSeAAC:
     Parameters
     ----------
     prop_indices : list of int, optional
-        List of property indices to use (0-based). If None, all 21 are used.
+        List of property indices to use (0-based). If None, all properties are used.
     group_props : int or None, optional
         Group properties into chunks of this size. If None, no grouping
         (each property is its own group).
@@ -91,7 +91,8 @@ class PSeAAC:
     """
 
     def __init__(self, prop_indices=None, group_props=None, custom_groups=None):
-        indices = list(range(21)) if prop_indices is None else prop_indices
+        n_props = aa_props(type="numpy", normalize=True).shape[1]
+        indices = list(range(n_props)) if prop_indices is None else prop_indices
 
         if custom_groups:
             self.prop_groups = custom_groups
