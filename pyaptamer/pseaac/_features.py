@@ -18,36 +18,42 @@ class PSeAAC:
     are grouped into 7 distinct property groups, with each group containing
     3 consecutive properties. Specifically, the groups are arranged in order as follows:
     Group 1 includes properties 1–3, Group 2 includes properties 4–6, and so on, up to
-    Group 7, which includes properties 19–21. the properties in order are:
-    - Hydrophobicity
-    - Hydrophilicity
-    - Side-chain Mass
-    - Polarity
-    - Molecular Weight
-    - Melting Point
-    - Transfer Free Energy
-    - Buriability
-    - Bulkiness
-    - Solvation Free Energy
-    - Relative Mutability
-    - Residue Volume
-    - Volume
-    - Amino Acid Distribution
-    - Hydration Number
-    - Isoelectric Point
-    - Compressibility
-    - Chromatographic Index
-    - Unfolding Entropy Change
-    - Unfolding Enthalpy Change
-    - Unfolding Gibbs Free Energy Change
+    Group 7, which includes properties 19–21. The properties in order are:
+
+
+    1. Hydrophobicity
+    2. Hydrophilicity
+    3. Side-chain Mass
+    4. Polarity
+    5. Molecular Weight
+    6. Melting Point
+    7. Transfer Free Energy
+    8. Buriability
+    9. Bulkiness
+    10. Solvation Free Energy
+    11. Relative Mutability
+    12. Residue Volume
+    13. Volume
+    14. Amino Acid Distribution
+    15. Hydration Number
+    16. Isoelectric Point
+    17. Compressibility
+    18. Chromatographic Index
+    19. Unfolding Entropy Change
+    20. Unfolding Enthalpy Change
+    21. Unfolding Gibbs Free Energy Change
+
 
     Each feature vector consists of:
+
+
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
     - 30 sequence-order correlation features based on physicochemical similarity between
     residues.
-    - These 50 features are computed for each of 7 predefined property groups,
+    These 50 features are computed for each of 7 predefined property groups,
     resulting in a final vector of length 350 ((20 + 30) * 7 = 350).
+
 
     References
     ----------
@@ -202,7 +208,7 @@ class PSeAAC:
         seq_len = len(protein_sequence)
         if seq_len <= lambda_val:
             raise ValueError(
-                f"Sequence too short for Lambda={lambda_val}. Must be > {lambda_val}."
+                f"Protein sequence too short for {lambda_val}. Must be > {lambda_val}."
             )
 
         for prop_group in self.prop_groups:

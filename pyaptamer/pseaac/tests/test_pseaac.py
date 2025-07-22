@@ -56,8 +56,8 @@ def test_pseaac_vectorization(seq, expected_vector):
 
     Asserts
     -------
-    The produced vector matches the expected vector in
-    length and values (within tolerance).
+    The produced vector matches the expected vector in length and
+    values (within tolerance).
     """
     p = PSeAAC()
     pv = p.transform(seq)
