@@ -58,6 +58,7 @@ class PSeAAC:
 
     Each feature vector consists of:
 
+
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
     - 30 sequence-order correlation features based on physicochemical similarity between
@@ -65,6 +66,7 @@ class PSeAAC:
     These 50 features are computed for each of the defined property groups,
     resulting in a final vector of length 50 × number of property groups.
     For example, if there are 7 groups, the output length is 350 ((20 + 30) * 7 = 350).
+
 
     References
     ----------
