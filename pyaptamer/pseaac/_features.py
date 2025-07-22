@@ -17,12 +17,17 @@ class PSeAAC:
     acids, which we load from a predefined matrix using `aa_props`. These properties
     can be grouped using one of the following options:
 
+
+    - `prop_indices`: A list of property indices (0-based) to use (e.g.,
+    `prop_indices=[3, 4, 8]` uses property groups [Polarity, Molecular Weight,
+    Bulkiness] (refer table below)).
+    - If `group_props` is an integer, the selected properties are grouped into chunks of
+    that size (e.g., `group_props=3` groups into sets of 3). If `group_props` is None,
+    then each property is treated as its own group.
     - If `custom_groups` is provided, it overrides all other logic. It must be a list of
     lists, where each sublist contains indices (0-based) of properties to group
-    together.
-    - If `group_props` is an integer, the selected properties are grouped into chunks of
-    that size (e.g., `group_props=3` groups into sets of 3).
-    - If `group_props` is None, then each property is treated as its own group.
+    together. (e.g., `prop_indices=[[3, 4], [8]]` groups Polarity and Molecular Weight
+    together, and Bulkiness is its own group).
 
 
     The properties in order are:
