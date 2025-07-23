@@ -1,3 +1,5 @@
+# TODO: Remove this file.
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,13 +11,32 @@ from pyaptamer.pseaac import PSeAAC
 from pyaptamer.utils._aptanet_utils import generate_kmer_vecs
 
 
-def aptanet_layer(input_dim: int, output_dim: int, dropout: float) -> nn.Sequential:
+def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
     """Create a single AptaNet layer with AlphaDropout and ReLU activation."""
+    linear = nn.LazyLinear(output_dim) if lazy else nn.Linear(input_dim, output_dim)
     return nn.Sequential(
-        nn.Linear(input_dim, output_dim),
+        linear,
         nn.ReLU(),
         nn.AlphaDropout(dropout),
     )
+
+
+# NOTE: sklearn compatiblity skeleton code, to be removed later
+# class AptaNet(TransformerMixin, BaseEstimator):
+#     def __init__(self):
+#         super().__init__()
+
+#     def fit(self, X, y):
+#         X, y = validate_data(self, X, y)
+
+#     def predict(self, X):
+#         check_is_fitted(self)
+
+#         X = validate_data(self, X, reset=False)
+
+#         if not hasattr(self, "clf_model_"):
+#             raise ValueError("Feature selector has not been fitted yet.")
+#         return self.clf_model_.transform(X)
 
 
 class AptaNet(nn.Module):

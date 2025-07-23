@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
+from sklearn.utils.estimator_checks import check_estimator
 
 from pyaptamer.aptanet import AptaNet
+from pyaptamer.aptanet._model import FeatureSelector
 from pyaptamer.pseaac import PSeAAC
 
 
@@ -46,3 +48,11 @@ def test_invalid_protein_sequence():
     pseaac = PSeAAC()
     with pytest.raises(ValueError):
         pseaac.transform("ACDEXFGHIKL")  # 'X' is not a valid amino acid
+
+
+@pytest.mark.parametrize(
+    "estimator", [FeatureSelector(), AptaNet(n_layers=2, hidden_dim=32, dropout=0.1)]
+)
+def test_sklearn_compatible_estimator(estimator):
+    """Test the FeatureSelector class to ensure it behaves as a valid estimator."""
+    check_estimator(estimator)
