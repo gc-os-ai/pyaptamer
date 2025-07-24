@@ -37,13 +37,13 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
+def rna2vec(sequence_list: np.array, max_sequence_length: int = 275) -> np.ndarray:
     """Convert a list of RNA sequences into a numerical representation.
 
     Parameters
     ----------
-    sequence_list : list[str]
-        A list of RNA sequences to be converted.
+    sequence_list : np.array
+        A numpy array containing RNA sequences as strings.
 
     Returns
     -------
@@ -69,7 +69,7 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
             words.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
-        # skip sequences that convert to an empy list
+        # skip sequences that convert to an empty list
         if any(converted):
             padded_sequence = np.pad(
                 array=converted,
@@ -78,4 +78,4 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
             )
             result.append(padded_sequence)
 
-    return np.array(result, dtype=np.int32)
+    return np.array(result)

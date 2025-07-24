@@ -1,7 +1,5 @@
 """Monte Carlo Tree Search (MCTS) for aptamer candidate generation."""
 
-from __future__ import annotations
-
 __author__ = ["nennomp"]
 __all__ = ["MCTS", "TreeNode"]
 
@@ -11,6 +9,7 @@ from typing import Optional
 import numpy as np
 import torch
 
+from pyaptamer.experiment._aptamer import Aptamer
 from pyaptamer.utils.rna import rna2vec
 
 
@@ -42,7 +41,7 @@ class TreeNode:
     def __init__(
         self,
         nucleotide: str = "",
-        parent: Optional[TreeNode] = None,
+        parent = None,
         depth: int = 0,
         states: int = 8,
         is_root: bool = True,
@@ -54,7 +53,7 @@ class TreeNode:
         ----------
         nucleotide : str, optional
             Nucleotide letter for this node.
-        parent : Optional[TreeNode], optional
+        parent : TreeNode, optional
             Reference to the parent node.
         depth : int, optional
             Depth of the node in the tree.
@@ -113,7 +112,7 @@ class TreeNode:
 
         return exploitation + exploration
 
-    def get_child(self, nucleotide: str) -> TreeNode:
+    def get_child(self, nucleotide: str):
         """Retrieve the child node of the current node by nucleotide letter.
 
         Parameters
@@ -138,7 +137,7 @@ class TreeNode:
                 f"Child with nucleotide {nucleotide} does not exist for this node"
             )
 
-    def get_best_child(self) -> TreeNode:
+    def get_best_child(self):
         """Select the best child based on UCT scores.
 
         If multiple children have the same UCT score, one of them is randomly selected.
@@ -161,7 +160,7 @@ class TreeNode:
         # break ties randomly
         return random.choice(best_children)
 
-    def create_child(self, nucleotide: str, is_terminal: bool = False) -> TreeNode:
+    def create_child(self, nucleotide: str, is_terminal: bool = False):
         """
         Create a new child node with the given nucleotide letter. If the child already
         exists, it will return it.
@@ -249,8 +248,14 @@ class MCTS:
     Examples
     --------
     >>> from pyaptamer.mcts.algorithm import MCTS
-    >>> mcts = MCTS(device, model, target_encoded, target="AUGC", depth=10)
+    >>> from pyaptamer.experiment import Aptamer
+    >>> experiment = Aptamer(target_encoded, target, model, device)
+    >>> mcts = MCTS(experiment, depth=10)
     >>> candidate = mcts.run(verbose=True)
+    >>> print(candidate['candidate'])
+    ACGUACGUAU
+    >>> print(candidate['score'])
+    0.85
     >>> print(len(candidate))
     10
     """
@@ -260,38 +265,29 @@ class MCTS:
 
     def __init__(
         self,
-        device: torch.device,
-        model: torch.nn.Module,
-        target_encoded: torch.Tensor,
-        target: str = "",
+        experiment: Aptamer,
         depth: int = 20,
         n_iterations: int = 1000,
     ) -> None:
         """
         Parameters
         ----------
-        device : torch.device
-            Device to run the model on.
-        model : torch.nn.Module
-            Model to use for scoring sequences.
-        target_encoded : torch.Tensor
-            Encoded target sequence tensor.
-        target : str, optional
-            Target sequence string.
+        experiment : Aptamer
+            An instance of the Aptamer() class specifying the goal function.
         depth : int, optional
             Maximum depth of the search tree.
         n_iterations : int, optional
             Number of iterations per round for the MCTS algorithm.
-        """
-        if depth < 5:
-            raise ValueError(
-                f"Depth is too small: {depth}. Must be equal or greater than 5."
-            )
 
-        self.device = device
-        self.model = model
-        self.target_encoded = target_encoded
-        self.target = target
+        Raises
+        ------
+        TypeError
+            If `experiment` is not an instance of the Aptamer class.
+        """
+        if not isinstance(experiment, Aptamer):
+            raise TypeError("`experiment` must be an instance of class `Aptamer`.")
+
+        self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
 
@@ -309,7 +305,7 @@ class MCTS:
         self.base = ""
         self.candidate = ""
 
-    def _reconstruct(self, sequence: str = "") -> str:
+    def _reconstruct(self, sequence: str = "") -> np.ndarray:
         """Reconstruct the actual RNA sequence from the encoded representation.
 
         The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
@@ -322,8 +318,8 @@ class MCTS:
 
         Returns
         -------
-        str
-            The reconstructed RNA sequence.
+        np.ndarray
+            The reconstructed RNA sequence as a numpy array.
         """
         result = ""
         for i in range(0, len(sequence), 2):
@@ -334,7 +330,8 @@ class MCTS:
                 case _:
                     # prepend the current nucleotide
                     result = sequence[i] + result
-        return result
+        
+        return np.array([result])
 
     def _selection(self, node: TreeNode) -> TreeNode:
         """Select a node for expansion.
@@ -405,7 +402,8 @@ class MCTS:
         Returns
         -------
         float
-            The score for the simulate sequence, assigned by the model `self.model`.
+            The score for the simulate sequence, assigned according to the goal 
+            function defined by `self.experiment`.
         """
         curr = node
         sequence = ""
@@ -424,15 +422,10 @@ class MCTS:
             sequence += random.choice(self.nucleotides)
 
         # evaluate the sequence (i.e., the candidate aptamer) with the model
-        aptamer_candidate = rna2vec(np.array([self._reconstruct(sequence)]))
-        aptamer_candidate = torch.tensor(aptamer_candidate, dtype=torch.int64).to(
-            self.device
-        )
+        aptamer_candidate = rna2vec([self._reconstruct(sequence)])
 
-        self.model.eval()
-        score = self.model(aptamer_candidate, self.target_encoded)
-
-        return float(score)
+        return self.experiment.run(torch.tensor(aptamer_candidate))
+        #return float(self.experiment.run(aptamer_candidate))
 
     def _find_best_subsequence(self) -> str:
         """Retrieve the best sequence found so far, according to the UCT scores.
@@ -456,7 +449,7 @@ class MCTS:
 
         return subsequence
 
-    def run(self, verbose: bool = True) -> str:
+    def run(self, verbose: bool = True) -> dict:
         """
         Perform a full recommendation run consisting of `self.n_iterations` rounds of
         (selection -> expansion -> simulation -> backpropagation)
@@ -468,8 +461,9 @@ class MCTS:
 
         Returns
         -------
-        str
-            The (reconstructed) candidate aptamer sequence.
+        dict
+            Dictionary containing the final candidate sequence (`candidate`) and its 
+            score (`score`).
         """
         self._reset()
 
@@ -510,4 +504,8 @@ class MCTS:
             round_count += 1
 
         self.candidate = self.base
-        return self._reconstruct(self.candidate)
+        candidate = self._reconstruct(self.candidate)
+        return {
+            'candidate': candidate,
+            'score': self.experiment.run(torch.tensor(rna2vec(np.array([candidate]))))
+        }
