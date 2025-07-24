@@ -1,7 +1,7 @@
 """Monte Carlo Tree Search (MCTS) for aptamer candidate generation."""
 
 __author__ = ["nennomp"]
-__all__ = ["MCTS", "TreeNode"]
+__all__ = ["MCTS"]
 
 import random
 from typing import Optional

@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 import torch
 
-from pyaptamer.mcts._algorithm import MCTS, TreeNode
+from pyaptamer.mcts import MCTS
+from pyaptamer.mcts._algorithm import TreeNode
 from pyaptamer.experiment._aptamer import Aptamer
 
 NUCLEOTIDES = ["A_", "_A", "C_", "_C", "G_", "_G", "U_", "_U"]
