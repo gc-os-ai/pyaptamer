@@ -2,31 +2,11 @@ __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
     "rna2vec",
-    "word2idx",
 ]
 
 from itertools import product
 
 import numpy as np
-
-
-def word2idx(word: str, words: dict[str, int]) -> int:
-    """Convert a word to its index representation based on a given dictionary.
-
-    Parameters
-    ----------
-    word : str
-        The word to be converted.
-    words : dict[str, int]
-        A dictionary mapping words to their indices.
-
-    Returns
-    -------
-    int
-        The index representing the word in the dictionary, or 0 if the word is not
-        found.
-    """
-    return words.get(word, 0)
 
 
 def dna2rna(sequence: str) -> str:
@@ -86,7 +66,7 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
         # extract all overlapping triplets from the sequence
         # e.g., 'ACGUA' -> ['ACG', 'CGU', 'GUA']
         converted = [
-            word2idx(sequence[i : i + 3], words) for i in range(len(sequence) - 2)
+            words.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
         # skip sequences that convert to an empy list

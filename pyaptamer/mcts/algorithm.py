@@ -6,11 +6,12 @@ __author__ = ["nennomp"]
 __all__ = ["MCTS", "TreeNode"]
 
 import random
+from typing import Optional
 
 import numpy as np
 import torch
 
-from pyaptamer.data.rna2vec_utils import rna2vec
+from pyaptamer.utils.rna import rna2vec
 
 
 class TreeNode:
@@ -41,7 +42,7 @@ class TreeNode:
     def __init__(
         self,
         nucleotide: str = "",
-        parent: TreeNode | None = None,
+        parent: Optional[TreeNode] = None,
         depth: int = 0,
         states: int = 8,
         is_root: bool = True,
@@ -218,6 +219,15 @@ class MCTS:
     - https://github.com/PNUMLB/AptaTrans/blob/master/mcts.py
     - https://github.com/leekh7411/Apta-MCTS/blob/master/src/mcts.py
 
+    Parameters
+    ----------
+    root : TreeNode
+        Root node of the MCTS tree.
+    base : str
+        Best sequence found so far.
+    candidate : str
+        Final candidate sequence.
+
     Attributes
     ----------
     nucleotides : list[str]
@@ -226,12 +236,6 @@ class MCTS:
     states : int
         Number of possible states (8 for 4 nucleotides with prepend/append option
         for each one).
-    root : TreeNode
-        Root node of the MCTS tree.
-    base : str
-        Best sequence found so far.
-    candidate : str
-        Final candidate sequence.
 
     References
     ----------

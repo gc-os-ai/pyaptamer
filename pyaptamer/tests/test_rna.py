@@ -6,31 +6,7 @@ from itertools import product
 
 import numpy as np
 
-from pyaptamer.data.rna2vec_utils import dna2rna, rna2vec, word2idx
-
-
-def test_word2idx_exists():
-    """Check word to index when the word exists in the dictionary."""
-    dummy_words = {"AAA": 1, "AAC": 2, "AAG": 3}
-    assert word2idx("AAA", dummy_words) == 1
-    assert word2idx("AAC", dummy_words) == 2
-    assert word2idx("AAG", dummy_words) == 3
-
-
-def test_word2idx_not_exists():
-    """Check word to index when the word does not exist in the dictionary."""
-    dummy_words = {"AAA": 1, "AAC": 2, "AAG": 3}
-
-    # check that 0 is returned for missing words
-    assert word2idx("BBB", dummy_words) == 0
-    assert word2idx("CCC", dummy_words) == 0
-    assert word2idx("GGG", dummy_words) == 0
-
-
-def test_word2idx_empty_dictionary():
-    """Check behavior with empty dictionary."""
-    dummy_words = {}
-    assert word2idx("AAA", dummy_words) == 0
+from pyaptamer.utils.rna import dna2rna, rna2vec
 
 
 def test_dna2rna():
