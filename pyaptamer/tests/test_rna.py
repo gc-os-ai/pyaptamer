@@ -10,17 +10,21 @@ import pytest
 from pyaptamer.utils.rna import dna2rna, rna2vec
 
 
-@pytest.mark.parametrize("dna, expected_rna", [
-    ("AAA", "AAA"),
-    ("ACG", "ACG"),
-    ("AAT", "AAU"),
-    ("TTT", "UUU"),
-    ("AAX", "AAN"),
-    ("XXX", "NNN"),
-])
+@pytest.mark.parametrize(
+    "dna, expected_rna",
+    [
+        ("AAA", "AAA"),
+        ("ACG", "ACG"),
+        ("AAT", "AAU"),
+        ("TTT", "UUU"),
+        ("AAX", "AAN"),
+        ("XXX", "NNN"),
+    ],
+)
 def test_dna2rna(dna, expected_rna):
     """Check conversion of DNA to RNA nucleotides."""
     assert dna2rna(dna) == expected_rna
+
 
 def test_dna2rna_edge_cases():
     """Check edge cases of DNA to RNA conversion."""
@@ -29,6 +33,7 @@ def test_dna2rna_edge_cases():
     # mixed lowercase/uppercase
     assert dna2rna("aAtT") == "NANU"
     assert dna2rna("AcGt") == "ANGN"
+
 
 def test_rna2vec():
     """Check conversion of RNA sequences."""
@@ -71,16 +76,17 @@ def test_rna2vec():
     assert result[3][1] == expected_ggn_index
     assert np.all(result[3][2:] == 0)  # rest should be padding
 
+
 def test_rna2vec_edge_cases():
     """Check edge cases for RNA to vector conversion."""
     # empty sequence
     result = rna2vec([""])
     assert len(result) == 0
-    
+
     # single character sequence (can't form triplet)
     result = rna2vec(["A"])
     assert len(result) == 0
-    
+
     # double character sequence (can't form triplet)
     result = rna2vec(["AA"])
     assert len(result) == 0

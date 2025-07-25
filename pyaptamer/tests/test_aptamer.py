@@ -23,16 +23,33 @@ class MockModel(nn.Module):
 
 
 @pytest.fixture
+def experiment():
+    target_encoded = torch.tensor([[1, 2, 3]])
+    target = "ACGU"
+    model = MockModel()
+    device = torch.device("cpu")
+    return Aptamer(
+        target_encoded=target_encoded,
+        target=target,
+        model=model,
+        device=device,
+    )
+
+
+@pytest.fixture
 def target_encoded():
     return torch.tensor([[1, 2, 3]])
+
 
 @pytest.fixture
 def target():
     return "ACGU"
 
+
 @pytest.fixture
 def model():
     return MockModel()
+
 
 @pytest.fixture
 def default_device():
@@ -43,17 +60,16 @@ class TestAptamer:
     """Test suite for the Aptamer() class."""
 
     @pytest.mark.parametrize(
-        "device", 
+        "device",
         [
             (torch.device("cpu")),
             pytest.param(
                 torch.device("cuda"),
                 marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(),
-                    reason="CUDA not available"
-                )
+                    not torch.cuda.is_available(), reason="CUDA not available"
+                ),
             ),
-        ]
+        ],
     )
     def test_init(self, target_encoded, target, model, device):
         """Check correct initialization."""
@@ -65,40 +81,25 @@ class TestAptamer:
         )
         assert experiment.target_encoded.device == device
 
-    def test_inputnames(self, target_encoded, target, model, default_device):
+    def test_inputnames(self, experiment):
         """Check that the inputs of the experiment are correctly returned."""
-        experiment = Aptamer(
-            target_encoded=target_encoded,
-            target=target,
-            model=model,
-            device=default_device,
-        )
         inputs = experiment._inputnames()
         assert inputs == ["aptamer_candidate"]
 
-    @pytest.mark.parametrize(
-        "device", 
-        [
-            (torch.device("cpu")),
-            pytest.param(
-                torch.device("cuda"),
-                marks=pytest.mark.skipif(
-                    not torch.cuda.is_available(),
-                    reason="CUDA not available"
-                )
-            ),
-        ]
-    )
-    def test_run(self, target_encoded, target, model, device):
-        """Check that the experiment's evaluation method."""
-        experiment = Aptamer(
-            target_encoded=target_encoded,
-            target=target,
-            model=model,
-            device=device,
-        )
-        
-        aptamer_candidate = torch.tensor([[1, 2, 3]])
-        score = experiment.run(aptamer_candidate)
+    def test_reconstruct(self, experiment):
+        """Check sequence reconstruction."""
+        # empty sequence
+        assert torch.equal(experiment._reconstruct(""), torch.tensor([]))
+        # prepend and append
+        result = experiment._reconstruct("A_C__G_U")
+        assert result.shape == (1, 275)
+        assert result[0, 0] != 0  # first triplet should not be 0
+        assert result[0, 1] != 0  # second triplet should not be 0
+        assert torch.all(result[0, 2:] == 0)  # rest should be padding
+
+    def test_evaluate(self, experiment):
+        """Check that the experiment's evaluation method works correctly."""
+        aptamer_candidate = "A_C_GU"
+        score = experiment.evaluate(aptamer_candidate)
         assert isinstance(score, torch.Tensor)
         assert score.shape == (1,)

@@ -1,16 +1,11 @@
-"""Monte Carlo Tree Search (MCTS) for aptamer candidate generation."""
+"""Monte Carlo Tree Search (MCTS) for string optimization."""
 
 __author__ = ["nennomp"]
 __all__ = ["MCTS"]
 
 import random
-from typing import Optional
 
 import numpy as np
-import torch
-
-from pyaptamer.experiment._aptamer import Aptamer
-from pyaptamer.utils.rna import rna2vec
 
 
 class TreeNode:
@@ -19,18 +14,35 @@ class TreeNode:
     Adapted from:
     - https://github.com/PNUMLB/AptaTrans/blob/master/mcts.py
 
+    Parameters
+    ----------
+    val : str, optional
+        Value for this node.
+    parent : TreeNode, optional
+        Reference to the parent node.
+    depth : int, optional
+        Depth of the node in the tree.
+    states : int, optional
+        Number of possible children states.
+    is_root : bool, optional
+        Whether this node is the root of the tree.
+    is_terminal : bool, optional
+        Whether this node is the last one in the path.
+    exploitation_score : float, optional
+        Accumulated exploitation score from simulations.
+
     Attributes
     ----------
     visits : int
         Counter tracking the umber of visits to this node.
     children : dict[str, TreeNode]
-        Dictionary of child nodes indexed by nucleotide letter.
+        Dictionary of child nodes indexed by value.
 
     Examples
     --------
     >>> from pyaptamer.mcts.algorithm import TreeNode
-    >>> node = TreeNode(nucleotide="A")
-    >>> child = node.create_child(nucleotide="C", is_terminal=True)
+    >>> node = TreeNode(val="A")
+    >>> child = node.create_child(val="C", is_terminal=True)
     >>> child.backpropagate(score=0.5)
     >>> print(node.uct_score())
     inf
@@ -40,10 +52,10 @@ class TreeNode:
 
     def __init__(
         self,
-        nucleotide: str = "",
-        parent = None,
+        val: str = "",
+        parent=None,
         depth: int = 0,
-        states: int = 8,
+        n_states: int = 8,
         is_root: bool = True,
         is_terminal: bool = False,
         exploitation_score: float = 0.0,
@@ -51,13 +63,13 @@ class TreeNode:
         """
         Parameters
         ----------
-        nucleotide : str, optional
-            Nucleotide letter for this node.
+        val : str, optional
+            Value for this node.
         parent : TreeNode, optional
             Reference to the parent node.
         depth : int, optional
             Depth of the node in the tree.
-        states : int, optional
+        n_states : int, optional
             Number of possible children states.
         is_root : bool, optional
             Whether this node is the root of the tree.
@@ -66,10 +78,10 @@ class TreeNode:
         exploitation_score : float, optional
             Accumulated exploitation score from simulations.
         """
-        self.nucleotide = nucleotide
+        self.val = val
         self.parent = parent
         self.depth = depth
-        self.states = states
+        self.n_states = n_states
         self.is_root = is_root
         self.is_terminal = is_terminal
         self.exploitation_score = exploitation_score
@@ -87,7 +99,7 @@ class TreeNode:
         bool
             True if the node is fully-expanded, False otherwise.
         """
-        return len(self.children) == self.states
+        return len(self.children) == self.n_states
 
     def uct_score(self) -> float:
         """Compute upper confidence bound applied to trees (UCT) score.
@@ -112,30 +124,28 @@ class TreeNode:
 
         return exploitation + exploration
 
-    def get_child(self, nucleotide: str):
-        """Retrieve the child node of the current node by nucleotide letter.
+    def get_child(self, val: str):
+        """Retrieve the child node of the current node by value.
 
         Parameters
         ----------
-        nucleotide : str, optional
-            Nucleotide letter used to find the child node.
+        val : str, optional
+            Value used to find the child node.
 
         Returns
         -------
         TreeNode
-            The child node corresponding to the given nucleotide letter, if it exists.
+            The child node corresponding to the given value, if it exists.
 
         Raises
         ------
         KeyError
-            If the child with the given nucleotide letter does not exist.
+            If the child with the given value does not exist.
         """
-        if nucleotide in self.children:
-            return self.children[nucleotide]
+        if val in self.children:
+            return self.children[val]
         else:
-            raise KeyError(
-                f"Child with nucleotide {nucleotide} does not exist for this node"
-            )
+            raise KeyError(f"Child with value {val} does not exist for this node")
 
     def get_best_child(self):
         """Select the best child based on UCT scores.
@@ -160,15 +170,15 @@ class TreeNode:
         # break ties randomly
         return random.choice(best_children)
 
-    def create_child(self, nucleotide: str, is_terminal: bool = False):
+    def create_child(self, val: str, is_terminal: bool = False):
         """
-        Create a new child node with the given nucleotide letter. If the child already
+        Create a new child node with the given value. If the child already
         exists, it will return it.
 
         Parameters
         ----------
-        nucleotide : str
-            Nucleotide letter to assign to the newly created node.
+        val : str
+            Value to assign to the newly created node.
         is_terminal : bool, optional
             Whether this child node is the last one in the path.
 
@@ -177,18 +187,18 @@ class TreeNode:
         TreeNode
             The newly created (or existing) child node.
         """
-        if nucleotide in self.children:
-            return self.children[nucleotide]
+        if val in self.children:
+            return self.children[val]
 
         node = TreeNode(
-            nucleotide=nucleotide,
+            val=val,
             parent=self,
             depth=self.depth + 1,
-            states=self.states,
+            n_states=self.n_states,
             is_root=False,
             is_terminal=is_terminal,
         )
-        self.children[nucleotide] = node
+        self.children[val] = node
         return node
 
     def backpropagate(self, score: float) -> None:
@@ -211,8 +221,9 @@ class TreeNode:
 
 class MCTS:
     """
-    MCTS algorithm implementation for aptamer generation as described in [1]_,
-    originally introduced in [2]_.
+    MCTS algorithm implementation for string optimization, specifically for aptamr
+    generation as described in aptamer generation as described in [1]_, originally
+    introduced in [2]_.
 
     Adapted from:
     - https://github.com/PNUMLB/AptaTrans/blob/master/mcts.py
@@ -220,21 +231,25 @@ class MCTS:
 
     Parameters
     ----------
-    root : TreeNode
-        Root node of the MCTS tree.
+    experiment : Aptamer
+        An instance of an experiment class that defines the goal function for the
+        algorithm.
+    states : list[str]
+        Possible values for the nodes. Underscores indicate whether the values are
+        supposed to be prepended or appended to the sequence.
+    depth : int, optional
+        Maximum depth of the search tree, also the length of the generated sequences.
+    n_iterations : int, optional
+        Number of iterations per round for the MCTS algorithm.
+
+    Attributes
+    ----------
     base : str
         Best sequence found so far.
     candidate : str
         Final candidate sequence.
-
-    Attributes
-    ----------
-    nucleotides : list[str]
-        Possible nucleotide letters for the nodes. Underscores indicate whether the
-        nucleotide is supposed to be prepended or appended to the sequence.
-    states : int
-        Number of possible states (8 for 4 nucleotides with prepend/append option
-        for each one).
+    root : TreeNode
+        Root node of the MCTS tree.
 
     References
     ----------
@@ -252,20 +267,18 @@ class MCTS:
     >>> experiment = Aptamer(target_encoded, target, model, device)
     >>> mcts = MCTS(experiment, depth=10)
     >>> candidate = mcts.run(verbose=True)
-    >>> print(candidate['candidate'])
+    >>> print(candidate["candidate"])
     ACGUACGUAU
-    >>> print(candidate['score'])
+    >>> print(candidate["score"])
     0.85
     >>> print(len(candidate))
     10
     """
 
-    nucleotides = ["A_", "_A", "C_", "_C", "G_", "_G", "U_", "_U"]
-    states = 8
-
     def __init__(
         self,
-        experiment: Aptamer,
+        experiment,
+        states: list[str] | None = None,
         depth: int = 20,
         n_iterations: int = 1000,
     ) -> None:
@@ -274,25 +287,24 @@ class MCTS:
         ----------
         experiment : Aptamer
             An instance of the Aptamer() class specifying the goal function.
+        states : list[str], optional
+            A list containing possible values for the nodes. Underscores indicate
+            whether the values are supposed to be prepended or appended to the sequence.
         depth : int, optional
             Maximum depth of the search tree.
         n_iterations : int, optional
             Number of iterations per round for the MCTS algorithm.
-
-        Raises
-        ------
-        TypeError
-            If `experiment` is not an instance of the Aptamer class.
         """
-        if not isinstance(experiment, Aptamer):
-            raise TypeError("`experiment` must be an instance of class `Aptamer`.")
+        if states is None:
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        self.states = states
 
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
 
         self.root = TreeNode(
-            states=self.states,
+            n_states=len(states),
         )
         self.base = ""
         self.candidate = ""
@@ -300,38 +312,10 @@ class MCTS:
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
         self.root = TreeNode(
-            states=self.states,
+            n_states=len(self.states),
         )
         self.base = ""
         self.candidate = ""
-
-    def _reconstruct(self, sequence: str = "") -> np.ndarray:
-        """Reconstruct the actual RNA sequence from the encoded representation.
-
-        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
-        This method converts these pairs back to the actual sequence.
-
-        Parameters
-        ----------
-        seq : str
-            Encoded sequence with direction markers (underscores).
-
-        Returns
-        -------
-        np.ndarray
-            The reconstructed RNA sequence as a numpy array.
-        """
-        result = ""
-        for i in range(0, len(sequence), 2):
-            match sequence[i]:
-                case "_":
-                    # append the next nucleotide
-                    result = result + sequence[i + 1]
-                case _:
-                    # prepend the current nucleotide
-                    result = sequence[i] + result
-        
-        return np.array([result])
 
     def _selection(self, node: TreeNode) -> TreeNode:
         """Select a node for expansion.
@@ -362,9 +346,8 @@ class MCTS:
         """Expand the selected node.
 
         The selected node is expanded by creating a new child to which a randomly
-        selected nucleotide is assigned. The nucleotide is randomly chosen from the set
-        of uenxpanded nucleotides (those that have not been added to the node's
-        children yet).
+        selected value is assigned. The value is randomly chosen from the set of
+        unexpanded states (those that have not been added to the node's children yet).
 
         Parameters
         ----------
@@ -378,21 +361,21 @@ class MCTS:
         """
         is_terminal = node.depth == self.depth - 1
 
-        # find all unexpanded nucleotides for this node
-        unexpanded = list(set(self.nucleotides) - set(node.children.keys()))
+        # find all unexpanded values for this node
+        unexpanded = list(set(self.states) - set(node.children.keys()))
 
-        # randomly selected one nucleotide from unexpanded ones
-        nucleotide = random.choice(unexpanded)
+        # randomly selected one value from unexpanded ones
+        val = random.choice(unexpanded)
 
-        return node.create_child(nucleotide=nucleotide, is_terminal=is_terminal)
+        return node.create_child(val=val, is_terminal=is_terminal)
 
-    @torch.no_grad()
     def _simulation(self, node: TreeNode) -> float:
-        """Simulate a random playout for the node/path and generate a candidate aptamer.
+        """
+        Simulate a random playout for the node/path and generate a candidate sequence.
 
-        Starting from the given node, a random walk is performed: random nucleotides
-        are added to the sequence until the desired length (depth) is reached. The
-        candidate is then evaluated leveraging the classifier model for scoring.
+        Starting from the given node, a random walk is performed: random values are
+        added to the sequence until the desired length (depth) is reached. The sequence
+        is then evaluated leveraging the goal function defined by `self.experiment`.
 
         Parameters
         ----------
@@ -402,7 +385,7 @@ class MCTS:
         Returns
         -------
         float
-            The score for the simulate sequence, assigned according to the goal 
+            The score for the simulate sequence, assigned according to the goal
             function defined by `self.experiment`.
         """
         curr = node
@@ -410,22 +393,19 @@ class MCTS:
 
         # build the current sequence from node to root
         while not curr.is_root:
-            sequence = curr.nucleotide + sequence
+            sequence = curr.val + sequence
             curr = curr.parent
 
         # prepend the `self.base` sequence
         sequence = self.base + sequence
 
-        # fill the rest of the sequence with random nucleotides
+        # fill the rest of the sequence with random possible values
         remaining_length = (self.depth * 2) - len(sequence)
         for _ in range(remaining_length):
-            sequence += random.choice(self.nucleotides)
+            sequence += random.choice(self.states)
 
-        # evaluate the sequence (i.e., the candidate aptamer) with the model
-        aptamer_candidate = rna2vec([self._reconstruct(sequence)])
-
-        return self.experiment.run(torch.tensor(aptamer_candidate))
-        #return float(self.experiment.run(aptamer_candidate))
+        # evaluate the candidate sequence with the goal function
+        return self.experiment.evaluate(sequence)
 
     def _find_best_subsequence(self) -> str:
         """Retrieve the best sequence found so far, according to the UCT scores.
@@ -445,7 +425,7 @@ class MCTS:
                 break
 
             curr = curr.get_best_child()
-            subsequence += curr.nucleotide
+            subsequence += curr.val
 
         return subsequence
 
@@ -462,7 +442,7 @@ class MCTS:
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its 
+            Dictionary containing the final candidate sequence (`candidate`) and its
             score (`score`).
         """
         self._reset()
@@ -497,15 +477,14 @@ class MCTS:
 
             # reset for next iteration
             self.root = TreeNode(
-                states=self.states,
+                n_states=len(self.states),
                 depth=len(self.base) // 2,  # adjust depth based on current base
             )
 
             round_count += 1
 
         self.candidate = self.base
-        candidate = self._reconstruct(self.candidate)
         return {
-            'candidate': candidate,
-            'score': self.experiment.run(torch.tensor(rna2vec(np.array([candidate]))))
+            "candidate": self.candidate,
+            "score": self.experiment.evaluate(self.candidate),
         }
