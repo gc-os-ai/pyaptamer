@@ -1,10 +1,9 @@
 __author__ = ["nennomp"]
 __all__ = ["Aptamer"]
 
-import numpy as np
 import torch
 
-from pyaptamer.utils.rna import rna2vec
+from pyaptamer.utils import rna2vec
 
 
 class Aptamer:
@@ -83,9 +82,7 @@ class Aptamer:
                     # prepend the current value
                     result = sequence[i] + result
 
-        result = rna2vec(np.array([result]))
-
-        return torch.tensor(result)
+        return torch.tensor(rna2vec([result]))
 
     @torch.no_grad()
     def evaluate(self, aptamer_candidate: str) -> None:

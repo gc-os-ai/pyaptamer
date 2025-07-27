@@ -14,7 +14,8 @@ def dna2rna(sequence: str) -> str:
     Convert a DNA sequence to an RNA sequence.
 
     Nucleotides 'T' in the DNA sequence are replaced with 'U' in the RNA sequence.
-    Unknown nucleotides are replaced with 'N'.
+    Unknown nucleotides are replaced with 'N'. Other nucleotides ('A', 'C', 'G') remain
+    unchanged.
 
     Parameters
     ----------
@@ -26,32 +27,54 @@ def dna2rna(sequence: str) -> str:
     str
         The converted RNA sequence.
     """
-    # mapping DNA nucleotides to RNA nucleotides
-    map = {"A": "A", "C": "C", "G": "G", "U": "U", "T": "U"}
-    result = ""
-    for char in sequence:
-        if char in map.keys():
-            result += map[char]
-        else:
-            result += "N"  # placeholder for unknown nucleotides
+    # replace nucleotides 'T' with 'U'
+    result = sequence.translate(str.maketrans("T", "U"))
+    for char in result:
+        if char not in "ACGU":
+            result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
     return result
 
 
-def rna2vec(sequence_list: np.array, max_sequence_length: int = 275) -> np.ndarray:
+def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
     """Convert a list of RNA sequences into a numerical representation.
+
+    First, if not already in RNA format, the sequences are converted from DNA to RNA.
+    Then, all overlapping triplets (3-nucleotide combinations) are extracted from each
+    RNA sequence and mapped to unique indices. Finally, the sequences are zero padded
+    to length `max_sequence_length`. The result is a numpy array where each row
+    corresponds to a sequence, and each column corresponds to an integer representing
+    the triplet's index in dictionary `words`.
+
+    If the number of extracted triplets is grerater than `max_sequence_length`, the
+    sequence is truncated to fit.
 
     Parameters
     ----------
-    sequence_list : np.array
-        A numpy array containing RNA sequences as strings.
+    sequence_list : list[str]
+        A list containing RNA sequences as strings.
 
     Returns
     -------
     np.ndarray
         A numpy array containing the numerical representation of the RNA sequences.
-    """
-    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
 
+    Raises
+    ------
+    ValueError
+        If `max_sequence_length` is less than or equal to 0.
+
+    Examples
+    --------
+    >>> from pyaptamer.utils.rna import rna2vec
+    >>> # two triplets: 'AAAC' -> ['AAA', 'AAC']
+    >>> rna = rna2vec(["AAAC"], max_sequence_length=4)
+    >>> print(rna)
+    [[ 1  2  0  0]] # words['AAA'] = 1, words['AAC'] = 2, rest is padding
+    """
+    if max_sequence_length <= 0:
+        raise ValueError("`max_sequence_length` must be greater than 0.")
+
+    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
     # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
     # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
     words = {

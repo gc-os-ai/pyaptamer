@@ -7,7 +7,7 @@ from itertools import product
 import numpy as np
 import pytest
 
-from pyaptamer.utils.rna import dna2rna, rna2vec
+from pyaptamer.utils import dna2rna, rna2vec
 
 
 @pytest.mark.parametrize(
@@ -79,6 +79,16 @@ def test_rna2vec():
 
 def test_rna2vec_edge_cases():
     """Check edge cases for RNA to vector conversion."""
+    # `max_sequence_length` is <= 0
+    with pytest.raises(ValueError):
+        rna2vec(["ACGU"], max_sequence_length=0)
+    with pytest.raises(ValueError):
+        rna2vec(["ACGU"], max_sequence_length=-1)
+
+    # `max_sequence_length` is smallet than the number of triplets
+    result = rna2vec(["AAACGU"], max_sequence_length=4)
+    assert result.shape[1] == 4  # should truncate to 4 triplets
+
     # empty sequence
     result = rna2vec([""])
     assert len(result) == 0
