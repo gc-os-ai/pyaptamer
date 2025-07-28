@@ -13,7 +13,8 @@ from torch import Tensor
 class EncoderPredictorConfig:
     """
     Hyperparameters' configuration for encoder - token predictor of AptaTrans deep
-    neural network."""
+    neural network.
+    """
 
     num_embeddings: int  # for the embedding layer
     target_dim: int  # for the token predictor

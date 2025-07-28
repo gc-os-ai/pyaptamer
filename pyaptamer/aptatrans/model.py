@@ -25,6 +25,10 @@ class AptaTrans(nn.Module):
     Original implementation:
     - https://github.com/PNUMLB/AptaTrans
 
+    The token predictors in the encoders are needed only for pre-training the encoders
+    on masked token and secondary structure prediction, for aptamers and proteins
+    respectively. These are not used during fine-tuning or inference.
+
     Parameters
     ----------
     apta_embedding : EncoderPredictorConfig
