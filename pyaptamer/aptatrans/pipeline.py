@@ -1,5 +1,5 @@
 """
-AptaTrans' complete pipeline for for aptamer-protein interaction prediction and 
+AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
@@ -13,8 +13,8 @@ from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
-    encode_rna, 
-    generate_all_aptamer_triplets, 
+    encode_rna,
+    generate_all_aptamer_triplets,
 )
 
 
@@ -23,21 +23,21 @@ class AptaTransPipeline:
 
     Original implementation:
     - https://github.com/PNUMLB/AptaTrans
-    
-    The AptaTrans pipeline combines leverages AptaTrans' deep neural network for 
-    aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_, 
+
+    The AptaTrans pipeline combines leverages AptaTrans' deep neural network for
+    aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_,
     recommends candidate aptamers for a given target protein.
 
     Attributes
     ----------
     apta_words, prot_words : dict[str, int]
-        A dictionary mapping aptamer and protein 3-mer subsequences to unique indices, 
+        A dictionary mapping aptamer and protein 3-mer subsequences to unique indices,
         respectively.
 
     References
     ----------
-    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting 
-    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1 
+    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
+    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
     (2023): 447.
     .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with target
     proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
@@ -53,6 +53,7 @@ class AptaTransPipeline:
     >>> print(candidates)
     {'AUGGC': 0.85, 'CAGUA': 0.78, 'GCUAG': 0.65}
     """
+
     def __init__(
         self,
         device: torch.device,
@@ -67,7 +68,7 @@ class AptaTransPipeline:
         model : AptaTrans
             An instance of the AptaTrans() class.
         apta_words, prot_words : dict[str, int]
-            A dictionary mapping RNA/protein 3-mer subsequences to integer token IDs, 
+            A dictionary mapping RNA/protein 3-mer subsequences to integer token IDs,
             respectively.
         """
         super().__init__()
@@ -77,24 +78,23 @@ class AptaTransPipeline:
         self.apta_words, self.prot_words = self._init_words(prot_words)
 
     def _init_words(
-        self, 
-        prot_words: dict[str, float]
+        self, prot_words: dict[str, float]
     ) -> tuple[dict[str, int], dict[str, int]]:
         """Initialize aptamer and protein word vocabularies.
-        
-        For aptamers, creates a mapping between all possible 3-mer RNA subsequences and 
-        integer indices. For proteins, 3-mers with below-average frequency are filtered 
+
+        For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
+        integer indices. For proteins, 3-mers with below-average frequency are filtered
         out. Then, they are mapped to integer indices.
-        
+
         Parameters
         ----------
         prot_words : dict[str, float]
             A dictionary containing protein 3-mer subsequences and their frequencies.
-        
+
         Returns
         -------
         tuple[dict[str, int], dict[str, int]]
-            A tuple of dictionaries mapping aptamer and protein 3-mer subsequences to 
+            A tuple of dictionaries mapping aptamer and protein 3-mer subsequences to
             unique indices, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
@@ -106,14 +106,14 @@ class AptaTransPipeline:
         prot_words = {word: i + 1 for i, word in enumerate(prot_words)}
 
         return (apta_words, prot_words)
-    
+
     def _init_aptamer_experiment(self, target: str) -> Aptamer:
         """Initialize the aptamer experiment."""
         # initialize the aptamer recommendation experiment
         target_encoded = encode_rna(
-            device=self.device, 
-            target=target, 
-            words=self.prot_words, 
+            device=self.device,
+            target=target,
+            words=self.prot_words,
             max_len=self.model.prot_embedding.max_len,
         )
         experiment = Aptamer(
@@ -123,18 +123,18 @@ class AptaTransPipeline:
             device=self.device,
         )
         return experiment
-    
+
     def get_interaction_map(self):
-        # TODO: implement this method to retrieve the intermediate output of the 
+        # TODO: implement this method to retrieve the intermediate output of the
         # interaction map from the neural network so that it may be used for plotting
         # TODO: ask whether this is needed/useful
         raise NotImplementedError("This method is not yet implemented.")
-    
+
     def predict_api(self, candidate: str, target: str) -> torch.Tensor:
         """Predict aptamer-protein interaction (API) score for a given target protein.
 
-        This methods initializes a new aptamer experiment for the given aptamer 
-        candidate and target protein. Finally, it predict the interaction score using 
+        This methods initializes a new aptamer experiment for the given aptamer
+        candidate and target protein. Finally, it predict the interaction score using
         the AptaTrans' deep neural network.
 
         Parameters
@@ -154,16 +154,18 @@ class AptaTransPipeline:
 
     @torch.no_grad()
     def recommend(
-        self, 
-        target: str, 
-        n_candidates: int, 
-        depth: int = 20, 
-        n_iterations: int = 1000, 
-        verbose: bool = True
+        self,
+        target: str,
+        n_candidates: int,
+        depth: int = 20,
+        n_iterations: int = 1000,
+        verbose: bool = True,
     ) -> dict[str, float]:
         """Recommend aptamer candidates for a given target protein.
 
-        The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate aptamers. Then, AptaTrans' deep neural network is used as a scoring function to evaluate the candidates, inside the Aptamer() experiment.
+        The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate
+        aptamers. Then, AptaTrans' deep neural network is used as a scoring function to
+        evaluate the candidates, inside the Aptamer() experiment.
 
         Parameters
         ----------
@@ -203,6 +205,6 @@ class AptaTransPipeline:
 
         if verbose:
             for candidate, score in candidates.items():
-                print(f'Candidate: {candidate}, Score: {score:.4f}')
+                print(f"Candidate: {candidate}, Score: {score:.4f}")
 
         return candidates

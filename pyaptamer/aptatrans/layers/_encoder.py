@@ -12,11 +12,12 @@ from torch import Tensor
 @dataclass
 class EncoderPredictorConfig:
     """
-    Hyperparameters' configuration for encoder - token predictor of AptaTrans deep 
+    Hyperparameters' configuration for encoder - token predictor of AptaTrans deep
     neural network."""
-    num_embeddings: int # for the embedding layer
-    target_dim: int # for the token predictor
-    max_len: int # for positional encoding
+
+    num_embeddings: int  # for the embedding layer
+    target_dim: int  # for the token predictor
+    max_len: int  # for positional encoding
 
 
 class PositionalEncoding(nn.Module):
@@ -42,9 +43,10 @@ class PositionalEncoding(nn.Module):
     pe : Tensor
         Positional encoding tensor of shape (`max_len`, 1, `d_model`).
     """
+
     def __init__(
-        self, 
-        d_model: int, 
+        self,
+        d_model: int,
         dropout: float = 0,
         max_len: int = 5000,
     ) -> None:
@@ -68,11 +70,11 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, 1, d_model)
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward pass.
-        
+
         Parameters
         ----------
         x : Tensor
@@ -81,10 +83,10 @@ class PositionalEncoding(nn.Module):
         Returns
         -------
         Tensor
-            Output tensor of shape (seq_len, batch_size, n_features (`d_model`)), with 
+            Output tensor of shape (seq_len, batch_size, n_features (`d_model`)), with
             positional encodings applied.
         """
-        out = x + self.pe[:x.size(0)]
+        out = x + self.pe[: x.size(0)]
         if self.dropout:
             out = self.dropout(out)
         return out
@@ -98,14 +100,15 @@ class TokenPredictor(nn.Module):
     d_model : int
         Number of expected input features.
     out_mt, out_ss : int
-        Output dimension for masked token and secondary structure prediction, 
-        respectively.  
+        Output dimension for masked token and secondary structure prediction,
+        respectively.
 
     Attributes
     ----------
     fc_mt, fc_ss : nn.Linear
         Linear layer for masked token and secondary structure prediction, respectively.
     """
+
     def __init__(self, d_model: int, d_out_mt: int, d_out_ss: int) -> None:
         """
         Parameters
@@ -113,7 +116,7 @@ class TokenPredictor(nn.Module):
         d_model : int
             Number of expected input features.
         out_mt, out_ss : int
-            Output dimension for masked token and secondary structure prediction, 
+            Output dimension for masked token and secondary structure prediction,
             respectively.
         """
         super().__init__()
@@ -122,17 +125,18 @@ class TokenPredictor(nn.Module):
 
     def forward(self, x_mt: Tensor, x_ss: Tensor) -> tuple[Tensor, Tensor]:
         """Forward pass.
-        
+
         Parameters
         ----------
         x_mt, x_ss : Tensor
-            Input tensor of shape (batch_size, seq_len, n_features `d_model`), for 
+            Input tensor of shape (batch_size, seq_len, n_features `d_model`), for
             masked token and secondary structure prediction, respectively.
 
         Returns
         ----------
         tuple[Tensor, Tensor]
-            A tuple of two output tensors containing the predictions on masked token and secondary structure. Shapes are (batch_size, seq_len, n_features 
+            A tuple of two output tensors containing the predictions on masked token
+            and secondary structure. Shapes are (batch_size, seq_len, n_features
             `d_out_mt`) and (batch_size, seq_len, n_features `d_out_ss`), respectively.
         """
         out_mt = self.fc_mt(x_mt)

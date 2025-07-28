@@ -4,7 +4,7 @@ __author__ = ["nennomp"]
 __all__ = ["AptaTrans"]
 
 from collections import OrderedDict
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import torch
 import torch.nn as nn
@@ -12,9 +12,9 @@ from torch import Tensor
 
 from pyaptamer.aptatrans.layers._convolutional import ConvBlock
 from pyaptamer.aptatrans.layers._encoder import (
-    EncoderPredictorConfig, 
-    PositionalEncoding, 
-    TokenPredictor
+    EncoderPredictorConfig,
+    PositionalEncoding,
+    TokenPredictor,
 )
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
 
@@ -24,14 +24,14 @@ class AptaTrans(nn.Module):
 
     Original implementation:
     - https://github.com/PNUMLB/AptaTrans
-    
+
     Parameters
     ----------
     apta_embedding : EncoderPredictorConfig
-        Instance of the EncoderPredictorConfig() class, containing hyperparameters related 
-        to the aptamer embeddings.
+        Instance of the EncoderPredictorConfig() class, containing hyperparameters
+        related to the aptamer embeddings.
     prot_embedding : EncoderPredictorConfig
-        Instance of the EmbeedingConfig() class, containing hyperparameters related 
+        Instance of the EmbeedingConfig() class, containing hyperparameters related
         to the protein embeddings.
     in_dim : int, optional
         Number of expected input features.
@@ -42,7 +42,7 @@ class AptaTrans(nn.Module):
     dropout : float, optional
         Dropout rate for the encoders.
     conv_layers : list[int], optional
-        List specifying the number of convolutional blocks in each convolutional 
+        List specifying the number of convolutional blocks in each convolutional
         layer.
 
     Attributes
@@ -50,10 +50,10 @@ class AptaTrans(nn.Module):
     inplanes : int
         Number of input channels for the first convolutional layer.
     encoder_apta, encoder_prot : nn.Sequential
-        Sequential container of (embedding -> positional encoding -> transformer -> 
+        Sequential container of (embedding -> positional encoding -> transformer ->
         token predictor) layers for aptamers and proteins, respectively.
     imap : InteractionMap
-        An instance of the InteractionMap() class, for computing the interaction map 
+        An instance of the InteractionMap() class, for computing the interaction map
         between aptamers and proteins.
     conv1: nn.Conv2d
         First convolutional layer.
@@ -64,13 +64,13 @@ class AptaTrans(nn.Module):
     avgpool : nn.AdaptiveAvgPool2d
         Adaptive average pooling layer applied before the fully-connected head.
     fc : nn.Sequential
-        A sequential container of linear layers and activations for outputting the 
+        A sequential container of linear layers and activations for outputting the
         final predictions.
 
     References
     ----------
-    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting 
-    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1 
+    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
+    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
     (2023): 447.
 
     Examples
@@ -82,24 +82,25 @@ class AptaTrans(nn.Module):
     >>> aptatrans = AptaTrans(apta_embedding, prot_embedding)
     >>> preds = aptatrans(x_apta, x_prot)
     """
+
     def __init__(
-        self, 
+        self,
         apta_embedding: EncoderPredictorConfig,
         prot_embedding: EncoderPredictorConfig,
         in_dim: int = 128,
         n_encoder_layers: int = 6,
         n_heads: int = 8,
-        conv_layers: list[int] = [3, 3, 3],
+        conv_layers: list[int] | None = None,
         dropout: float = 0.1,
     ) -> None:
         """
         Parameters
         ----------
         apta_embedding : EncoderPredictorConfig
-            Instance of the EncoderPredictorConfig() class, containing hyperparameters related 
-            to the aptamer embeddings.
+            Instance of the EncoderPredictorConfig() class, containing hyperparameters
+            related to the aptamer embeddings.
         prot_embedding : EncoderPredictorConfig
-            Instance of the EmbeedingConfig() class, containing hyperparameters related 
+            Instance of the EmbeedingConfig() class, containing hyperparameters related
             to the protein embeddings.
         in_dim : int, optional
             Number of expected input features.
@@ -110,7 +111,7 @@ class AptaTrans(nn.Module):
         dropout : float, optional
             Dropout rate for the encoders.
         conv_layers : list[int], optional
-            List specifying the number of convolutional blocks in each convolutional 
+            List specifying the number of convolutional blocks in each convolutional
             layer.
 
         Raises
@@ -120,8 +121,12 @@ class AptaTrans(nn.Module):
         super().__init__()
         if in_dim % n_heads != 0:
             raise AssertionError(
-                f"Input dimension {in_dim} must be divisible by number of heads {n_heads}."
+                f"Input dimension {in_dim} must be divisible by number of heads "
+                f"{n_heads}."
             )
+        if conv_layers is None:
+            conv_layers = [3, 3, 3]
+
         self.inplanes = 64
         self.apta_embedding = apta_embedding
         self.prot_embedding = prot_embedding
@@ -142,7 +147,7 @@ class AptaTrans(nn.Module):
             n_heads=n_heads,
             dropout=dropout,
         )
-        
+
         # interaction map
         self.imap = InteractionMap()
 
@@ -152,37 +157,35 @@ class AptaTrans(nn.Module):
         self.gelu1 = nn.GELU()
         self.layer1 = self._make_layer(planes=64, n_blocks=conv_layers[0])
         self.layer2 = self._make_layer(
-            planes=128, 
-            n_blocks=conv_layers[1], 
-            pooling=nn.MaxPool2d(2, 2)
+            planes=128, n_blocks=conv_layers[1], pooling=nn.MaxPool2d(2, 2)
         )
         self.layer3 = self._make_layer(
-            planes=256, 
-            n_blocks=conv_layers[2], 
-            pooling=nn.MaxPool2d(2, 2)
+            planes=256, n_blocks=conv_layers[2], pooling=nn.MaxPool2d(2, 2)
         )
 
         # fully-connected head
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Sequential(
-            OrderedDict([
-                ('linear1', nn.Linear(self.inplanes, self.inplanes // 2)),
-                ('activation1', nn.GELU()),
-                ('linear2', nn.Linear(self.inplanes // 2, 1)),
-                ('activation2', nn.Sigmoid()),
-            ])
+            OrderedDict(
+                [
+                    ("linear1", nn.Linear(self.inplanes, self.inplanes // 2)),
+                    ("activation1", nn.GELU()),
+                    ("linear2", nn.Linear(self.inplanes // 2, 1)),
+                    ("activation2", nn.Sigmoid()),
+                ]
+            )
         )
 
     def _make_encoder(
-        self, 
+        self,
         embedding_config: EncoderPredictorConfig,
-        in_dim: int, 
-        n_encoder_layers: int, 
-        n_heads: int, 
-        dropout: float, 
+        in_dim: int,
+        n_encoder_layers: int,
+        n_heads: int,
+        dropout: float,
     ) -> nn.Sequential:
         """
-        Initialize a (transformer-based) encoder consisting of (embedding -> positional 
+        Initialize a (transformer-based) encoder consisting of (embedding -> positional
         encoding -> transformer -> token predictor) layers.
 
         Returns
@@ -191,13 +194,12 @@ class AptaTrans(nn.Module):
             A sequential container with the encoder's architectural components.
         """
         embedding = nn.Embedding(
-            num_embeddings=embedding_config.num_embeddings, 
+            num_embeddings=embedding_config.num_embeddings,
             embedding_dim=in_dim,
             padding_idx=0,
         )
         pos_encoding = PositionalEncoding(
-            d_model=in_dim, 
-            max_len=embedding_config.max_len
+            d_model=in_dim, max_len=embedding_config.max_len
         )
 
         encoder = nn.TransformerEncoder(
@@ -218,21 +220,23 @@ class AptaTrans(nn.Module):
         )
 
         return nn.Sequential(
-            OrderedDict([
-                ('embedding', embedding),
-                ('pos_encoding', pos_encoding),
-                ('encoder', encoder),
-                ('token_predictor', token_predictor),
-            ])
+            OrderedDict(
+                [
+                    ("embedding", embedding),
+                    ("pos_encoding", pos_encoding),
+                    ("encoder", encoder),
+                    ("token_predictor", token_predictor),
+                ]
+            )
         )
 
     def _make_layer(
-        self, 
-        planes: int, 
-        n_blocks: int, 
-        pooling: Optional[Callable[..., nn.Module]] = None,
+        self,
+        planes: int,
+        n_blocks: int,
+        pooling: Callable[..., nn.Module] | None = None,
     ) -> nn.Sequential:
-        """Initialize a convolutional layer consisting of multiple ConvBlock() 
+        """Initialize a convolutional layer consisting of multiple ConvBlock()
         instances.
 
         Parameters
@@ -254,18 +258,18 @@ class AptaTrans(nn.Module):
         for _ in range(1, n_blocks):
             layers.append(ConvBlock(planes, planes))
 
-        self.inplanes = planes # update input channels for future blocks
+        self.inplanes = planes  # update input channels for future blocks
 
         return nn.Sequential(*layers)
 
     def forward(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
         """Forward pass.
-        
+
         Parameters
         ----------
         x_apta, x_prot : Tensor
-            Input tensors for aptamers and proteins, respectively. Shapes are 
-            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2), 
+            Input tensors for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2),
             n_features), respectively.
 
         Returns
@@ -278,7 +282,7 @@ class AptaTrans(nn.Module):
 
         out = self.imap(x_apta, x_prot)
 
-        out = torch.squeeze(out, dim=2) # remove extra dimension
+        out = torch.squeeze(out, dim=2)  # remove extra dimension
         out = self.gelu1(self.bn1(self.conv1(out)))
         out = self.layer1(out)
         out = self.layer2(out)

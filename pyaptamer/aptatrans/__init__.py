@@ -1,5 +1,5 @@
 """
-AptaTrans pipeline and deep neural network for predicting aptamer-protein interaction 
+AptaTrans pipeline and deep neural network for predicting aptamer-protein interaction
 (API) and recommending candidate aptamers for a given target protein.
 """
 

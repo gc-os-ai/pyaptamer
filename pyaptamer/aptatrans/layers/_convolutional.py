@@ -2,7 +2,7 @@ __author__ = ["nennomp"]
 __all__ = ["ConvBlock"]
 
 from collections import OrderedDict
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import torch.nn as nn
 from torch import Tensor
@@ -10,7 +10,7 @@ from torch import Tensor
 
 def conv3x3(in_c: int, out_c: int) -> nn.Conv2d:
     """Initialize a 3x3 2D convolution with padding and bias.
-    
+
     Parameters
     ----------
     in_c : int
@@ -27,13 +27,13 @@ def conv3x3(in_c: int, out_c: int) -> nn.Conv2d:
         in_channels=in_c,
         out_channels=out_c,
         kernel_size=3,
-        padding='same',
+        padding="same",
     )
 
 
 class ConvBlock(nn.Module):
     """
-    A convolutional block consisting of (pooling -> conv3x3 -> batchnorm -> GELU) 
+    A convolutional block consisting of (pooling -> conv3x3 -> batchnorm -> GELU)
     layers.
 
     Attributes
@@ -43,10 +43,10 @@ class ConvBlock(nn.Module):
     """
 
     def __init__(
-        self, 
-        in_c: int, 
-        out_c: int, 
-        pooling: Optional[Callable[..., nn.Module]] = None,
+        self,
+        in_c: int,
+        out_c: int,
+        pooling: Callable[..., nn.Module] | None = None,
     ) -> None:
         """
         Parameters
@@ -62,13 +62,13 @@ class ConvBlock(nn.Module):
         self.block = self._init_block(in_c, out_c, pooling)
 
     def _init_block(
-        self, 
-        in_c: int, 
-        out_c: int, 
+        self,
+        in_c: int,
+        out_c: int,
         pooling: Callable[..., nn.Module],
     ) -> nn.Sequential:
         """Initialize a convolutional block with pooling.
-        
+
         Returns
         -------
         nn.Sequential
@@ -77,17 +77,19 @@ class ConvBlock(nn.Module):
         layers = OrderedDict()
 
         if pooling is not None:
-            layers['pooling'] = pooling
+            layers["pooling"] = pooling
 
-        layers.update([
-            ('conv1', conv3x3(in_c, out_c)),
-            ('bn1', nn.BatchNorm2d(out_c)),
-            ('activation1', nn.GELU()),
-            ('conv2', conv3x3(out_c, out_c)),
-            ('bn2', nn.BatchNorm2d(out_c)),
-            ('activation2', nn.GELU()),
-        ])
-        
+        layers.update(
+            [
+                ("conv1", conv3x3(in_c, out_c)),
+                ("bn1", nn.BatchNorm2d(out_c)),
+                ("activation1", nn.GELU()),
+                ("conv2", conv3x3(out_c, out_c)),
+                ("bn2", nn.BatchNorm2d(out_c)),
+                ("activation2", nn.GELU()),
+            ]
+        )
+
         return nn.Sequential(layers)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -101,8 +103,8 @@ class ConvBlock(nn.Module):
         Returns
         -------
         Tensor
-            Output tensor of shape (batch_size, n_channels (`out_c`), height, width) if 
-            no downsamplign occurs, (batch_size, n_channels (`out_c`), height // 2, 
+            Output tensor of shape (batch_size, n_channels (`out_c`), height, width) if
+            no downsamplign occurs, (batch_size, n_channels (`out_c`), height // 2,
             width // 2) otherwise.
         """
         identity = x
