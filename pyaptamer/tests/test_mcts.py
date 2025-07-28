@@ -7,7 +7,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pyaptamer.experiment import Aptamer
+from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
 from pyaptamer.mcts._algorithm import TreeNode
 

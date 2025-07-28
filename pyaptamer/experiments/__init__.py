@@ -2,4 +2,4 @@
 
 __all__ = ["Aptamer"]
 
-from pyaptamer.experiment._aptamer import Aptamer
+from pyaptamer.experiments._aptamer import Aptamer

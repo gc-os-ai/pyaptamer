@@ -6,7 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pyaptamer.experiment import Aptamer
+from pyaptamer.experiments import Aptamer
 
 
 class MockModel(nn.Module):
