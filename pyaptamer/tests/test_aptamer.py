@@ -1,4 +1,4 @@
-"""Test suite for the experiment defined in the Aptamer experiment."""
+"""Test suite for the Aptamer experiment class."""
 
 __author__ = ["nennomp"]
 

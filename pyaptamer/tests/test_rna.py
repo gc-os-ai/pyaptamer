@@ -1,4 +1,4 @@
-"""Test suite for the RNA to vector (rna2vec) conversion utilities."""
+"""Test suite for the RNA to vector utilities."""
 
 __author__ = ["nennomp"]
 
