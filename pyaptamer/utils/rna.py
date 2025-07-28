@@ -1,6 +1,7 @@
 __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
+    "generate_all_aptamer_triplets",
     "rna2vec",
 ]
 
@@ -33,6 +34,27 @@ def dna2rna(sequence: str) -> str:
         if char not in "ACGU":
             result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
     return result
+
+
+def generate_all_aptamer_triplets() -> dict[str, int]:
+    """
+    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
+    unique indices.
+
+    Returns
+    -------
+    dict[str, int]
+        A dictionary where keys are 3-mer RNA subsequences and values are unique
+        indices.
+    """
+    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
+    # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
+    # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
+    words = {
+        "".join(triplet): i + 1
+        for i, triplet in enumerate(product(nucleotides, repeat=3))
+    }
+    return words
 
 
 def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
@@ -74,13 +96,7 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
 
-    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
-    # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
-    # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
-    words = {
-        "".join(triplet): i + 1
-        for i, triplet in enumerate(product(nucleotides, repeat=3))
-    }
+    words = generate_all_aptamer_triplets()
 
     result = []
     for sequence in sequence_list:
