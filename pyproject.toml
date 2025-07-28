@@ -26,13 +26,12 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-ignore = ["N803", "N806"]
-target-version = "py310"  # Match your `>=3.10` requirement
-
-# Choose what to check for
-lint.select = ["E", "F", "B", "I", "UP", "N", "C4"]
-
+target-version = "py310"
 exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "N", "C4"]
+ignore = ["N803", "N806"]
 
 [tool.ruff.format]
 quote-style = "double"

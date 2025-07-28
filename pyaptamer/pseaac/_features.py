@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["PSeAAC"]
+
 import numpy as np
 
 from pyaptamer.pseaac._props import aa_props
