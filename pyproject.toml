@@ -13,7 +13,10 @@ authors = [
 ]
 
 dependencies = [
-    "openmm>=8.3.0,<8.4.0"
+    "numpy>=2.0.2",
+    "openmm>=8.3.0,<8.4.0",
+    "pandas>=2.2.3",
+    "torch>=2.5.1",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,304 @@
+"""Test suite for AptaTrans' deep neural network and pipeline."""
+
+__author__ = ["nennomp"]
+
+import pytest
+import torch
+import torch.nn as nn
+
+from pyaptamer.aptatrans import EncoderPredictorConfig
+from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline
+
+
+class TestAptaTransModel:
+    """Tests for the AptaTrans() class."""
+
+    @pytest.fixture
+    def embeddings(self) -> tuple[EncoderPredictorConfig, EncoderPredictorConfig]:
+        """Create dummy embeddings configurations for testing purposes."""
+        embedding = EncoderPredictorConfig(
+            num_embeddings=16,
+            target_dim=16,
+            max_len=16,
+        )
+        return (embedding, embedding)
+    
+    def test_init_input_dim_not_divisible_by_heads(
+        self, 
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """
+        Check that an AssertionError is raised if input dimension is not divisible by the number of heads.
+        """
+        with pytest.raises(
+            AssertionError, 
+            match="Input dimension 128 must be divisible by number of heads 3."
+        ):
+            AptaTrans(
+                apta_embedding=embeddings[0],
+                prot_embedding=embeddings[1],
+                in_dim=128,
+                n_heads=3,
+            )
+
+    @pytest.mark.parametrize(
+        "device, batch_size, in_dim, seq_len", 
+        [
+            (torch.device("cpu"), 4, 32, 10),
+            pytest.param(
+                torch.device("cuda"), 4, 32, 10,
+                marks=pytest.mark.skipif(
+                    not torch.cuda.is_available(),
+                    reason="CUDA not available"
+                )
+            ),
+        ]
+    )
+    @torch.no_grad()
+    def test_forward(
+        self, 
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        device: torch.device,
+        batch_size: int,
+        in_dim: int,
+        seq_len: int,
+    ) -> None:
+        """Check forward pass on specified device."""
+        aptatrans = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=in_dim,
+            n_encoder_layers=2,
+            n_heads=4,
+            conv_layers=[2, 2, 2],
+            dropout=0.1,
+        ).to(device)
+        
+        
+        # dummy input tensors
+        x_apta = torch.randint(
+            low=1, 
+            high=embeddings[0].num_embeddings, 
+            size=(batch_size, seq_len),
+            dtype=torch.long
+        ).to(device)
+        x_prot = torch.randint(
+            low=1, 
+            high=embeddings[1].num_embeddings, 
+            size=(batch_size, seq_len),
+            dtype=torch.long
+        ).to(device)
+        
+        # forward pass
+        output = aptatrans(x_apta, x_prot)
+        
+        assert output.shape == (batch_size, 1)
+        # output should be in [0, 1] (sigmoid activation)
+        assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
+        assert not torch.allclose(output[0], output[1], atol=1e-5)
+
+class MockAptaTransNeuralNet(nn.Module):
+    """Mock AptaTrans model for testing pipeline."""
+    def __init__(self, device):
+        super().__init__()
+        self.device = device
+        # mock embeddings with required attributes
+        self.apta_embedding = type('MockEmbedding', (), {'max_len': 100})()
+        self.prot_embedding = type('MockEmbedding', (), {'max_len': 150})()
+        
+    def forward(self, x_apta, x_prot):
+        # return deterministic scores based on input shapes
+        batch_size = x_apta.shape[0]
+        return torch.tensor([[0.8]], device=self.device).repeat(batch_size, 1)
+    
+    def to(self, device):
+        self.device = device
+        return self
+
+class TestAptaTransPipeline:
+    """Tests for the AptaTransPipeline() class."""
+    
+    @pytest.mark.parametrize(
+        "device, prot_words",
+        [
+            (torch.device("cpu"), {"AAA": 0.5, "AAC": 0.3, "AAG": 0.8, "ACA": 0.2, "ACC": 0.9}),
+            (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"), 
+             {"CCC": 0.6, "CCG": 0.4, "CGC": 0.7, "GGG": 0.1, "GGC": 0.85}),
+        ]
+    )
+    def test_initialization(self, device, prot_words):
+        """Check AptaTransPipeline() initializes correctly."""
+        model = MockAptaTransNeuralNet(device)
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+        
+        assert isinstance(pipeline, AptaTransPipeline)
+        assert pipeline.device == device
+        assert pipeline.model is model
+        assert pipeline.model.device == device
+        
+        # check word dictionaries
+        assert isinstance(pipeline.apta_words, dict)
+        assert isinstance(pipeline.prot_words, dict)
+        
+        # check aptamer words contain all possible triplets (should be 125)
+        assert len(pipeline.apta_words) == 125
+        
+        # check protein words filtering (only above average frequency)
+        mean_freq = sum(prot_words.values()) / len(prot_words)
+        expected_prot_count = sum(1 for freq in prot_words.values() if freq > mean_freq)
+        assert len(pipeline.prot_words) == expected_prot_count
+
+    @pytest.mark.parametrize(
+        "device, target",
+        [
+            (torch.device("cpu"), "AUGCAUGC"),
+            (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"), "GCUAGCUA"),
+        ]
+    )
+    def test_init_aptamer_experiment(self, device, target, monkeypatch):
+        """Check _init_aptamer_experiment() initializes Aptamer experiment correctly."""
+        # setup
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+        
+        # mock encode_rna function
+        mock_encoded = torch.randn(1, 150, device=device)
+        def mock_encode_rna(**kwargs):
+            return mock_encoded
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
+        
+        # mock Aptamer class to capture initialization arguments
+        captured_args = {}
+        class MockAptamer:
+            def __init__(self, **kwargs):
+                captured_args.update(kwargs)
+        
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.Aptamer", MockAptamer)
+        
+        # test experiment initialization
+        experiment = pipeline._init_aptamer_experiment(target)
+        
+        # check that Aptamer was initialized with correct arguments
+        assert isinstance(experiment, MockAptamer)
+        assert torch.equal(captured_args['target_encoded'], mock_encoded)
+        assert captured_args['target'] == target
+        assert captured_args['model'] is model
+        assert captured_args['device'] == device
+
+    @pytest.mark.parametrize(
+        "device, candidate, target",
+        [
+            (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
+            (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"), 
+             "GCUAG", "AUGCAUGC"),
+        ]
+    )
+    def test_predict_api(self, device, candidate, target, monkeypatch):
+        """Check predict_api() returns interaction scores correctly."""
+        # setup
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+        
+        # mock encode_rna function
+        def mock_encode_rna(**kwargs):
+            return torch.randn(1, 150, device=kwargs['device'])
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
+        
+        # expected score
+        expected_score = torch.tensor(0.85, device=device)
+        
+        # mock Aptamer experiment with evaluate method
+        class MockExperiment:
+            def evaluate(self, cand):
+                assert cand == candidate  # verify correct candidate is passed
+                return expected_score
+        
+        def mock_aptamer(**kwargs):
+            return MockExperiment()
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.Aptamer", mock_aptamer)
+        
+        # test prediction - note the typo fix: self.experiment -> experiment
+        monkeypatch.setattr(pipeline, '_init_aptamer_experiment', 
+                           lambda target: MockExperiment())
+        
+        # test predict_api
+        score = pipeline.predict_api(candidate=candidate, target=target)
+        
+        # check output
+        assert isinstance(score, torch.Tensor)
+        assert torch.equal(score, expected_score)
+        assert score.device == device
+
+    @pytest.mark.parametrize(
+        "device, target, n_candidates, depth",
+        [
+            (torch.device("cpu"), "AUGCAUGC", 3, 5),
+            (torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"), 
+             "GCUAGCUA", 5, 10),
+        ]
+    )
+    def test_recommend(self, device, target, n_candidates, depth, monkeypatch):
+        """Check AptaTransPipeline.recommend() generates candidate aptamers."""
+        # setup
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+        
+        # mock encode_rna function
+        def mock_encode_rna(**kwargs):
+            return torch.randn(1, 150, device=kwargs['device'])
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
+        
+        # mock Aptamer experiment
+        class MockExperiment:
+            def evaluate(self, candidate):
+                return torch.tensor(0.75)
+        
+        def mock_aptamer(**kwargs):
+            return MockExperiment()
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.Aptamer", mock_aptamer)
+        
+        # mock MCTS to return deterministic candidates
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                self.counter = 0
+                self.candidates = [f"APTA{i:03d}" for i in range(10)]
+                
+            def run(self):
+                candidate = self.candidates[self.counter % len(self.candidates)]
+                self.counter += 1
+                return candidate
+        
+        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.MCTS", MockMCTS)
+        
+        # test recommendation
+        candidates = pipeline.recommend(
+            target=target, 
+            n_candidates=n_candidates, 
+            depth=depth,
+            n_iterations=100,
+            verbose=False
+        )
+        
+        # check output
+        assert isinstance(candidates, dict)
+        assert len(candidates) <= n_candidates  # may be less due to duplicates
+        assert all(isinstance(aptamer, str) for aptamer in candidates.keys())
+        assert all(isinstance(score, float) for score in candidates.values())
+
+    def test_get_interaction_map(self):
+        """Check get_interaction_map() raises NotImplementedError."""
+        model = MockAptaTransNeuralNet(torch.device("cpu"))
+        pipeline = AptaTransPipeline(
+            device=torch.device("cpu"), 
+            model=model, 
+            prot_words={"AAA": 0.5}
+        )
+        
+        with pytest.raises(
+            NotImplementedError, 
+            match="This method is not yet implemented"
+        ):
+            pipeline.get_interaction_map()
