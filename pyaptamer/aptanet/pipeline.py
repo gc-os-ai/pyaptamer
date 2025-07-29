@@ -3,13 +3,40 @@ import torch
 import torch.optim as optim
 from sklearn.pipeline import Pipeline
 
-from pyaptamer.aptanet._model import FeatureSelector, SkorchAptaNet
+from pyaptamer.aptanet import FeatureSelector, SkorchAptaNet
 from pyaptamer.pseaac import PSeAAC
 from pyaptamer.utils._aptanet_utils import generate_kmer_vecs
 
 
-# X is expected to be a list of tuples (aptamer_sequence, protein_sequence)
 def pairs_to_features(X, k=4, pseaac_kwargs=None):
+    """
+    Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
+
+    This function generates feature vectors for each (aptamer, protein) pair using:
+    - k-mer representation of the aptamer sequence
+    - Pseudo amino acid composition (PSeAAC) representation of the protein sequence
+
+    Parameters
+    ----------
+    X : list of tuple of str
+        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`.
+        `aptamer_sequence` should be a string of nucleotides, and `protein_sequence`
+        should be a string of amino acids.
+
+    k : int, optional
+        The k-mer size used to generate the k-mer vector from the aptamer sequence.
+        Default is 4.
+
+    pseaac_kwargs : dict, optional
+        Optional keyword arguments to pass to the `PSeAAC` transformer.
+        If not provided, default parameters are used.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D NumPy array where each row corresponds to the concatenated feature vector
+        for a given (aptamer, protein) pair.
+    """
     pseaac_kwargs = {} if pseaac_kwargs is None else pseaac_kwargs
     pseaac = PSeAAC(**pseaac_kwargs)
 
