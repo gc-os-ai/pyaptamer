@@ -54,8 +54,11 @@ class AptaTrans(nn.Module):
     inplanes : int
         Number of input channels for the first convolutional layer.
     encoder_apta, encoder_prot : nn.Sequential
-        Sequential container of (embedding -> positional encoding -> transformer ->
-        token predictor) layers for aptamers and proteins, respectively.
+        Sequential container of (embedding -> positional encoding -> transformer)
+        layers for aptamers and proteins, respectively.
+    token_predictor_apta, token_predictor_prot : TokenPredictor
+        Token predictor layers for aptamers and proteins, respectively. Only used
+        during during pre-training to predict masked toklens and secondary structure.
     imap : InteractionMap
         An instance of the InteractionMap() class, for computing the interaction map
         between aptamers and proteins.
@@ -135,16 +138,16 @@ class AptaTrans(nn.Module):
         self.apta_embedding = apta_embedding
         self.prot_embedding = prot_embedding
 
-        # encoder for aptamers
-        self.encoder_apta = self._make_encoder(
+        # encoder and token predictor for aptamers
+        self.encoder_apta, self.token_predictor_apta = self._make_encoder(
             embedding_config=apta_embedding,
             in_dim=in_dim,
             n_encoder_layers=n_encoder_layers,
             n_heads=n_heads,
             dropout=dropout,
         )
-        # encoder for proteins
-        self.encoder_prot = self._make_encoder(
+        # encoder and token predictor for proteins
+        self.encoder_prot, self.token_predictor_prot = self._make_encoder(
             embedding_config=prot_embedding,
             in_dim=in_dim,
             n_encoder_layers=n_encoder_layers,
@@ -187,16 +190,20 @@ class AptaTrans(nn.Module):
         n_encoder_layers: int,
         n_heads: int,
         dropout: float,
-    ) -> nn.Sequential:
+    ) -> tuple[nn.Sequential, TokenPredictor]:
         """
         Initialize a (transformer-based) encoder consisting of (embedding -> positional
-        encoding -> transformer -> token predictor) layers.
+        encoding -> transformer) layers and a corresponding token predictor for masked
+        token and secondary structure prediction.
 
         Returns
         -------
         nn.Sequential
             A sequential container with the encoder's architectural components.
+        TokenPredictor
+            A token predictor layer for masked token and secondary structure prediction.
         """
+        # transformer-based encoder
         embedding = nn.Embedding(
             num_embeddings=embedding_config.num_embeddings,
             embedding_dim=in_dim,
@@ -205,7 +212,6 @@ class AptaTrans(nn.Module):
         pos_encoding = PositionalEncoding(
             d_model=in_dim, max_len=embedding_config.max_len
         )
-
         encoder = nn.TransformerEncoder(
             encoder_layer=nn.TransformerEncoderLayer(
                 d_model=in_dim,
@@ -217,21 +223,25 @@ class AptaTrans(nn.Module):
             num_layers=n_encoder_layers,
             norm=nn.LayerNorm(in_dim),
         )
+
+        # token predictor
         token_predictor = TokenPredictor(
             d_model=in_dim,
             d_out_mt=embedding_config.num_embeddings,
             d_out_ss=embedding_config.target_dim,
         )
 
-        return nn.Sequential(
-            OrderedDict(
-                [
-                    ("embedding", embedding),
-                    ("pos_encoding", pos_encoding),
-                    ("encoder", encoder),
-                    ("token_predictor", token_predictor),
-                ]
-            )
+        return (
+            nn.Sequential(
+                OrderedDict(
+                    [
+                        ("embedding", embedding),
+                        ("pos_encoding", pos_encoding),
+                        ("encoder", encoder),
+                    ]
+                )
+            ),
+            token_predictor,
         )
 
     def _make_layer(
@@ -266,8 +276,70 @@ class AptaTrans(nn.Module):
 
         return nn.Sequential(*layers)
 
+    def forward_encoders(
+        self,
+        x_apta: tuple[Tensor, Tensor],
+        x_prot: tuple[Tensor, Tensor],
+    ):
+        """Forward pass through the encoders only.
+
+        This method performs a forward pass through the encoders, including the
+        token predictors, for pretraining.
+
+        Parameters
+        ----------
+        x_apta, x_prot : tuple[Tensor, Tensor]
+            A tuple of tensors containing the features for masked tokens and secodnary
+            structure prediction, for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1), n_features (n1)) and (batch_size, seq_len (s2),
+            n_features (n2)), respectively.
+
+        Returns
+        -------
+        tuple[Tensor, Tensor], tuple[Tensor, Tensor]
+            A tuple of tensors containing the predictions for masked tokens and
+            secondary structure, for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1), n_predictions (n1)) and (batch_size, seq_len
+            (s2), n_predictions (n2)), respectively.
+        """
+        # pretrain aptamers' encoder
+        out_apta_mt = self.encoder_apta(x_apta[0])
+        out_apta_ss = self.encoder_apta(x_apta[1])
+        y_apta_mt, y_apta_ss = self.token_predictor_apta(out_apta_mt, out_apta_ss)
+
+        # pretrain proteins' encoder
+        out_prot_mt = self.encoder_prot(x_prot[0])
+        out_prot_ss = self.encoder_prot(x_prot[1])
+        y_prot_mt, y_prot_ss = self.token_predictor_prot(out_prot_mt, out_prot_ss)
+
+        return (y_apta_mt, y_apta_ss), (y_prot_mt, y_prot_ss)
+
+    def forward_imap(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
+        """Forward pass to compute the interaction map.
+
+        This methods performs a forward pass through the encoders, minus the token
+        predictors, to compute the interaction map between aptamers and proteins.
+
+        Parameters
+        ----------
+        x_apta, x_prot : Tensor
+            Input tensors for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2),
+            n_features), respectively.
+
+        Returns
+        -------
+        Tensor
+            Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
+        """
+        x_apta, x_prot = self.encoder_apta(x_apta), self.encoder_prot(x_prot)
+        return self.imap(x_apta, x_prot)
+
     def forward(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
         """Forward pass.
+
+        This methods performs a forward pass through the entire neural network, minus
+        the token predictors, to perform inference and/or fine-tuning.
 
         Parameters
         ----------
@@ -281,10 +353,7 @@ class AptaTrans(nn.Module):
         Tensor
             Output tensor of shape (batch__size, 1) containing the model's predictions.
         """
-        x_apta = self.encoder_apta[:-1](x_apta)
-        x_prot = self.encoder_prot[:-1](x_prot)
-
-        out = self.imap(x_apta, x_prot)
+        out = self.forward_imap(x_apta, x_prot)
 
         out = torch.squeeze(out, dim=2)  # remove extra dimension
         out = self.gelu1(self.bn1(self.conv1(out)))

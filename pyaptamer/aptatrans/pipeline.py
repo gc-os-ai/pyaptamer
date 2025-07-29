@@ -78,7 +78,8 @@ class AptaTransPipeline:
         self.apta_words, self.prot_words = self._init_words(prot_words)
 
     def _init_words(
-        self, prot_words: dict[str, float]
+        self,
+        prot_words: dict[str, float],
     ) -> tuple[dict[str, int], dict[str, int]]:
         """Initialize aptamer and protein word vocabularies.
 
@@ -124,7 +125,7 @@ class AptaTransPipeline:
         )
         return experiment
 
-    def get_interaction_map(self):
+    def get_interaction_map(self) -> torch.Tensor:
         # TODO: implement this method to retrieve the intermediate output of the
         # interaction map from the neural network so that it may be used for plotting
         # TODO: ask whether this is needed/useful

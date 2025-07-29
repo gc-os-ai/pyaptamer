@@ -42,6 +42,66 @@ class TestAptaTransModel:
             )
 
     @pytest.mark.parametrize(
+        "batch_size, seq_len_apta, seq_len_prot, in_dim",
+        [(2, 50, 100, 128), (4, 100, 150, 256), (8, 75, 125, 512)],
+    )
+    def test_forward_encoders(self, batch_size, seq_len_apta, seq_len_prot, in_dim):
+        """Check forward_encoders() produces correct outputs for pretraining."""
+        apta_embedding = EncoderPredictorConfig(
+            num_embeddings=125, target_dim=8, max_len=seq_len_apta
+        )
+        prot_embedding = EncoderPredictorConfig(
+            num_embeddings=1000, target_dim=12, max_len=seq_len_prot
+        )
+        model = AptaTrans(
+            apta_embedding=apta_embedding,
+            prot_embedding=prot_embedding,
+            in_dim=in_dim,
+        )
+
+        x_apta_mt = torch.randint(0, 125, (batch_size, seq_len_apta))
+        x_apta_ss = torch.randint(0, 125, (batch_size, seq_len_apta))
+        x_prot_mt = torch.randint(0, 1000, (batch_size, seq_len_prot))
+        x_prot_ss = torch.randint(0, 1000, (batch_size, seq_len_prot))
+
+        (y_apta_mt, y_apta_ss), (y_prot_mt, y_prot_ss) = model.forward_encoders(
+            x_apta=(x_apta_mt, x_apta_ss), x_prot=(x_prot_mt, x_prot_ss)
+        )
+
+        # check output shapes for aptamer predictions
+        assert y_apta_mt.shape == (batch_size, seq_len_apta, 125)
+        assert y_apta_ss.shape == (batch_size, seq_len_apta, 8)
+
+        assert y_prot_mt.shape == (batch_size, seq_len_prot, 1000)
+        assert y_prot_ss.shape == (batch_size, seq_len_prot, 12)
+
+    @pytest.mark.parametrize(
+        "batch_size, seq_len_apta, seq_len_prot, in_dim",
+        [(2, 50, 100, 128), (4, 100, 150, 256), (8, 75, 125, 512)],
+    )
+    def test_forward_imap(self, batch_size, seq_len_apta, seq_len_prot, in_dim):
+        """Check forward_imap() computes interaction map correctly."""
+        apta_embedding = EncoderPredictorConfig(
+            num_embeddings=125, target_dim=8, max_len=seq_len_apta
+        )
+        prot_embedding = EncoderPredictorConfig(
+            num_embeddings=1000, target_dim=12, max_len=seq_len_prot
+        )
+        model = AptaTrans(
+            apta_embedding=apta_embedding,
+            prot_embedding=prot_embedding,
+            in_dim=in_dim,
+        )
+
+        x_apta = torch.randint(0, 125, (batch_size, seq_len_apta))
+        x_prot = torch.randint(0, 1000, (batch_size, seq_len_prot))
+
+        imap = model.forward_imap(x_apta, x_prot)
+
+        assert isinstance(imap, torch.Tensor)
+        assert imap.shape == (batch_size, 1, seq_len_apta, seq_len_prot)
+
+    @pytest.mark.parametrize(
         "device, batch_size, in_dim, seq_len",
         [
             (torch.device("cpu"), 4, 32, 10),
