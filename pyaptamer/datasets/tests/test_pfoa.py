@@ -3,7 +3,7 @@ from Bio.PDB.Structure import Structure
 from pyaptamer.datasets.loader import load_pfoa_structure
 
 
-def test_load_pfoa_structure_runs_and_returns_structure():
+def test_pfoa_loader():
     """
     Test that the load_pfoa_structure function runs without error and returns a valid
     Structure object.
