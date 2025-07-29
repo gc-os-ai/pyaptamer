@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
 
 from pyaptamer.aptanet import FeatureSelector, SkorchAptaNet
 from pyaptamer.pseaac import PSeAAC
@@ -63,6 +64,14 @@ net = SkorchAptaNet(
     verbose=1,
 )
 
+feature_transformer = FunctionTransformer(
+    func=pairs_to_features,
+    validate=False,
+    # Optional arguments for pairs_to_features
+    # example: kw_args={'k': 4, 'pseaac_kwargs': {'lambda_value': 30}}
+    kw_args={},
+)
+
 pipe = Pipeline(
-    [("features", pairs_to_features), ("select", FeatureSelector()), ("clf", net)]
+    [("features", feature_transformer), ("select", FeatureSelector()), ("clf", net)]
 )
