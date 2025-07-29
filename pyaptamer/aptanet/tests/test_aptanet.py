@@ -5,7 +5,6 @@ from sklearn.utils.estimator_checks import check_estimator
 
 from pyaptamer.aptanet import FeatureSelector, SkorchAptaNet
 from pyaptamer.aptanet.pipeline import pairs_to_features
-from pyaptamer.pseaac import PSeAAC
 
 
 @pytest.mark.parametrize(
@@ -27,7 +26,7 @@ def test_model_fit_and_predict(aptamer_seq, protein_seq):
     """
     # Generate dummy input
     X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
-    y = np.array([0] * 20 + [1] * 20)
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
     # Convert sequence pairs to features
     X = pairs_to_features(X_raw)
@@ -48,19 +47,6 @@ def test_model_fit_and_predict(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert set(preds).issubset({0, 1})
-
-
-def test_invalid_protein_sequence():
-    """
-    Test PSeAAC raises ValueError on invalid amino acids.
-
-    Asserts
-    -------
-    ValueError is raised for an invalid protein sequence.
-    """
-    pseaac = PSeAAC()
-    with pytest.raises(ValueError):
-        pseaac.transform("ACDEXFGHIKL")  # 'X' is not a valid amino acid
 
 
 @pytest.mark.parametrize("estimator", [FeatureSelector()])

@@ -45,7 +45,9 @@ def pairs_to_features(X, k=4, pseaac_kwargs=None):
         kmer = generate_kmer_vecs(aptamer_seq, k=k)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
         feats.append(np.concatenate([kmer, pseaac_vec]))
-    return np.vstack(feats)
+
+    # Ensure float32 for PyTorch compatibility
+    return np.vstack(feats).astype(np.float32)
 
 
 net = SkorchAptaNet(
