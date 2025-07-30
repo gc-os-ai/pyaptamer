@@ -1,16 +1,20 @@
-import pytest
-
-from pyaptamer.datasets.loader import load_pfoa_structure
+from pyaptamer.datasets.loader import load_1gnh_structure
 from pyaptamer.utils.struct_to_aaseq import struct_to_aaseq
 
 
-def test_struct_to_aaseq_runs_and_returns_expected_type():
-    structure = load_pfoa_structure()
+def test_struct_to_aaseq():
+    """
+    Test that struct_to_aaseq correctly converts a Biopython Structure
+    into a list of amino‑acid sequences.
 
-    try:
-        sequences = struct_to_aaseq(structure)
-    except Exception as e:
-        pytest.fail(f"struct_to_aaseq raised an exception: {e}")
+    Asserts:
+        - No exception is raised when calling the function.
+        - The return value is a list.
+        - Each element of the list is a string.
+    """
+    structure = load_1gnh_structure()
+
+    sequences = struct_to_aaseq(structure)
 
     assert isinstance(sequences, list), "Return value should be a list"
     for seq in sequences:
