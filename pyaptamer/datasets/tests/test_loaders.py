@@ -2,13 +2,13 @@ import pytest
 from Bio.PDB.Structure import Structure
 
 from pyaptamer.datasets.loader import (
-    load_1ghn_structure,
+    load_1gnh_structure,
     load_pfoa_structure,
 )
 
 LOADERS = [
     load_pfoa_structure,
-    load_1ghn_structure,
+    load_1gnh_structure,
 ]
 
 
