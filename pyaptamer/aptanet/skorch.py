@@ -1,5 +1,6 @@
 __author__ = "satvshr"
 __all__ = ["SkorchAptaNet"]
+__required__ = ["python>=3.9,<3.12"]
 
 import torch.nn as nn
 from skorch import NeuralNetBinaryClassifier
