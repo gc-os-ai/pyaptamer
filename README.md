@@ -64,6 +64,8 @@ How to start: [find a good first issue](https://github.com/gc-os-ai/pyaptamer/is
 and/or join the [discord](https://discord.gg/7uKdHfdcJG) and ping the developers,
 you can also ask for longer projects here.
 
+Contributions and participation are subject to the GC.OS Code of Conduct.
+
 ---
 
 ## 🗺️ Roadmap
