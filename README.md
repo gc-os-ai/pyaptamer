@@ -35,7 +35,7 @@ to be completed
 
 ## ⚡ Installation
 
-### Stable version vrom pip
+### Stable version from pip
 
 ```bash
 pip install pyaptamer
