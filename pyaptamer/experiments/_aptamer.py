@@ -1,12 +1,13 @@
 __author__ = ["nennomp"]
 __all__ = ["Aptamer"]
 
+from skbase.base import BaseObject
 import torch
 
 from pyaptamer.utils import rna2vec
 
 
-class Aptamer:
+class Aptamer(BaseObject):
     """Candidate aptamer evaluation for a given target protein.
 
     Parameters
@@ -50,6 +51,8 @@ class Aptamer:
         self.target = target
         self.model = model
         self.device = device
+
+        super().__init__()
 
     def _inputnames(self) -> list[str]:
         """Return the inputs of the experiment."""

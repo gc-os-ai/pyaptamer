@@ -6,9 +6,10 @@ __all__ = ["MCTS"]
 import random
 
 import numpy as np
+from skbase.base import BaseObject
 
 
-class MCTS:
+class MCTS(BaseObject):
     """
     MCTS algorithm implementation for string optimization, specifically for aptamr
     generation as described in aptamer generation as described in [1]_, originally
@@ -84,13 +85,17 @@ class MCTS:
         n_iterations : int, optional
             Number of iterations per round for the MCTS algorithm.
         """
-        if states is None:
-            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
         self.states = states
-
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
+
+        super().__init__()
+
+        if states is None:
+            self._states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        else:
+            self._states = states
 
         self.root = TreeNode(
             n_states=len(states),
@@ -101,7 +106,7 @@ class MCTS:
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
         self.root = TreeNode(
-            n_states=len(self.states),
+            n_states=len(self._states),
         )
         self.base = ""
         self.candidate = ""
@@ -151,7 +156,7 @@ class MCTS:
         is_terminal = node.depth == self.depth - 1
 
         # find all unexpanded values for this node
-        unexpanded = list(set(self.states) - set(node.children.keys()))
+        unexpanded = list(set(self._states) - set(node.children.keys()))
 
         # randomly selected one value from unexpanded ones
         val = random.choice(unexpanded)
@@ -191,7 +196,7 @@ class MCTS:
         # fill the rest of the sequence with random possible values
         remaining_length = (self.depth * 2) - len(sequence)
         for _ in range(remaining_length):
-            sequence += random.choice(self.states)
+            sequence += random.choice(self._states)
 
         # evaluate the candidate sequence with the goal function
         return self.experiment.evaluate(sequence)
@@ -266,7 +271,7 @@ class MCTS:
 
             # reset for next iteration
             self.root = TreeNode(
-                n_states=len(self.states),
+                n_states=len(self._states),
                 depth=len(self.base) // 2,  # adjust depth based on current base
             )
 
