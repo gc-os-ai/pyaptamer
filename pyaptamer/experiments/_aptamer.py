@@ -47,11 +47,12 @@ class Aptamer(BaseObject):
         device : torch.device
             Device to run the model on.
         """
-        super().__init__()
         self.target_encoded = target_encoded.to(device)
         self.target = target
         self.model = model
         self.device = device
+
+        super().__init__()
 
     def _inputnames(self) -> list[str]:
         """Return the inputs of the experiment."""
