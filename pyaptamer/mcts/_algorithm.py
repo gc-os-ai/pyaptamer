@@ -8,6 +8,277 @@ import random
 import numpy as np
 
 
+class MCTS:
+    """
+    MCTS algorithm implementation for string optimization, specifically for aptamr
+    generation as described in aptamer generation as described in [1]_, originally
+    introduced in [2]_.
+
+    Adapted from:
+
+    - https://github.com/PNUMLB/AptaTrans/blob/master/mcts.py
+    - https://github.com/leekh7411/Apta-MCTS/blob/master/src/mcts.py
+
+    Parameters
+    ----------
+    states : list[str]
+        Possible values for the nodes. Underscores indicate whether the values are
+        supposed to be prepended or appended to the sequence.
+    depth : int, optional
+        Maximum depth of the search tree, also the length of the generated sequences.
+    n_iterations : int, optional
+        Number of iterations per round for the MCTS algorithm.
+    experiment : BaseExperiment, optional, default=None
+        An instance of an experiment class definingthe goal function for the algorithm.
+
+    Attributes
+    ----------
+    base : str
+        Best sequence found so far.
+    candidate : str
+        Final candidate sequence.
+    root : TreeNode
+        Root node of the MCTS tree.
+
+    References
+    ----------
+    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
+    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
+    (2023): 447.
+    .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with target
+    proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
+    search approach." PloS one 16.6 (2021): e0253760.
+
+    Examples
+    --------
+    >>> from pyaptamer.mcts.algorithm import MCTS
+    >>> from pyaptamer.experiment import Aptamer
+    >>> experiment = Aptamer(target_encoded, target, model, device)
+    >>> mcts = MCTS(experiment, depth=10)
+    >>> candidate = mcts.run(verbose=True)
+    >>> print(candidate["candidate"])
+    ACGUACGUAU
+    >>> print(candidate["score"])
+    0.85
+    >>> print(len(candidate))
+    10
+    """
+
+    def __init__(
+        self,
+        states: list[str] | None = None,
+        depth: int = 20,
+        n_iterations: int = 1000,
+        experiment=None,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        experiment : Aptamer
+            An instance of the Aptamer() class specifying the goal function.
+        states : list[str], optional
+            A list containing possible values for the nodes. Underscores indicate
+            whether the values are supposed to be prepended or appended to the sequence.
+        depth : int, optional
+            Maximum depth of the search tree.
+        n_iterations : int, optional
+            Number of iterations per round for the MCTS algorithm.
+        """
+        if states is None:
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        self.states = states
+
+        self.experiment = experiment
+        self.depth = depth
+        self.n_iterations = n_iterations
+
+        self.root = TreeNode(
+            n_states=len(states),
+        )
+        self.base = ""
+        self.candidate = ""
+
+    def _reset(self) -> None:
+        """Reset the MCTS algorithm to its initial state."""
+        self.root = TreeNode(
+            n_states=len(self.states),
+        )
+        self.base = ""
+        self.candidate = ""
+
+    def _selection(self, node: TreeNode) -> TreeNode:
+        """Select a node for expansion.
+
+        The tree is traversed recursively based on the more promising nodes according
+        to their UCT scores. When a node is fully expanded, the best child is selected
+        and the search continues down that path. The expansion stops when a node that
+        has not been fully expanded is found, or when a terminal node is reached.
+
+        Parameters
+        ----------
+        node : TreeNode
+            Starting node for selection.
+
+        Returns
+        -------
+        TreeNode
+            The node selected for expansion.
+        """
+        while not node.is_terminal:
+            if node.is_fully_expanded():  # fully expanded, select best one and continue
+                node = node.get_best_child()
+            else:  # expand
+                return node
+        return node
+
+    def _expansion(self, node: TreeNode) -> TreeNode:
+        """Expand the selected node.
+
+        The selected node is expanded by creating a new child to which a randomly
+        selected value is assigned. The value is randomly chosen from the set of
+        unexpanded states (those that have not been added to the node's children yet).
+
+        Parameters
+        ----------
+        node : TreeNode
+            Node to expand from.
+
+        Returns
+        -------
+        TreeNode
+            The newly created child node from the expansion.
+        """
+        is_terminal = node.depth == self.depth - 1
+
+        # find all unexpanded values for this node
+        unexpanded = list(set(self.states) - set(node.children.keys()))
+
+        # randomly selected one value from unexpanded ones
+        val = random.choice(unexpanded)
+
+        return node.create_child(val=val, is_terminal=is_terminal)
+
+    def _simulation(self, node: TreeNode) -> float:
+        """
+        Simulate a random playout for the node/path and generate a candidate sequence.
+
+        Starting from the given node, a random walk is performed: random values are
+        added to the sequence until the desired length (depth) is reached. The sequence
+        is then evaluated leveraging the goal function defined by `self.experiment`.
+
+        Parameters
+        ----------
+        node : TreeNode
+            Node to start simulation from.
+
+        Returns
+        -------
+        float
+            The score for the simulate sequence, assigned according to the goal
+            function defined by `self.experiment`.
+        """
+        curr = node
+        sequence = ""
+
+        # build the current sequence from node to root
+        while not curr.is_root:
+            sequence = curr.val + sequence
+            curr = curr.parent
+
+        # prepend the `self.base` sequence
+        sequence = self.base + sequence
+
+        # fill the rest of the sequence with random possible values
+        remaining_length = (self.depth * 2) - len(sequence)
+        for _ in range(remaining_length):
+            sequence += random.choice(self.states)
+
+        # evaluate the candidate sequence with the goal function
+        return self.experiment.evaluate(sequence)
+
+    def _find_best_subsequence(self) -> str:
+        """Retrieve the best sequence found so far, according to the UCT scores.
+
+        Returns
+        -------
+        str
+            The best subsequence found in the current tree.
+        """
+        curr = self.root
+        subsequence = self.base
+
+        # traverse the tree
+        max_steps = (self.depth * 2) - len(self.base)
+        for _ in range(max_steps):
+            if not curr.children:
+                break
+
+            curr = curr.get_best_child()
+            subsequence += curr.val
+
+        return subsequence
+
+    def run(self, verbose: bool = True) -> dict:
+        """
+        Perform a full recommendation run consisting of `self.n_iterations` rounds of
+        (selection -> expansion -> simulation -> backpropagation)
+
+        Parameters
+        ----------
+        verbose : bool
+            Whether to print progress information.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the final candidate sequence (`candidate`) and its
+            score (`score`).
+        """
+        self._reset()
+
+        # continue until we reach the target sequence length (i.e, depth * 2)
+        round_count = 0
+        while len(self.base) < self.depth * 2:
+            if verbose:
+                print(f"\n ----- Round: {round_count + 1} -----")
+
+            for _ in range(self.n_iterations):
+                # selection
+                node = self._selection(node=self.root)
+
+                # expansion
+                if not node.is_terminal:
+                    node = self._expansion(node=node)
+
+                # simulation
+                score = self._simulation(node=node)
+
+                # backpropagation
+                node.backpropagate(score)
+
+            self.base = self._find_best_subsequence()
+
+            if verbose:
+                print("#" * 50)
+                print(f"Best subsequence: {self.base}")
+                print(f"Depth: {len(self.base) // 2}")
+                print("#" * 50)
+
+            # reset for next iteration
+            self.root = TreeNode(
+                n_states=len(self.states),
+                depth=len(self.base) // 2,  # adjust depth based on current base
+            )
+
+            round_count += 1
+
+        self.candidate = self.base
+        return {
+            "candidate": self.candidate,
+            "score": self.experiment.evaluate(self.candidate),
+        }
+
+
 class TreeNode:
     """Node of the MCTS tree.
 
@@ -217,274 +488,3 @@ class TreeNode:
             if not curr.is_root:
                 curr.exploitation_score += score
             curr = curr.parent
-
-
-class MCTS:
-    """
-    MCTS algorithm implementation for string optimization, specifically for aptamr
-    generation as described in aptamer generation as described in [1]_, originally
-    introduced in [2]_.
-
-    Adapted from:
-    - https://github.com/PNUMLB/AptaTrans/blob/master/mcts.py
-    - https://github.com/leekh7411/Apta-MCTS/blob/master/src/mcts.py
-
-    Parameters
-    ----------
-    experiment : Aptamer
-        An instance of an experiment class that defines the goal function for the
-        algorithm.
-    states : list[str]
-        Possible values for the nodes. Underscores indicate whether the values are
-        supposed to be prepended or appended to the sequence.
-    depth : int, optional
-        Maximum depth of the search tree, also the length of the generated sequences.
-    n_iterations : int, optional
-        Number of iterations per round for the MCTS algorithm.
-
-    Attributes
-    ----------
-    base : str
-        Best sequence found so far.
-    candidate : str
-        Final candidate sequence.
-    root : TreeNode
-        Root node of the MCTS tree.
-
-    References
-    ----------
-    .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
-    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
-    (2023): 447.
-    .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with target
-    proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
-    search approach." PloS one 16.6 (2021): e0253760.
-
-    Examples
-    --------
-    >>> from pyaptamer.mcts.algorithm import MCTS
-    >>> from pyaptamer.experiment import Aptamer
-    >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> mcts = MCTS(experiment, depth=10)
-    >>> candidate = mcts.run(verbose=True)
-    >>> print(candidate["candidate"])
-    ACGUACGUAU
-    >>> print(candidate["score"])
-    0.85
-    >>> print(len(candidate))
-    10
-    """
-
-    def __init__(
-        self,
-        experiment,
-        states: list[str] | None = None,
-        depth: int = 20,
-        n_iterations: int = 1000,
-    ) -> None:
-        """
-        Parameters
-        ----------
-        experiment : Aptamer
-            An instance of the Aptamer() class specifying the goal function.
-        states : list[str], optional
-            A list containing possible values for the nodes. Underscores indicate
-            whether the values are supposed to be prepended or appended to the sequence.
-        depth : int, optional
-            Maximum depth of the search tree.
-        n_iterations : int, optional
-            Number of iterations per round for the MCTS algorithm.
-        """
-        if states is None:
-            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
-        self.states = states
-
-        self.experiment = experiment
-        self.depth = depth
-        self.n_iterations = n_iterations
-
-        self.root = TreeNode(
-            n_states=len(states),
-        )
-        self.base = ""
-        self.candidate = ""
-
-    def _reset(self) -> None:
-        """Reset the MCTS algorithm to its initial state."""
-        self.root = TreeNode(
-            n_states=len(self.states),
-        )
-        self.base = ""
-        self.candidate = ""
-
-    def _selection(self, node: TreeNode) -> TreeNode:
-        """Select a node for expansion.
-
-        The tree is traversed recursively based on the more promising nodes according
-        to their UCT scores. When a node is fully expanded, the best child is selected
-        and the search continues down that path. The expansion stops when a node that
-        has not been fully expanded is found, or when a terminal node is reached.
-
-        Parameters
-        ----------
-        node : TreeNode
-            Starting node for selection.
-
-        Returns
-        -------
-        TreeNode
-            The node selected for expansion.
-        """
-        while not node.is_terminal:
-            if node.is_fully_expanded():  # fully expanded, select best one and continue
-                node = node.get_best_child()
-            else:  # expand
-                return node
-        return node
-
-    def _expansion(self, node: TreeNode) -> TreeNode:
-        """Expand the selected node.
-
-        The selected node is expanded by creating a new child to which a randomly
-        selected value is assigned. The value is randomly chosen from the set of
-        unexpanded states (those that have not been added to the node's children yet).
-
-        Parameters
-        ----------
-        node : TreeNode
-            Node to expand from.
-
-        Returns
-        -------
-        TreeNode
-            The newly created child node from the expansion.
-        """
-        is_terminal = node.depth == self.depth - 1
-
-        # find all unexpanded values for this node
-        unexpanded = list(set(self.states) - set(node.children.keys()))
-
-        # randomly selected one value from unexpanded ones
-        val = random.choice(unexpanded)
-
-        return node.create_child(val=val, is_terminal=is_terminal)
-
-    def _simulation(self, node: TreeNode) -> float:
-        """
-        Simulate a random playout for the node/path and generate a candidate sequence.
-
-        Starting from the given node, a random walk is performed: random values are
-        added to the sequence until the desired length (depth) is reached. The sequence
-        is then evaluated leveraging the goal function defined by `self.experiment`.
-
-        Parameters
-        ----------
-        node : TreeNode
-            Node to start simulation from.
-
-        Returns
-        -------
-        float
-            The score for the simulate sequence, assigned according to the goal
-            function defined by `self.experiment`.
-        """
-        curr = node
-        sequence = ""
-
-        # build the current sequence from node to root
-        while not curr.is_root:
-            sequence = curr.val + sequence
-            curr = curr.parent
-
-        # prepend the `self.base` sequence
-        sequence = self.base + sequence
-
-        # fill the rest of the sequence with random possible values
-        remaining_length = (self.depth * 2) - len(sequence)
-        for _ in range(remaining_length):
-            sequence += random.choice(self.states)
-
-        # evaluate the candidate sequence with the goal function
-        return self.experiment.evaluate(sequence)
-
-    def _find_best_subsequence(self) -> str:
-        """Retrieve the best sequence found so far, according to the UCT scores.
-
-        Returns
-        -------
-        str
-            The best subsequence found in the current tree.
-        """
-        curr = self.root
-        subsequence = self.base
-
-        # traverse the tree
-        max_steps = (self.depth * 2) - len(self.base)
-        for _ in range(max_steps):
-            if not curr.children:
-                break
-
-            curr = curr.get_best_child()
-            subsequence += curr.val
-
-        return subsequence
-
-    def run(self, verbose: bool = True) -> dict:
-        """
-        Perform a full recommendation run consisting of `self.n_iterations` rounds of
-        (selection -> expansion -> simulation -> backpropagation)
-
-        Parameters
-        ----------
-        verbose : bool
-            Whether to print progress information.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
-            score (`score`).
-        """
-        self._reset()
-
-        # continue until we reach the target sequence length (i.e, depth * 2)
-        round_count = 0
-        while len(self.base) < self.depth * 2:
-            if verbose:
-                print(f"\n ----- Round: {round_count + 1} -----")
-
-            for _ in range(self.n_iterations):
-                # selection
-                node = self._selection(node=self.root)
-
-                # expansion
-                if not node.is_terminal:
-                    node = self._expansion(node=node)
-
-                # simulation
-                score = self._simulation(node=node)
-
-                # backpropagation
-                node.backpropagate(score)
-
-            self.base = self._find_best_subsequence()
-
-            if verbose:
-                print("#" * 50)
-                print(f"Best subsequence: {self.base}")
-                print(f"Depth: {len(self.base) // 2}")
-                print("#" * 50)
-
-            # reset for next iteration
-            self.root = TreeNode(
-                n_states=len(self.states),
-                depth=len(self.base) // 2,  # adjust depth based on current base
-            )
-
-            round_count += 1
-
-        self.candidate = self.base
-        return {
-            "candidate": self.candidate,
-            "score": self.experiment.evaluate(self.candidate),
-        }
