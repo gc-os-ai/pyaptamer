@@ -34,9 +34,6 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
     assert set(preds).issubset({0, 1})
 
 
-@pytest.mark.parametrize("estimator", [FeatureSelector()])
-def test_sklearn_compatible_estimator(estimator):
-    """
-    Test that FeatureSelector is compatible with scikit-learn estimator checks.
-    """
-    parametrize_with_checks(estimator)
+@parametrize_with_checks([FeatureSelector()])
+def test_sklearn_compatible_estimator(estimator, check):
+    check(estimator)
