@@ -1,8 +1,8 @@
 __author__ = ["nennomp"]
 __all__ = ["Aptamer"]
 
-from skbase.base import BaseObject
 import torch
+from skbase.base import BaseObject
 
 from pyaptamer.utils import rna2vec
 
