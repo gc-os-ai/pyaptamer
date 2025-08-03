@@ -111,7 +111,7 @@ class MCTS(BaseObject):
         self.base = ""
         self.candidate = ""
 
-    def _selection(self, node: TreeNode) -> TreeNode:
+    def _selection(self, node: "TreeNode") -> "TreeNode":
         """Select a node for expansion.
 
         The tree is traversed recursively based on the more promising nodes according
@@ -136,7 +136,7 @@ class MCTS(BaseObject):
                 return node
         return node
 
-    def _expansion(self, node: TreeNode) -> TreeNode:
+    def _expansion(self, node: "TreeNode") -> "TreeNode":
         """Expand the selected node.
 
         The selected node is expanded by creating a new child to which a randomly
@@ -163,7 +163,7 @@ class MCTS(BaseObject):
 
         return node.create_child(val=val, is_terminal=is_terminal)
 
-    def _simulation(self, node: TreeNode) -> float:
+    def _simulation(self, node: "TreeNode") -> float:
         """
         Simulate a random playout for the node/path and generate a candidate sequence.
 
