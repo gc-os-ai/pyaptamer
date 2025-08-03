@@ -13,10 +13,11 @@ authors = [
 ]
 
 dependencies = [
-    "biopython>=1.83"
+    "biopython>=1.83",
     "numpy>=2.0.2",
     "openmm>=8.3.0,<8.4.0",
     "pandas>=2.0.0",
+    "scikit-base",
     "torch>=2.5.1",
 ]
 

@@ -122,7 +122,6 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
 
     return np.array(result)
 
-
 def encode_rna(
     sequences: list[str],
     words: dict[str, int],

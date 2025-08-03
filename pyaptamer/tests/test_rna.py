@@ -118,7 +118,6 @@ def test_rna2vec_edge_cases():
     result = rna2vec(["AA"])
     assert len(result) == 0
 
-
 @pytest.mark.parametrize(
     "sequences, words, max_len, word_max_len, expected",
     [

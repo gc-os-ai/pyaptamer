@@ -2,11 +2,12 @@ __author__ = ["nennomp"]
 __all__ = ["Aptamer"]
 
 import torch
+from skbase.base import BaseObject
 
 from pyaptamer.utils import rna2vec
 
 
-class Aptamer:
+class Aptamer(BaseObject):
     """Candidate aptamer evaluation for a given target protein.
 
     Parameters
@@ -46,6 +47,7 @@ class Aptamer:
         device : torch.device
             Device to run the model on.
         """
+        super().__init__()
         self.target_encoded = target_encoded.to(device)
         self.target = target
         self.model = model
