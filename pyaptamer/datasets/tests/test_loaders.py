@@ -1,7 +1,7 @@
 import pytest
 from Bio.PDB.Structure import Structure
 
-from pyaptamer.datasets.loaders import (
+from pyaptamer.datasets._loaders import (
     load_1gnh_structure,
     load_pfoa_structure,
 )
