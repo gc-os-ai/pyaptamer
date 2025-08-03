@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from sklearn.utils.estimator_checks import check_estimator
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import FeatureSelector
 from pyaptamer.aptanet.pipeline import pipe
@@ -39,4 +39,4 @@ def test_sklearn_compatible_estimator(estimator):
     """
     Test that FeatureSelector is compatible with scikit-learn estimator checks.
     """
-    check_estimator(estimator)
+    parametrize_with_checks(estimator)
