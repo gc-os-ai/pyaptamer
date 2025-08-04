@@ -1,11 +1,15 @@
+import sys
+
 import numpy as np
 import pytest
-from sklearn.utils.estimator_checks import check_estimator
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import FeatureSelector
-from pyaptamer.aptanet.pipeline import pipe
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
+)
 @pytest.mark.parametrize(
     "aptamer_seq, protein_seq",
     [
@@ -23,6 +27,8 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
     -------
     Pipeline predictions are valid class labels and shape matches input.
     """
+    from pyaptamer.aptanet.pipeline import pipe
+
     X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
@@ -34,9 +40,6 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
     assert set(preds).issubset({0, 1})
 
 
-@pytest.mark.parametrize("estimator", [FeatureSelector()])
-def test_sklearn_compatible_estimator(estimator):
-    """
-    Test that FeatureSelector is compatible with scikit-learn estimator checks.
-    """
-    check_estimator(estimator)
+@parametrize_with_checks([FeatureSelector()])
+def test_sklearn_compatible_estimator(estimator, check):
+    check(estimator)
