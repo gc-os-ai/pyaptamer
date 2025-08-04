@@ -1,4 +1,4 @@
-from pyaptamer.datasets.loader import load_1gnh_structure
+from pyaptamer.datasets import load_1gnh_structure
 from pyaptamer.utils.struct_to_aaseq import struct_to_aaseq
 
 
