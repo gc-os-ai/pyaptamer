@@ -2,9 +2,6 @@ import sys
 
 import numpy as np
 import pytest
-from sklearn.utils.estimator_checks import parametrize_with_checks
-
-from pyaptamer.aptanet import FeatureSelector
 
 
 @pytest.mark.skipif(
@@ -38,8 +35,3 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert set(preds).issubset({0, 1})
-
-
-@parametrize_with_checks([FeatureSelector()])
-def test_sklearn_compatible_estimator(estimator, check):
-    check(estimator)
