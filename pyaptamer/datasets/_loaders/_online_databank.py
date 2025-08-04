@@ -19,7 +19,7 @@ def download_and_extract_sequences(pdb_id):
         List of amino acid sequences extracted from the structure.
     """
     pdbl = PDBList()
-    pdb_file_path = pdbl.retrieve_pdb_file(pdb_id)
+    pdb_file_path = pdbl.retrieve_pdb_file(pdb_id, file_format="pdb")
 
     structure = pdb_to_struct(pdb_file_path)
     sequences = struct_to_aaseq(structure)
