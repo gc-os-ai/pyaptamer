@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
@@ -6,6 +8,9 @@ from pyaptamer.aptanet import FeatureSelector
 from pyaptamer.aptanet.pipeline import pipe
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
+)
 @pytest.mark.parametrize(
     "aptamer_seq, protein_seq",
     [
