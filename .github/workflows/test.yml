@@ -98,3 +98,10 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest pyaptamer -p no:warnings
+
+      - name: Install Jupyter notebook tools
+        run: |
+          pip install nbconvert
+
+      - name: Run all Jupyter notebooks
+        run: bash build_tools/run_all_notebooks.sh
