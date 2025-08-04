@@ -12,7 +12,7 @@ from skorch import NeuralNetBinaryClassifier
 from pyaptamer.aptanet.aptanet_nn import AptaNetMLP
 from pyaptamer.utils._aptanet_utils import pairs_to_features
 
-net = NeuralNetBinaryClassifier(
+_net = NeuralNetBinaryClassifier(
     module=AptaNetMLP,
     module__input_dim=128,
     module__hidden_dim=64,
@@ -25,7 +25,7 @@ net = NeuralNetBinaryClassifier(
     lr=0.01,
 )
 
-feature_transformer = FunctionTransformer(
+_feature_transformer = FunctionTransformer(
     func=pairs_to_features,
     validate=False,
     # Optional arguments for pairs_to_features
@@ -34,15 +34,15 @@ feature_transformer = FunctionTransformer(
 )
 
 # Direct feature selection using tree-based model
-feature_selector = SelectFromModel(
+_feature_selector = SelectFromModel(
     estimator=RandomForestClassifier(n_estimators=300, max_depth=9, random_state=0),
     threshold="mean",
 )
 
 pipe = Pipeline(
     [
-        ("features", feature_transformer),
-        ("select", feature_selector),
-        ("clf", net),
+        ("features", _feature_transformer),
+        ("select", _feature_selector),
+        ("net", _net),
     ]
 )

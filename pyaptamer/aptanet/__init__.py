@@ -1,6 +1,5 @@
 """The AptaNet algorithm"""
 
-from pyaptamer.aptanet.feature_selector import FeatureSelector
-from pyaptamer.aptanet.skorch import SkorchAptaNet
+from pyaptamer.aptanet.pipeline import pipe
 
-__all__ = ["FeatureSelector", "SkorchAptaNet"]
+__all__ = ["pipe"]

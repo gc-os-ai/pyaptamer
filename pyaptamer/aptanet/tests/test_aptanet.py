@@ -24,7 +24,7 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
     -------
     Pipeline predictions are valid class labels and shape matches input.
     """
-    from pyaptamer.aptanet.pipeline import pipe
+    from pyaptamer.aptanet import pipe
 
     X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
