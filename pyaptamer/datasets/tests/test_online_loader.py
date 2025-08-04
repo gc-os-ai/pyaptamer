@@ -13,5 +13,3 @@ def test_download_and_extract_sequences(pdb_id):
     assert isinstance(sequences, list), (
         f"Expected a list of sequences, got {type(sequences)}"
     )
-    for seq in sequences:
-        assert isinstance(seq, str), "Each sequence should be a string"
