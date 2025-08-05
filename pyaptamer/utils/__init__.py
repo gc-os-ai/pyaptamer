@@ -7,7 +7,7 @@ __all__ = [
     "rna2vec",
 ]
 
-from pyaptamer.utils.rna import (
+from pyaptamer.utils._rna import (
     dna2rna,
     encode_rna,
     generate_all_aptamer_triplets,

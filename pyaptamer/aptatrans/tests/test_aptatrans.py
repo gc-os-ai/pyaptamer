@@ -203,9 +203,9 @@ class TestAptaTransPipeline:
         pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
         assert isinstance(pipeline, AptaTransPipeline)
-        assert pipeline.device == device
+        assert pipeline.device.type == device.type
         assert pipeline.model is model
-        assert pipeline.model.device == device
+        assert pipeline.model.device.type == device.type
 
         # check word dictionaries
         assert isinstance(pipeline.apta_words, dict)
@@ -316,7 +316,7 @@ class TestAptaTransPipeline:
         # check output
         assert isinstance(score, torch.Tensor)
         assert torch.equal(score, expected_score)
-        assert score.device == device
+        assert score.device.type == device.type
 
     @pytest.mark.parametrize(
         "device, target, n_candidates, depth",

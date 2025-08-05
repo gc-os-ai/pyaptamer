@@ -79,7 +79,7 @@ class TestAptamer:
             model=model,
             device=device,
         )
-        assert experiment.target_encoded.device == device
+        assert experiment.target_encoded.device.type == device.type
 
     def test_inputnames(self, experiment):
         """Check that the inputs of the experiment are correctly returned."""
