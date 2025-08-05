@@ -1,14 +1,8 @@
-Here is a clean and precise developer-facing markdown documentation for `Structure.py`, designed to follow the logic of the attached `Structure_IO.svg` diagram and explain how the class works and interacts with residue metadata. The goal is to ensure that any developer reading this can quickly understand the control flow, data shape, and design intent of the module.
-
----
-
 # `Structure.py` — Developer Documentation
 
 This module defines the `Structure` class, which encapsulates the molecular configuration of residue-based molecules (e.g., aptamers). It provides abstractions over residue metadata, rotatable bonds, and backbone structure, ultimately constructing AMBER-style inputs like `.lib` and `.frcmod` files to support force field parametrization in molecular simulations.
 
 The class is central to the input preprocessing pipeline and is responsible for converting high-level residue specifications into concrete AMBER configuration strings.
-
----
 
 ## Class: `Structure`
 
@@ -20,68 +14,93 @@ The `Structure` class acts as a configuration holder for all relevant molecular 
 - Mapping residue names to atom-level aliases
 - Defining rotation and backbone behavior for energy minimization and conformational sampling
 
----
-
-![yaptamer/maws/docs/assets/Structure_IO.svg
+<img src="./assets/Structure_IO.svg">
 
 ## Input Overview
 
 Each input parameter plays a role in downstream dictionary definitions and `.init_string` generation.
 
 ```text
-residue_names → Residue types in the molecule
-residue_length → Number of atoms in each residue
-rotating_elements → Rotatable bond definitions per residue
-backbone_elements → Backbone torsion definitions per residue
-connect → Defines connectivity logic (e.g., end-to-end linkage)
-residue_path → File path to load residue data (.lib/.frcmod)
-alias → Defines how each residue is represented as 4 parts: [start, middle, ..., end]
+residue_names       → Residue types in the molecule
+residue_length      → Number of atoms in each residue
+rotating_elements   → Rotatable bond definitions per residue
+backbone_elements   → Backbone torsion definitions per residue
+connect             → Defines connectivity logic (e.g., end-to-end linkage)
+residue_path        → File path to load residue data (.lib/.frcmod)
+alias               → Defines how each residue is represented as 4 parts: [start, middle, ..., end]
 ```
 
----
+## Input Object Examples
 
-## Key Internal Attributes
+### File-Based Inputs
 
-### 1. `self.init_string`
+- `residue_path`:
 
-A multi-line string that contains LEaP-compatible commands for loading force field parameters for each residue:
+  - Directory containing parameter files for each residue
+  - Example files:
 
-```bash
-loadoff ./A.lib
-loadamberparams ./A.frcmod
+    - `./residues/A.lib`
+    - `./residues/A.frcmod`
+
+### In-Memory Inputs
+
+```python
+residue_names = ["A", "T"]
+
+residue_length = [12, 14]
+
+rotating_elements = [
+    ("A", 1, 2, 5),
+    ("T", -4, -3, -1)
+]
+
+backbone_elements = [
+    ("A", 0, 1, 2, 3, 4),
+    ("T", 0, 2, 3, 4, 5)
+]
+
+alias = [
+    ("A", "A_N", "A_M", "A_M", "A_C"),
+    ("T", "T_N", "T_M", "T_M", "T_C")
+]
 ```
 
-### 2. `self.residue_length`
+## Output Object Types and Examples
 
-Maps each residue to its atom count. Used when dealing with negative indices (e.g., `-1` means last atom in residue).
+### In-Memory Outputs
 
-### 3. `self.connect`
+#### `self.init_string`:
 
-Defines how two residues connect. Default is:
+```text
+loadoff ./residues/A.lib
+loadamberparams ./residues/A.frcmod
+loadoff ./residues/T.lib
+loadamberparams ./residues/T.frcmod
+```
+
+#### `self.alias["T"]`:
+
+```python
+["T_N", "T_M", "T_M", "T_C"]
+```
+
+#### `self.rotating_elements["T"]`:
+
+```python
+[[10, 11, 13]]
+```
+
+#### `self.backbone_elements["A"]`:
+
+```python
+[[0, 1, 2], [3, 4]]
+```
+
+#### `self.connect["A"]` (default if not overridden):
 
 ```python
 [[0, -1], [-2, 0], 1.6, 1.6]
 ```
-
-Where `[0, -1]` are indices of atoms forming a bond, and `1.6` is the bond length placeholder.
-
-### 4. `self.alias`
-
-Stores how residues should be decomposed for edge cases like sequence capping or tail modifications. Defaults to `[residue]*4`.
-
-### 5. `self.rotating_elements`
-
-For each residue, stores a list of `[start, bond, end]` atom indices that define a rotatable unit. Can be `None` or `[None]` if undefined.
-
-### 6. `self.backbone_elements`
-
-Stores the atoms involved in backbone torsion angles in the form:
-
-```python
-[[start, mid_pre, bond], [mid_post, end]]
-```
-
----
 
 ## Flow of `__init__` (Step-by-Step)
 
@@ -109,7 +128,52 @@ Initializes each residue to `[None]`. If a `rotating_elements` list is passed, e
 
 Similarly, backbone torsions are stored as resolved index triplets, handling negative indices and defaulting to `None` if absent.
 
----
+## Key Internal Attributes
+
+### `self.init_string`
+
+LEaP commands (as string) for each residue:
+
+```bash
+loadoff ./A.lib
+loadamberparams ./A.frcmod
+```
+
+### `self.residue_length`
+
+Mapping: `residue → atom count`
+
+### `self.connect`
+
+Default linkage:
+
+```python
+[[0, -1], [-2, 0], 1.6, 1.6]
+```
+
+### `self.alias`
+
+Mapping for terminal modifications:
+
+```python
+["A_N", "A_M", "A_M", "A_C"]
+```
+
+### `self.rotating_elements`
+
+Stores rotatable triplets like:
+
+```python
+[[1, 2, 5]]
+```
+
+### `self.backbone_elements`
+
+Stores backbone tuples like:
+
+```python
+[[0, 1, 2], [3, 4]]
+```
 
 ## Method: `add_rotation`
 
@@ -119,7 +183,10 @@ add_rotation(residue_name, rotations, basestring)
 
 Used to dynamically add new rotatable definitions to an existing residue. It appends them to the internal `rotating_elements` dict.
 
----
+### Steps Performed:
+
+- Create (if uninitialized)
+- Modify (append new triplet entries)
 
 ## Method: `translate`
 
@@ -127,16 +194,23 @@ Used to dynamically add new rotatable definitions to an existing residue. It app
 translate("A B C D")
 ```
 
-This uses `self.alias` to convert a sequence like `"A B C D"` into a mapped string like `"A_mid_start A_mid A_mid A_mid_end"`. It is primarily for custom sequence representation across the molecule, especially useful in linker or terminal residue customization.
+Uses `self.alias` to convert a space-separated sequence into a structured string, selecting specific alias parts:
+
+```text
+A_N A_M A_M A_C
+```
+
+### Steps Performed:
+
+- Read from alias dict
+- Construct and return composite string
 
 ---
 
 ## Notes
 
-- **Negative Indexing**: Many of the rotation and backbone values support Python-style negative indexing. These are normalized based on `residue_length`.
-- **Missing Data**: All key dictionaries (`residue_length`, `connect`, `alias`, etc.) are `defaultdicts`, meaning missing keys return a default value rather than throwing an error.
-
----
+- **Negative Indexing**: Supported across rotation/backbone specs. Normalized using `residue_length`.
+- **Missing Keys**: Internally handled via `defaultdict` fallbacks to prevent crashes.
 
 ## Example Use Case
 
