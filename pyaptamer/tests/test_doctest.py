@@ -88,8 +88,7 @@ def pytest_generate_tests(metafunc):
 
     Fixtures parameterized
     ----------------------
-    func : all functions and classes from the package, as returned by _all_functions
-        if ONLY_CHANGED_MODULES is set, only functions from modules that have changed
+    func : all functions and classes from the package
     """
     # we assume all four arguments are present in the test below
     objs_and_names = _all_objects("pyaptamer")
