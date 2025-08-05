@@ -176,7 +176,7 @@ class AptaTransPipeline:
     def recommend(
         self,
         target: str,
-        n_candidates: int,
+        n_candidates: int = 10,
     ) -> set[tuple[str, float]]:
         """Recommend aptamer candidates for a given target protein.
 
@@ -189,7 +189,7 @@ class AptaTransPipeline:
         ----------
         target : str
             The target protein sequence.
-        n_candidates : int
+        n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
 
         Returns
