@@ -32,9 +32,9 @@ class PositionalEncoding(nn.Module):
     ----------
     d_model : int
         Number of expected input features.
-    dropout : float
+    dropout : float, optional, default=0
         Dropout rate.
-    max_len : int
+    max_len : int, optional, default=5000
         Maximum length of the input sequences.
 
     Attributes
@@ -51,16 +51,6 @@ class PositionalEncoding(nn.Module):
         dropout: float = 0,
         max_len: int = 5000,
     ) -> None:
-        """
-        Parameters
-        ----------
-        d_model : int
-            Number of expected input features.
-        dropout : float, optional
-            Dropout rate.
-        max_len : int, optional
-            Maximum length of the input sequences.
-        """
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 

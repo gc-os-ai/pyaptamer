@@ -36,6 +36,15 @@ class ConvBlock(nn.Module):
     A convolutional block consisting of (pooling -> conv3x3 -> batchnorm -> GELU)
     layers.
 
+    Parameters
+    ----------
+    in_c : int
+        Number of input channels.
+    out_c : int
+        Number of output channels.
+    pooling : Optional[Callable[..., nn.Module]], optional, default=None
+        Instance of a (callable) pooling operator.
+
     Attributes
     ----------
     block : nn.Sequential
@@ -48,16 +57,6 @@ class ConvBlock(nn.Module):
         out_c: int,
         pooling: Callable[..., nn.Module] | None = None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        in_c : int
-            Number of input channels.
-        out_c : int
-            Number of output channels.
-        pooling : Optional[Callable[..., nn.Module]], optional
-            Instance of a (callable) pooling operator.
-        """
         super().__init__()
         self.block = self._init_block(in_c, out_c, pooling)
 

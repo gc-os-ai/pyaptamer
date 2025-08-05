@@ -22,12 +22,6 @@ class InteractionMap(nn.Module):
     """
 
     def __init__(self) -> None:
-        """
-        Parameters
-        ----------
-        n_features : int
-            Number of expected input features.
-        """
         super().__init__()
         self.batchnorm = nn.BatchNorm2d(num_features=1)
 

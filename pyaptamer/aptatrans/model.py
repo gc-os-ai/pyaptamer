@@ -22,8 +22,7 @@ from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
 class AptaTrans(nn.Module):
     """AptaTrans deep neural network as described in [1]_.
 
-    Original implementation:
-    - https://github.com/PNUMLB/AptaTrans
+    Original implementation: https://github.com/PNUMLB/AptaTrans.
 
     The token predictors in the encoders are needed only for pre-training the encoders
     on masked token and secondary structure prediction, for aptamers and proteins
@@ -37,15 +36,15 @@ class AptaTrans(nn.Module):
     prot_embedding : EncoderPredictorConfig
         Instance of the EmbeedingConfig() class, containing hyperparameters related
         to the protein embeddings.
-    in_dim : int, optional
+    in_dim : int, optional, default=128
         Number of expected input features.
-    n_encoder_layers : int, optional
+    n_encoder_layers : int, optional, default=6
         Number of layers in the encoders.
-    n_heads : int, optional
+    n_heads : int, optional, default=8
         Number of attention heads in the encoders.
-    dropout : float, optional
+    dropout : float, optional, default=0.1
         Dropout rate for the encoders.
-    conv_layers : list[int], optional
+    conv_layers : list[int], optional, default=[3, 3, 3]
         List specifying the number of convolutional blocks in each convolutional
         layer.
 
@@ -82,10 +81,12 @@ class AptaTrans(nn.Module):
 
     Examples
     --------
-    >>> from pyaptamer.aptatrans import AptaTrans
-    >>> from pyaptamer.aptatrans import EncoderPredictorConfig
-    >>> apta_embedding = EncoderPredictorConfig(16, 16, max_len=32)
-    >>> prot_embedding = EncoderPredictorConfig(16, 16, max_len=32)
+    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
+    >>> n_embeddings = 16
+    >>> apta_embedding = EncoderPredictorConfig(n_embeddings, 16, max_len=32)
+    >>> prot_embedding = EncoderPredictorConfig(n_embeddings, 16, max_len=32)
+    >>> x_apta = torch.randint(high=n_embeddings, size=(128, 100))
+    >>> x_prot = torch.randint(high=n_embeddings, size=(128, 100))
     >>> aptatrans = AptaTrans(apta_embedding, prot_embedding)
     >>> preds = aptatrans(x_apta, x_prot)
     """
@@ -101,27 +102,8 @@ class AptaTrans(nn.Module):
         dropout: float = 0.1,
     ) -> None:
         """
-        Parameters
-        ----------
-        apta_embedding : EncoderPredictorConfig
-            Instance of the EncoderPredictorConfig() class, containing hyperparameters
-            related to the aptamer embeddings.
-        prot_embedding : EncoderPredictorConfig
-            Instance of the EmbeedingConfig() class, containing hyperparameters related
-            to the protein embeddings.
-        in_dim : int, optional
-            Number of expected input features.
-        n_encoder_layers : int, optional
-            Number of layers in the encoders.
-        n_heads : int, optional
-            Number of attention heads in the encoders.
-        dropout : float, optional
-            Dropout rate for the encoders.
-        conv_layers : list[int], optional
-            List specifying the number of convolutional blocks in each convolutional
-            layer.
-
         Raises
+        -------
         AssertionError
             If the input dimension is not divisible by the number of heads.
         """
@@ -259,7 +241,7 @@ class AptaTrans(nn.Module):
             Number of output channels for the convolutional blocks.
         n_blocks : int
             Number of ConvBlock() instances.
-        pooling : Optional[Callable[..., nn.Module]], optional
+        pooling : Optional[Callable[..., nn.Module]], optional, default=None
             Pooling layer to apply after the first ConvBlock().
 
         Returns

@@ -93,8 +93,8 @@ class TestAptaTransModel:
             in_dim=in_dim,
         )
 
-        x_apta = torch.randint(0, 125, (batch_size, seq_len_apta))
-        x_prot = torch.randint(0, 1000, (batch_size, seq_len_prot))
+        x_apta = torch.randint(high=125, size=(batch_size, seq_len_apta))
+        x_prot = torch.randint(high=1000, size=(batch_size, seq_len_prot))
 
         imap = model.forward_imap(x_apta, x_prot)
 
@@ -138,13 +138,11 @@ class TestAptaTransModel:
 
         # dummy input tensors
         x_apta = torch.randint(
-            low=1,
             high=embeddings[0].num_embeddings,
             size=(batch_size, seq_len),
             dtype=torch.long,
         ).to(device)
         x_prot = torch.randint(
-            low=1,
             high=embeddings[1].num_embeddings,
             size=(batch_size, seq_len),
             dtype=torch.long,
@@ -337,7 +335,9 @@ class TestAptaTransPipeline:
         # setup
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
-        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+        pipeline = AptaTransPipeline(
+            device=device, model=model, prot_words=prot_words, depth=depth
+        )
 
         # mock encode_rna function
         def mock_encode_rna(**kwargs):
@@ -369,19 +369,17 @@ class TestAptaTransPipeline:
         monkeypatch.setattr("pyaptamer.aptatrans.pipeline.MCTS", MockMCTS)
 
         # test recommendation
-        candidates = pipeline.recommend(
-            target=target,
-            n_candidates=n_candidates,
-            depth=depth,
-            n_iterations=100,
-            verbose=False,
-        )
+        candidates = pipeline.recommend(target=target, n_candidates=n_candidates)
 
         # check output
-        assert isinstance(candidates, dict)
-        assert len(candidates) <= n_candidates  # may be less due to duplicates
-        assert all(isinstance(aptamer, str) for aptamer in candidates.keys())
-        assert all(isinstance(score, float) for score in candidates.values())
+        assert isinstance(candidates, set)
+        assert len(candidates) == n_candidates  # should be exactly n_candidates
+        assert all(isinstance(aptamer, str) for aptamer, _ in candidates)
+        assert all(isinstance(score, float) for _, score in candidates)
+
+        # make sure there are no duplicate candidates
+        sequences = [candidate for candidate, _ in candidates]
+        assert len(sequences) == len(set(sequences))
 
     def test_get_interaction_map(self):
         """Check get_interaction_map() raises NotImplementedError."""

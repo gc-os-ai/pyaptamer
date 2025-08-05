@@ -21,12 +21,27 @@ from pyaptamer.utils import (
 class AptaTransPipeline:
     """AptaTrans pipeline as described in [1]_.
 
-    Original implementation:
-    - https://github.com/PNUMLB/AptaTrans
+    Original implementation: https://github.com/PNUMLB/AptaTrans.
 
     The AptaTrans pipeline combines leverages AptaTrans' deep neural network for
     aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_,
     recommends candidate aptamers for a given target protein.
+
+    Parameters
+    ----------
+    device : torch.device
+        The device on which to run the model.
+    model : AptaTrans
+        An instance of the AptaTrans() class.
+    apta_words, prot_words : dict[str, int]
+        A dictionary mapping RNA/protein 3-mer subsequences to integer token IDs,
+        respectively.
+    depth : int, optional, default=20
+        The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
+    n_iterations : int, optional, default=1000
+        The number of iterations for the MCTS algorithm.
+    verbose : bool, optional, default=True
+        If True, enables print statements for debugging and progress tracking.
 
     Attributes
     ----------
@@ -45,13 +60,22 @@ class AptaTransPipeline:
 
     Examples
     --------
-    >>> from pyaptamer.aptatrans import AptaTrans
-    >>> from pyaptamer.aptatrans import AptaTransPipeline
+    >>> import torch
+    >>> from pyaptamer.aptatrans import (
+    ...     AptaTrans,
+    ...     AptaTransPipeline,
+    ...     EncoderPredictorConfig,
+    ... )
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> apta_embedding = EncoderPredictorConfig(16, 16, max_len=32)
+    >>> prot_embedding = EncoderPredictorConfig(16, 16, max_len=32)
+    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, ...}
+    >>> target = "DHRNENIAIQ"
     >>> model = AptaTrans(apta_embedding, prot_embedding)
-    >>> pipeline = AptaTransPipeline(devdevice, model, prot_words)
-    >>> candidates = pipeline.recommend(target, n_candidates=3, depth=5)
+    >>> pipeline = AptaTransPipeline(device, model, prot_words, depth=5)
+    >>> candidates = pipeline.recommend(target, n_candidates=3)
     >>> print(candidates)
-    {'AUGGC': 0.85, 'CAGUA': 0.78, 'GCUAG': 0.65}
+    {('AUGGC', 0.85), ('CAGUA', 0.78), ('GCUAG', 0.65)}
     """
 
     def __init__(
@@ -59,21 +83,16 @@ class AptaTransPipeline:
         device: torch.device,
         model: AptaTrans,
         prot_words: dict[str, float],
+        depth: int = 20,
+        n_iterations: int = 1000,
+        verbose: bool = True,
     ) -> None:
-        """
-        Parameters
-        ----------
-        device : torch.device
-            The device on which to run the model.
-        model : AptaTrans
-            An instance of the AptaTrans() class.
-        apta_words, prot_words : dict[str, int]
-            A dictionary mapping RNA/protein 3-mer subsequences to integer token IDs,
-            respectively.
-        """
         super().__init__()
         self.device = device
         self.model = model.to(device)
+        self.depth = depth
+        self.n_iterations = n_iterations
+        self.verbose = verbose
 
         self.apta_words, self.prot_words = self._init_words(prot_words)
 
@@ -158,15 +177,13 @@ class AptaTransPipeline:
         self,
         target: str,
         n_candidates: int,
-        depth: int = 20,
-        n_iterations: int = 1000,
-        verbose: bool = True,
-    ) -> dict[str, float]:
+    ) -> set[tuple[str, float]]:
         """Recommend aptamer candidates for a given target protein.
 
         The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate
         aptamers. Then, AptaTrans' deep neural network is used as a scoring function to
-        evaluate the candidates, inside the Aptamer() experiment.
+        evaluate the candidates, inside the Aptamer() experiment. The process stop when
+        `n_candidates` unique candidates are generated.
 
         Parameters
         ----------
@@ -174,38 +191,31 @@ class AptaTransPipeline:
             The target protein sequence.
         n_candidates : int
             The number of candidate aptamers to generate.
-        depth : int, optional
-            The depth of the tree in the MCTS algorithm.
-        n_iterations : int, optional
-            The number of iterations for the MCTS algorithm.
-        verbose : bool, optional
-            If True, enables print statements.
 
         Returns
         -------
-        dict[str, float]
-            A dictionary mapping candidates to their scores.
+        set[tuple[str, float]]
+            A set of tuples containing candidate aptamer sequence and their
+            corresponding score.
         """
         experiment = self._init_aptamer_experiment(target)
 
         # initialize MCTS with the experiment
         mcts = MCTS(
             experiment=experiment,
-            depth=depth,
-            n_iterations=n_iterations,
+            depth=self.depth,
+            n_iterations=self.n_iterations,
         )
 
         # generate aptamer candidates
-        candidates = {}
-        for _ in range(n_candidates):
+        candidates = set()
+        while len(candidates) < n_candidates:
             candidate = mcts.run()
             score = experiment.evaluate(candidate)
+            candidates.add((candidate, score.item()))
 
-            if candidate not in candidates:
-                candidates[candidate] = score.item()
-
-        if verbose:
-            for candidate, score in candidates.items():
+        if self.verbose:
+            for candidate, score in candidates:
                 print(f"Candidate: {candidate}, Score: {score:.4f}")
 
         return candidates

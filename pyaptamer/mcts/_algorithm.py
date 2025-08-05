@@ -22,12 +22,12 @@ class MCTS(BaseObject):
 
     Parameters
     ----------
-    states : list[str]
+    states : list[str], default=None
         Possible values for the nodes. Underscores indicate whether the values are
         supposed to be prepended or appended to the sequence.
-    depth : int, optional
+    depth : int, optional, default=20
         Maximum depth of the search tree, also the length of the generated sequences.
-    n_iterations : int, optional
+    n_iterations : int, optional, default=1000
         Number of iterations per round for the MCTS algorithm.
     experiment : BaseExperiment, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
@@ -56,7 +56,7 @@ class MCTS(BaseObject):
     >>> from pyaptamer.experiment import Aptamer
     >>> experiment = Aptamer(target_encoded, target, model, device)
     >>> mcts = MCTS(experiment, depth=10)
-    >>> candidate = mcts.run(verbose=True)
+    >>> candidate = mcts.run(verbose=False)
     >>> print(candidate["candidate"])
     ACGUACGUAU
     >>> print(candidate["score"])
@@ -72,19 +72,6 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        experiment : Aptamer
-            An instance of the Aptamer() class specifying the goal function.
-        states : list[str], optional
-            A list containing possible values for the nodes. Underscores indicate
-            whether the values are supposed to be prepended or appended to the sequence.
-        depth : int, optional
-            Maximum depth of the search tree.
-        n_iterations : int, optional
-            Number of iterations per round for the MCTS algorithm.
-        """
         self.states = states
         self.experiment = experiment
         self.depth = depth

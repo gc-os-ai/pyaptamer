@@ -23,7 +23,7 @@ class Aptamer(BaseObject):
 
     Examples
     --------
-    from pyaptamer.experiment import Aptamer
+    >>> from pyaptamer.experiment import Aptamer
     >>> experiment = Aptamer(target_encoded, target, model, device)
     >>> score = experiment.run(aptamer_candidate)
     """
@@ -35,18 +35,6 @@ class Aptamer(BaseObject):
         model: torch.nn.Module,
         device: torch.device,
     ) -> None:
-        """
-        Parameters
-        ----------
-        target_encoded : torch.Tensor
-            Encoded target sequence tensor.
-        target : str, optional
-            Target sequence string.
-        model : torch.nn.Module
-            Model to use for assigning scores.
-        device : torch.device
-            Device to run the model on.
-        """
         self.target_encoded = target_encoded.to(device)
         self.target = target
         self.model = model
@@ -67,7 +55,7 @@ class Aptamer(BaseObject):
 
         Parameters
         ----------
-        seq : str
+        seq : str, optional, default=""
             Encoded sequence with direction markers (underscores).
 
         Returns

@@ -77,6 +77,8 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
     ----------
     sequence_list : list[str]
         A list containing RNA sequences as strings.
+    max_sequence_length : int, optional, default=275
+        The maximum length of the output sequences.
 
     Returns
     -------
@@ -144,7 +146,7 @@ def encode_rna(
     max_len : int
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
-    word_max_len : int, optional
+    word_max_len : int, optional, default=3
         Maximum length of amino acid patterns to consider during tokenization.
 
     Returns
