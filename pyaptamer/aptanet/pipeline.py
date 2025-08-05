@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
+from torch import optim
 
 from pyaptamer.aptanet.aptanet_nn import AptaNetMLP
 from pyaptamer.utils._aptanet_utils import pairs_to_features
@@ -29,8 +30,13 @@ class AptaPipeline(Pipeline):
         Dropout probability in the neural net.
     max_epochs : int, default=20
         Maximum number of training epochs for the neural net.
-    lr : float, default=0.01
-        Learning rate for the neural net optimizer.
+    lr : float, default=0.00014
+        Learning rate for the optimizer (RMSprop).
+    alpha : float, default=0.9
+        Discounting factor (rho) for the squared‐gradient moving average in RMSprop.
+    eps : float or None, default=None
+        Epsilon value for numerical stability in RMSprop; if None, PyTorch’s default
+        (1e-08) is used.
     n_estimators : int, default=300
         Number of trees in the RandomForest feature selector.
     max_depth : int, default=9
@@ -69,6 +75,8 @@ class AptaPipeline(Pipeline):
         dropout=0.3,
         max_epochs=20,
         lr=0.00014,
+        alpha=0.9,
+        eps=None,
         n_estimators=300,
         max_depth=9,
         random_state=None,
@@ -81,6 +89,8 @@ class AptaPipeline(Pipeline):
         self.dropout = dropout
         self.max_epochs = max_epochs
         self.lr = lr
+        self.alpha = alpha
+        self.eps = eps
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.random_state = random_state
@@ -113,6 +123,9 @@ class AptaPipeline(Pipeline):
             criterion=nn.BCEWithLogitsLoss,
             max_epochs=self.max_epochs,
             lr=self.lr,
+            optimizer=optim.RMSprop,
+            optimizer__alpha=self.alpha,
+            optimizer__eps=self.eps,
         )
 
         steps = [
