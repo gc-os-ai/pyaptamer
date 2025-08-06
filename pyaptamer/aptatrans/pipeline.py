@@ -8,6 +8,7 @@ __all__ = ["AptaTransPipeline"]
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
@@ -33,9 +34,8 @@ class AptaTransPipeline:
         The device on which to run the model.
     model : AptaTrans
         An instance of the AptaTrans() class.
-    apta_words, prot_words : dict[str, int]
-        A dictionary mapping RNA/protein 3-mer subsequences to integer token IDs,
-        respectively.
+    prot_words : dict[str, int]
+        A dictionary mapping protein 3-mer subsequences to integer token IDs.
     depth : int, optional, default=20
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
@@ -47,7 +47,8 @@ class AptaTransPipeline:
     ----------
     apta_words, prot_words : dict[str, int]
         A dictionary mapping aptamer and protein 3-mer subsequences to unique indices,
-        respectively.
+        respectively. In particular, `prot_words` now contains only 3-mers with
+        above-average frequency.
 
     References
     ----------
@@ -131,8 +132,7 @@ class AptaTransPipeline:
         """Initialize the aptamer experiment."""
         # initialize the aptamer recommendation experiment
         target_encoded = encode_rna(
-            device=self.device,
-            target=target,
+            sequences=target,
             words=self.prot_words,
             max_len=self.model.prot_embedding.max_len,
         )
@@ -144,13 +144,31 @@ class AptaTransPipeline:
         )
         return experiment
 
-    def get_interaction_map(self) -> torch.Tensor:
-        # TODO: implement this method to retrieve the intermediate output of the
-        # interaction map from the neural network so that it may be used for plotting
-        # TODO: ask whether this is needed/useful
-        raise NotImplementedError("This method is not yet implemented.")
+    def get_interaction_map(self, candidate: str, target: str) -> Tensor:
+        # TODO: to make the interaction map ready for plotting (at least if we were to
+        # follow the original paper), there are additional steps. Need to decide if put
+        # it here or elsewhere (e.g., in plotting code). For now, TBD.
+        # Personally, I would leave this as is, to provide an "untouched" interaction
+        # map.
+        """Generate the aptamer-protein interaction map.
 
-    def predict_api(self, candidate: str, target: str) -> torch.Tensor:
+        Parameters
+        ----------
+        candidate : str
+            The candidate aptamer sequence.
+        target : str
+            The target protein sequence.
+
+        Returns
+        -------
+        Tensor
+            A tensor containing the interaction map, of shape (batch_size, 1,
+            seq_len_apta, seq_len_prot).
+        """
+        experiment = self._init_aptamer_experiment(target)
+        return experiment.evaluate(candidate, return_interaction_map=True)
+
+    def predict_api(self, candidate: str, target: str) -> Tensor:
         """Predict aptamer-protein interaction (API) score for a given target protein.
 
         This methods initializes a new aptamer experiment for the given aptamer
@@ -166,7 +184,7 @@ class AptaTransPipeline:
 
         Returns
         -------
-        torch.Tensor
+        Tensor
             A tensor containing the predicted interaction score.
         """
         experiment = self._init_aptamer_experiment(target)

@@ -83,7 +83,8 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
     Returns
     -------
     np.ndarray
-        A numpy array containing the numerical representation of the RNA sequences.
+        A numpy array containing the numerical representation of the RNA sequences, of
+        shape (1, `max_sequence_length`).
 
     Raises
     ------

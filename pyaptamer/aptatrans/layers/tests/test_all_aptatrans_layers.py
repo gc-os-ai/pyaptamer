@@ -5,6 +5,7 @@ __author__ = ["nennomp"]
 import pytest
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 from pyaptamer.aptatrans.layers._convolutional import ConvBlock, conv3x3
 from pyaptamer.aptatrans.layers._encoder import (
@@ -185,7 +186,7 @@ def test_interaction_map(x_apta, x_prot):
 
     # check forward pass
     out = interaction_map(x_apta, x_prot)
-    assert isinstance(out, torch.Tensor)
+    assert isinstance(out, Tensor)
     # shape should be (batch_size, 1, seq_len_apta, seq_len_prot)
     assert out.shape == (x_apta.shape[0], 1, x_apta.shape[1], x_prot.shape[1])
 

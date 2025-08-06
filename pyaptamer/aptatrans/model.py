@@ -30,12 +30,9 @@ class AptaTrans(nn.Module):
 
     Parameters
     ----------
-    apta_embedding : EncoderPredictorConfig
+    apta_embedding, prot_embedding : EncoderPredictorConfig
         Instance of the EncoderPredictorConfig() class, containing hyperparameters
-        related to the aptamer embeddings.
-    prot_embedding : EncoderPredictorConfig
-        Instance of the EmbeedingConfig() class, containing hyperparameters related
-        to the protein embeddings.
+        related to the embeddings of aptameters and proteins, respectively.
     in_dim : int, optional, default=128
         Number of expected input features.
     n_encoder_layers : int, optional, default=6

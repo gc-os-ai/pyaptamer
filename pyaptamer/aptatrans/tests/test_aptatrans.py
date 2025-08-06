@@ -167,6 +167,16 @@ class MockAptaTransNeuralNet(nn.Module):
         self.apta_embedding = type("MockEmbedding", (), {"max_len": 100})()
         self.prot_embedding = type("MockEmbedding", (), {"max_len": 150})()
 
+    def forward_imap(self, x_apta, x_prot):
+        batch_size = x_apta.shape[0]
+        return torch.randn(
+            batch_size,
+            1,
+            self.apta_embedding.max_len,
+            self.prot_embedding.max_len,
+            device=self.device,
+        )
+
     def forward(self, x_apta, x_prot):
         # return deterministic scores based on input shapes
         batch_size = x_apta.shape[0]
@@ -285,7 +295,7 @@ class TestAptaTransPipeline:
 
         # mock encode_rna function
         def mock_encode_rna(**kwargs):
-            return torch.randn(1, 150, device=kwargs["device"])
+            return torch.randn(1, 150)
 
         monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
 
@@ -341,7 +351,7 @@ class TestAptaTransPipeline:
 
         # mock encode_rna function
         def mock_encode_rna(**kwargs):
-            return torch.randn(1, 150, device=kwargs["device"])
+            return torch.randn(1, 150)
 
         monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
 
@@ -381,14 +391,33 @@ class TestAptaTransPipeline:
         sequences = [candidate for candidate, _ in candidates]
         assert len(sequences) == len(set(sequences))
 
-    def test_get_interaction_map(self):
-        """Check get_interaction_map() raises NotImplementedError."""
-        model = MockAptaTransNeuralNet(torch.device("cpu"))
+    @pytest.mark.parametrize(
+        "device, candidate, target",
+        [
+            (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
+            (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu"),
+                "GCUAG",
+                "AUGCAUGC",
+            ),
+        ],
+    )
+    def test_get_interaction_map(self, device, candidate, target):
+        """
+        Check AptaTransPipeline.get_interaction_map() generates aptamer-protein
+        interaction map.
+        """
+        model = MockAptaTransNeuralNet(torch.device(device))
         pipeline = AptaTransPipeline(
-            device=torch.device("cpu"), model=model, prot_words={"AAA": 0.5}
+            device=torch.device(device), model=model, prot_words={"AAA": 0.5}
         )
 
-        with pytest.raises(
-            NotImplementedError, match="This method is not yet implemented"
-        ):
-            pipeline.get_interaction_map()
+        imap = pipeline.get_interaction_map(candidate, target)
+        assert imap.shape == (
+            1,
+            1,
+            model.apta_embedding.max_len,
+            model.prot_embedding.max_len,
+        )

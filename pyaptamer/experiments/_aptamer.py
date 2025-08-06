@@ -3,6 +3,7 @@ __all__ = ["Aptamer"]
 
 import torch
 from skbase.base import BaseObject
+from torch import Tensor
 
 from pyaptamer.utils import rna2vec
 
@@ -12,7 +13,7 @@ class Aptamer(BaseObject):
 
     Parameters
     ----------
-    target_encoded : torch.Tensor
+    target_encoded : Tensor
         Encoded target sequence tensor.
     target : str, optional
         Target sequence string.
@@ -30,7 +31,7 @@ class Aptamer(BaseObject):
 
     def __init__(
         self,
-        target_encoded: torch.Tensor,
+        target_encoded: Tensor,
         target: str,
         model: torch.nn.Module,
         device: torch.device,
@@ -46,38 +47,65 @@ class Aptamer(BaseObject):
         """Return the inputs of the experiment."""
         return ["aptamer_candidate"]
 
-    def _reconstruct(self, sequence: str = "") -> torch.Tensor:
+    def _reconstruct(self, sequence: str = "") -> Tensor:
         """Reconstruct the actual aptamer sequence from the encoded representation.
 
-        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
-        This method converts these pairs back to the actual sequence. Then, from its
-        RNA sequence representation it is converted to a vector.
+        The expected encoded representation uses pairs like 'A_' (add A to left) and
+        '_A' (add A to right). This method converts these pairs back to the actual
+        sequence, then converts the RNA sequence representation to a vector. If no
+        underscores are present, the sequence is assumed to be already reconstructed
+        and simply converted to its vector representation.
 
         Parameters
         ----------
-        seq : str, optional, default=""
-            Encoded sequence with direction markers (underscores).
+        sequence : str, optional, default=""
+            Encoded sequence with direction markers (underscores) or an already
+            reconstructed sequence (without underscores).
 
         Returns
         -------
-        torch.Tensor
-            The reconstructed RNA sequence as a vector.
+        Tensor
+            The reconstructed RNA sequence as a vector of shape (1, seq_len), depending
+            on rna2vec's `max_sequence_length` parameter.
+
+        Raises
+        -------
+        AssertionError
+            If the encoded sequence has an odd length, indicating it is not properly
+            formatted.
         """
+        # already reconstructed
+        if "_" not in sequence:
+            return Tensor(rna2vec([sequence]))
+
+        # if the sequence is not reconstructed yet, it should have an even length
+        # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
+        # direction marker).
+        assert len(sequence) % 2 == 0, (
+            f"Encoded sequence must have even length, got {len(sequence)}."
+        )
+
+        # reconstruct
         result = ""
         for i in range(0, len(sequence), 2):
-            match sequence[i]:
-                case "_":
-                    # append the next values
-                    result = result + sequence[i + 1]
-                case _:
-                    # prepend the current value
-                    result = sequence[i] + result
+            if sequence[i] == "_":
+                # append to right
+                result += sequence[i + 1]
+            else:
+                # prepend to left
+                result = sequence[i] + result
 
-        return torch.tensor(rna2vec([result]))
+        return Tensor(rna2vec([result]))
 
     @torch.no_grad()
-    def evaluate(self, aptamer_candidate: str) -> None:
-        """Evaluate the given aptamer candidate by assigning a score.
+    def evaluate(
+        self, aptamer_candidate: str, return_interaction_map: bool = False
+    ) -> Tensor:
+        """Evaluate the given aptamer candidate against the target protein.
+
+        If `return_interaction_map` is set to `True`, the method returns the
+        aptamer-protein interaction map. Otherwise, it returns the score assigned to
+        the aptamer candidate.
 
         Parameters
         ----------
@@ -86,16 +114,26 @@ class Aptamer(BaseObject):
             letters representing nucleotides: 'A_', '_A', 'C_', '_C', 'G_', '_G', 'U_',
             '_U'. Underscores indicate whether the nucleotides are supposed to be (e.
             g., 'A_') prepended or appended (e.g., '_A)'to the sequence.
+        return_interaction_map : bool, optional, default=False
+            Whether to return the interaction map or not.
 
         Returns
         -------
-        torch.Tensor
-            The score assigned to the aptamer candidate.
+        Tensor
+            The score assigned to the aptamer candidate if `return_interaction_map` is
+            `False`. If `return_interaction_map` is `True`, the interaction map, of
+            shape (batch_size, 1, seq_len_aptamer, seq_len_protein).
         """
         aptamer_candidate = self._reconstruct(aptamer_candidate)
-
         self.model.eval()
-        return self.model(
-            aptamer_candidate.to(self.device),
-            self.target_encoded,
-        )
+
+        if return_interaction_map:
+            return self.model.forward_imap(
+                aptamer_candidate.to(self.device),
+                self.target_encoded,
+            )
+        else:
+            return self.model(
+                aptamer_candidate.to(self.device),
+                self.target_encoded,
+            )
