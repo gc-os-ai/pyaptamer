@@ -6,7 +6,6 @@ import inspect
 import pkgutil
 from functools import lru_cache
 
-
 EXCLUDE_MODULES_STARTING_WITH = ("all", "test")
 
 
@@ -94,7 +93,7 @@ def pytest_generate_tests(metafunc):
     objs_and_names = _all_objects("pyaptamer")
 
     if len(objs_and_names) > 0:
-        names, objs = zip(*objs_and_names)
+        names, objs = zip(*objs_and_names, strict=False)
 
         metafunc.parametrize("obj", objs, ids=names)
     else:
