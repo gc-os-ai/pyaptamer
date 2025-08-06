@@ -76,7 +76,7 @@ class AptaPipeline(Pipeline):
         max_epochs=20,
         lr=0.00014,
         alpha=0.9,
-        eps=None,
+        eps=1e-08,
         n_estimators=300,
         max_depth=9,
         random_state=None,
