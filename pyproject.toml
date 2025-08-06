@@ -19,6 +19,8 @@ dependencies = [
     "pandas>=2.0.0",
     "scikit-base",
     "torch>=2.5.1",
+    "scikit-learn>=1.3.0",
+    "skorch"
 ]
 
 [project.optional-dependencies]
