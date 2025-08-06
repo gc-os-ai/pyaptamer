@@ -37,6 +37,8 @@ to be completed
 
 ### Stable version from pip
 
+NOTE: the package is not released yet on pypi - install from repo instead (unstable version)
+
 ```bash
 pip install pyaptamer
 ```
@@ -86,7 +88,7 @@ The package is maintained in collaboration between [ecoSPECS](https://ecospecs.d
     * Simon Blanke ([@simonblanke](https://www.github.com/simonblanke))
 * ecoSPECS
     * Dennis Kubiczek ([@KubiczekD](https://www.github.com/KubiczekD)) - primary point of contact (domain/aptamers)
-    * Fatih Yolcu ([@fat1hy0])(https://www.github.com/fat1hy0))
+    * Fatih Yolcu ([@fat1hy0](https://www.github.com/fat1hy0))
     * Jakob Birke ([@jabirke](https://www.github.com/jabirke))
     * Kerstin Moser ([@KerstinMoser](https://www.github.com/KerstinMoser))
 * European Summer of Code contributors 2025
