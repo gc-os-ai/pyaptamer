@@ -14,7 +14,6 @@ from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
-    encode_rna,
     generate_all_aptamer_triplets,
 )
 
@@ -77,6 +76,7 @@ class AptaTransPipeline:
     >>> candidates = pipeline.recommend(target, n_candidates=3)
     >>> print(candidates)
     {('AUGGC', 0.85), ('CAGUA', 0.78), ('GCUAG', 0.65)}
+    >>> imap = pipeline.get_interaction_map("AUGGC", target)
     """
 
     def __init__(
@@ -131,16 +131,11 @@ class AptaTransPipeline:
     def _init_aptamer_experiment(self, target: str) -> Aptamer:
         """Initialize the aptamer experiment."""
         # initialize the aptamer recommendation experiment
-        target_encoded = encode_rna(
-            sequences=target,
-            words=self.prot_words,
-            max_len=self.model.prot_embedding.max_len,
-        )
         experiment = Aptamer(
-            target_encoded=target_encoded,
             target=target,
             model=self.model,
             device=self.device,
+            prot_words=self.prot_words,
         )
         return experiment
 

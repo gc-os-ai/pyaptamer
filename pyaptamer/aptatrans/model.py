@@ -85,6 +85,7 @@ class AptaTrans(nn.Module):
     >>> x_apta = torch.randint(high=n_embeddings, size=(128, 100))
     >>> x_prot = torch.randint(high=n_embeddings, size=(128, 100))
     >>> aptatrans = AptaTrans(apta_embedding, prot_embedding)
+    >>> imap = aptatrans.forward_imap(x_apta, x_prot)
     >>> preds = aptatrans(x_apta, x_prot)
     """
 

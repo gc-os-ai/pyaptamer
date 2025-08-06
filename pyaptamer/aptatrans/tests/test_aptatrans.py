@@ -246,14 +246,6 @@ class TestAptaTransPipeline:
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
         pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
-        # mock encode_rna function
-        mock_encoded = torch.randn(1, 150, device=device)
-
-        def mock_encode_rna(**kwargs):
-            return mock_encoded
-
-        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
-
         # mock Aptamer class to capture initialization arguments
         captured_args = {}
 
@@ -268,7 +260,6 @@ class TestAptaTransPipeline:
 
         # check that Aptamer was initialized with correct arguments
         assert isinstance(experiment, MockAptamer)
-        assert torch.equal(captured_args["target_encoded"], mock_encoded)
         assert captured_args["target"] == target
         assert captured_args["model"] is model
         assert captured_args["device"] == device
@@ -292,12 +283,6 @@ class TestAptaTransPipeline:
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
         pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
-
-        # mock encode_rna function
-        def mock_encode_rna(**kwargs):
-            return torch.randn(1, 150)
-
-        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
 
         # expected score
         expected_score = torch.tensor(0.85, device=device)
@@ -348,12 +333,6 @@ class TestAptaTransPipeline:
         pipeline = AptaTransPipeline(
             device=device, model=model, prot_words=prot_words, depth=depth
         )
-
-        # mock encode_rna function
-        def mock_encode_rna(**kwargs):
-            return torch.randn(1, 150)
-
-        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.encode_rna", mock_encode_rna)
 
         # mock Aptamer experiment
         class MockExperiment:

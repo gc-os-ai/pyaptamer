@@ -170,6 +170,9 @@ class MockModel(nn.Module):
     def __init__(self, fixed_score=0.5):
         super().__init__()
         self.fixed_score = fixed_score
+        # mock embeddings with required attributes
+        self.apta_embedding = type("MockEmbedding", (), {"max_len": 100})()
+        self.prot_embedding = type("MockEmbedding", (), {"max_len": 150})()
 
     def forward(self, x_apta, x_prot):
         # return a fixed score for deterministic testing
@@ -182,13 +185,13 @@ class MockModel(nn.Module):
 class MockExperiment(Aptamer):
     def __init__(
         self,
-        target_encoded,
         target,
         model,
         device,
+        prot_words,
         fixed_score=0.5,
     ):
-        super().__init__(target_encoded, target, model, device)
+        super().__init__(target, model, device, prot_words)
         self.fixed_score = fixed_score
 
     def evaluate(self, aptamer_candidate):
@@ -203,7 +206,10 @@ def mcts():
     device = torch.device("cpu")
 
     experiment = MockExperiment(
-        target_encoded=target_encoded, target="ACGU", model=mock_model, device=device
+        target="ACGU", 
+        model=mock_model, 
+        device=device, 
+        prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.2},
     )
     mcts = MCTS(
         experiment=experiment,

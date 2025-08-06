@@ -5,7 +5,7 @@ import torch
 from skbase.base import BaseObject
 from torch import Tensor
 
-from pyaptamer.utils import rna2vec
+from pyaptamer.utils import encode_rna, rna2vec
 
 
 class Aptamer(BaseObject):
@@ -13,33 +13,52 @@ class Aptamer(BaseObject):
 
     Parameters
     ----------
-    target_encoded : Tensor
-        Encoded target sequence tensor.
     target : str, optional
         Target sequence string.
     model : torch.nn.Module
         Model to use for assigning scores.
     device : torch.device
         Device to run the model on.
+    prot_words : dict[str, int]
+        A dictionary mapping protein 3-mer subsequences to integer token IDs.
+
+    Attributes
+    ----------
+    target_encoded : Tensor
+        Encoded target sequence tensor.
 
     Examples
     --------
+    >>> import torch
+    >>> from pyaptamer.aptatrans import AptaTrans
     >>> from pyaptamer.experiment import Aptamer
-    >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> score = experiment.run(aptamer_candidate)
+    >>> target = "DHRNE"
+    >>> aptamer_candidate = "AUGGC"
+    >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> device = torch.device("cuda") if torch.cuda.is_available() else torch.device
+    ... ("cpu")
+    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, ...}
+    >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
+    >>> score = experiment.evaluate(aptamer_candidate)
     """
 
     def __init__(
         self,
-        target_encoded: Tensor,
         target: str,
         model: torch.nn.Module,
         device: torch.device,
+        prot_words: dict[str, int],
     ) -> None:
-        self.target_encoded = target_encoded.to(device)
         self.target = target
         self.model = model
         self.device = device
+
+        self.target_encoded = encode_rna(
+            sequences=target,
+            words=prot_words,
+            max_len=model.prot_embedding.max_len,
+        ).to(device)
 
         super().__init__()
 

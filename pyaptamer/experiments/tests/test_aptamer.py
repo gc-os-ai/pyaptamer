@@ -8,12 +8,16 @@ import torch.nn as nn
 from torch import Tensor
 
 from pyaptamer.experiments import Aptamer
+from pyaptamer.aptatrans.layers import EncoderPredictorConfig
 
 
 class MockModel(nn.Module):
     def __init__(self, fixed_score=0.5):
         super().__init__()
         self.fixed_score = fixed_score
+        # mock embeddings with required attributes
+        self.apta_embedding = type("MockEmbedding", (), {"max_len": 100})()
+        self.prot_embedding = type("MockEmbedding", (), {"max_len": 150})()
 
     def forward_imap(self, x_apta, x_prot):
         # return a randomly generated interaction map for testing
@@ -29,15 +33,14 @@ class MockModel(nn.Module):
 
 @pytest.fixture
 def experiment():
-    target_encoded = torch.tensor([[1, 2, 3, 0, 0, 0]])
     target = "DHRNE"
     model = MockModel()
     device = torch.device("cpu")
     return Aptamer(
-        target_encoded=target_encoded,
         target=target,
         model=model,
         device=device,
+        prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.2},
     )
 
 
@@ -60,6 +63,10 @@ def model():
 def default_device():
     return torch.device("cpu")
 
+@pytest.fixture
+def prot_words():
+    return {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, "AUG": 0.1, "CGA": 0.4}
+
 
 class TestAptamer:
     """Test suite for the Aptamer() class."""
@@ -76,13 +83,13 @@ class TestAptamer:
             ),
         ],
     )
-    def test_init(self, target_encoded, target, model, device):
+    def test_init(self, target, model, device, prot_words):
         """Check correct initialization."""
         experiment = Aptamer(
-            target_encoded=target_encoded,
             target=target,
             model=model,
             device=device,
+            prot_words=prot_words,
         )
         assert experiment.target_encoded.device.type == device.type
 
