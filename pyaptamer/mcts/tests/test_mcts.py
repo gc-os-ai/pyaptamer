@@ -201,14 +201,13 @@ class MockExperiment(Aptamer):
 
 @pytest.fixture
 def mcts():
-    target_encoded = torch.randn(1, 20)
     mock_model = MockModel()
     device = torch.device("cpu")
 
     experiment = MockExperiment(
-        target="ACGU", 
-        model=mock_model, 
-        device=device, 
+        target="ACGU",
+        model=mock_model,
+        device=device,
         prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.2},
     )
     mcts = MCTS(

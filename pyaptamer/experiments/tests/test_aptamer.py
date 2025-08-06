@@ -8,7 +8,6 @@ import torch.nn as nn
 from torch import Tensor
 
 from pyaptamer.experiments import Aptamer
-from pyaptamer.aptatrans.layers import EncoderPredictorConfig
 
 
 class MockModel(nn.Module):
@@ -62,6 +61,7 @@ def model():
 @pytest.fixture
 def default_device():
     return torch.device("cpu")
+
 
 @pytest.fixture
 def prot_words():
