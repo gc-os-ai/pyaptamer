@@ -292,4 +292,9 @@ class TestMCTS:
         candidate = mcts.run(verbose=True)
         assert isinstance(candidate, dict)
         assert "candidate" in candidate
+        assert "sequence" in candidate
         assert "score" in candidate
+        assert len(candidate["candidate"]) == 5
+        # length of sequence should be 2 * 5 (i.e., 2 * 5) as it still contains
+        # the underscores
+        assert len(candidate["sequence"]) == 10
