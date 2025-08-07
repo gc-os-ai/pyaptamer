@@ -62,11 +62,11 @@ class MCTS(BaseObject):
     >>> experiment = Aptamer(target_encoded, target, model, device)
     >>> mcts = MCTS(depth=10, experiment=experiment)
     >>> candidate = mcts.run()
-    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
+    >>> print((candidate["candidate"], len(candidate["candidate"])))
     ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
+    >>> print((candidate["sequence"], len(candidate["sequence"])))
     ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])  # doctest: +SKIP
+    >>> print(candidate["score"])
     tensor([0.5000])
     """
 
