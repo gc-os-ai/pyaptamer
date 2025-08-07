@@ -23,9 +23,18 @@ class Aptamer(BaseObject):
 
     Examples
     --------
-    from pyaptamer.experiment import Aptamer
+    >>> import torch
+    >>> from pyaptamer.experiment import Aptamer
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> target = "MCKY"
+    >>> target_encoded = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to
+    ... (device)
     >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> score = experiment.run(aptamer_candidate)
+    >>> score = experiment.evaluate(aptamer_candidate)
+    >>> print(score)  # doctest: +SKIP
+    tensor([0.5000])
+    >>> print(experiment.reconstruct(aptamer_candidate)[0])  # doctest: +SKIP
+    CAGU
     """
 
     def __init__(

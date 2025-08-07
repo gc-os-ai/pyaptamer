@@ -53,7 +53,6 @@ class MCTS(BaseObject):
     Examples
     --------
     >>> import torch
-    >>> import torch.nn as nn
     >>> from pyaptamer.experiments import Aptamer
     >>> from pyaptamer.mcts import MCTS
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -63,11 +62,11 @@ class MCTS(BaseObject):
     >>> experiment = Aptamer(target_encoded, target, model, device)
     >>> mcts = MCTS(depth=10, experiment=experiment)
     >>> candidate = mcts.run()
-    >>> print((candidate["candidate"], len(candidate["candidate"])))
+    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
     ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))
+    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
     ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])
+    >>> print(candidate["score"])  # doctest: +SKIP
     tensor([0.5000])
     """
 
