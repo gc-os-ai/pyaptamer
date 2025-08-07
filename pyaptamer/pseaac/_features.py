@@ -70,10 +70,11 @@ class PSeAAC:
 
     Example
     -------
-    >>> pse = PSeAAC()
-    >>> features = pse.transform("ACDEFGHIKLMNPQRSTVWY")
+    >>> from pyaptamer.pseaac import PSeAAC
+    >>> pseaac = PSeAAC()
+    >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])
-    np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+    [0.008 0.008 0.008 0.008 0.008 0.008 0.023 0.023 0.023 0.023]
 
     Methods
     -------

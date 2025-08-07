@@ -84,6 +84,7 @@ def aa_props(type="numpy", normalize=True):
 
     Examples
     --------
+    >>> from pyaptamer.pseaac._props import aa_props
     >>> df = aa_props()
     >>> arr = aa_props(type="numpy", normalize=True)
     """
