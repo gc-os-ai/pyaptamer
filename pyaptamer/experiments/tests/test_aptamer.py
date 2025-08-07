@@ -89,13 +89,16 @@ class TestAptamer:
     def test_reconstruct(self, experiment):
         """Check sequence reconstruction."""
         # empty sequence
-        assert torch.equal(experiment._reconstruct(""), torch.tensor([]))
+        result_str, result_vector = experiment.reconstruct("")
+        assert result_str == ""
+        assert torch.equal(result_vector, torch.tensor([]))
         # prepend and append
-        result = experiment._reconstruct("A_C__G_U")
-        assert result.shape == (1, 275)
-        assert result[0, 0] != 0  # first triplet should not be 0
-        assert result[0, 1] != 0  # second triplet should not be 0
-        assert torch.all(result[0, 2:] == 0)  # rest should be padding
+        result_str, result_vector = experiment.reconstruct("A_C__G_U")
+        assert result_str == "CAGU"
+        assert result_vector.shape == (1, 275)
+        assert result_vector[0, 0] != 0  # first triplet should not be 0
+        assert result_vector[0, 1] != 0  # second triplet should not be 0
+        assert torch.all(result_vector[0, 2:] == 0)  # rest should be padding
 
     def test_evaluate(self, experiment):
         """Check that the experiment's evaluation method works correctly."""
