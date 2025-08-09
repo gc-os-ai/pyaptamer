@@ -90,7 +90,7 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         #     raise ValueError("AptaNetFeaturesClassifier requires at least two classes
         # in y.")
         # 2) encode labels to {0,1} BEFORE casting to float
-        # self.classes_, y = np.unique(y, return_inverse=True)
+        self.classes_, y = np.unique(y, return_inverse=True)
         self.pipeline_ = self._build_pipeline()
         X = X.astype(np.float32, copy=False)
         y = y.astype(np.float32, copy=False)
@@ -103,6 +103,6 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
 
-        # y01 = self.pipeline_.predict(X).astype(int, copy=False)
-        # return self.classes_[y01]
+        y01 = self.pipeline_.predict(X).astype(int, copy=False)
+        return self.classes_[y01]
         return self.pipeline_.predict(X)
