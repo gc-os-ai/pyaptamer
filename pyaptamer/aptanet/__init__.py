@@ -1,5 +1,5 @@
 """The AptaNet algorithm"""
 
-from pyaptamer.aptanet.pipeline import AptaPipeline
+from pyaptamer.aptanet._pipeline import AptaNetPipeline
 
-__all__ = ["AptaPipeline"]
+__all__ = ["AptaNetPipeline"]
