@@ -79,6 +79,9 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
             optimizer__alpha=self.alpha,
             optimizer__eps=self.eps,
             device="cuda" if torch.cuda.is_available() else "cpu",
+            random_state=self.random_state,
+            train_split=None,
+            iterator_train__shuffle=False,
         )
 
         return Pipeline([("select", selector), ("net", net)])
