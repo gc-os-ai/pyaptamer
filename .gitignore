@@ -192,3 +192,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Dataset files
+# Exclude specific (too big) dataset files
+datasets/data/bpRNA-shin2023.csv
+datasets/data/proteins-shin2023.csv
