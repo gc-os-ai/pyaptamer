@@ -35,8 +35,7 @@ class Aptamer(BaseObject):
     >>> target = "DHRNE"
     >>> aptamer_candidate = "AUGGC"
     >>> model = AptaTrans(apta_embedding, prot_embedding)
-    >>> device = torch.device("cuda") if torch.cuda.is_available() else torch.device
-    ... ("cpu")
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, ...}
     >>> experiment = Aptamer(target, model, device, prot_words)
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
@@ -66,36 +65,35 @@ class Aptamer(BaseObject):
         """Return the inputs of the experiment."""
         return ["aptamer_candidate"]
 
-    def _reconstruct(self, sequence: str = "") -> Tensor:
+    def reconstruct(self, sequence: str = "") -> Tensor:
         """Reconstruct the actual aptamer sequence from the encoded representation.
 
-        The expected encoded representation uses pairs like 'A_' (add A to left) and
-        '_A' (add A to right). This method converts these pairs back to the actual
-        sequence, then converts the RNA sequence representation to a vector. If no
-        underscores are present, the sequence is assumed to be already reconstructed
-        and simply converted to its vector representation.
+        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
+        This method converts these pairs back to the actual sequence. Then, from its
+        RNA sequence representation it is converted to a vector.
 
         Parameters
         ----------
-        sequence : str, optional, default=""
-            Encoded sequence with direction markers (underscores) or an already
-            reconstructed sequence (without underscores).
+        seq : str
+            Encoded sequence with direction markers (underscores).
 
         Returns
         -------
-        Tensor
-            The reconstructed RNA sequence as a vector of shape (1, seq_len), depending
-            on rna2vec's `max_sequence_length` parameter.
-
-        Raises
-        -------
-        AssertionError
-            If the encoded sequence has an odd length, indicating it is not properly
-            formatted.
+        tuple[str, torch.Tensor]
+            The reconstructed RNA sequence and its vector representation.
         """
         # already reconstructed
         if "_" not in sequence:
-            return Tensor(rna2vec([sequence]))
+            return (
+                sequence,
+                torch.tensor(
+                    rna2vec(
+                        [sequence],
+                        max_sequence_length=self.model.apta_embedding.max_len,
+                    ),
+                    dtype=torch.int64,
+                ),
+            )
 
         # if the sequence is not reconstructed yet, it should have an even length
         # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
@@ -107,14 +105,23 @@ class Aptamer(BaseObject):
         # reconstruct
         result = ""
         for i in range(0, len(sequence), 2):
-            if sequence[i] == "_":
-                # append to right
-                result += sequence[i + 1]
-            else:
-                # prepend to left
-                result = sequence[i] + result
+            match sequence[i]:
+                case "_":
+                    # append the next values
+                    result = result + sequence[i + 1]
+                case _:
+                    # prepend the current value
+                    result = sequence[i] + result
 
-        return Tensor(rna2vec([result]))
+        return (
+            result,
+            torch.tensor(
+                rna2vec(
+                    [result], max_sequence_length=self.model.apta_embedding.max_len
+                ),
+                dtype=torch.int64,
+            ),
+        )
 
     @torch.no_grad()
     def evaluate(
@@ -143,7 +150,7 @@ class Aptamer(BaseObject):
             `False`. If `return_interaction_map` is `True`, the interaction map, of
             shape (batch_size, 1, seq_len_aptamer, seq_len_protein).
         """
-        aptamer_candidate = self._reconstruct(aptamer_candidate)
+        aptamer_candidate = self.reconstruct(aptamer_candidate)[1]
         self.model.eval()
 
         if return_interaction_map:

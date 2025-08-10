@@ -39,8 +39,6 @@ class AptaTransPipeline:
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
         The number of iterations for the MCTS algorithm.
-    verbose : bool, optional, default=True
-        If True, enables print statements for debugging and progress tracking.
 
     Attributes
     ----------
@@ -67,16 +65,17 @@ class AptaTransPipeline:
     ...     EncoderPredictorConfig,
     ... )
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> apta_embedding = EncoderPredictorConfig(16, 16, max_len=32)
-    >>> prot_embedding = EncoderPredictorConfig(16, 16, max_len=32)
-    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, ...}
+    >>> apta_embedding = EncoderPredictorConfig(126, 16, max_len=100)
+    >>> prot_embedding = EncoderPredictorConfig(126, 16, max_len=100)
+    >>> prot_words = {"DHR": 0.5, "AIQ": 0.5, "AAG": 0.2}
     >>> target = "DHRNENIAIQ"
     >>> model = AptaTrans(apta_embedding, prot_embedding)
-    >>> pipeline = AptaTransPipeline(device, model, prot_words, depth=5)
-    >>> candidates = pipeline.recommend(target, n_candidates=3)
+    >>> pipeline = AptaTransPipeline(device, model, prot_words, depth=5, n_iterations=5)
+    >>> aptamer = "ACGUA"
+    >>> imap = pipeline.get_interaction_map(aptamer, target)
+    >>> candidates = pipeline.recommend(target, n_candidates=1, verbose=False)
     >>> print(candidates)
-    {('AUGGC', 0.85), ('CAGUA', 0.78), ('GCUAG', 0.65)}
-    >>> imap = pipeline.get_interaction_map("AUGGC", target)
+    {('ACCAC', '_C_CA__A_C', tensor([[0.5151]]))}
     """
 
     def __init__(
@@ -86,14 +85,12 @@ class AptaTransPipeline:
         prot_words: dict[str, float],
         depth: int = 20,
         n_iterations: int = 1000,
-        verbose: bool = True,
     ) -> None:
         super().__init__()
         self.device = device
         self.model = model.to(device)
         self.depth = depth
         self.n_iterations = n_iterations
-        self.verbose = verbose
 
         self.apta_words, self.prot_words = self._init_words(prot_words)
 
@@ -190,7 +187,8 @@ class AptaTransPipeline:
         self,
         target: str,
         n_candidates: int = 10,
-    ) -> set[tuple[str, float]]:
+        verbose: bool = True,
+    ) -> set[tuple[str, str, float]]:
         """Recommend aptamer candidates for a given target protein.
 
         The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate
@@ -204,12 +202,14 @@ class AptaTransPipeline:
             The target protein sequence.
         n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
+        verbose : bool, optional, default=True
+            If True, enables print statements for debugging and progress tracking.
 
         Returns
         -------
-        set[tuple[str, float]]
-            A set of tuples containing candidate aptamer sequence and their
-            corresponding score.
+        set[tuple[str, str, float]]
+            A set of tuples containing reconstructed and unrecontructed candidate
+            aptamer sequence, and the corresponding score.
         """
         experiment = self._init_aptamer_experiment(target)
 
@@ -223,12 +223,15 @@ class AptaTransPipeline:
         # generate aptamer candidates
         candidates = set()
         while len(candidates) < n_candidates:
-            candidate = mcts.run()
-            score = experiment.evaluate(candidate)
-            candidates.add((candidate, score.item()))
+            candidate = mcts.run(verbose=verbose)
+            candidates.add(tuple(candidate.values()))
 
-        if self.verbose:
-            for candidate, score in candidates:
-                print(f"Candidate: {candidate}, Score: {score:.4f}")
+        if verbose:
+            for candidate, sequence, score in candidates:
+                print(
+                    f"Candidate: {candidate}, "
+                    f"Sequence: {sequence}, "
+                    f"Score: {score.item():.4f}"
+                )
 
         return candidates

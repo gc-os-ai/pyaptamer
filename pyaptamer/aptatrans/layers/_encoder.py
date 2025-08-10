@@ -42,7 +42,7 @@ class PositionalEncoding(nn.Module):
     dropout : nn.Dropout
         Dropout layer.
     pe : Tensor
-        Positional encoding tensor of shape (`max_len`, 1, `d_model`).
+        Positional encoding tensor of shape (1, `max_len`, `d_model`).
     """
 
     def __init__(
@@ -53,14 +53,15 @@ class PositionalEncoding(nn.Module):
     ) -> None:
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
+        self.max_len = max_len
 
         position = torch.arange(max_len).unsqueeze(1)
         div_term = torch.exp(
             torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
         )
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        pe = torch.zeros(1, max_len, d_model)  # Changed shape to (1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term)  # Changed indexing
+        pe[0, :, 1::2] = torch.cos(position * div_term)  # Changed indexing
         self.register_buffer("pe", pe)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -69,15 +70,19 @@ class PositionalEncoding(nn.Module):
         Parameters
         ----------
         x : Tensor
-            Input tensor of shape (seq_len, batch_size, n_features (`d_model`)).
+            Input tensor of shape (batch_size, seq_len, n_features (`d_model`)).
 
         Returns
         -------
         Tensor
-            Output tensor of shape (seq_len, batch_size, n_features (`d_model`)), with
+            Output tensor of shape (batch_size, seq_len, n_features (`d_model`)), with
             positional encodings applied.
         """
-        out = x + self.pe[: x.size(0)]
+        assert x.shape[1] <= self.max_len, (
+            f"Input sequence length {x.shape[1]} exceeds maximum length {self.max_len}."
+        )
+
+        out = x + self.pe[:, : x.shape[1], :]
         if self.dropout:
             out = self.dropout(out)
         return out

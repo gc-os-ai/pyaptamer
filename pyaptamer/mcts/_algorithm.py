@@ -22,12 +22,12 @@ class MCTS(BaseObject):
 
     Parameters
     ----------
-    states : list[str], default=None
+    states : list[str]
         Possible values for the nodes. Underscores indicate whether the values are
         supposed to be prepended or appended to the sequence.
-    depth : int, optional, default=20
+    depth : int, optional
         Maximum depth of the search tree, also the length of the generated sequences.
-    n_iterations : int, optional, default=1000
+    n_iterations : int, optional
         Number of iterations per round for the MCTS algorithm.
     experiment : BaseExperiment, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
@@ -52,17 +52,22 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> from pyaptamer.mcts.algorithm import MCTS
-    >>> from pyaptamer.experiment import Aptamer
+    >>> import torch
+    >>> from pyaptamer.experiments import Aptamer
+    >>> from pyaptamer.mcts import MCTS
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> target = "MCKY"
+    >>> target_encoded = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to
+    ... (device)
     >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> mcts = MCTS(experiment, depth=10)
-    >>> candidate = mcts.run(verbose=False)
-    >>> print(candidate["candidate"])
-    ACGUACGUAU
+    >>> mcts = MCTS(depth=10, experiment=experiment)
+    >>> candidate = mcts.run()
+    >>> print((candidate["candidate"], len(candidate["candidate"])))
+    ('CUUUAUGUCA', 10)
+    >>> print((candidate["sequence"], len(candidate["sequence"])))
+    ('_GU_A__U_CU__AU_U_C_', 20)
     >>> print(candidate["score"])
-    0.85
-    >>> print(len(candidate))
-    10
+    tensor([0.5000])
     """
 
     def __init__(
@@ -72,7 +77,19 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
-        self.states = states
+        """
+        Parameters
+        ----------
+        experiment : Aptamer
+            An instance of the Aptamer() class specifying the goal function.
+        states : list[str], optional
+            A list containing possible values for the nodes. Underscores indicate
+            whether the values are supposed to be prepended or appended to the sequence.
+        depth : int, optional
+            Maximum depth of the search tree.
+        n_iterations : int, optional
+            Number of iterations per round for the MCTS algorithm.
+        """
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
@@ -80,9 +97,8 @@ class MCTS(BaseObject):
         super().__init__()
 
         if states is None:
-            self._states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
-        else:
-            self._states = states
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        self.states = states
 
         self.root = TreeNode(
             n_states=len(states),
@@ -93,7 +109,7 @@ class MCTS(BaseObject):
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
         self.root = TreeNode(
-            n_states=len(self._states),
+            n_states=len(self.states),
         )
         self.base = ""
         self.candidate = ""
@@ -143,7 +159,7 @@ class MCTS(BaseObject):
         is_terminal = node.depth == self.depth - 1
 
         # find all unexpanded values for this node
-        unexpanded = list(set(self._states) - set(node.children.keys()))
+        unexpanded = list(set(self.states) - set(node.children.keys()))
 
         # randomly selected one value from unexpanded ones
         val = random.choice(unexpanded)
@@ -183,7 +199,7 @@ class MCTS(BaseObject):
         # fill the rest of the sequence with random possible values
         remaining_length = (self.depth * 2) - len(sequence)
         for _ in range(remaining_length):
-            sequence += random.choice(self._states)
+            sequence += random.choice(self.states)
 
         # evaluate the candidate sequence with the goal function
         return self.experiment.evaluate(sequence)
@@ -258,7 +274,7 @@ class MCTS(BaseObject):
 
             # reset for next iteration
             self.root = TreeNode(
-                n_states=len(self._states),
+                n_states=len(self.states),
                 depth=len(self.base) // 2,  # adjust depth based on current base
             )
 
@@ -266,7 +282,8 @@ class MCTS(BaseObject):
 
         self.candidate = self.base
         return {
-            "candidate": self.candidate,
+            "candidate": self.experiment.reconstruct(self.candidate)[0],
+            "sequence": self.candidate,
             "score": self.experiment.evaluate(self.candidate),
         }
 

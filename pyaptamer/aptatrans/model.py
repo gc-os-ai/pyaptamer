@@ -78,15 +78,15 @@ class AptaTrans(nn.Module):
 
     Examples
     --------
+    >>> import torch
     >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> n_embeddings = 16
-    >>> apta_embedding = EncoderPredictorConfig(n_embeddings, 16, max_len=32)
-    >>> prot_embedding = EncoderPredictorConfig(n_embeddings, 16, max_len=32)
-    >>> x_apta = torch.randint(high=n_embeddings, size=(128, 100))
-    >>> x_prot = torch.randint(high=n_embeddings, size=(128, 100))
-    >>> aptatrans = AptaTrans(apta_embedding, prot_embedding)
-    >>> imap = aptatrans.forward_imap(x_apta, x_prot)
-    >>> preds = aptatrans(x_apta, x_prot)
+    >>> apta_embedding = EncoderPredictorConfig(16, 16, max_len=512)
+    >>> prot_embedding = EncoderPredictorConfig(16, 16, max_len=512)
+    >>> x_apta = torch.randint(high=16, size=(128, 10))
+    >>> x_prot = torch.randint(high=16, size=(128, 10))
+    >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> imap = model.forward_imap(x_apta, x_prot)
+    >>> preds = model(x_apta, x_prot)
     """
 
     def __init__(
@@ -271,16 +271,18 @@ class AptaTrans(nn.Module):
         x_apta, x_prot : tuple[Tensor, Tensor]
             A tuple of tensors containing the features for masked tokens and secodnary
             structure prediction, for aptamers and proteins, respectively. Shapes are
-            (batch_size, seq_len (s1), n_features (n1)) and (batch_size, seq_len (s2),
-            n_features (n2)), respectively.
+            (batch_size (b1), seq_len (s1)) and (batch_size (b2), seq_len (s2)),
+            respectively.
 
         Returns
         -------
         tuple[Tensor, Tensor], tuple[Tensor, Tensor]
             A tuple of tensors containing the predictions for masked tokens and
-            secondary structure, for aptamers and proteins, respectively. Shapes are
-            (batch_size, seq_len (s1), n_predictions (n1)) and (batch_size, seq_len
-            (s2), n_predictions (n2)), respectively.
+            secondary structure, for aptamers and proteins, respectively. For aptamers,
+            the shapes are (b1, s1, n_embeddings (n1)) and (b1, s1, target_dim (t1)),
+            for the masked tokens and secondary structure, respectively. For proteins,
+            the shapes are (b2, s2, n_embeddings (n2)) and (b2, s2, target_dim (t2)),
+            respectively.
         """
         # pretrain aptamers' encoder
         out_apta_mt = self.encoder_apta(x_apta[0])
@@ -304,8 +306,7 @@ class AptaTrans(nn.Module):
         ----------
         x_apta, x_prot : Tensor
             Input tensors for aptamers and proteins, respectively. Shapes are
-            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2),
-            n_features), respectively.
+            (batch_size, seq_len (s1)) and (batch_size, seq_len (s2)), respectively.
 
         Returns
         -------
@@ -325,8 +326,7 @@ class AptaTrans(nn.Module):
         ----------
         x_apta, x_prot : Tensor
             Input tensors for aptamers and proteins, respectively. Shapes are
-            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2),
-            n_features), respectively.
+            (batch_size, seq_len (s1)) and (batch_size, seq_len (s2)), respectively.
 
         Returns
         -------

@@ -131,7 +131,7 @@ def test_positional_encoding(d_model, dropout, max_len, x):
     assert hasattr(pe, "pe")
     assert "pe" in dict(pe.named_buffers())
     assert "pe" not in dict(pe.named_parameters())
-    assert pe.pe.shape == (max_len, 1, d_model)
+    assert pe.pe.shape == (1, max_len, d_model)
 
     # check forward pass
     out = pe(x)
