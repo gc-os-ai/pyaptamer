@@ -195,5 +195,5 @@ cython_debug/
 
 # Dataset files
 # Exclude specific (too big) dataset files
-datasets/data/bpRNA-shin2023.csv
-datasets/data/proteins-shin2023.csv
+./pyaptamer/datasets/data/bpRNA-shin2023.csv
+./pyaptamer/datasets/data/proteins-shin2023.csv
