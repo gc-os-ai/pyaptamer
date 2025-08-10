@@ -96,3 +96,8 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         X = X.astype(np.float32, copy=False)
         y = self.pipeline_.predict(X).astype(int, copy=False)
         return self.classes_[y]
+
+    def __sklearn_tags__(self):
+        tags = super().__sklearn_tags__()
+        tags.classifier_tags.poor_score = True
+        return tags
