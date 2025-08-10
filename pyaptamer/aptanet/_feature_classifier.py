@@ -19,7 +19,7 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         hidden_dim=128,
         n_hidden=7,
         dropout=0.3,
-        max_epochs=20,
+        max_epochs=200,
         lr=0.00014,
         alpha=0.9,
         eps=1e-08,
@@ -48,7 +48,7 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
             estimator=RandomForestClassifier(
                 n_estimators=self.n_estimators,
                 max_depth=self.max_depth,
-                random_state=self.random_state,  # RF can take it
+                random_state=self.random_state,
             ),
             threshold=self.threshold,
         )
@@ -77,16 +77,13 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
     def fit(self, X, y):
         X, y = validate_data(self, X, y)
 
-        # error on continuous targets (sklearn check expects this)
         if "continuous" in type_of_target(y):
             raise ValueError("continuous target is not supported for classification")
 
-        # deterministic init if requested
         if self.random_state is not None:
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
-        # encode labels to {0,1} and expose classes_
         self.classes_, y = np.unique(y, return_inverse=True)
 
         self.pipeline_ = self._build_pipeline()
@@ -99,5 +96,5 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
-        y01 = self.pipeline_.predict(X).astype(int, copy=False)
-        return self.classes_[y01]
+        y = self.pipeline_.predict(X).astype(int, copy=False)
+        return self.classes_[y]
