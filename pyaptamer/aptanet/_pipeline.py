@@ -21,11 +21,14 @@ class AptaNetPipeline:
 
     References
     ----------
+
+
     - Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
     aptamer–protein interaction prediction. Sci Rep 11, 6074 (2021).
     https://doi.org/10.1038/s41598-021-85629-0
     - https://github.com/nedaemami/AptaNet
     - https://www.nature.com/articles/s41598-021-85629-0.pdf
+
 
     Parameters
     ----------
