@@ -13,6 +13,51 @@ from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
 
 
 class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
+    """
+    Classifier for precomputed numeric features combining RandomForest-based
+    `SelectFromModel` feature selection with a skorch-wrapped MLP (`AptaNetMLP`).
+
+    This estimator builds an internal sklearn `Pipeline` and delegates `fit`,
+    `predict`, and other methods to it, while exposing convenient knobs for both
+    the selector and the neural network.
+
+    References
+    ----------
+    - Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
+    aptamer–protein interaction prediction. Sci Rep 11, 6074 (2021).
+    https://doi.org/10.1038/s41598-021-85629-0
+    - https://github.com/nedaemami/AptaNet
+    - https://www.nature.com/articles/s41598-021-85629-0.pdf
+
+    Parameters
+    ----------
+    input_dim : int or None, default=None
+        Size of the input layer in the neural net. If `None`, it should be
+        inferred from the feature matrix shape by the underlying module.
+    hidden_dim : int, default=128
+        Number of units in each hidden layer of the neural net.
+    n_hidden : int, default=7
+        Number of hidden layers in the neural net.
+    dropout : float, default=0.3
+        Dropout probability used in the neural net.
+    max_epochs : int, default=200
+        Maximum number of training epochs for the neural net.
+    lr : float, default=0.00014
+        Learning rate for the optimizer (RMSprop).
+    alpha : float, default=0.9
+        Discounting factor (rho) for the squared-gradient moving average in RMSprop.
+    eps : float, default=1e-08
+        Epsilon value for numerical stability in RMSprop.
+    n_estimators : int, default=300
+        Number of trees in the RandomForest used by the feature selector.
+    max_depth : int, default=9
+        Maximum depth of each tree in the RandomForest.
+    random_state : int or None, default=None
+        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
+    threshold : str or float, default="mean"
+        Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
+    """
+
     def __init__(
         self,
         input_dim=None,
