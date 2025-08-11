@@ -59,7 +59,9 @@ class MCTS(BaseObject):
     ...     "cuda" if torch.cuda.is_available() else "cpu"
     ... )  # doctest: +SKIP
     >>> target = "MCKY"  # doctest: +SKIP
-    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)  # doctest: +SKIP
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
+    ...     device
+    ... )  # doctest: +SKIP
     >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
     >>> mcts = MCTS(depth=10, experiment=experiment)  # doctest: +SKIP
     >>> candidate = mcts.run()  # doctest: +SKIP
