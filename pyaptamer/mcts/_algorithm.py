@@ -320,7 +320,7 @@ class TreeNode:
 
     Examples
     --------
-    >>> from pyaptamer.mcts.algorithm import TreeNode
+    >>> from pyaptamer.mcts._algorithm import TreeNode
     >>> node = TreeNode(val="A")
     >>> child = node.create_child(val="C", is_terminal=True)
     >>> child.backpropagate(score=0.5)
