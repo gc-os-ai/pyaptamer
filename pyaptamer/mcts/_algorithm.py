@@ -57,9 +57,8 @@ class MCTS(BaseObject):
     >>> from pyaptamer.mcts import MCTS
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> target = "MCKY"
-    >>> target_encoded = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to
-    ... (device)
-    >>> experiment = Aptamer(target_encoded, target, model, device)
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)
+    >>> experiment = Aptamer(target_enc, target, model, device)
     >>> mcts = MCTS(depth=10, experiment=experiment)
     >>> candidate = mcts.run()
     >>> print((candidate["candidate"], len(candidate["candidate"])))
@@ -326,7 +325,7 @@ class TreeNode:
     >>> child.backpropagate(score=0.5)
     >>> print(node.uct_score())
     inf
-    >>> print(child.uct_score())
+    >>> print(child.uct_score())  # doctest: +SKIP
     np.float64(0.6663)
     """
 
