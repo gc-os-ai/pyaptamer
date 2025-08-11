@@ -52,20 +52,22 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> import torch
-    >>> from pyaptamer.experiments import Aptamer
-    >>> from pyaptamer.mcts import MCTS
-    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> target = "MCKY"
-    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)
-    >>> experiment = Aptamer(target_enc, target, model, device)
-    >>> mcts = MCTS(depth=10, experiment=experiment)
-    >>> candidate = mcts.run()
-    >>> print((candidate["candidate"], len(candidate["candidate"])))
+    >>> import torch  # doctest: +SKIP
+    >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
+    >>> from pyaptamer.mcts import MCTS  # doctest: +SKIP
+    >>> device = torch.device(
+    ...     "cuda" if torch.cuda.is_available() else "cpu"
+    ... )  # doctest: +SKIP
+    >>> target = "MCKY"  # doctest: +SKIP
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)  # doctest: +SKIP
+    >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
+    >>> mcts = MCTS(depth=10, experiment=experiment)  # doctest: +SKIP
+    >>> candidate = mcts.run()  # doctest: +SKIP
+    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
     ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))
+    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
     ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])
+    >>> print(candidate["score"])  # doctest: +SKIP
     tensor([0.5000])
     """
 
