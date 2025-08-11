@@ -13,10 +13,6 @@ class AptaTransSolver(Solver):
         weight_decay: float = 1e-5,
         **kwargs,
     ) -> None:
-        super().__init__(
-            lr=lr,
-            weight_decay=weight_decay,
-            **kwargs
-        )
+        super().__init__(lr=lr, weight_decay=weight_decay, **kwargs)
 
         self.criterion = nn.BCELoss()

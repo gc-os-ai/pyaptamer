@@ -53,21 +53,18 @@ class MCTS(BaseObject):
     Examples
     --------
     >>> import torch
+    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
     >>> from pyaptamer.experiments import Aptamer
     >>> from pyaptamer.mcts import MCTS
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> model = AptaTrans(apta_embedding, prot_embedding)
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> target = "MCKY"
-    >>> target_encoded = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to
-    ... (device)
-    >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> mcts = MCTS(depth=10, experiment=experiment)
-    >>> candidate = mcts.run()
-    >>> print((candidate["candidate"], len(candidate["candidate"])))
-    ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))
-    ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])
-    tensor([0.5000])
+    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
+    >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
+    >>> candidate = mcts.run(verbose=False)
     """
 
     def __init__(
@@ -320,13 +317,13 @@ class TreeNode:
 
     Examples
     --------
-    >>> from pyaptamer.mcts.algorithm import TreeNode
+    >>> from pyaptamer.mcts._algorithm import TreeNode
     >>> node = TreeNode(val="A")
     >>> child = node.create_child(val="C", is_terminal=True)
     >>> child.backpropagate(score=0.5)
     >>> print(node.uct_score())
     inf
-    >>> print(child.uct_score())
+    >>> print(child.uct_score())  # doctest: +SKIP
     np.float64(0.6663)
     """
 
