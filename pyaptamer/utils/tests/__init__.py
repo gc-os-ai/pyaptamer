@@ -1,1 +1,1 @@
-"""Added tests for utils module."""
+"""Tests for utilities in the pyaptamer package."""

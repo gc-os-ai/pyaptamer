@@ -58,8 +58,11 @@ def pairs_to_features(X, k=4, pseaac_kwargs=None):
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
 
     This function generates feature vectors for each (aptamer, protein) pair using:
+
+
     - k-mer representation of the aptamer sequence
     - Pseudo amino acid composition (PSeAAC) representation of the protein sequence
+
 
     Parameters
     ----------
