@@ -1,1 +1,1 @@
-"""Package level tests."""
+"""Tests for the pyaptamer package."""
