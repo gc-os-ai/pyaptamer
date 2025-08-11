@@ -104,4 +104,5 @@ jobs:
           pip install nbconvert
 
       - name: Run all Jupyter notebooks
+        if: ${{ matrix.python-version == '3.11' }}
         run: bash build_tools/run_all_notebooks.sh
