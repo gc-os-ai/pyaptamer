@@ -93,11 +93,11 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
 
     Examples
     --------
-    >>> from pyaptamer.utils.rna import rna2vec
+    >>> from pyaptamer.utils import rna2vec
     >>> # two triplets: 'AAAC' -> ['AAA', 'AAC']
     >>> rna = rna2vec(["AAAC"], max_sequence_length=4)
     >>> print(rna)
-    [[ 1  2  0  0]] # words['AAA'] = 1, words['AAC'] = 2, rest is padding
+    [[1 2 0 0]]
     """
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
@@ -157,8 +157,9 @@ def encode_rna(
 
     Examples
     --------
+    >>> from pyaptamer.utils import encode_rna
     >>> words = {"A": 1, "C": 2, "D": 3, "AC": 4}
-    >>> print(encode_proteins("ACD", words, max_len=5))
+    >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
     # handle single protein input

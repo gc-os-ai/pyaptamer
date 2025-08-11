@@ -65,8 +65,8 @@ class AptaTransPipeline:
     ...     EncoderPredictorConfig,
     ... )
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> apta_embedding = EncoderPredictorConfig(126, 16, max_len=100)
-    >>> prot_embedding = EncoderPredictorConfig(126, 16, max_len=100)
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=100)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=100)
     >>> prot_words = {"DHR": 0.5, "AIQ": 0.5, "AAG": 0.2}
     >>> target = "DHRNENIAIQ"
     >>> model = AptaTrans(apta_embedding, prot_embedding)
@@ -74,8 +74,6 @@ class AptaTransPipeline:
     >>> aptamer = "ACGUA"
     >>> imap = pipeline.get_interaction_map(aptamer, target)
     >>> candidates = pipeline.recommend(target, n_candidates=1, verbose=False)
-    >>> print(candidates)
-    {('ACCAC', '_C_CA__A_C', tensor([[0.5151]]))}
     """
 
     def __init__(

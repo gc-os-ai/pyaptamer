@@ -80,8 +80,8 @@ class AptaTrans(nn.Module):
     --------
     >>> import torch
     >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> apta_embedding = EncoderPredictorConfig(16, 16, max_len=512)
-    >>> prot_embedding = EncoderPredictorConfig(16, 16, max_len=512)
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> x_apta = torch.randint(high=16, size=(128, 10))
     >>> x_prot = torch.randint(high=16, size=(128, 10))
     >>> model = AptaTrans(apta_embedding, prot_embedding)

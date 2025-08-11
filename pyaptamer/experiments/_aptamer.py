@@ -30,14 +30,16 @@ class Aptamer(BaseObject):
     Examples
     --------
     >>> import torch
-    >>> from pyaptamer.aptatrans import AptaTrans
-    >>> from pyaptamer.experiment import Aptamer
-    >>> target = "DHRNE"
-    >>> aptamer_candidate = "AUGGC"
+    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
+    >>> from pyaptamer.experiments import Aptamer
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> target = "DHRNE"
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, ...}
+    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
     >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> aptamer_candidate = "AUGGC"
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
     >>> score = experiment.evaluate(aptamer_candidate)
     """
