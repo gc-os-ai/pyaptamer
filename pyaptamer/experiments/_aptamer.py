@@ -25,7 +25,9 @@ class Aptamer(BaseObject):
     --------
     >>> import torch  # doctest: +SKIP
     >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
-    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # doctest: +SKIP
+    >>> device = torch.device(
+    ...     "cuda" if torch.cuda.is_available() else "cpu"
+    ... )  # doctest: +SKIP
     >>> target = "MCKY"  # doctest: +SKIP
     >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)
     >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
