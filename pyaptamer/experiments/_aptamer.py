@@ -29,7 +29,9 @@ class Aptamer(BaseObject):
     ...     "cuda" if torch.cuda.is_available() else "cpu"
     ... )  # doctest: +SKIP
     >>> target = "MCKY"  # doctest: +SKIP
-    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(device)
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
+    ...     device
+    ... )  # doctest: +SKIP
     >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
     >>> aptamer_candidate = "A_C__G_U"  # doctest: +SKIP
     >>> score = experiment.evaluate(aptamer_candidate)  # doctest: +SKIP
