@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["AptaNetFeaturesClassifier"]
+
 import numpy as np
 import torch
 import torch.nn as nn
