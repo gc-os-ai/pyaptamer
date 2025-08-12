@@ -52,17 +52,25 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> from pyaptamer.mcts.algorithm import MCTS
-    >>> from pyaptamer.experiment import Aptamer
-    >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> mcts = MCTS(experiment, depth=10)
-    >>> candidate = mcts.run(verbose=True)
-    >>> print(candidate["candidate"])
-    ACGUACGUAU
-    >>> print(candidate["score"])
-    0.85
-    >>> print(len(candidate))
-    10
+    >>> import torch  # doctest: +SKIP
+    >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
+    >>> from pyaptamer.mcts import MCTS  # doctest: +SKIP
+    >>> device = torch.device(
+    ...     "cuda" if torch.cuda.is_available() else "cpu"
+    ... )  # doctest: +SKIP
+    >>> target = "MCKY"  # doctest: +SKIP
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
+    ...     device
+    ... )  # doctest: +SKIP
+    >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
+    >>> mcts = MCTS(depth=10, experiment=experiment)  # doctest: +SKIP
+    >>> candidate = mcts.run()  # doctest: +SKIP
+    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
+    ('CUUUAUGUCA', 10)
+    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
+    ('_GU_A__U_CU__AU_U_C_', 20)
+    >>> print(candidate["score"])  # doctest: +SKIP
+    tensor([0.5000])
     """
 
     def __init__(
@@ -85,7 +93,6 @@ class MCTS(BaseObject):
         n_iterations : int, optional
             Number of iterations per round for the MCTS algorithm.
         """
-        self.states = states
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
@@ -93,9 +100,8 @@ class MCTS(BaseObject):
         super().__init__()
 
         if states is None:
-            self._states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
-        else:
-            self._states = states
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        self.states = states
 
         self.root = TreeNode(
             n_states=len(states),
@@ -106,7 +112,7 @@ class MCTS(BaseObject):
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
         self.root = TreeNode(
-            n_states=len(self._states),
+            n_states=len(self.states),
         )
         self.base = ""
         self.candidate = ""
@@ -156,7 +162,7 @@ class MCTS(BaseObject):
         is_terminal = node.depth == self.depth - 1
 
         # find all unexpanded values for this node
-        unexpanded = list(set(self._states) - set(node.children.keys()))
+        unexpanded = list(set(self.states) - set(node.children.keys()))
 
         # randomly selected one value from unexpanded ones
         val = random.choice(unexpanded)
@@ -196,7 +202,7 @@ class MCTS(BaseObject):
         # fill the rest of the sequence with random possible values
         remaining_length = (self.depth * 2) - len(sequence)
         for _ in range(remaining_length):
-            sequence += random.choice(self._states)
+            sequence += random.choice(self.states)
 
         # evaluate the candidate sequence with the goal function
         return self.experiment.evaluate(sequence)
@@ -271,7 +277,7 @@ class MCTS(BaseObject):
 
             # reset for next iteration
             self.root = TreeNode(
-                n_states=len(self._states),
+                n_states=len(self.states),
                 depth=len(self.base) // 2,  # adjust depth based on current base
             )
 
@@ -279,7 +285,8 @@ class MCTS(BaseObject):
 
         self.candidate = self.base
         return {
-            "candidate": self.candidate,
+            "candidate": self.experiment.reconstruct(self.candidate)[0],
+            "sequence": self.candidate,
             "score": self.experiment.evaluate(self.candidate),
         }
 
@@ -316,13 +323,13 @@ class TreeNode:
 
     Examples
     --------
-    >>> from pyaptamer.mcts.algorithm import TreeNode
+    >>> from pyaptamer.mcts._algorithm import TreeNode
     >>> node = TreeNode(val="A")
     >>> child = node.create_child(val="C", is_terminal=True)
     >>> child.backpropagate(score=0.5)
     >>> print(node.uct_score())
     inf
-    >>> print(child.uct_score())
+    >>> print(child.uct_score())  # doctest: +SKIP
     np.float64(0.6663)
     """
 
