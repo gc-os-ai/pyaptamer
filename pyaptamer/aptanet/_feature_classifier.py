@@ -1,10 +1,10 @@
 __author__ = "satvshr"
-__all__ = ["AptaNetFeaturesClassifier"]
+__all__ = ["AptaNetClassifier"]
 
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
@@ -15,12 +15,14 @@ from torch import optim
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
 
 
-class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
+class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     """
-    Classifier for precomputed numeric features combining RandomForest-based
-    `SelectFromModel` feature selection with a skorch-wrapped MLP (`AptaNetMLP`).
+    This estimator applies a tree-based `SelectFromModel` using a RandomForest
+    to filter input features, then trains a skorch-wrapped multi-layer perceptron
+    (`AptaNetMLP`) with BCE-with-logits. This mirrors the AptaNet-style deep
+    model used for aptamer–protein interaction prediction.
 
-    This estimator builds an internal sklearn `Pipeline` and delegates `fit`,
+    This classifier builds an internal sklearn `Pipeline` and delegates `fit`,
     `predict`, and other methods to it, while exposing convenient knobs for both
     the selector and the neural network.
 
@@ -54,14 +56,14 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         Discounting factor (rho) for the squared-gradient moving average in RMSprop.
     eps : float, default=1e-08
         Epsilon value for numerical stability in RMSprop.
-    n_estimators : int, default=300
-        Number of trees in the RandomForest used by the feature selector.
-    max_depth : int, default=9
-        Maximum depth of each tree in the RandomForest.
+    estimator : sklearn estimator or None, default=None
+        Estimator used for feature selection. If `None`, a `RandomForestClassifier`.
     random_state : int or None, default=None
         Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
     threshold : str or float, default="mean"
         Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
+    verbose : int, default=0
+        Verbosity level for the underlying skorch `NeuralNetBinaryClassifier`.
     """
 
     def __init__(
@@ -74,10 +76,10 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         lr=0.00014,
         alpha=0.9,
         eps=1e-08,
-        n_estimators=300,
-        max_depth=9,
+        estimator=None,
         random_state=None,
         threshold="mean",
+        verbose=0,
     ):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -87,20 +89,20 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
         self.lr = lr
         self.alpha = alpha
         self.eps = eps
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
+        self.estimator = estimator
         self.random_state = random_state
         self.threshold = threshold
+        self.verbose = verbose
 
     def _build_pipeline(self):
         from skorch import NeuralNetBinaryClassifier
 
+        base_estimator = self.estimator or RandomForestClassifier(
+            n_estimators=300, max_depth=9, random_state=self.random_state
+        )
+
         selector = SelectFromModel(
-            estimator=RandomForestClassifier(
-                n_estimators=self.n_estimators,
-                max_depth=self.max_depth,
-                random_state=self.random_state,
-            ),
+            estimator=clone(base_estimator),
             threshold=self.threshold,
         )
 
@@ -119,6 +121,7 @@ class AptaNetFeaturesClassifier(ClassifierMixin, BaseEstimator):
             optimizer__alpha=self.alpha,
             optimizer__eps=self.eps,
             device="cuda" if torch.cuda.is_available() else "cpu",
+            verbose=self.verbose,
         )
 
         return Pipeline([("select", selector), ("net", net)])
