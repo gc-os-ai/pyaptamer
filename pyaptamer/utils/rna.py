@@ -91,7 +91,7 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
     >>> # two triplets: 'AAAC' -> ['AAA', 'AAC']
     >>> rna = rna2vec(["AAAC"], max_sequence_length=4)
     >>> print(rna)
-    [[ 1  2  0  0]] # words['AAA'] = 1, words['AAC'] = 2, rest is padding
+    [[1 2 0 0]]
     """
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
