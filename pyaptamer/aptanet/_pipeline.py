@@ -1,23 +1,28 @@
 __author__ = "satvshr"
 __all__ = ["AptaNetPipeline"]
-__required__ = ["python>=3.9,<3.12"]
+__required__ = ["python>=3.9,<3.13"]
 
+from sklearn.base import clone
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
-from pyaptamer.aptanet._feature_classifier import AptaNetFeaturesClassifier
+from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 
 class AptaNetPipeline:
     """
-    Pipeline for aptamer-pair classification that starts from **string pairs**,
-    converts them to numeric features with `pairs_to_features`, then applies
-    tree-based feature selection and a skorch-wrapped neural network
-    (`AptaNetFeaturesClassifier`).
+    AptaNetPipeline: AptaNet algorithm for aptamer–protein interaction
+    prediction (Emami et al., 2021)
 
-    This class wraps an internal scikit-learn `Pipeline` and delegates `fit`,
-    `predict`, and related methods to it.
+    Implements the AptaNet algorithm, a deep learning method that combines
+    sequence-derived features with RandomForest-based feature selection and a
+    multi-layer perceptron to predict whether an aptamer and a protein interact
+    (binary classification).
+
+    The pipeline starts from string pairs, converts them into numeric features
+    (aptamer k-mer frequencies + protein PSeAAC), applies tree-based feature
+    selection, and feeds the result into the classifier.
 
     References
     ----------
@@ -32,25 +37,15 @@ class AptaNetPipeline:
 
     Parameters
     ----------
-    pairs_to_features_kwargs : dict, default=None
-        Extra keyword arguments passed directly to `pairs_to_features`.
-
-
-        - k : int, optional, default=4
+    k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
-        - pseaac_kwargs : dict, optional, default=None
-        Keyword arguments forwarded to PseAAC feature extraction, e.g.
-        {"lambda_value": 30, "w": 0.05}.
 
-
-    **features_classifier_kwargs : dict
-        Keyword arguments forwarded to `AptaNetFeaturesClassifier` to configure
-        the feature selector and neural network. See that class’ docstring for
-        the full list and defaults.
+    classifier : sklearn-compatible estimator or None, default=None
+        Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
     Examples
     --------
-    >>> from pyaptamer.aptanet.pipeline import AptaNetPipeline
+    >>> from pyaptamer.aptanet import AptaNetPipeline
     >>> import numpy as np
     >>> pipe = AptaNetPipeline()
     >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
@@ -58,22 +53,21 @@ class AptaNetPipeline:
     >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(40)]
     >>> y_train = np.array([0] * 20 + [1] * 20, dtype=np.float32)
     >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
-    >>> pipe.fit(X_train_pairs, y_train)
+    >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
     >>> preds = pipe.predict(X_test_pairs)
     """
 
-    def __init__(self, pairs_to_features_kwargs=None, **features_classifier_kwargs):
-        self.pairs_to_features_kwargs = pairs_to_features_kwargs
-        self.features_classifier_kwargs = features_classifier_kwargs
+    def __init__(self, k=None, classifier=None):
+        self.k = k
+        self.classifier = classifier or AptaNetClassifier()
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
             func=pairs_to_features,
-            kw_args=self.pairs_to_features_kwargs,
+            kw_args=self.k,
             validate=False,
         )
-        clf = AptaNetFeaturesClassifier(**self.features_classifier_kwargs)
-        return Pipeline([("features", transformer), ("clf", clf)])
+        return Pipeline([("features", transformer), ("clf", clone(self.classifier))])
 
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
