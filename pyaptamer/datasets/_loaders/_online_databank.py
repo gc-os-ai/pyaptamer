@@ -1,27 +1,26 @@
 from Bio.PDB import PDBList
 
 from pyaptamer.utils.pdb_to_struct import pdb_to_struct
-from pyaptamer.utils.struct_to_aaseq import struct_to_aaseq
 
 
 def download_and_extract_sequences(pdb_id):
     """
-    Download a PDB file, parse it into a structure, and extract amino acid sequences.
+    Download a PDB file from the RCSB Protein Data Bank and parse it into a `Structure`.
+    Files are created in the current working directory.
 
     Parameters
     ----------
     pdb_id : str
-        The PDB ID of the structure to download.
+        The 4-character PDB ID of the structure to download.
 
     Returns
     -------
-    sequences : list of str
-        List of amino acid sequences extracted from the structure.
+    structure : Bio.PDB.Structure.Structure
+        A Biopython Structure object.
     """
     pdbl = PDBList()
     pdb_file_path = pdbl.retrieve_pdb_file(pdb_id, file_format="pdb")
 
     structure = pdb_to_struct(pdb_file_path)
-    sequences = struct_to_aaseq(structure)
 
-    return sequences
+    return structure
