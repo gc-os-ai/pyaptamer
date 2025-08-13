@@ -5,6 +5,7 @@ __required__ = ["python>=3.9,<3.13"]
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
+from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
@@ -74,6 +75,5 @@ class AptaNetPipeline:
         self.pipeline_.fit(X, y)
 
     def predict(self, X):
-        if not hasattr(self, "pipeline_"):
-            raise RuntimeError("Pipeline not fitted. Call fit() before predict().")
+        check_is_fitted(self)
         return self.pipeline_.predict(X)
