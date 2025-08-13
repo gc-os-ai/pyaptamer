@@ -23,9 +23,22 @@ class Aptamer(BaseObject):
 
     Examples
     --------
-    from pyaptamer.experiment import Aptamer
-    >>> experiment = Aptamer(target_encoded, target, model, device)
-    >>> score = experiment.run(aptamer_candidate)
+    >>> import torch  # doctest: +SKIP
+    >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
+    >>> device = torch.device(
+    ...     "cuda" if torch.cuda.is_available() else "cpu"
+    ... )  # doctest: +SKIP
+    >>> target = "MCKY"  # doctest: +SKIP
+    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
+    ...     device
+    ... )  # doctest: +SKIP
+    >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
+    >>> aptamer_candidate = "A_C__G_U"  # doctest: +SKIP
+    >>> score = experiment.evaluate(aptamer_candidate)  # doctest: +SKIP
+    >>> print(score)  # doctest: +SKIP
+    tensor([0.5000])
+    >>> print(experiment.reconstruct(aptamer_candidate)[0])  # doctest: +SKIP
+    CAGU
     """
 
     def __init__(
@@ -58,7 +71,7 @@ class Aptamer(BaseObject):
         """Return the inputs of the experiment."""
         return ["aptamer_candidate"]
 
-    def _reconstruct(self, sequence: str = "") -> torch.Tensor:
+    def reconstruct(self, sequence: str = "") -> tuple[str, torch.Tensor]:
         """Reconstruct the actual aptamer sequence from the encoded representation.
 
         The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
@@ -72,8 +85,8 @@ class Aptamer(BaseObject):
 
         Returns
         -------
-        torch.Tensor
-            The reconstructed RNA sequence as a vector.
+        tuple[str, torch.Tensor]
+            The reconstructed RNA sequence and its vector representation.
         """
         result = ""
         for i in range(0, len(sequence), 2):
@@ -85,7 +98,7 @@ class Aptamer(BaseObject):
                     # prepend the current value
                     result = sequence[i] + result
 
-        return torch.tensor(rna2vec([result]))
+        return result, torch.tensor(rna2vec([result]))
 
     @torch.no_grad()
     def evaluate(self, aptamer_candidate: str) -> None:
@@ -104,7 +117,7 @@ class Aptamer(BaseObject):
         torch.Tensor
             The score assigned to the aptamer candidate.
         """
-        aptamer_candidate = self._reconstruct(aptamer_candidate)
+        aptamer_candidate = self.reconstruct(aptamer_candidate)[1]
 
         self.model.eval()
         return self.model(
