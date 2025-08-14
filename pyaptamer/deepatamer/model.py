@@ -7,18 +7,22 @@ class DeepAptamer(nn.Module):
         super().__init__()
 
         # Sequence branch (input: B x 35 x 4) model1
-        self.seq_conv = nn.Conv1d(in_channels=4, out_channels=12, kernel_size=1)
-        self.seq_dense = nn.Sequential(
+        self.model1 = nn.Sequential(
+            nn.Conv1d(in_channels=4, out_channels=12, kernel_size=1),
+            nn.MaxPool1d(kernel_size=1, stride=1),
             nn.Linear(12, 32),
             nn.ReLU(),
-            nn.Linear(32, 4),  # no activation, passthrough features
-            nn.ReLU(),
+            nn.Linear(32, 4),
+            nn.Softmax(),
         )
 
         # Shape branch (input: B x 126 x 1) model2
-        self.shape_conv = nn.Conv1d(in_channels=1, out_channels=1, kernel_size=100)
-        self.shape_pool = nn.MaxPool1d(kernel_size=20, stride=20)  # 27 -> 1
-        self.shape_dense = nn.Sequential(nn.Linear(1, 4), nn.ReLU())
+        self.model2 = nn.Sequential(
+            nn.Conv1d(in_channels=1, out_channels=1, kernel_size=100),
+            nn.MaxPool1d(kernel_size=20, stride=20),
+            nn.Linear(1, 4),
+            nn.ReLU(),
+        )
 
         # BiLSTM over concatenated features (36 x 4)
         self.bi1 = nn.LSTM(
