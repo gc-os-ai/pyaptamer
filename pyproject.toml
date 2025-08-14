@@ -39,7 +39,6 @@ ignore = ["N803", "N806"]
 
 [tool.ruff.format]
 quote-style = "double"
-line-ending = "lf"
 indent-style = "space"
 docstring-code-format = true
 
