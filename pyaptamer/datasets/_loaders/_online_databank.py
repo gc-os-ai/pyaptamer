@@ -3,7 +3,7 @@ from Bio.PDB import PDBList
 from pyaptamer.utils.pdb_to_struct import pdb_to_struct
 
 
-def download_and_extract_sequences(pdb_id, overwrite=False):
+def load_from_rcsb(pdb_id, overwrite=False):
     """
     Download a PDB file from the RCSB Protein Data Bank and parse it into a `Structure`.
     Files are created in the current working directory.
