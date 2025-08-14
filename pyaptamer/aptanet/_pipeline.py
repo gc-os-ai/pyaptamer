@@ -13,8 +13,7 @@ from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 class AptaNetPipeline:
     """
-    AptaNetPipeline: AptaNet algorithm for aptamer–protein interaction
-    prediction (Emami et al., 2021)
+    AptaNet algorithm for aptamer–protein interaction prediction (Emami et al., 2021)
 
     Implements the AptaNet algorithm, a deep learning method that combines
     sequence-derived features with RandomForest-based feature selection and a
@@ -25,17 +24,6 @@ class AptaNetPipeline:
     (aptamer k-mer frequencies + protein PSeAAC), applies tree-based feature
     selection, and feeds the result into the classifier.
 
-    References
-    ----------
-
-
-    - Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
-    aptamer–protein interaction prediction. Sci Rep 11, 6074 (2021).
-    https://doi.org/10.1038/s41598-021-85629-0
-    - https://github.com/nedaemami/AptaNet
-    - https://www.nature.com/articles/s41598-021-85629-0.pdf
-
-
     Parameters
     ----------
     k : int, optional, default=4
@@ -43,6 +31,16 @@ class AptaNetPipeline:
 
     classifier : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
+
+    References
+    ----------
+
+    .. [1] Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
+        aptamer–protein interaction prediction. *Scientific Reports*, 11, 6074 (2021).
+        https://doi.org/10.1038/s41598-021-85629-0
+    .. [2] GitHub repository: https://github.com/nedaemami/AptaNet
+    .. [3] PDF version of the article: https://www.nature.com/articles/s41598-021-85629-0.pdf
+
 
     Examples
     --------
