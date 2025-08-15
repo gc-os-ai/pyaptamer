@@ -1,1 +1,1 @@
-"""Tests for the pyaptamer package."""
+"""Tests for docstrings in the pyaptamer package."""
