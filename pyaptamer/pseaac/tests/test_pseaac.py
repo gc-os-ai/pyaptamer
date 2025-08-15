@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 import numpy as np
 import pytest
 

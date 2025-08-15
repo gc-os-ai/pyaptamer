@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["load_1gnh_structure"]
+
 import os
 
 from Bio.PDB import PDBParser

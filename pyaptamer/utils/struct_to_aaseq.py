@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["struct_to_aaseq"]
+
 from Bio.PDB.Polypeptide import PPBuilder
 
 

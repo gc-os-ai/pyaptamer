@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 import pytest
 from Bio.PDB.Structure import Structure
 
