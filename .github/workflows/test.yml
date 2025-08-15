@@ -95,6 +95,9 @@ jobs:
       - name: Show available branches
         run: git branch -a
 
-      - name: Run tests
+      - name: Run jupyter notebooks
+        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
         run: |
-          python -m pytest pyaptamer -p no:warnings
+          python -m pip install jupyter nbconvert ipykernel
+          python -m ipykernel install --user --name=python3 --display-name "Python 3 (CI)"
+          bash build_tools/run_all_notebooks.sh
