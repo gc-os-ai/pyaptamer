@@ -32,10 +32,29 @@ def preprocess_x_ohe(X):
     return X_ohe
 
 
-def preprocess_x_pad(X):
-    # pad x with 2 zeros on both sides
-    # X_pad = 2 * ["0"] + X + 2 * ["0"]
-    return X
+# input will be of size (n_shapes(4), shape_vector_size)
+def preprocess_x_shape(X):
+    """
+    X: numpy array of shape (n_shapes, shape_vector_size)
+    Returns: flattened array of shape (1, new_length)
+    """
+
+    # Step 1: Pad each row with two zeros on each side
+    X_padded = np.pad(X, pad_width=((0, 0), (2, 2)), mode="constant", constant_values=0)
+
+    # TODO: Step 2: Get shapes using padded array
+
+    # Step 3: Normalize each feature (column-wise)
+    mean = X_padded.mean(axis=1, keepdims=True)  # shape (4, 1)
+    std = X_padded.std(axis=1, keepdims=True)
+    # avoid division by zero
+    std[std == 0] = 1.0
+    X_norm = (X_padded - mean) / std
+
+    # Step 4: Flatten to shape (1, total_length)
+    X_flat = X_norm.flatten().reshape(1, -1)
+
+    return X_flat
 
 
 def preprocess_y(y):
