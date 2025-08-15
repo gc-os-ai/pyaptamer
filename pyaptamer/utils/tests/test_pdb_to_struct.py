@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 import os
 
 from pyaptamer.utils.pdb_to_struct import pdb_to_struct

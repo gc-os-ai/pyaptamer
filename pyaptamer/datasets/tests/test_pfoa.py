@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 from Bio.PDB.Structure import Structure
 
 from pyaptamer.datasets._loaders import load_pfoa_structure
