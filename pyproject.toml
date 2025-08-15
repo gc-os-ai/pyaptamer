@@ -27,8 +27,7 @@ dependencies = [
 dev = [
     "ruff>=0.12.0",
     "pytest>=8.0.0",
-    "pre-commit",
-    "biopython>=1.83"
+    "pre-commit"
 ]
 
 [tool.ruff]
