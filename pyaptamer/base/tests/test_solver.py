@@ -27,7 +27,7 @@ class MockMLP(nn.Module):
 
 class TestSolver(BaseSolver):
     """Concrete implementation of BaseSolver for testing purposes."""
-    
+
     def _compute_metric(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         """Compute classification accuracy."""
         predictions = torch.argmax(outputs, dim=1)
@@ -100,9 +100,10 @@ class TestBaseSolver:
 
     def test_abstract_method_required(self):
         """Check that _compute_metric is abstract and must be implemented."""
+
         class IncompleteSolver(BaseSolver):
             pass  # Missing _compute_metric implementation
-            
+
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
             IncompleteSolver(
                 device=torch.device("cpu"),
@@ -120,7 +121,7 @@ class TestBaseSolver:
     def test_init_required_criterion(self, device, mock_data):
         """Check that criterion is now required."""
         train_loader, test_loader = mock_data
-        
+
         # This should work with criterion provided
         solver = TestSolver(
             device=device,
@@ -207,18 +208,20 @@ class TestBaseSolver:
     def test_compute_metric_implementation(self, solver):
         """Check that _compute_metric works correctly in concrete implementation."""
         # Create some mock outputs and targets
-        outputs = torch.tensor([[0.1, 0.9], [0.8, 0.2], [0.3, 0.7]])  # 3 samples, 2 classes
+        outputs = torch.tensor(
+            [[0.1, 0.9], [0.8, 0.2], [0.3, 0.7]]
+        )  # 3 samples, 2 classes
         targets = torch.tensor([1, 0, 1])  # Expected classes
-        
+
         accuracy = solver._compute_metric(outputs, targets)
-        
+
         # Expected: predictions are [1, 0, 1], targets are [1, 0, 1] -> 100% accuracy
         assert accuracy == 1.0
-        
+
         # Test with wrong predictions
         outputs_wrong = torch.tensor([[0.9, 0.1], [0.2, 0.8], [0.7, 0.3]])
         accuracy_wrong = solver._compute_metric(outputs_wrong, targets)
-        
+
         # Expected: predictions are [0, 1, 0], targets are [1, 0, 1] -> 0% accuracy
         assert accuracy_wrong == 0.0
 
@@ -242,7 +245,9 @@ class TestBaseSolver:
         assert solver.best_epoch == 0
         assert solver.best_params is not None
 
-    @pytest.mark.parametrize("monitor", ["test_loss", "test_metric"])  # Updated from "test_accuracy"
+    @pytest.mark.parametrize(
+        "monitor", ["test_loss", "test_metric"]
+    )  # Updated from "test_accuracy"
     def test_train_monitor_options(self, solver, monitor):
         """Check train() works with different monitor metrics."""
         history = solver.train(epochs=1, monitor=monitor, show_progress=False)
@@ -260,25 +265,22 @@ class TestBaseSolver:
     def test_train_show_progress(self, solver, show_progress):
         """Check train() works with different show_progress settings."""
         history = solver.train(epochs=1, show_progress=show_progress)
-        
+
         assert len(history["train_loss"]) == 1
         assert len(history["test_loss"]) == 1
 
     def test_load_best_model_success(self, solver):
         """Check load_best_model() works after training."""
         solver.train(epochs=1, show_progress=False)
-        
-        # Store original state dict for comparison
-        original_state = solver.model.state_dict().copy()
-        
+
         # Modify model weights
         with torch.no_grad():
             for param in solver.model.parameters():
                 param.data.fill_(999.0)
-        
+
         # Load best model should restore the weights
         solver.load_best_model()
-        
+
         # Check that weights were restored (not all 999.0)
         for param in solver.model.parameters():
             assert not torch.all(param.data == 999.0)
@@ -296,10 +298,10 @@ class TestBaseSolver:
         solver.best_epoch = 5
         solver.best_params = {"test": "value"}
         solver.history["train_loss"] = [1.0, 2.0]
-        
+
         # Reset should restore defaults
         solver._reset()
-        
+
         assert solver.best_epoch == -1
         assert solver.best_params is None
         assert len(solver.history["train_loss"]) == 0
@@ -312,13 +314,15 @@ class TestBaseSolver:
         # This test ensures the criterion is actually being called
         # by checking that training modifies model parameters
         initial_params = [param.clone() for param in solver.model.parameters()]
-        
+
         solver.train(epochs=1, show_progress=False)
-        
+
         # At least one parameter should have changed after training
         params_changed = any(
-            not torch.equal(initial, current) 
-            for initial, current in zip(initial_params, solver.model.parameters())
+            not torch.equal(initial, current)
+            for initial, current in zip(
+                initial_params, solver.model.parameters(), strict=False
+            )
         )
         assert params_changed, "Model parameters should change during training"
 
@@ -337,7 +341,7 @@ class TestBaseSolver:
             momentum=0.9,
             betas=(0.9, 0.999),
         )
-        
+
         # Check that model parameters are on the correct device
         for param in solver.model.parameters():
             assert param.device == device

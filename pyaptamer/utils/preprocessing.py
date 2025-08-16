@@ -4,7 +4,7 @@ __all__ = ["augment_reverse"]
 
 def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
     """Augment lists of sequences by adding their reverse complement.
-    
+
     Parameters
     ----------
     *sequence_lists : list[str]
@@ -13,7 +13,7 @@ def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
     Returns
     -------
     tuple[list[str], ...]
-        A tuple of lists, each containing sequences with their reverse complements 
+        A tuple of lists, each containing sequences with their reverse complements
         added.
     """
     results = []
@@ -21,7 +21,7 @@ def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
         result = []
         for seq in sequences:
             result.append(seq)
-            result.append(seq[::-1]) # add reverse complement
+            result.append(seq[::-1])  # add reverse complement
         results.append(result)
-    
+
     return tuple(results)

@@ -3,7 +3,6 @@ __all__ = ["BaseSolver"]
 
 import copy
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -15,7 +14,7 @@ from tqdm import tqdm
 class BaseSolver(ABC):
     """
     Abstract base class for training neural networks via backpropagation.
-    
+
     This class defines the common structure and interface for training PyTorch models.
     Subclasses must implement the abstract methods for computing metrics and loss.
 
@@ -49,7 +48,7 @@ class BaseSolver(ABC):
     optimizer : torch.optim.Optimizer
         The optimizer initialized with the model parameters.
     history : dict
-        A dictionary to store training and test loss history, and training and test 
+        A dictionary to store training and test loss history, and training and test
         target metric.
     best_params : dict
         State dict of the model with best validation performance.
@@ -76,7 +75,7 @@ class BaseSolver(ABC):
         self.test_dataloader = test_dataloader
 
         self.criterion = criterion
-        
+
         self.optimizer = self._init_optimizer(
             optimizer, lr=lr, weight_decay=weight_decay, momentum=momentum, betas=betas
         )
@@ -143,12 +142,10 @@ class BaseSolver(ABC):
         }
 
     @abstractmethod
-    def _compute_metric(
-        self, outputs: torch.Tensor, targets: torch.Tensor
-    ) -> float:
+    def _compute_metric(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         """
         Compute a metric (e.g., accuracy, F1, etc.) from model outputs and targets.
-        
+
         This method should be implemented by subclasses to define task-specific
         metric computation.
 
@@ -187,7 +184,7 @@ class BaseSolver(ABC):
         self,
         dataloader: DataLoader,
         show_progress: bool,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Compute loss and metric on the specified dataloader in inference mode.
 
         Returns
@@ -210,13 +207,13 @@ class BaseSolver(ABC):
 
             total_loss += loss.item() * data.size(0)
             total_samples += targets.size(0)
-            
+
             # Collect outputs and targets for metric computation
             all_outputs.append(outputs)
             all_targets.append(targets)
 
         avg_loss = total_loss / total_samples
-        
+
         # Compute metric on all outputs/targets
         all_outputs = torch.cat(all_outputs, dim=0)
         all_targets = torch.cat(all_targets, dim=0)
@@ -238,11 +235,8 @@ class BaseSolver(ABC):
         self.model.load_state_dict(self.best_params)
 
     def train(
-        self, 
-        epochs: int = 100, 
-        monitor: str = "test_loss", 
-        show_progress: bool = True
-    ) -> Dict[str, List[float]]:
+        self, epochs: int = 100, monitor: str = "test_loss", show_progress: bool = True
+    ) -> dict[str, list[float]]:
         """Train the model.
 
         Parameters
@@ -295,7 +289,7 @@ class BaseSolver(ABC):
             has_improved = (
                 monitor == "test_loss" and current_metric < best_metric
             ) or (monitor == "test_metric" and current_metric > best_metric)
-            
+
             if has_improved:
                 best_metric = current_metric
                 self.best_epoch = epoch
