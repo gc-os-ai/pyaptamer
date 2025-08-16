@@ -1,44 +1,30 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
+import numpy as np
 
-from pyaptamer.deepatamer.model import (
-    DeepAptamer,
-)  # Assuming this is the correct import path
+from pyaptamer.utils._deepaptamer_utils import run_deepdna_prediction
 
-# For now, I’ll assume DeepAptamer is defined above in the same script
 
-# Create model
-model = DeepAptamer()
+def main():
+    seq = "GTACGTACGTACGTACGTACGTACGTACGTACGTA"  # length 35
+    features = ["MGW", "Roll", "ProT", "HelT"]
+    layer = 2
 
-# Dummy inputs
-batch_size = 8
-x_seq = torch.randn(batch_size, 35, 4)  # (B, 35, 4)
-x_shape = torch.randn(batch_size, 126, 1)  # (B, 126, 1)
+    results = {}
 
-# Dummy binary labels for each time step (B, 36, 2)
-y = torch.randint(0, 2, (batch_size, 36, 2)).float()
+    print(f"DNA sequence length: {len(seq)}\n")
 
-# Loss & optimizer
-criterion = nn.BCEWithLogitsLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    # Run predictions for each feature
+    for feature in features:
+        preds = run_deepdna_prediction(seq, feature, layer, mode="cpu")
+        preds = np.array(preds)
 
-# Training loop
-for epoch in range(5):  # small loop for demo
-    model.train()
+        results[feature] = preds
+        print(preds)
+        print(f"{feature}: shape = {preds.shape}")
 
-    optimizer.zero_grad()
+    # Flatten all features into one vector
+    flattened = np.concatenate([results[f] for f in features])
+    print("\nFlattened vector shape:", flattened.shape)
 
-    # Forward pass
-    outputs = model(x_seq, x_shape)  # (B, 36, 2)
 
-    # Compute loss
-    loss = criterion(outputs, y)
-
-    # Backward pass
-    loss.backward()
-    optimizer.step()
-
-    print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
-
-print("Training complete!")
+if __name__ == "__main__":
+    main()

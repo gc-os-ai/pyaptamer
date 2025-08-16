@@ -28,6 +28,7 @@ def preprocess_x_ohe(X):
         encoded sequences.
     """
     X_pad = pad_sequences(X)
+    # X_pad = "NN" + X_pad + "NN"
     X_ohe = ohe(X_pad)
     return X_ohe
 
@@ -39,7 +40,7 @@ def preprocess_x_shape(X):
     Returns: flattened array of shape (1, new_length)
     """
 
-    # Step 1: Pad each row with two zeros on each side
+    # TODO: Step 1: Pad each row with two zeros on each side
     X_padded = np.pad(X, pad_width=((0, 0), (2, 2)), mode="constant", constant_values=0)
 
     # TODO: Step 2: Get shapes using padded array

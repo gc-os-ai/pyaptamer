@@ -1,4 +1,5 @@
 import numpy as np
+from deepDNAshape import predictor
 
 
 def ohe(X):
@@ -64,3 +65,35 @@ def pad_sequences(X):
 
     padded = np.array([seq.ljust(35, "N") for seq in X])
     return padded
+
+
+def run_deepdna_prediction(seq, feature, layer, mode="cpu"):
+    """
+    Run deepDNAshape prediction for a single DNA sequence.
+
+    Parameters
+    ----------
+    seq : str
+        DNA sequence (e.g., "AAGGTTCC") to predict structural features for.
+    feature : str
+        DNA shape feature to predict. Examples include:
+        - "MGW" : Minor Groove Width
+        - "HelT": Helical Twist
+        - "ProT": Propeller Twist
+        - "Roll": Roll angle
+    layer : int
+        The model layer to extract predictions from.
+    mode : {"cpu", "gpu"}, optional
+        Compute mode for the predictor. Default is "cpu".
+        Set to "gpu" if CUDA is available.
+
+    Returns
+    -------
+    list of float
+        Predicted values for the requested feature across the sequence.
+    """
+    # Create predictor
+    model = predictor.predictor(mode=mode)
+
+    # Run prediction
+    return list(model.predict(feature, seq, layer))
