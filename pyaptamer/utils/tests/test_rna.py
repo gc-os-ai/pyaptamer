@@ -6,9 +6,8 @@ from itertools import product
 
 import numpy as np
 import pytest
-import torch
 
-from pyaptamer.utils import dna2rna, encode_rna, generate_all_aptamer_triplets, rna2vec
+from pyaptamer.utils import dna2rna, rna2vec
 
 
 @pytest.mark.parametrize(
@@ -36,22 +35,6 @@ def test_dna2rna_edge_cases():
     assert dna2rna("AcGt") == "ANGN"
 
 
-def test_generate_all_aptamer_triplets():
-    """Check generation of all possible 3-mer RNA subsequences (triplets)."""
-    words = generate_all_aptamer_triplets()
-    nucleotides = ["A", "C", "G", "U", "N"]
-    expected_count = len(nucleotides) ** 3  # 5^3 = 125 triplets
-
-    assert isinstance(words, dict)
-    assert len(words) == expected_count
-
-    # check that all combinations are present
-    for triplet in product(nucleotides, repeat=3):
-        triplet_str = "".join(triplet)
-        assert triplet_str in words
-        assert isinstance(words[triplet_str], int)
-
-
 def test_rna2vec():
     """Check conversion of RNA sequences."""
     # test sequences with known outcomes
@@ -62,21 +45,20 @@ def test_rna2vec():
     assert result.shape[0] == len(sequences)
     assert result.shape[1] == 275  # default `max_sequence_length`
 
-    nucleotides = ["A", "C", "G", "U", "N"]
-    words = {
-        "".join(triplet): i + 1
-        for i, triplet in enumerate(product(nucleotides, repeat=3))
-    }
+    letters = ["A", "C", "G", "U", "N"]
+    triplets = {}
+    for idx, triplet in enumerate(product(letters, repeat=3)):
+        triplets["".join(triplet)] = idx + 1
 
     # 'AAAA' -> triplets: 'AAA'
-    expected_aaa = words["AAA"]
+    expected_aaa = triplets["AAA"]
     assert result[0][0] == expected_aaa
     assert result[0][1] == expected_aaa
     assert np.all(result[0][2:] == 0)  # rest should be padding
 
     # 'ACGT' -> 'ACGU' -> triplets: 'ACG', 'CGU'
-    expected_acg = words["ACG"]
-    expected_cgu = words["CGU"]
+    expected_acg = triplets["ACG"]
+    expected_cgu = triplets["CGU"]
     assert result[1][0] == expected_acg
     assert result[1][1] == expected_cgu
     assert np.all(result[1][2:] == 0)  # rest should be padding
@@ -87,8 +69,8 @@ def test_rna2vec():
     assert np.all(result[2][2:] == 0)  # rest should be padding
 
     # 'GGGX' -> 'GGGN' -> triplets: 'GGG', 'GGN'
-    expected_ggg_index = words["GGG"]
-    expected_ggn_index = words["GGN"]
+    expected_ggg_index = triplets["GGG"]
+    expected_ggn_index = triplets["GGN"]
     assert result[3][0] == expected_ggg_index
     assert result[3][1] == expected_ggn_index
     assert np.all(result[3][2:] == 0)  # rest should be padding
@@ -117,67 +99,3 @@ def test_rna2vec_edge_cases():
     # double character sequence (can't form triplet)
     result = rna2vec(["AA"])
     assert len(result) == 0
-
-
-@pytest.mark.parametrize(
-    "sequences, words, max_len, word_max_len, expected",
-    [
-        # single sequence with exact matches
-        (
-            "ACD",
-            {"A": 1, "C": 2, "D": 3, "AC": 4},
-            5,
-            3,
-            torch.tensor([[4, 3, 0, 0, 0]], dtype=torch.int64),
-        ),
-        # multiple sequences with padding
-        (
-            ["ACG", "UGC"],
-            {"A": 1, "C": 2, "G": 3, "U": 4, "AC": 5, "UG": 6},
-            6,
-            3,
-            torch.tensor([[5, 3, 0, 0, 0, 0], [6, 2, 0, 0, 0, 0]], dtype=torch.int64),
-        ),
-        # sequence with truncation
-        (
-            "ACGUACGU",
-            {"A": 1, "C": 2, "G": 3, "U": 4},
-            4,
-            3,
-            torch.tensor([[1, 2, 3, 4]], dtype=torch.int64),
-        ),
-        # sequence with unknown tokens
-        (
-            "ACXGU",
-            {"A": 1, "C": 2, "G": 3, "U": 4},
-            6,
-            3,
-            torch.tensor([[1, 2, 0, 3, 4, 0]], dtype=torch.int64),
-        ),
-        # greedy matching preference for longer patterns
-        (
-            "ACGU",
-            {"A": 1, "C": 2, "G": 3, "U": 4, "AC": 5, "ACG": 6, "ACGU": 7},
-            3,
-            4,
-            torch.tensor([[7, 0, 0]], dtype=torch.int64),
-        ),
-    ],
-)
-def test_encode_rna(sequences, words, max_len, word_max_len, expected):
-    """Check correct encoding of RNA sequences."""
-    encoded = encode_rna(sequences, words, max_len, word_max_len)
-
-    # check output type and shape
-    assert isinstance(encoded, torch.Tensor)
-    assert encoded.dtype == torch.int64
-    if isinstance(sequences, str):
-        assert encoded.shape == (1, max_len)
-    else:
-        assert encoded.shape == (len(sequences), max_len)
-
-    # check encoded values match expected
-    assert torch.equal(encoded, expected)
-
-    # verify all values are non-negative
-    assert (encoded >= 0).all()

@@ -1,16 +1,12 @@
 __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
-    "encode_rna",
-    "generate_all_aptamer_triplets",
     "rna2vec",
 ]
 
-from itertools import product
-
 import numpy as np
-import torch
-from torch import Tensor
+
+from pyaptamer.utils._misc import generate_triplets
 
 
 def dna2rna(sequence: str) -> str:
@@ -39,79 +35,83 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_all_aptamer_triplets() -> dict[str, int]:
+def rna2vec(
+    sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
+) -> np.ndarray:
     """
-    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
-    unique indices.
+    Convert a list of RNA sequence or RNA secondary structures into a numerical
+    representation.
 
-    Returns
-    -------
-    dict[str, int]
-        A dictionary where keys are 3-mer RNA subsequences and values are unique
-        indices.
-    """
-    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
-    # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
-    # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
-    words = {
-        "".join(triplet): i + 1
-        for i, triplet in enumerate(product(nucleotides, repeat=3))
-    }
-    return words
+    For RNA sequences, if not already in RNA format, the sequences are converted from
+    DNA to RNA. For both RNA and secondary structure sequences, all overlapping
+    triplets (3-nucleotide/character combinations) are extracted from each sequence and
+    mapped to unique indices. Finally, the sequences are zero padded to length
+    `max_sequence_length`. The result is a numpy array where each row corresponds to a
+    sequence, and each column corresponds to an integer representing the triplet's
+    index in the dictionary.
 
-
-def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
-    """Convert a list of RNA sequences into a numerical representation.
-
-    First, if not already in RNA format, the sequences are converted from DNA to RNA.
-    Then, all overlapping triplets (3-nucleotide combinations) are extracted from each
-    RNA sequence and mapped to unique indices. Finally, the sequences are zero padded
-    to length `max_sequence_length`. The result is a numpy array where each row
-    corresponds to a sequence, and each column corresponds to an integer representing
-    the triplet's index in dictionary `words`.
-
-    If the number of extracted triplets is grerater than `max_sequence_length`, the
+    If the number of extracted triplets is greater than `max_sequence_length`, the
     sequence is truncated to fit.
 
     Parameters
     ----------
     sequence_list : list[str]
-        A list containing RNA sequences as strings.
+        A list containing sequences as strings (RNA sequences or secondary structure
+        sequences).
+    sequence_type : str, optional, default="rna"
+        The type of sequence to process. Either "rna" for RNA sequences or "ss" for
+        secondary structure sequences.
     max_sequence_length : int, optional, default=275
         The maximum length of the output sequences.
 
     Returns
     -------
     np.ndarray
-        A numpy array containing the numerical representation of the RNA sequences, of
-        shape (1, `max_sequence_length`).
+        A numpy array containing the numerical representation of the sequences, of
+        shape (len(sequence_list), `max_sequence_length`).
 
     Raises
     ------
     ValueError
-        If `max_sequence_length` is less than or equal to 0.
+        If `max_sequence_length` is less than or equal to 0, or if `sequence_type`
+        is not "rna" or "ss".
 
     Examples
     --------
     >>> from pyaptamer.utils import rna2vec
-    >>> # two triplets: 'AAAC' -> ['AAA', 'AAC']
-    >>> rna = rna2vec(["AAAC"], max_sequence_length=4)
+    >>> rna = rna2vec(["AAAC"], sequence_type="rna", max_sequence_length=4)
     >>> print(rna)
     [[1 2 0 0]]
+    >>> # Secondary structure sequences
+    >>> ss = rna2vec(["SSHH"], sequence_type="ss", max_sequence_length=4)
+    >>> print(ss)
+    [[2 9 0 0]]
     """
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
 
-    words = generate_all_aptamer_triplets()
+    if sequence_type not in ["rna", "ss"]:
+        raise ValueError("`sequence_type` must be either 'rna' or 'ss'.")
+
+    if sequence_type == "rna":
+        # generate all rna triplets, 'N' marks unknown nucleotides
+        letters = ["A", "C", "G", "U", "N"]
+    else:  # sequence_type == "ss"
+        # generate all ss triplets
+        letters = ["S", "H", "M", "I", "B", "X", "E"]
+
+    triplets = generate_triplets(letters=letters)
 
     result = []
     for sequence in sequence_list:
-        sequence = dna2rna(sequence)
+        # convert DNA to RNA only for RNA sequences
+        if sequence_type == "rna":
+            sequence = dna2rna(sequence)
 
         # extract all overlapping triplets from the sequence
         # e.g., 'ACGUA' -> ['ACG', 'CGU', 'GUA']
         converted = [
-            words.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
+            triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
         # skip sequences that convert to an empty list
@@ -124,79 +124,3 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
             result.append(padded_sequence)
 
     return np.array(result)
-
-
-def encode_rna(
-    sequences: list[str],
-    words: dict[str, int],
-    max_len: int,
-    word_max_len: int = 3,
-) -> Tensor:
-    """Encode RNA sequences into their numerical representations.
-
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
-
-    Parameters
-    ----------
-    sequences : list[str]
-        List of RNA sequences to be encoded.
-    words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
-    max_len : int
-        Maximum length of each encoded sequence. Sequences will be truncated
-        or padded to this length.
-    word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
-
-    Returns
-    -------
-    Tensor
-        Encoded sequences with shape (n_sequences, `max_len`).
-
-    Examples
-    --------
-    >>> from pyaptamer.utils import encode_rna
-    >>> words = {"A": 1, "C": 2, "D": 3, "AC": 4}
-    >>> print(encode_rna("ACD", words, max_len=5))
-    tensor([[4, 3, 0, 0, 0]])
-    """
-    # handle single protein input
-    if isinstance(sequences, str):
-        sequences = [sequences]
-
-    encoded_sequences = []
-    for seq in sequences:
-        tokens = []
-        i = 0
-
-        while i < len(seq):
-            # try to match the longest possible pattern first
-            matched = False
-            for pattern_len in range(min(word_max_len, len(seq) - i), 0, -1):
-                pattern = seq[i : i + pattern_len]
-                if pattern in words:
-                    tokens.append(words[pattern])
-                    i += pattern_len
-                    matched = True
-                    break
-
-            # if no pattern matched, use unknown token (0) and advance by 1
-            if not matched:
-                tokens.append(0)
-                i += 1
-
-            # stop if we've reached max_len tokens
-            if len(tokens) >= max_len:
-                tokens = tokens[:max_len]
-                break
-
-        # pad sequence to max_len
-        padded_tokens = tokens + [0] * (max_len - len(tokens))
-        encoded_sequences.append(padded_tokens)
-
-    # convert to numpy array first
-    result = np.array(encoded_sequences, dtype=np.int64)
-
-    return torch.tensor(result, dtype=torch.int64)

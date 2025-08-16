@@ -1,15 +1,14 @@
 """Utils for the pyaptamer package."""
 
+__author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
-    "encode_rna",
-    "generate_all_aptamer_triplets",
+    "encode_protein",
     "rna2vec",
 ]
 
+from pyaptamer.utils._protein import encode_protein
 from pyaptamer.utils._rna import (
     dna2rna,
-    encode_rna,
-    generate_all_aptamer_triplets,
     rna2vec,
 )

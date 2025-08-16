@@ -3,6 +3,7 @@ AptaTrans pipeline and deep neural network for predicting aptamer-protein intera
 (API) and recommending candidate aptamers for a given target protein.
 """
 
+__author__ = ["nennomp"]
 __all__ = ["AptaTrans", "AptaTransPipeline", "EncoderPredictorConfig"]
 
 from pyaptamer.aptatrans.layers import EncoderPredictorConfig

@@ -5,7 +5,7 @@ import torch
 from skbase.base import BaseObject
 from torch import Tensor
 
-from pyaptamer.utils import encode_rna, rna2vec
+from pyaptamer.utils import encode_protein, rna2vec
 
 
 class Aptamer(BaseObject):
@@ -55,7 +55,7 @@ class Aptamer(BaseObject):
         self.model = model
         self.device = device
 
-        self.target_encoded = encode_rna(
+        self.target_encoded = encode_protein(
             sequences=target,
             words=prot_words,
             max_len=model.prot_embedding.max_len,
