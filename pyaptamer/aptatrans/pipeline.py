@@ -6,14 +6,13 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
-import numpy as np
 import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils._misc import generate_triplets
+from pyaptamer.utils._base import filter_words, generate_triplets
 
 
 class AptaTransPipeline:
@@ -115,15 +114,12 @@ class AptaTransPipeline:
         apta_words = generate_triplets(letters=["A", "C", "G", "U", "N"])
 
         # filter out protein words with below average frequency
-        mean_freq = np.mean(list(prot_words.values()))
-        prot_words = [seq for seq, freq in prot_words.items() if freq > mean_freq]
-        prot_words = {word: i + 1 for i, word in enumerate(prot_words)}
+        prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> Aptamer:
         """Initialize the aptamer experiment."""
-        # initialize the aptamer recommendation experiment
         experiment = Aptamer(
             target=target,
             model=self.model,

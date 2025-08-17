@@ -4,8 +4,14 @@ AptaTrans pipeline and deep neural network for predicting aptamer-protein intera
 """
 
 __author__ = ["nennomp"]
-__all__ = ["AptaTrans", "AptaTransPipeline", "EncoderPredictorConfig"]
+__all__ = [
+    "AptaTrans",
+    "AptaTransPipeline",
+    "AptaTransSolver",
+    "EncoderPredictorConfig",
+]
 
 from pyaptamer.aptatrans.layers import EncoderPredictorConfig
 from pyaptamer.aptatrans.model import AptaTrans
 from pyaptamer.aptatrans.pipeline import AptaTransPipeline
+from pyaptamer.aptatrans.solver import AptaTransSolver

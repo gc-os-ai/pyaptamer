@@ -6,7 +6,7 @@ __all__ = [
 
 import numpy as np
 
-from pyaptamer.utils._misc import generate_triplets
+from pyaptamer.utils._base import generate_triplets
 
 
 def dna2rna(sequence: str) -> str:

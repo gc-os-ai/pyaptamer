@@ -1,6 +1,8 @@
 __author__ = ["nennomp"]
 __all__ = ["augment_reverse"]
 
+import numpy as np
+
 
 def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
     """Augment lists of sequences by adding their reverse complement.
@@ -18,10 +20,9 @@ def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
     """
     results = []
     for sequences in sequence_lists:
-        result = []
+        result = sequences.copy()  # start with original sequences
         for seq in sequences:
-            result.append(seq)
-            result.append(seq[::-1])  # add reverse complement
+            result.append(seq[::-1]) # add reverse complement
         results.append(result)
 
     return tuple(results)
