@@ -2,98 +2,115 @@ import numpy as np
 from deepDNAshape import predictor
 
 
-def ohe(X):
+def ohe(seq):
     """
-    One-hot encodes a batch of DNA sequences.
+    One-hot encodes a single DNA sequence.
 
-    Each sequence is converted into a matrix of one-hot vectors.
+    Each character is converted into a one-hot vector.
     Unknown characters are encoded as [0, 0, 0, 0].
 
     Parameters
     ----------
-    X : np.ndarray or str
-        - If str: a single DNA sequence.
-        - If np.ndarray: a 1D array of DNA sequences (strings), shape (n_sequences,).
+    seq : str
+        A DNA sequence.
 
     Returns
     -------
     np.ndarray
-        A 3D NumPy array of shape (n_sequences, seq_len, 4),
-        where each sequence is one-hot encoded.
+        A 2D NumPy array of shape (seq_len, 4),
+        where the sequence is one-hot encoded.
         Column order is [A, T, C, G].
     """
     alphabet = "ATCG"
     mapping = {base: i for i, base in enumerate(alphabet)}
 
-    if isinstance(X, str):
-        X = np.array([X])
+    seq_len = len(seq)
+    ohe_matrix = np.zeros((seq_len, 4), dtype=int)
 
-    n_seqs = len(X)
-    seq_len = len(X[0])
+    for j, base in enumerate(seq):
+        idx = mapping.get(base)
+        if idx is not None:
+            ohe_matrix[j, idx] = 1
 
-    ohe_batch = np.zeros((n_seqs, seq_len, 4), dtype=int)
-
-    for i, seq in enumerate(X):
-        for j, base in enumerate(seq):
-            idx = mapping.get(base)
-            if idx is not None:
-                ohe_batch[i, j, idx] = 1
-
-    return ohe_batch
+    return ohe_matrix
 
 
-def pad_sequences(X):
+def pad_sequence(seq):
     """
-    Pads DNA sequences to length 35 using 'N'. Raises an error if any sequence is longer
-    than 35.
+    Pads a single DNA sequence to length 35 using 'N'.
+    Raises an error if the sequence is longer than 35.
 
     Parameters
     ----------
-    X : list of str or np.ndarray
-        List or array of DNA sequences (strings) of length ≤ 35.
+    seq : str
+        DNA sequence of length ≤ 35.
 
     Returns
     -------
-    np.ndarray
-        A NumPy array of shape (n_sequences,) with sequences padded to exactly
-        35 characters.
+    str
+        The padded sequence of exactly 35 characters.
     """
-    X = np.asarray(X, dtype=str)
-    for seq in X:
-        if len(seq) > 35:
-            raise ValueError(f"Sequence length {len(seq)} exceeds 35: '{seq}'")
+    if len(seq) > 35:
+        raise ValueError(f"Sequence length {len(seq)} exceeds 35: '{seq}'")
 
-    padded = np.array([seq.ljust(35, "N") for seq in X])
-    return padded
+    return seq.ljust(35, "N")
 
 
-def run_deepdna_prediction(seq, feature, layer, mode="cpu"):
+def run_deepdna_prediction(seq, mode="cpu"):
     """
-    Run deepDNAshape prediction for a single DNA sequence.
+    Run deepDNAshape prediction for all DNA structural features
+    (MGW, HelT, ProT, Roll) on a single DNA sequence.
 
     Parameters
     ----------
     seq : str
         DNA sequence (e.g., "AAGGTTCC") to predict structural features for.
-    feature : str
-        DNA shape feature to predict. Examples include:
-        - "MGW" : Minor Groove Width
-        - "HelT": Helical Twist
-        - "ProT": Propeller Twist
-        - "Roll": Roll angle
-    layer : int
-        The model layer to extract predictions from.
     mode : {"cpu", "gpu"}, optional
         Compute mode for the predictor. Default is "cpu".
         Set to "gpu" if CUDA is available.
 
     Returns
     -------
-    list of float
-        Predicted values for the requested feature across the sequence.
+    list of list of float
+        A list of length 4, where each element is a list of floats
+        containing predictions for one structural feature.
+        The order is [MGW, HelT, ProT, Roll].
+        Lengths may differ depending on the feature.
     """
-    # Create predictor
-    model = predictor.predictor(mode=mode)
+    # Always use layer 2 (sliding window of 5)
+    layer = 2
 
-    # Run prediction
-    return list(model.predict(feature, seq, layer))
+    model = predictor.predictor(mode=mode)
+    features = ["MGW", "HelT", "ProT", "Roll"]
+
+    results = [model.predict(feat, seq, layer).tolist() for feat in features]
+    return results
+
+
+def remove_na(shape_vectors):
+    """
+    Trim deepDNAShape predictions to match DeepAptamer's convention
+    (remove edge positions that correspond to NA in original DNAshape).
+
+    Parameters
+    ----------
+    shape_vectors : list of list of float
+        A list of 4 lists in order [MGW, HelT, ProT, Roll],
+
+    Returns
+    -------
+    list of np.ndarray
+        A list of 4 NumPy arrays after trimming:
+        - MGW (drop first 2 and last 2 → len=31)
+        - HelT (drop first and last → len=32)
+        - ProT (drop first 2 and last 2 → len=31)
+        - Roll (drop first and last → len=32)
+    """
+    mgw, helt, prot, roll = shape_vectors
+
+    mgw = np.array(mgw[2:-2], dtype=float)
+    prot = np.array(prot[2:-2], dtype=float)
+    helt = np.array(helt[1:-1], dtype=float)
+    roll = np.array(roll[1:-1], dtype=float)
+
+    return [mgw, helt, prot, roll]

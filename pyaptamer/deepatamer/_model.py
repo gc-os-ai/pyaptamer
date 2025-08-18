@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["DeepAptamer"]
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,9 +37,9 @@ class DeepAptamer(nn.Module):
         # Classification head
         self.head = nn.Linear(200, 2)
 
-    def forward(self, x_seq, x_shape):
+    def forward(self, x_ohe, x_shape):
         # ----- sequence branch
-        s = x_seq.permute(0, 2, 1)  # (B, 4, 35)
+        s = x_ohe.permute(0, 2, 1)  # (B, 4, 35)
         s = self.seq_conv(s)  # (B, 12, 35)
         s = s.permute(0, 2, 1)  # (B, 35, 12)
         s = self.seq_fc(s)  # (B, 35, 4)
@@ -44,7 +47,7 @@ class DeepAptamer(nn.Module):
         # ----- shape branch
         h = x_shape.permute(0, 2, 1)  # (B, 1, 126)
         h = self.shape_conv(h)  # (B, 1, 27)
-        h = F.max_pool1d(h, kernel_size=20, stride=20)  # (B, 1, 1)
+        h = F.max_pool1d(h, kernel_size=20)  # (B, 1, 1)
         h = h.transpose(1, 2)  # ensure last dim is features
         h = self.shape_fc(h)  # (B, 1, 4)
 
