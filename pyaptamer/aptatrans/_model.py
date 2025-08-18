@@ -3,6 +3,7 @@
 __author__ = ["nennomp"]
 __all__ = ["AptaTrans"]
 
+import os
 from collections import OrderedDict
 from collections.abc import Callable
 
@@ -44,6 +45,8 @@ class AptaTrans(nn.Module):
     conv_layers : list[int], optional, default=[3, 3, 3]
         List specifying the number of convolutional blocks in each convolutional
         layer.
+    pretrained : bool, optional, default=False
+        If True, load the best weights from the pretrained model.
 
     Attributes
     ----------
@@ -84,7 +87,7 @@ class AptaTrans(nn.Module):
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> x_apta = torch.randint(high=16, size=(128, 10))
     >>> x_prot = torch.randint(high=16, size=(128, 10))
-    >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> model = AptaTrans(apta_embedding, prot_embedding, pretrained=False)
     >>> imap = model.forward_imap(x_apta, x_prot)
     >>> preds = model(x_apta, x_prot)
     """
@@ -98,6 +101,7 @@ class AptaTrans(nn.Module):
         n_heads: int = 8,
         conv_layers: list[int] | None = None,
         dropout: float = 0.1,
+        pretrained: bool = False,
     ) -> None:
         """
         Raises
@@ -162,6 +166,9 @@ class AptaTrans(nn.Module):
                 ]
             )
         )
+
+        if pretrained:
+            self.load_pretrained_weights()
 
     def _make_encoder(
         self,
@@ -255,6 +262,26 @@ class AptaTrans(nn.Module):
         self.inplanes = planes  # update input channels for future blocks
 
         return nn.Sequential(*layers)
+
+    def load_pretrained_weights(self, path: str | None = None) -> None:
+        """Load the best weights from a given path.
+
+        This method loads the model's weights from a specified file path, which should
+        contain the best weights for the model.
+
+        Parameters
+        ----------
+        path : str, default=None
+            Path to the file containing the model's best weights.
+        """
+        if path is None:
+            path = os.path.relpath(
+                os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
+            )
+
+        print(f"Loading best weights from {path}...")
+        state_dict = torch.load(path, map_location=torch.device("cpu"))
+        self.load_state_dict(state_dict, strict=True)
 
     def forward_encoders(
         self,

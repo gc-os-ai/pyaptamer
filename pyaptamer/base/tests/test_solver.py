@@ -21,8 +21,8 @@ class MockMLP(nn.Module):
             nn.Linear(hidden_size, num_classes),
         )
 
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, x1, x2):
+        return self.layers(x1)
 
 
 class TestSolver(BaseSolver):
@@ -55,13 +55,19 @@ class TestBaseSolver:
     @pytest.fixture
     def mock_data(self, device):
         """Create minimal synthetic dataset."""
-        train_data = torch.randn(16, 8, device=device)
+        train_data_apta = torch.randn(16, 8, device=device)
+        train_data_prot = torch.randn(16, 8, device=device)
         train_labels = torch.randint(0, 2, (16,), device=device)
-        test_data = torch.randn(8, 8, device=device)
+        test_data_apta = torch.randn(8, 8, device=device)
+        test_data_prot = torch.randn(8, 8, device=device)
         test_labels = torch.randint(0, 2, (8,), device=device)
 
-        train_loader = DataLoader(TensorDataset(train_data, train_labels), batch_size=4)
-        test_loader = DataLoader(TensorDataset(test_data, test_labels), batch_size=4)
+        train_loader = DataLoader(
+            TensorDataset(train_data_apta, train_data_prot, train_labels), batch_size=4
+        )
+        test_loader = DataLoader(
+            TensorDataset(test_data_apta, test_data_prot, test_labels), batch_size=4
+        )
 
         return train_loader, test_loader
 

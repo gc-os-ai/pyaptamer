@@ -1,26 +1,29 @@
 __author__ = ["nennomp"]
 __all__ = ["augment_reverse"]
 
+import numpy as np
 
-def augment_reverse(*sequence_lists: list[str]) -> tuple[list[str], ...]:
-    """Augment lists of sequences by adding their reverse complement.
+
+def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
+    """Augment arrays of sequences by adding their reverse complement.
 
     Parameters
     ----------
-    *sequence_lists : list[str]
-        Variable number of lists of sequences.
+    *sequence_arrays : np.ndarray
+        Variable number of numpy arrays of sequences (containing strings).
 
     Returns
     -------
-    tuple[list[str], ...]
-        A tuple of lists, each containing sequences with their reverse complements
+    tuple[np.ndarray, ...]
+        A tuple of arrays, each containing sequences with their reverse complements
         added.
     """
     results = []
-    for sequences in sequence_lists:
-        result = sequences.copy()  # start with original sequences
-        for seq in sequences:
-            result.append(seq[::-1])  # add reverse complement
+    for sequences in sequence_arrays:
+        # create array of reversed sequences
+        reversed_sequences = np.array([seq[::-1] for seq in sequences])
+        # concatenate original and reversed sequences
+        result = np.concatenate([sequences, reversed_sequences])
         results.append(result)
 
     return tuple(results)

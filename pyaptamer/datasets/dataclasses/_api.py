@@ -5,9 +5,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from pyaptamer.utils._augment import augment_reverse
 from pyaptamer.utils._protein import encode_protein
 from pyaptamer.utils._rna import rna2vec
-from pyaptamer.utils._augment import augment_reverse
 
 
 class APIDataset(Dataset):
@@ -29,8 +29,10 @@ class APIDataset(Dataset):
     prot_words : dict[str, int]
         A dictionary mapping protein 3-mers to unique indices for encoding protein
         sequences.
-    split : bool, optional, default=True
-        If True, the dataset will augment aptamer sequences by adding their reverse
+    split : str, optional, default="train"
+        If "train", the dataset will augment aptamer sequences by adding their
+        reverse complements. If "test", the dataset will not augment the aptamer
+        sequences.
         complements.
     """
 
@@ -42,9 +44,12 @@ class APIDataset(Dataset):
         apta_max_len: int,
         prot_max_len: int,
         prot_words: dict[str, int],
-        split: bool = True,
+        split: str = "train",
     ) -> None:
         super().__init__()
+
+        if split not in ["train", "test"]:
+            raise ValueError(f"Unknown split: {split}. Options are 'train' and 'test'.")
 
         self.apta_max_len = apta_max_len
         self.prot_max_len = prot_max_len
@@ -60,40 +65,47 @@ class APIDataset(Dataset):
         x_apta: np.ndarray,
         x_prot: np.ndarray,
         y: np.ndarray,
-        split: bool,
+        split: str,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepare the data by augmenting aptamer sequences with their reverse complements
         and transforming them to vector numericla representations.
-        """
 
+        Parameters
+        ----------
+        x_apta : np.ndarray
+            Aptamer sequences.
+        x_prot : np.ndarray
+            Protein sequences.
+        y : np.ndarray
+            Laabels for the interactions.
+        split : bool
+            If True, the dataset will augment aptamer sequences by adding their reverse
+            complements.
+        """
         if split == "train":
             x_apta = augment_reverse(x_apta)[0]
             x_prot = np.concatenate([x_prot, x_prot])
             y = np.concatenate([y, y])
 
-        x_apta = (
+        x_apta = torch.tensor(
             rna2vec(
                 sequence_list=x_apta,
                 max_sequence_length=self.apta_max_len,
                 sequence_type="rna",
-            ),
+            )
         )
         x_prot = encode_protein(
             sequences=x_prot,
             words=self.prot_words,
             max_len=self.prot_max_len,
         )
-        y = (y == "positive").astype(int)
+        y = torch.tensor((y == "positive").astype(int))
 
-        return (
-            torch.tensor(x_apta, dtype=torch.int64),
-            torch.tensor(x_prot, dtype=torch.int64),
-            torch.tensor(y, dtype=torch.int64),
-        )
+        return (x_apta, x_prot, y)
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, index):
-        return self.x_apta[index], self.x_prot[index], self.y[index]
+        return (self.x_apta[index], self.x_prot[index], self.y[index])

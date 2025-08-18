@@ -169,12 +169,16 @@ class BaseSolver(ABC):
         """Run a single training epoch."""
         self.model.train()
 
-        for data, targets in tqdm(self.train_dataloader, disable=not show_progress):
-            data, targets = data.to(self.device), targets.to(self.device)
+        for apta, prot, targets in tqdm(
+            self.train_dataloader, disable=not show_progress
+        ):
+            apta = apta.to(self.device)
+            prot = prot.to(self.device)
+            targets = targets.to(self.device)
 
             # forward pass
             self.optimizer.zero_grad()
-            outputs = self.model(data)
+            outputs = self.model(apta, prot)
             loss = self.criterion(outputs, targets)
 
             # backward pass
@@ -201,13 +205,15 @@ class BaseSolver(ABC):
         all_outputs = []
         all_targets = []
 
-        for data, targets in tqdm(dataloader, disable=not show_progress):
-            data, targets = data.to(self.device), targets.to(self.device)
+        for apta, prot, targets in tqdm(dataloader, disable=not show_progress):
+            apta = apta.to(self.device)
+            prot = prot.to(self.device)
+            targets = targets.to(self.device)
 
-            outputs = self.model(data)
+            outputs = self.model(apta, prot)
             loss = self.criterion(outputs, targets)
 
-            total_loss += loss.item() * data.size(0)
+            total_loss += loss.item() * apta.size(0)
             total_samples += targets.size(0)
 
             # Collect outputs and targets for metric computation
