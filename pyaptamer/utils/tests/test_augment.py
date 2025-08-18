@@ -3,7 +3,7 @@
 __author__ = ["nennomp"]
 
 
-from pyaptamer.utils.augment import augment_reverse
+from pyaptamer.utils._augment import augment_reverse
 
 
 def test_augment_reverse_single_list():

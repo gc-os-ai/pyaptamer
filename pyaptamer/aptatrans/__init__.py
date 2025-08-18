@@ -11,7 +11,7 @@ __all__ = [
     "EncoderPredictorConfig",
 ]
 
+from pyaptamer.aptatrans._model import AptaTrans
+from pyaptamer.aptatrans._pipeline import AptaTransPipeline
+from pyaptamer.aptatrans._solver import AptaTransSolver
 from pyaptamer.aptatrans.layers import EncoderPredictorConfig
-from pyaptamer.aptatrans.model import AptaTrans
-from pyaptamer.aptatrans.pipeline import AptaTransPipeline
-from pyaptamer.aptatrans.solver import AptaTransSolver

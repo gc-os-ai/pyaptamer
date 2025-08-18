@@ -8,6 +8,7 @@ from pyaptamer.base import BaseSolver
 
 
 class AptaTransSolver(BaseSolver):
+    # TODO: Refactor to Pytorch Lightning if possible
     """
     Solver for AptaTrans models using binary cross-entropy loss.
 

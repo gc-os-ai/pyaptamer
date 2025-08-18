@@ -1,3 +1,5 @@
+# TODO: to remove if we end up refactoring to Pytorch Lightning
+
 __author__ = ["nennomp"]
 __all__ = ["BaseSolver"]
 

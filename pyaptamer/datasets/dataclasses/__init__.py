@@ -3,5 +3,5 @@
 __author__ = ["nennomp"]
 __all__ = ["APIDataset", "MaskedDataset"]
 
-from pyaptamer.datasets.dataclasses.api import APIDataset
-from pyaptamer.datasets.dataclasses.masked import MaskedDataset
+from pyaptamer.datasets.dataclasses._api import APIDataset
+from pyaptamer.datasets.dataclasses._masked import MaskedDataset

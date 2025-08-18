@@ -269,7 +269,7 @@ class AptaTrans(nn.Module):
         Parameters
         ----------
         x_apta, x_prot : tuple[Tensor, Tensor]
-            A tuple of tensors containing the features for masked tokens and secodnary
+            A tuple of tensors containing the features for masked tokens and secondary
             structure prediction, for aptamers and proteins, respectively. Shapes are
             (batch_size (b1), seq_len (s1)) and (batch_size (b2), seq_len (s2)),
             respectively.
