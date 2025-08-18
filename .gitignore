@@ -197,3 +197,6 @@ cython_debug/
 # Exclude specific (too big) dataset files
 pyaptamer/datasets/data/bpRNA-shin2023.csv
 pyaptamer/datasets/data/proteins-shin2023.csv
+
+# Model weights files
+pyaptamer/aptatrans/weights/pretrained.pt

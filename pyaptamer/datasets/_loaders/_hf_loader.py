@@ -23,11 +23,6 @@ def load_hf_dataset(name: str, store: bool = True) -> pd.DataFrame:
         If True, the dataset will be locally saved as a CSV file. If False, the dataset
         will be download but only kept in-memory and not saved to disk.
 
-    Raises
-    ------
-    FileNotFoundError
-        If the dataset does not exist on Hugging Face or locally.
-
     Returns
     -------
     pandas.DataFrame
@@ -42,15 +37,15 @@ def load_hf_dataset(name: str, store: bool = True) -> pd.DataFrame:
         print(f"Dataset {name} already exists locally at {path}.")
         return load_csv_dataset(name)
 
+    print(f"Downloading {name}...")
     try:
-        print(f"Downloading {name}...")
         dataset = load_dataset(f"gcos/pyaptamer-{name}")
         dataset = dataset["train"].to_pandas()
     except Exception as e:
         raise FileNotFoundError(
-            f"Dataset {name} not found on Hugging Face or could not be loaded. "
-            f"Error: {e}"
-        ) from None
+            f"Dataset {name} not found on Hugging Face. "
+            "Please check the dataset name or ensure it is available."
+        ) from e
 
     if store:
         print(f"Saving to {path}")

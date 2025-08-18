@@ -263,24 +263,37 @@ class AptaTrans(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def load_pretrained_weights(self, path: str | None = None) -> None:
-        """Load the best weights from a given path.
+    def load_pretrained_weights(self, store: bool = True) -> None:
+        """Load pretrained model weights from hugging face.
 
-        This method loads the model's weights from a specified file path, which should
-        contain the best weights for the model.
+        If the weights are not found locally, they will be downloaded from hugging face.
 
         Parameters
         ----------
-        path : str, default=None
-            Path to the file containing the model's best weights.
+        store : bool, optional, default=True
+            If True, the pretrained weights will be saved locally. If False, the weights
+            will be downloaded but not saved to disk.
         """
-        if path is None:
-            path = os.path.relpath(
-                os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
-            )
+        path = os.path.relpath(
+            os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
+        )
 
-        print(f"Loading best weights from {path}...")
-        state_dict = torch.load(path, map_location=torch.device("cpu"))
+        if os.path.exists(path):
+            print(f"Loading pretrained weights from {path}...")
+            state_dict = torch.load(path, map_location=torch.device("cpu"))
+        else:
+            print("Downloading best weights from hugging face...")
+            url = (
+                "https://huggingface.co/gcos/pyaptamer-aptatrans/resolve/main/"
+                "pretrained.pt"
+            )
+            state_dict = torch.hub.load_state_dict_from_url(
+                url=url,
+                map_location=torch.device("cpu"),
+            )
+            print(f"Saving to {path}...")
+            torch.save(state_dict, path)
+
         self.load_state_dict(state_dict, strict=True)
 
     def forward_encoders(
