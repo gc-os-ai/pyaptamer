@@ -58,24 +58,24 @@ def preprocess_seq_shape(seq, use_126_shape=True):
         removing "NA" values.
     """
 
-    # Step 1: Pad each row with two zeros on each side (?)
-    # seq_padded = np.pad(
-    #     seq, pad_width=((0, 0), (2, 2)), mode="constant", constant_values=0
-    # )
-
-    # Step 2: Get shapes
+    # Step 1: Get raw predictions
     seq_shape = run_deepdna_prediction(seq)
     if use_126_shape:
         seq_shape = remove_na(seq_shape)
 
-    # Step 3: Normalize each feature (column-wise)
-    mean = seq_shape.mean(axis=1, keepdims=True)  # shape (n_shapes, 1)
-    std = seq_shape.std(axis=1, keepdims=True)
-    std[std == 0] = 1.0
-    seq_norm = (seq_shape - mean) / std
+    norm_features = []
+    for feat in seq_shape:  # each feat is a list of floats
+        arr = np.array(feat, dtype=np.float32)
 
-    # Step 4: Flatten to shape (1, total_length) and remove 'NA' values
-    seq_flat = np.array(seq_norm.flatten().reshape(1, -1))
+        # Normalize per feature
+        mean = arr.mean()
+        std = arr.std() if arr.std() > 0 else 1.0
+        arr_norm = (arr - mean) / std
+
+        norm_features.append(arr_norm)
+
+    # Step 2: Concatenate all features into one flat vector
+    seq_flat = np.concatenate(norm_features).reshape(1, -1)
 
     return seq_flat
 

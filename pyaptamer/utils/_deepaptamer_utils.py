@@ -99,8 +99,8 @@ def remove_na(shape_vectors):
 
     Returns
     -------
-    list of np.ndarray
-        A list of 4 NumPy arrays after trimming:
+    list of lists of float
+        A list of 4 lists after trimming:
         - MGW (drop first 2 and last 2 → len=31)
         - HelT (drop first and last → len=32)
         - ProT (drop first 2 and last 2 → len=31)
@@ -108,9 +108,9 @@ def remove_na(shape_vectors):
     """
     mgw, helt, prot, roll = shape_vectors
 
-    mgw = np.array(mgw[2:-2], dtype=float)
-    prot = np.array(prot[2:-2], dtype=float)
-    helt = np.array(helt[1:-1], dtype=float)
-    roll = np.array(roll[1:-1], dtype=float)
+    mgw = mgw[2:-2]
+    prot = prot[2:-2]
+    helt = helt[1:-1]
+    roll = roll[1:-1]
 
     return [mgw, helt, prot, roll]
