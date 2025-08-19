@@ -3,7 +3,7 @@ __author__ = "satvshr"
 import pytest
 import torch
 
-from pyaptamer.deepatamer._model import DeepAptamer
+from pyaptamer.deepatamer._model import DeepAptamerNN
 from pyaptamer.deepatamer._pipeline import DeepAptamerPipeline
 
 
@@ -26,7 +26,7 @@ def test_pipeline_predict_shapes(seqs):
     AssertionError
         If prediction scores are not sorted in descending order.
     """
-    model = DeepAptamer()
+    model = DeepAptamerNN()
     pipe = DeepAptamerPipeline(model=model, device="cpu")
 
     ranked = pipe.predict(seqs)
@@ -50,6 +50,6 @@ def test_train_loop_runs():
     X_shape = torch.rand(8, 1, 126)
     y = torch.randint(0, 2, (8,))
 
-    model = DeepAptamer()
+    model = DeepAptamerNN()
 
     model.train_loop(X_ohe, X_shape, y, epochs=1, device="cpu")

@@ -1,11 +1,11 @@
 __author__ = "satvshr"
-__all__ = ["DeepAptamer"]
+__all__ = ["DeepAptamerNN"]
 
 import torch
 import torch.nn as nn
 
 
-class DeepAptamer(nn.Module):
+class DeepAptamerNN(nn.Module):
     def __init__(self, optimizer=None):
         super().__init__()
 
