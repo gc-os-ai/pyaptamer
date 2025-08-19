@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["preprocess_seq_ohe", "preprocess_seq_shape", "preprocess_y"]
+
 import numpy as np
 
 from pyaptamer.utils._deepaptamer_utils import (

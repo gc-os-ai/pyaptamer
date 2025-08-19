@@ -1,3 +1,7 @@
+__author__ = "satvshr"
+__all__ = ["ohe", "pad_sequence", "run_deepdna_prediction", "remove_na"]
+
+
 import numpy as np
 from deepDNAshape import predictor
 
@@ -6,8 +10,8 @@ def ohe(seq):
     """
     One-hot encodes a single DNA sequence.
 
-    Each character is converted into a one-hot vector.
-    Unknown characters are encoded as [0, 0, 0, 0].
+    Each character is converted into a one-hot vector. Unknown characters are encoded
+    as [0, 0, 0, 0].
 
     Parameters
     ----------
@@ -17,8 +21,7 @@ def ohe(seq):
     Returns
     -------
     np.ndarray
-        A 2D NumPy array of shape (seq_len, 4),
-        where the sequence is one-hot encoded.
+        A 2D NumPy array of shape (seq_len, 4), where the sequence is one-hot encoded.
         Column order is [A, T, C, G].
     """
     alphabet = "ATCG"
@@ -37,8 +40,8 @@ def ohe(seq):
 
 def pad_sequence(seq):
     """
-    Pads a single DNA sequence to length 35 using 'N'.
-    Raises an error if the sequence is longer than 35.
+    Pads a single DNA sequence to length 35 using 'N'. Raises an error if the sequence
+    is longer than 35.
 
     Parameters
     ----------
@@ -58,8 +61,8 @@ def pad_sequence(seq):
 
 def run_deepdna_prediction(seq, mode="cpu"):
     """
-    Run deepDNAshape prediction for all DNA structural features
-    (MGW, HelT, ProT, Roll) on a single DNA sequence.
+    Run deepDNAshape prediction for all DNA structural features (MGW, HelT, ProT, Roll)
+    on a single DNA sequence.
 
     Parameters
     ----------
@@ -67,15 +70,13 @@ def run_deepdna_prediction(seq, mode="cpu"):
         DNA sequence (e.g., "AAGGTTCC") to predict structural features for.
     mode : {"cpu", "gpu"}, optional
         Compute mode for the predictor. Default is "cpu".
-        Set to "gpu" if CUDA is available.
 
     Returns
     -------
     list of list of float
-        A list of length 4, where each element is a list of floats
-        containing predictions for one structural feature.
-        The order is [MGW, HelT, ProT, Roll].
-        Lengths may differ depending on the feature.
+        A list of length 4, where each element is a list of floats containing
+        predictions for one structural feature. The order is [MGW, HelT, ProT, Roll].
+        Lengths differ depending on the feature.
     """
     # Always use layer 2 (sliding window of 5)
     layer = 2
