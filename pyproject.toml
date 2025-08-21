@@ -30,6 +30,10 @@ dev = [
     "pre-commit",
 ]
 
+test = [
+    "deepDNAshape @ git+https://github.com/JinsenLi/deepDNAshape.git@main"
+]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
