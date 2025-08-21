@@ -34,7 +34,7 @@ class DeepAptamerPipeline:
     ----------
     model : DeepAptamerNN
         A trained DeepAptamer neural network model.
-    use_126_shape : bool, optional, default=True
+    full_dna_shape : bool, optional, default=True
         If True, use the trimmed 126-length DNAshape representation
         (MGW=31, HelT=32, ProT=31, Roll=32).
         If False, keep the full 138-length DeepDNAshape representation.
@@ -50,9 +50,9 @@ class DeepAptamerPipeline:
         and its predicted binding probability.
     """
 
-    def __init__(self, model, use_126_shape=True, device="cpu"):
+    def __init__(self, model, full_dna_shape=True, device="cpu"):
         self.model = model
-        self.use_126_shape = use_126_shape
+        self.full_dna_shape = full_dna_shape
         self.device = device
 
     def predict(self, seqs):
