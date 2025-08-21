@@ -29,6 +29,8 @@ class DeepAptamerNN(nn.Module):
         self.seq_conv_in = seq_conv_in
         self.seq_conv_out = seq_conv_out
         self.seq_conv_kernel_size = seq_conv_kernel_size
+        self.seq_pool_kernel_size = seq_pool_kernel_size
+        self.seq_pool_stride = seq_pool_stride
         self.seq_linear_hidden_dim = seq_linear_hidden_dim
         self.seq_conv_linear_out = seq_conv_linear_out
         self.shape_conv_kernel_size = shape_conv_kernel_size
@@ -57,11 +59,13 @@ class DeepAptamerNN(nn.Module):
         )
 
         # Shape branch (B, 1, 126)
-        self.shape_conv = nn.Conv1d(
-            in_channels=1, out_channels=1, kernel_size=self.shape_conv_kernel_size
-        )
-        self.shape_pool = nn.MaxPool1d(
-            kernel_size=self.shape_pool_kernel_size, stride=self.shape_pool_stride
+        self.shape_conv_pool = nn.Sequential(
+            nn.Conv1d(
+                in_channels=1, out_channels=1, kernel_size=self.shape_conv_kernel_size
+            ),
+            nn.MaxPool1d(
+                kernel_size=self.shape_pool_kernel_size, stride=self.shape_pool_stride
+            ),
         )
         self.shape_fc = nn.Sequential(nn.Linear(1, self.seq_conv_linear_out), nn.ReLU())
 
@@ -90,8 +94,7 @@ class DeepAptamerNN(nn.Module):
         s = s.permute(0, 2, 1)
         s = self.seq_fc(s)
 
-        h = self.shape_conv(x_shape)
-        h = self.shape_pool(h)
+        h = self.shape_conv_pool(x_shape)
         h = h.transpose(1, 2)
         h = self.shape_fc(h)
 
