@@ -381,8 +381,8 @@ class TreeNode:
     def uct_score(self) -> float:
         """Compute upper confidence bound applied to trees (UCT) score.
 
-        UCT balances the trade-off between exploration (visting new paths) and
-        exploitation (visting known paths).
+        UCT balances the trade-off between exploration (visiting new paths) and
+        exploitation (visiting known paths).
         See:
         - https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
 
