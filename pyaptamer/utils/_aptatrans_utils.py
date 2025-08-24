@@ -3,51 +3,15 @@
 __author__ = ["nennomp"]
 __all__ = ["encode_protein", "filter_words", "generate_triplets", "seq2vec"]
 
-from itertools import product
-
 import numpy as np
 import torch
 from torch import Tensor
 
-
-def filter_words(words: dict[str, float]) -> dict[str, int]:
-    """Filter words with below average frequency.
-
-    Parameters
-    ----------
-    words : dict[str, float]
-        A dictionary containing words and their frequencies.
-
-    Returns
-    -------
-    dict[str, int]
-        A dictionary mapping filtered words to unique integer indices.
-    """
-    mean_freq = np.mean(list(words.values()))
-    words = [seq for seq, freq in words.items() if freq > mean_freq]
-    words = {word: i + 1 for i, word in enumerate(words)}
-
-    return words
-
-
-def generate_triplets(letters: list[str]) -> dict[str, int]:
-    """Generate a dictionary of all possible triplets combinations from given letters.
-
-    Parameters
-    ----------
-    letters : list[str]
-        List of characters to form triplets from.
-
-    Returns
-    -------
-    dict[str, int]
-        A dictionary mapping each triplet to a unique integer ID.
-    """
-    triplets = {}
-    for idx, triplet in enumerate(product(letters, repeat=3)):
-        triplets["".join(triplet)] = idx + 1
-
-    return triplets
+from pyaptamer.utils._base import (
+    dna2rna,
+    filter_words,
+    generate_triplets,
+)
 
 
 def seq2vec(
@@ -156,6 +120,97 @@ def seq2vec(
         return padded_outputs, padded_outputs_ss
     else:
         return np.zeros((0, seq_max_len)), np.zeros((0, seq_max_len))
+
+
+def rna2vec(
+    sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
+) -> np.ndarray:
+    """
+    Convert a list of RNA sequence or RNA secondary structures into a numerical
+    representation.
+
+    For RNA sequences, if not already in RNA format, the sequences are converted from
+    DNA to RNA. For both RNA and secondary structure sequences, all overlapping
+    triplets (3-nucleotide/character combinations) are extracted from each sequence and
+    mapped to unique indices. Finally, the sequences are zero padded to length
+    `max_sequence_length`. The result is a numpy array where each row corresponds to a
+    sequence, and each column corresponds to an integer representing the triplet's
+    index in the dictionary.
+
+    If the number of extracted triplets is greater than `max_sequence_length`, the
+    sequence is truncated to fit.
+
+    Parameters
+    ----------
+    sequence_list : list[str]
+        A list containing sequences as strings (RNA sequences or secondary structure
+        sequences).
+    sequence_type : str, optional, default="rna"
+        The type of sequence to process. Either "rna" for RNA sequences or "ss" for
+        secondary structure sequences.
+    max_sequence_length : int, optional, default=275
+        The maximum length of the output sequences.
+
+    Returns
+    -------
+    np.ndarray
+        A numpy array containing the numerical representation of the sequences, of
+        shape (len(sequence_list), `max_sequence_length`).
+
+    Raises
+    ------
+    ValueError
+        If `max_sequence_length` is less than or equal to 0, or if `sequence_type`
+        is not "rna" or "ss".
+
+    Examples
+    --------
+    >>> from pyaptamer.utils._aptatrans_utils import rna2vec
+    >>> rna = rna2vec(["AAAC"], sequence_type="rna", max_sequence_length=4)
+    >>> print(rna)
+    [[1 2 0 0]]
+    >>> # Secondary structure sequences
+    >>> ss = rna2vec(["SSHH"], sequence_type="ss", max_sequence_length=4)
+    >>> print(ss)
+    [[2 9 0 0]]
+    """
+    if max_sequence_length <= 0:
+        raise ValueError("`max_sequence_length` must be greater than 0.")
+
+    if sequence_type not in ["rna", "ss"]:
+        raise ValueError("`sequence_type` must be either 'rna' or 'ss'.")
+
+    if sequence_type == "rna":
+        # generate all rna triplets, 'N' marks unknown nucleotides
+        letters = ["A", "C", "G", "U", "N"]
+    else:  # sequence_type == "ss"
+        # generate all ss triplets
+        letters = ["S", "H", "M", "I", "B", "X", "E"]
+
+    triplets = generate_triplets(letters=letters)
+
+    result = []
+    for sequence in sequence_list:
+        # convert DNA to RNA only for RNA sequences
+        if sequence_type == "rna":
+            sequence = dna2rna(sequence)
+
+        # extract all overlapping triplets from the sequence
+        # e.g., 'ACGUA' -> ['ACG', 'CGU', 'GUA']
+        converted = [
+            triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
+        ]
+
+        # skip sequences that convert to an empty list
+        if any(converted):
+            padded_sequence = np.pad(
+                array=converted,
+                pad_width=(0, max_sequence_length - len(converted)),
+                constant_values=0,
+            )
+            result.append(padded_sequence)
+
+    return np.array(result)
 
 
 def encode_protein(

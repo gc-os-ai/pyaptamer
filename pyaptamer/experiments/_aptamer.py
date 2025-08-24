@@ -5,8 +5,7 @@ import torch
 from skbase.base import BaseObject
 from torch import Tensor
 
-from pyaptamer.utils._aptatrans_utils import encode_protein
-from pyaptamer.utils._rna import rna2vec
+from pyaptamer.utils._aptatrans_utils import encode_protein, rna2vec
 
 
 class Aptamer(BaseObject):
