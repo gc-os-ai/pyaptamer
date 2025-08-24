@@ -4,7 +4,7 @@ from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 def test_struct_to_aaseq():
     """
-    Test that struct_to_aaseq correctly converts a Biopython Structure
+    Test that `struct_to_aaseq` correctly converts a Biopython Structure
     into a list of amino‑acid sequences.
 
     Asserts:
