@@ -2,13 +2,14 @@
 
 __author__ = ["nennomp"]
 
+from itertools import product
+
 import pytest
 import torch
-from itertools import product
 
 from pyaptamer.utils._aptatrans_utils import (
     encode_protein,
-    filter_words, 
+    filter_words,
     generate_triplets,
 )
 

@@ -1,19 +1,13 @@
 "Generic utilities."
 
 __author__ = ["nennomp"]
-__all__ = [
-    "encode_protein",
-    "filter_words", 
-    "generate_triplets", 
-    "seq2vec"
-]
+__all__ = ["encode_protein", "filter_words", "generate_triplets", "seq2vec"]
 
 from itertools import product
 
 import numpy as np
 import torch
 from torch import Tensor
-
 
 
 def filter_words(words: dict[str, float]) -> dict[str, int]:
@@ -162,7 +156,8 @@ def seq2vec(
         return padded_outputs, padded_outputs_ss
     else:
         return np.zeros((0, seq_max_len)), np.zeros((0, seq_max_len))
-    
+
+
 def encode_protein(
     sequences: list[str],
     words: dict[str, int],
@@ -237,4 +232,3 @@ def encode_protein(
     result = np.array(encoded_sequences, dtype=np.int64)
 
     return torch.tensor(result, dtype=torch.int64)
-
