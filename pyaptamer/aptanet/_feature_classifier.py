@@ -12,7 +12,7 @@ from sklearn.utils.multiclass import type_of_target
 from sklearn.utils.validation import check_is_fitted, validate_data
 from torch import optim
 
-from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
+from pyaptamer.aptanet._model import AptaNetMLP
 
 
 class AptaNetClassifier(ClassifierMixin, BaseEstimator):
