@@ -4,7 +4,7 @@ __all__ = ["AptaTransSolver"]
 import torch
 import torch.nn as nn
 
-from pyaptamer.base import BaseSolver
+from pyaptamer.base._base_solver import BaseSolver
 
 
 class AptaTransSolver(BaseSolver):

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from pyaptamer.base import BaseSolver
+from pyaptamer.base._base_solver import BaseSolver
 
 
 class MockMLP(nn.Module):

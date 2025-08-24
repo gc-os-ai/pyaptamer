@@ -343,7 +343,7 @@ class TestAptaTransPipeline:
             return MockExperiment()
 
         monkeypatch.setattr("pyaptamer.aptatrans._pipeline.Aptamer", mock_aptamer)
-        
+
         # mock MCTS to return deterministic candidates
         class MockMCTS:
             def __init__(self, **kwargs):
@@ -366,7 +366,7 @@ class TestAptaTransPipeline:
                 }
 
         monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
-  
+
         # test recommendation
         candidates = pipeline.recommend(target=target, n_candidates=n_candidates)
 

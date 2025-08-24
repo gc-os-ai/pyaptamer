@@ -5,8 +5,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from pyaptamer.utils._aptatrans_utils import encode_protein
 from pyaptamer.utils._augment import augment_reverse
-from pyaptamer.utils._protein import encode_protein
 from pyaptamer.utils._rna import rna2vec
 
 

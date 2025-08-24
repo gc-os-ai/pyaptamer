@@ -12,7 +12,7 @@ from torch import Tensor
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils._base import filter_words, generate_triplets
+from pyaptamer.utils._aptatrans_utils import filter_words, generate_triplets
 
 
 class AptaTransPipeline:
