@@ -6,6 +6,89 @@ import torch.nn as nn
 
 
 class DeepAptamerNN(nn.Module):
+    """
+    DeepAptamer neural network model for aptamer–protein interaction prediction.
+
+    This architecture integrates:
+
+    - A sequence branch using convolutional and fully-connected layers to
+      process one-hot encoded aptamer sequences.
+    - A structural (DNA shape) branch using convolution + pooling + dense layers.
+    - A BiLSTM for capturing sequential dependencies.
+    - Multi-head self-attention for contextual feature refinement.
+    - A final classification head for binary binding prediction.
+
+    Parameters
+    ----------
+    seq_conv_in : int, optional
+        Number of input channels for the sequence convolution branch. Typically 4
+        for one-hot DNA encoding. Default is 4.
+
+    seq_conv_out : int, optional
+        Number of output channels (filters) for the sequence convolution. Default is 12.
+
+    seq_conv_kernel_size : int, optional
+        Kernel size for the sequence convolution. Default is 1.
+
+    seq_pool_kernel_size : int, optional
+        Kernel size for max-pooling after sequence convolution. Default is 1.
+
+    seq_pool_stride : int, optional
+        Stride for max-pooling after sequence convolution. Default is 1.
+
+    seq_linear_hidden_dim : int, optional
+        Hidden layer size for fully connected layers in the sequence branch.
+        Default is 32.
+
+    seq_conv_linear_out : int, optional
+        Dimensionality of the output feature vector from the sequence branch.
+        Default is 4.
+
+    shape_conv_kernel_size : int, optional
+        Kernel size for convolution in the shape branch. Default is 100.
+
+    shape_pool_kernel_size : int, optional
+        Kernel size for pooling in the shape branch. Default is 20.
+
+    shape_pool_stride : int, optional
+        Stride for pooling in the shape branch. Default is 20.
+
+    bilstm_hidden_size : int, optional
+        Number of hidden units in each LSTM direction. Default is 100.
+
+    bilstm_num_layers : int, optional
+        Number of BiLSTM layers. Default is 2.
+
+    dropout : float, optional
+        Dropout probability applied after the BiLSTM. Default is 0.1.
+
+    optimizer : torch.optim.Optimizer or None, optional
+        Optimizer for training. If None, defaults to Adam with lr=0.001.
+
+    Attributes
+    ----------
+    seq_conv : nn.Conv1d
+        1D convolution layer for sequence branch.
+
+    seq_fc : nn.Sequential
+        Fully connected projection for sequence features.
+
+    shape_conv_pool : nn.Sequential
+        Convolution + pooling for DNA shape features.
+
+    shape_fc : nn.Sequential
+        Fully connected projection for shape features.
+
+    bilstm : nn.LSTM
+        Bidirectional LSTM for sequential modeling.
+
+    attn : nn.MultiheadAttention
+        Attention layer for contextual refinement.
+
+    head : nn.Linear
+        Final classification layer (logits for 2 classes).
+    """
+
     def __init__(
         self,
         seq_conv_in=4,
@@ -21,8 +104,7 @@ class DeepAptamerNN(nn.Module):
         shape_pool_stride=20,
         bilstm_hidden_size=100,
         bilstm_num_layers=2,
-        bilstm_dropout=0.1,
-        post_bilstm_dropout=0.1,
+        dropout=0.1,
         optimizer=None,
     ):
         super().__init__()
@@ -38,8 +120,7 @@ class DeepAptamerNN(nn.Module):
         self.shape_pool_stride = shape_pool_stride
         self.bilstm_hidden_size = bilstm_hidden_size
         self.bilstm_num_layers = bilstm_num_layers
-        self.bilstm_dropout = bilstm_dropout
-        self.post_bilstm_dropout = post_bilstm_dropout
+        self.dropout_val = dropout
         self.optimizer = optimizer
 
         # Sequence branch (B, 35, 4)
@@ -76,9 +157,9 @@ class DeepAptamerNN(nn.Module):
             num_layers=self.bilstm_num_layers,
             batch_first=True,
             bidirectional=True,
-            dropout=self.bilstm_dropout,
+            dropout=self.dropout_val,
         )
-        self.dropout = nn.Dropout(self.post_bilstm_dropout)
+        self.dropout = nn.Dropout(self.dropout_val)
 
         self.attn = nn.MultiheadAttention(
             embed_dim=2 * self.bilstm_hidden_size, num_heads=1, batch_first=True
@@ -111,18 +192,3 @@ class DeepAptamerNN(nn.Module):
         x = x.squeeze(1)
 
         return self.head(x)
-
-    def train_loop(self, X_ohe, X_shape, y, epochs=10, device="cpu"):
-        self.to(device)
-        criterion = nn.CrossEntropyLoss()
-
-        X_ohe, X_shape, y = X_ohe.to(device), X_shape.to(device), y.to(device)
-
-        for epoch in range(epochs):
-            self.optimizer.zero_grad()
-            logits = self(X_ohe, X_shape)
-            loss = criterion(logits, y)
-            loss.backward()
-            self.optimizer.step()
-
-            print(f"Epoch {epoch + 1}/{epochs} - Loss: {loss.item():.4f}")
