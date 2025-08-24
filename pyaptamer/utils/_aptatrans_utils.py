@@ -1,7 +1,7 @@
 "Generic utilities."
 
 __author__ = ["nennomp"]
-__all__ = ["encode_protein", "filter_words", "generate_triplets", "seq2vec"]
+__all__ = ["encode_protein", "seq2vec"]
 
 import numpy as np
 import torch
@@ -9,7 +9,6 @@ from torch import Tensor
 
 from pyaptamer.utils._base import (
     dna2rna,
-    filter_words,
     generate_triplets,
 )
 

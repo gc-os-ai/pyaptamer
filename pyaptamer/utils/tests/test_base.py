@@ -8,11 +8,7 @@ import numpy as np
 import pytest
 
 from pyaptamer.utils._aptatrans_utils import rna2vec
-from pyaptamer.utils._base import (
-    dna2rna,
-    filter_words,
-    generate_triplets
-)
+from pyaptamer.utils._base import dna2rna, filter_words, generate_triplets
 
 
 @pytest.mark.parametrize(
@@ -104,6 +100,7 @@ def test_rna2vec_edge_cases():
     # double character sequence (can't form triplet)
     result = rna2vec(["AA"])
     assert len(result) == 0
+
 
 def test_filter_words_basic_filtering():
     """Test filter_words with basic filtering logic."""

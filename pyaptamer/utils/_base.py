@@ -1,12 +1,14 @@
 __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
-    "rna2vec",
+    "filter_words",
+    "generate_triplets",
 ]
 
 from itertools import product
 
 import numpy as np
+
 
 def filter_words(words: dict[str, float]) -> dict[str, int]:
     """Filter words with below average frequency.
@@ -46,6 +48,7 @@ def generate_triplets(letters: list[str]) -> dict[str, int]:
         triplets["".join(triplet)] = idx + 1
 
     return triplets
+
 
 def dna2rna(sequence: str) -> str:
     """
