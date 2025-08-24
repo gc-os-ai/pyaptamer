@@ -31,7 +31,7 @@ def dna2rna(sequence: str) -> str:
     result = sequence.translate(str.maketrans("T", "U"))
     for char in result:
         if char not in "ACGU":
-            result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
+            result = result.replace(char, "N") # replace unknown nucleotides with 'N'
     return result
 
 
