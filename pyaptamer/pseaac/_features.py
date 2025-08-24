@@ -16,7 +16,7 @@ class PSeAAC:
     selected physicochemical properties and sequence-order correlations as described in
     the PseAAC model by Chou.
 
-    The PSeAAC algorith uses 21 normalized physiochemical (NP) properties of amino
+    The PSeAAC algorithm uses 21 normalized physiochemical (NP) properties of amino
     acids, which we load from a predefined matrix using `aa_props`.These 21 properties
     are grouped into 7 distinct property groups, with each group containing
     3 consecutive properties. Specifically, the groups are arranged in order as follows:
