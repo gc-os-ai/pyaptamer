@@ -126,12 +126,6 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
 
         return Pipeline([("select", selector), ("net", net)])
 
-    def _get_raw_scores(self, X_transformed):
-        """Get raw logits from the neural network."""
-        net = self.pipeline_.named_steps["net"]
-        logits = net.forward(X_transformed, training=False)
-        return logits.squeeze().detach().cpu().numpy()
-
     def fit(self, X, y):
         X, y = validate_data(self, X, y)
 
@@ -150,22 +144,12 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         self.pipeline_.fit(X, y)
         return self
 
-    def predict(self, X, output_type: str = "class"):
+    def predict(self, X):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
-
-        if output_type == "class":
-            y = self.pipeline_.predict(X).astype(int, copy=False)
-            return self.classes_[y]
-        elif output_type == "proba":
-            X_transformed = self.pipeline_.named_steps["select"].transform(X)
-            probas = self.pipeline_.named_steps["net"].predict_proba(X_transformed)
-            return probas[:, 1]
-        else:
-            raise ValueError(
-                f"Invalid output_type: {output_type}. Options are 'class', 'proba'."
-            )
+        y = self.pipeline_.predict(X).astype(int, copy=False)
+        return self.classes_[y]
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()

@@ -1,6 +1,5 @@
 """Base classes for experiments."""
 
-__author__ = ["nennomp"]
-__all__ = ["AptamerEvalAptaNet", "AptamerEvalAptaTrans"]
+__all__ = ["Aptamer"]
 
-from pyaptamer.experiments._aptamer_eval import AptamerEvalAptaNet, AptamerEvalAptaTrans
+from pyaptamer.experiments._aptamer import Aptamer

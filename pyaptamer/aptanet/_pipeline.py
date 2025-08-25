@@ -72,8 +72,6 @@ class AptaNetPipeline:
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
 
-    def predict(self, X, output_type: str = "class"):
+    def predict(self, X):
         check_is_fitted(self)
-        return self.pipeline_.named_steps["clf"].predict(
-            self.pipeline_.named_steps["features"].transform(X), output_type=output_type
-        )
+        return self.pipeline_.predict(X)

@@ -29,7 +29,7 @@ class MCTS(BaseObject):
         Maximum depth of the search tree, also the length of the generated sequences.
     n_iterations : int, optional
         Number of iterations per round for the MCTS algorithm.
-    experiment : Aptamer, optional, default=None
+    experiment : BaseExperiment, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
     Attributes
@@ -54,7 +54,7 @@ class MCTS(BaseObject):
     --------
     >>> import torch
     >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> from pyaptamer.experiments import AptamerEvalAptaTrans
+    >>> from pyaptamer.experiments import Aptamer
     >>> from pyaptamer.mcts import MCTS
     >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
@@ -62,7 +62,7 @@ class MCTS(BaseObject):
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> target = "MCKY"
     >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
-    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
+    >>> experiment = Aptamer(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
     """
