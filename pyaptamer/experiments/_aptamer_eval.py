@@ -2,7 +2,6 @@ __author__ = ["nennomp"]
 __all__ = ["AptamerEvalAptaNet", "AptamerEvalAptaTrans"]
 
 from abc import ABC, abstractmethod
-
 import torch
 from skbase.base import BaseObject
 from torch import Tensor
@@ -166,7 +165,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         """
         # get the base reconstructed sequence
         reconstructed_seq = super().reconstruct(sequence)
-
+        
         # already reconstructed case
         if "_" not in sequence:
             return (
@@ -185,8 +184,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
             reconstructed_seq,
             torch.tensor(
                 rna2vec(
-                    [reconstructed_seq],
-                    max_sequence_length=self.model.apta_embedding.max_len,
+                    [reconstructed_seq], max_sequence_length=self.model.apta_embedding.max_len
                 ),
                 dtype=torch.int64,
             ),
@@ -249,8 +247,8 @@ class AptamerEvalAptaNet(BaseAptamerEval):
     >>> import numpy as np
     >>> from pyaptamer.aptanet import AptaNetPipeline
     >>> from pyaptamer.experiments import AptamerEvalAptaNet
-    >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
-    >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> aptamer_seq = 'AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC'
+    >>> protein_seq = 'ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY'
     >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
     >>> labels = np.array([0] * 5, dtype=np.float32)
     >>> pipeline = AptaNetPipeline()
@@ -283,7 +281,8 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         """
         aptamer_seq = self.reconstruct(aptamer_candidate)
         score = self.pipeline.predict(
-            X=[(aptamer_seq, self.target)], output_type="proba"
+            X=[(aptamer_seq, self.target)], 
+            output_type="proba"
         )
 
         return torch.tensor(score)
