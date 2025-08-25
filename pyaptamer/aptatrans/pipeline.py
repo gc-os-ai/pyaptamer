@@ -11,7 +11,7 @@ import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
-from pyaptamer.experiments import Aptamer
+from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
     generate_all_aptamer_triplets,
@@ -127,10 +127,10 @@ class AptaTransPipeline:
 
         return (apta_words, prot_words)
 
-    def _init_aptamer_experiment(self, target: str) -> Aptamer:
+    def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer experiment."""
         # initialize the aptamer recommendation experiment
-        experiment = Aptamer(
+        experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,
