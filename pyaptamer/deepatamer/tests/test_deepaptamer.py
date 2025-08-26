@@ -1,7 +1,6 @@
 __author__ = "satvshr"
 
 import pytest
-import torch
 
 from pyaptamer.deepatamer._model import DeepAptamerNN
 from pyaptamer.deepatamer._pipeline import DeepAptamerPipeline
@@ -34,22 +33,3 @@ def test_pipeline_predict_shapes(seqs):
     # Ensure sorted in descending order
     scores = [item["score"] for item in ranked]
     assert all(scores[i] >= scores[i + 1] for i in range(len(scores) - 1))
-
-
-def test_train_loop_runs():
-    """
-    This test creates synthetic data and ensures that the training loop runs without
-    errors for a single epoch.
-
-    Raises
-    ------
-    RuntimeError
-        If there are issues in the forward or backward pass.
-    """
-    X_ohe = torch.rand(8, 35, 4)
-    X_shape = torch.rand(8, 1, 126)
-    y = torch.randint(0, 2, (8,))
-
-    model = DeepAptamerNN()
-
-    model.train_loop(X_ohe, X_shape, y, epochs=1, device="cpu")

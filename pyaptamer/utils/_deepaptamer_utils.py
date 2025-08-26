@@ -38,25 +38,25 @@ def ohe(seq):
     return ohe_matrix
 
 
-def pad_sequence(seq):
+def pad_sequence(seq, seq_len=35):
     """
-    Pads a single DNA sequence to length 35 using 'N'. Raises an error if the sequence
-    is longer than 35.
+    Pads a single DNA sequence to length `seq_len` using 'N'. Raises an error if the
+    sequence is longer than `seq_len`.
 
     Parameters
     ----------
     seq : str
-        DNA sequence of length ≤ 35.
+        DNA sequence of length ≤ `seq_len`.
 
     Returns
     -------
     str
-        The padded sequence of exactly 35 characters.
+        The padded sequence of exactly `seq_len` characters.
     """
-    if len(seq) > 35:
-        raise ValueError(f"Sequence length {len(seq)} exceeds 35: '{seq}'")
+    if len(seq) > seq_len:
+        raise ValueError(f"Sequence length {len(seq)} exceeds {seq_len}: '{seq}'")
 
-    return seq.ljust(35, "N")
+    return seq.ljust(seq_len, "N")
 
 
 def run_deepdna_prediction(seq, mode="cpu"):

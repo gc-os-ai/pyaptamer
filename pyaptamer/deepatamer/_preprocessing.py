@@ -11,12 +11,12 @@ from pyaptamer.utils._deepaptamer_utils import (
 )
 
 
-def preprocess_seq_ohe(seq):
+def preprocess_seq_ohe(seq, seq_len=35):
     """
     Preprocesses a single DNA sequence for DeepAptamer.
 
-    The function pads the sequence to length 35 using 'N' and one-hot encodes
-    it. The resulting array has shape (35, 4), where each base is encoded as:
+    The function pads the sequence to length `seq_len` using 'N' and one-hot encodes
+    it. The resulting array has shape (`seq_len`, 4), where each base is encoded as:
     - A → [1, 0, 0, 0]
     - T → [0, 1, 0, 0]
     - C → [0, 0, 1, 0]
@@ -26,21 +26,21 @@ def preprocess_seq_ohe(seq):
     Parameters
     ----------
     seq : str
-        A DNA sequence of length ≤ 35.
+        A DNA sequence of length ≤ `seq_len`.
 
     Returns
     -------
     np.ndarray
-        A NumPy array of shape (35, 4) representing the one-hot
+        A NumPy array of shape (`seq_len`, 4) representing the one-hot
         encoded sequence.
     """
-    seq_pad = pad_sequence(seq)  # pads to 35
-    seq_ohe = ohe(seq_pad)  # one-hot encode (shape 35 × 4)
+    seq_pad = pad_sequence(seq, seq_len)  # pads to `seq_len`
+    seq_ohe = ohe(seq_pad)  # one-hot encode (shape `seq_len` × 4)
     return seq_ohe
 
 
 # input will be of size (n_shapes(4), shape_vector_size)
-def preprocess_seq_shape(seq, use_126_shape=True):
+def preprocess_seq_shape(seq, full_dna_shape=True):
     """
     Preprocesses a single DNA sequence into a normalized shape vector.
 
@@ -63,7 +63,7 @@ def preprocess_seq_shape(seq, use_126_shape=True):
 
     # Step 1: Get raw predictions
     seq_shape = run_deepdna_prediction(seq)
-    if use_126_shape:
+    if full_dna_shape:
         seq_shape = remove_na(seq_shape)
 
     norm_features = []

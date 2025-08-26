@@ -13,56 +13,55 @@ class DeepAptamerNN(nn.Module):
 
     - A sequence branch using convolutional and fully-connected layers to
       process one-hot encoded aptamer sequences.
-    - A structural (DNA shape) branch using convolution + pooling + dense layers.
+    - A structural (DNA shape) branch using convolution + pooling + dense layers to
+        extract shape features using `deepDNAshape` from the aptamer sequence.
     - A BiLSTM for capturing sequential dependencies.
     - Multi-head self-attention for contextual feature refinement.
     - A final classification head for binary binding prediction.
 
     Parameters
     ----------
-    seq_conv_in : int, optional
+    seq_conv_in : int, optional, default=4
         Number of input channels for the sequence convolution branch. Typically 4
-        for one-hot DNA encoding. Default is 4.
+        for one-hot DNA encoding.
 
-    seq_conv_out : int, optional
-        Number of output channels (filters) for the sequence convolution. Default is 12.
+    seq_conv_out : int, optional, default=12
+        Number of output channels (filters) for the sequence convolution.
 
-    seq_conv_kernel_size : int, optional
-        Kernel size for the sequence convolution. Default is 1.
+    seq_conv_kernel_size : int, optional, default=1
+        Kernel size for the sequence convolution.
 
-    seq_pool_kernel_size : int, optional
-        Kernel size for max-pooling after sequence convolution. Default is 1.
+    seq_pool_kernel_size : int, optional, default=1
+        Kernel size for max-pooling after sequence convolution.
 
-    seq_pool_stride : int, optional
-        Stride for max-pooling after sequence convolution. Default is 1.
+    seq_pool_stride : int, optional, default=1
+        Stride for max-pooling after sequence convolution.
 
-    seq_linear_hidden_dim : int, optional
+    seq_linear_hidden_dim : int, optional, default=32
         Hidden layer size for fully connected layers in the sequence branch.
-        Default is 32.
 
-    seq_conv_linear_out : int, optional
+    seq_conv_linear_out : int, optional, default=4
         Dimensionality of the output feature vector from the sequence branch.
-        Default is 4.
 
-    shape_conv_kernel_size : int, optional
-        Kernel size for convolution in the shape branch. Default is 100.
+    shape_conv_kernel_size : int, optional, default=100
+        Kernel size for convolution in the shape branch.
 
-    shape_pool_kernel_size : int, optional
-        Kernel size for pooling in the shape branch. Default is 20.
+    shape_pool_kernel_size : int, optional, default=20
+        Kernel size for pooling in the shape branch.
 
-    shape_pool_stride : int, optional
-        Stride for pooling in the shape branch. Default is 20.
+    shape_pool_stride : int, optional, default=20
+        Stride for pooling in the shape branch.
 
-    bilstm_hidden_size : int, optional
-        Number of hidden units in each LSTM direction. Default is 100.
+    bilstm_hidden_size : int, optional, default=100
+        Number of hidden units in each LSTM direction.
 
-    bilstm_num_layers : int, optional
-        Number of BiLSTM layers. Default is 2.
+    bilstm_num_layers : int, optional, default=2
+        Number of BiLSTM layers.
 
-    dropout : float, optional
-        Dropout probability applied after the BiLSTM. Default is 0.1.
+    dropout : float, optional, default=0.1
+        Dropout probability applied after the BiLSTM.
 
-    optimizer : torch.optim.Optimizer or None, optional
+    optimizer : torch.optim.Optimizer or None, optional, default=None
         Optimizer for training. If None, defaults to Adam with lr=0.001.
 
     Attributes
@@ -81,6 +80,9 @@ class DeepAptamerNN(nn.Module):
 
     bilstm : nn.LSTM
         Bidirectional LSTM for sequential modeling.
+
+    dropout : nn.Dropout
+        Dropout layer applied after BiLSTM.
 
     attn : nn.MultiheadAttention
         Attention layer for contextual refinement.
@@ -123,7 +125,7 @@ class DeepAptamerNN(nn.Module):
         self.dropout_val = dropout
         self.optimizer = optimizer
 
-        # Sequence branch (B, 35, 4)
+        # Sequence branch (B, seq_len, 4)
         self.seq_conv = nn.Conv1d(
             in_channels=self.seq_conv_in,
             out_channels=self.seq_conv_out,
@@ -170,6 +172,25 @@ class DeepAptamerNN(nn.Module):
         self.optimizer = self.optimizer or torch.optim.Adam(self.parameters(), lr=0.001)
 
     def forward(self, x_ohe, x_shape):
+        """
+        Forward pass of the DeepAptamerNN model.
+
+        Parameters
+        ----------
+        x_ohe : torch.Tensor
+            One-hot encoded aptamer sequence tensor of shape (batch_size, seq_len, 4).
+            Example: (B, seq_len, 4) for batch size B and sequence length seq_len.
+
+        x_shape : torch.Tensor
+            DNA shape feature tensor of shape (batch_size, 1, shape_len).
+            Example: (B, 1, 126) for batch size B and shape feature length 126.
+
+        Returns
+        -------
+        torch.Tensor
+            Logits tensor of shape (batch_size, 2), representing the predicted
+            class scores for binary classification.
+        """
         s = x_ohe.permute(0, 2, 1)
         s = self.seq_conv(s)
         s = s.permute(0, 2, 1)

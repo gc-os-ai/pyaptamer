@@ -13,7 +13,7 @@ from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 class AptaNetPipeline:
     """
-    AptaNet algorithm for aptamer–protein interaction prediction ..[1]
+    AptaNet algorithm for aptamer–protein interaction prediction (Emami et al., 2021)
 
     Implements the AptaNet algorithm, a deep learning method that combines
     sequence-derived features with RandomForest-based feature selection and a

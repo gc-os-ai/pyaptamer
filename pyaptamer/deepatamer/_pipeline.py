@@ -9,7 +9,7 @@ from pyaptamer.deepatamer._preprocessing import preprocess_seq_ohe, preprocess_s
 
 class DeepAptamerPipeline:
     """
-    DeepAptamer algorithm for aptamer–protein interaction prediction _[1]
+    DeepAptamer algorithm for aptamer–protein interaction prediction [1]_
 
     This class encapsulates preprocessing (sequence one-hot encoding and DNAshape
     feature extraction) together with inference on a trained `DeepAptamerNN` model.
