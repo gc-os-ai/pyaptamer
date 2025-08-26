@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
-from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline
+from pyaptamer.aptanet import AptaNetPipeline, AptaNetPredictor
 
 
 @pytest.mark.skipif(
@@ -38,7 +38,7 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
 )
-@parametrize_with_checks([AptaNetClassifier()])
+@parametrize_with_checks([AptaNetPredictor()])
 def test_sklearn_compatible_estimator(estimator, check):
     """
     Run scikit-learn's compatibility checks on the AptaPipeline.
