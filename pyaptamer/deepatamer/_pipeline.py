@@ -69,7 +69,7 @@ class DeepAptamerPipeline:
         Parameters
         ----------
         seqs : str or list of str
-            DNA sequence(s), each length ≤ 35.
+            DNA sequence(s), each length ≤ max sequence length in `seqs`.
 
         Returns
         -------
@@ -85,8 +85,9 @@ class DeepAptamerPipeline:
             seqs = [seqs]
 
         ohe_list, shape_list = [], []
+        max_len = max(len(seq) for seq in seqs)
         for seq in seqs:
-            ohe_list.append(preprocess_seq_ohe(seq))
+            ohe_list.append(preprocess_seq_ohe(seq, seq_len=max_len))
             shape_list.append(preprocess_seq_shape(seq))
 
         X_ohe = torch.tensor(
