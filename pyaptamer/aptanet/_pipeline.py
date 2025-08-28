@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.9,<3.13"]
 

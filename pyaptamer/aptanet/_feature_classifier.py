@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetClassifier"]
 
 import numpy as np

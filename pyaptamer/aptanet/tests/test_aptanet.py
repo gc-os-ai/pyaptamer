@@ -1,3 +1,5 @@
+__author__ = ["nennomp", "satvshr"]
+
 import sys
 
 import numpy as np
