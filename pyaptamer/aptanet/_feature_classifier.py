@@ -26,6 +26,8 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     `predict`, and other methods to it, while exposing convenient knobs for both
     the selector and the neural network.
 
+    The estimator is non-deterministic and only supports binary classification.
+
     References
     ----------
 
@@ -126,15 +128,15 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
 
         return Pipeline([("select", selector), ("net", net)])
 
-    def _get_raw_scores(self, X_transformed):
-        """Get raw logits from the neural network."""
-        net = self.pipeline_.named_steps["net"]
-        logits = net.forward(X_transformed, training=False)
-        return logits.squeeze().detach().cpu().numpy()
-
     def fit(self, X, y):
         X, y = validate_data(self, X, y)
 
+        y_type = type_of_target(y, input_name="y", raise_unknown=True)
+        if y_type != "binary":
+            raise ValueError(
+                "Only binary classification is supported. The type of the target "
+                f"is {y_type}."
+            )
         if "continuous" in type_of_target(y):
             raise ValueError("continuous target is not supported for classification")
 
@@ -150,31 +152,35 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         self.pipeline_.fit(X, y)
         return self
 
-    def predict(self, X, output_type: str = "class"):
-        """
+    def predict_proba(self, X):
+        """Probability estimates for samples in `X`.
+
         Parameters
         ----------
-        output_type : str, default="class"
-            Type of output to return. Either "class" for class labels or "proba" for
-            (raw) probabilities.
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, n_classes)
+            A vector or matrix containing the probability estimates for each sample and
+            for each class.
         """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
+        return self.pipeline_.predict_proba(X)
 
-        if output_type == "class":
-            y = self.pipeline_.predict(X).astype(int, copy=False)
-            return self.classes_[y]
-        elif output_type == "proba":
-            X_transformed = self.pipeline_.named_steps["select"].transform(X)
-            probas = self.pipeline_.named_steps["net"].predict_proba(X_transformed)
-            return probas[:, 1]
-        else:
-            raise ValueError(
-                f"Invalid output_type: {output_type}. Options are 'class', 'proba'."
-            )
+    def predict(self, X):
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = X.astype(np.float32, copy=False)
+        y = self.pipeline_.predict(X).astype(int, copy=False)
+        return self.classes_[y]
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
+        tags.classifier_tags.multi_class = False
         tags.classifier_tags.poor_score = True
+        tags.non_deterministic = True
         return tags

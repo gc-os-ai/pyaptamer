@@ -54,6 +54,7 @@ class AptaNetPipeline:
     >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
     >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
     >>> preds = pipe.predict(X_test_pairs)
+    >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
     def __init__(self, k=None, classifier=None):
@@ -72,15 +73,14 @@ class AptaNetPipeline:
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
 
-    def predict(self, X, output_type: str = "class"):
-        """
-        Parameters
-        ----------
-        output_type : str, default="class"
-            Type of output to return. Either "class" for class labels or "proba" for
-            (raw) probabilities.
-        """
+    def predict_proba(self, X):
+        check_is_fitted(self)
+        return self.pipeline_.named_steps["clf"].predict_proba(
+            self.pipeline_.named_steps["features"].transform(X)
+        )
+
+    def predict(self, X):
         check_is_fitted(self)
         return self.pipeline_.named_steps["clf"].predict(
-            self.pipeline_.named_steps["features"].transform(X), output_type=output_type
+            self.pipeline_.named_steps["features"].transform(X)
         )

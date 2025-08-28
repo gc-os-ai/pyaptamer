@@ -20,11 +20,6 @@ class BaseAptamerEval(BaseObject, ABC):
     ----------
     target : str
         Target sequence string.
-
-    Attributes
-    ----------
-    target : str
-        Target sequence string.
     """
 
     def __init__(self, target: str) -> None:
@@ -36,10 +31,17 @@ class BaseAptamerEval(BaseObject, ABC):
         return ["aptamer_candidate"]
 
     def reconstruct(self, sequence: str = "") -> str:
-        """Reconstruct the actual aptamer sequence from the encoded representation.
+        """Reconstruct the aptamer sequence.
 
-        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
-        This method converts these pairs back to the actual sequence.
+        The experiment expects aptamer candidates in a specific (encoded) format
+        involving pairs of nucleotide letters and direction markers (underscores). For
+        instance, 'A_' indicates adding 'A' to the right of the current sequence
+        (appending), while '_A' indicates adding 'A' to the left (prepending). As an
+        example, the input 'A_C__GU_' would be reconstructed to 'UCAG'.
+
+        Example:
+            Input: 'A_C__GU_'
+            Output: 'UCAG'
 
         Parameters
         ----------
@@ -106,7 +108,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     device : torch.device
         Device to run the model on.
     prot_words : dict[str, int]
-        A dictionary mapping protein 3-mer subsequences to integer token IDs.
+        A dictionary mapping protein 3-mer protein subsequences to integer token IDs.
+        Useful to encode protein sequences into their numerical representions.
 
     Attributes
     ----------
@@ -148,39 +151,30 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         ).to(device)
 
     def reconstruct(self, sequence: str = "") -> tuple[str, Tensor]:
-        """Reconstruct the actual aptamer sequence from the encoded representation.
+        """
+        Reconstruct the aptamer sequence and convert it to a numerical representation.
 
-        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
-        This method converts these pairs back to the actual sequence. Then, from its
-        RNA sequence representation it is converted to a vector.
+        The experiment expects aptamer candidates in a specific (encoded) format
+        involving pairs of nucleotide letters and direction markers (underscores). For
+        instance, 'A_' indicates adding 'A' to the right of the current sequence
+        (appending), while '_A' indicates adding 'A' to the left (prepending). As an
+        example, the input 'A_C__GU_' would be reconstructed to 'UCAG'. Then, the
+        reconstructed sequence is converted to a numerical representation using the
+        `rna2vec` function.
 
         Parameters
         ----------
-        seq : str
+        sequence : str
             Encoded sequence with direction markers (underscores).
 
         Returns
         -------
-        tuple[str, torch.Tensor]
-            The reconstructed RNA sequence and its vector representation.
+        str
+            The reconstructed RNA sequence.
         """
         # get the base reconstructed sequence
         reconstructed_seq = super().reconstruct(sequence)
 
-        # already reconstructed case
-        if "_" not in sequence:
-            return (
-                reconstructed_seq,
-                torch.tensor(
-                    rna2vec(
-                        [reconstructed_seq],
-                        max_sequence_length=self.model.apta_embedding.max_len,
-                    ),
-                    dtype=torch.int64,
-                ),
-            )
-
-        # return tuple with tensor representation
         return (
             reconstructed_seq,
             torch.tensor(
@@ -282,8 +276,6 @@ class AptamerEvalAptaNet(BaseAptamerEval):
             The probability score assigned to the aptamer candidate.
         """
         aptamer_seq = self.reconstruct(aptamer_candidate)
-        score = self.pipeline.predict(
-            X=[(aptamer_seq, self.target)], output_type="proba"
-        )
+        score = self.pipeline.predict_proba(X=[(aptamer_seq, self.target)])
 
-        return torch.tensor(score)
+        return torch.tensor(score[:, 1])  # return the positive class probability

@@ -128,8 +128,7 @@ class AptaTransPipeline:
         return (apta_words, prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
-        """Initialize the aptamer experiment."""
-        # initialize the aptamer recommendation experiment
+        """Initialize the aptamer recommendation experiment."""
         experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,

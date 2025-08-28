@@ -2,6 +2,7 @@
 
 __author__ = ["nennomp"]
 
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
@@ -38,14 +39,13 @@ class MockAptaNetPipeline:
         self.fixed_score = fixed_score
         self.is_fitted = True
 
-    def predict(self, X, output_type="proba"):
-        """Mock predict method that returns fixed scores."""
-        if output_type == "proba":
-            # return probability scores as a list
-            return [self.fixed_score] * len(X)
-        else:
-            # return binary predictions
-            return [1 if self.fixed_score > 0.5 else 0] * len(X)
+    def predict_proba(self, X):
+        """
+        Mock predict method that returns fixed scores for binary classification (no
+        binding, binding).
+        """
+        # return probability scores as a list
+        return np.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
 
     def fit(self, X, y):
         """Mock fit method."""
@@ -286,10 +286,9 @@ class TestAptamerEvalAptaNet:
                 self.last_call_args = None
                 self.last_call_kwargs = None
 
-            def predict(self, X, output_type="proba"):
+            def predict_proba(self, X):
                 self.last_call_args = (X,)
-                self.last_call_kwargs = {"output_type": output_type}
-                return super().predict(X, output_type)
+                return super().predict_proba(X)
 
         spy_pipeline = SpyPipeline()
         experiment = AptamerEvalAptaNet(target=target, pipeline=spy_pipeline)
@@ -303,7 +302,6 @@ class TestAptamerEvalAptaNet:
         aptamer_seq, target_seq = spy_pipeline.last_call_args[0][0]
         assert aptamer_seq == "CGUA"  # reconstructed sequence
         assert target_seq == target
-        assert spy_pipeline.last_call_kwargs["output_type"] == "proba"
 
     @pytest.mark.parametrize(
         "aptamer_candidate",
