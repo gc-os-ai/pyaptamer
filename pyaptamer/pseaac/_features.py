@@ -219,6 +219,7 @@ class PSeAAC:
                 f"Only {''.join(AMINO_ACIDS)} are allowed."
             )
 
+        all_pseaac = []
         for prop_group in self.prop_groups:
             aa_freq = self._average_aa(protein_sequence)
             sum_all_aa_freq = sum(aa_freq.values())
@@ -234,7 +235,6 @@ class PSeAAC:
             denominator_val = sum_all_aa_freq + (self.weight * sum_all_theta_val)
 
             # First 20 features: normalized amino acid composition
-            all_pseaac = []
             aa_composition = np.array([aa_freq[aa] for aa in AMINO_ACIDS])
             all_pseaac.extend(np.round(aa_composition / denominator_val, 3))
 
