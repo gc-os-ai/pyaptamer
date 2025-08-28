@@ -207,13 +207,18 @@ class PSeAAC:
             - `self.lambda_val` normalized sequence-order correlation factors (theta
             values)
         """
+        seq_len = len(protein_sequence)
+        if seq_len <= self.lambda_val:
+            raise ValueError(
+                f"Protein sequence is too short, should be longer than `lambda_val`. "
+                f"Sequence length: {seq_len}, `lambda_val`: {self.lambda_val}."
+            )
         if not is_valid_aa(protein_sequence):
             raise ValueError(
                 "Invalid amino acid found in protein_sequence. "
                 f"Only {''.join(AMINO_ACIDS)} are allowed."
             )
 
-        seq_len = len(protein_sequence)
         for prop_group in self.prop_groups:
             aa_freq = self._average_aa(protein_sequence)
             sum_all_aa_freq = sum(aa_freq.values())
