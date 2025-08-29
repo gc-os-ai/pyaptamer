@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from sklearn.base import BaseEstimator, clone
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.metrics import accuracy_score, r2_score
 from sklearn.pipeline import Pipeline
@@ -75,9 +75,14 @@ class AptaNetPredictor(BaseEstimator):
     def _build_pipeline(self):
         from skorch import NeuralNetBinaryClassifier, NeuralNetRegressor
 
-        base_estimator = self.estimator or RandomForestClassifier(
-            n_estimators=300, max_depth=9, random_state=self.random_state
-        )
+        if self.task == "classification":
+            base_estimator = self.estimator or RandomForestClassifier(
+                n_estimators=300, max_depth=9, random_state=self.random_state
+            )
+        else:
+            base_estimator = self.estimator or RandomForestRegressor(
+                n_estimators=300, max_depth=9, random_state=self.random_state
+            )
 
         selector = SelectFromModel(
             estimator=clone(base_estimator),
@@ -134,7 +139,10 @@ class AptaNetPredictor(BaseEstimator):
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
-        self.classes_, y = np.unique(y, return_inverse=True)
+        if self.task == "regression":
+            y = y.reshape(-1, 1)
+        else:
+            self.classes_, y = np.unique(y, return_inverse=True)
 
         self.pipeline_ = self._build_pipeline()
         X = X.astype(np.float32, copy=False)
@@ -147,15 +155,13 @@ class AptaNetPredictor(BaseEstimator):
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
         y = self.pipeline_.predict(X)
+
         if self.task == "regression":
             y = y.reshape(-1)
-
-        else:  # classification
+        else:
             y = y.astype(int, copy=False)
             y = self.classes_[y]
-        # y = self.pipeline_.predict(X).astype(int, copy=False)
-        # y = self.pipeline_.predict(X)
-        # return self.classes_[y]
+
         return y
 
     def score(self, X, y):
