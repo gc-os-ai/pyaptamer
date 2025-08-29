@@ -54,10 +54,10 @@ class PSeAAC:
 
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
-    - 30 sequence-order correlation features based on physicochemical similarity between
-    residues.
-    These 50 features are computed for each of 7 predefined property groups,
-    resulting in a final vector of length 350 ((20 + 30) * 7 = 350).
+    - `self.lambda_val` sequence-order correlation features based on physicochemical
+    similarity between residues.
+    These (20 + `self.lambda_val`) features are computed for each of 7 predefined
+    property groups, resulting in a final vector of length (20 + `self.lambda_val`) * 7.
 
     See `transform` method for usage.
 
@@ -65,6 +65,8 @@ class PSeAAC:
     ----------
     lambda_val : int, optional, default=30
         The lambda parameter defining the number of sequence-order correlation factors.
+        This also determines the minimum length allowed for input protein sequences,
+        which should be of length greater than `lambda_val`.
     weight : float, optional, default=0.15
         The weight factor for the sequence-order correlation features.
 
@@ -158,7 +160,7 @@ class PSeAAC:
         )
         return np.mean(diffs**2)
 
-    def _sum_theta_val(self, seq, seq_len, n, prop_group):
+    def _sum_theta_val(self, seq, seq_len, lambda_val, n, prop_group):
         """
         Compute the average theta value for a sequence and property group.
 
@@ -168,6 +170,9 @@ class PSeAAC:
             Protein sequence.
         seq_len : int
             Length of the sequence.
+        lambda_val : int
+            The lambda parameter defining the number of sequence-order correlation
+            factors.
         n : int
             Offset for theta calculation.
         prop_group : tuple of int
@@ -180,7 +185,7 @@ class PSeAAC:
         """
         return sum(
             self._theta_rirj(seq[i], seq[i + n], prop_group)
-            for i in range(seq_len - self.lambda_val)
+            for i in range(seq_len - lambda_val)
         ) / (seq_len - n)
 
     def transform(self, protein_sequence):
@@ -189,7 +194,8 @@ class PSeAAC:
 
         This method computes a set of features based on amino acid composition
         and sequence-order correlations using physicochemical properties, as
-        described in the Pseudo Amino Acid Composition (PseAAC) model.
+        described in the Pseudo Amino Acid Composition (PseAAC) model. The protein
+        sequence should be of length greater than `self.lambda_val`.
 
         Parameters
         ----------
@@ -206,6 +212,12 @@ class PSeAAC:
             - 20 normalized amino acid composition features
             - `self.lambda_val` normalized sequence-order correlation factors (theta
             values)
+
+        Raises
+        ------
+        ValueError
+            If the input sequence contains invalid amino acids or is shorter than
+            `self.lambda_val`.
         """
         seq_len = len(protein_sequence)
         if seq_len <= self.lambda_val:
@@ -226,7 +238,9 @@ class PSeAAC:
 
             all_theta_val = np.array(
                 [
-                    self._sum_theta_val(protein_sequence, seq_len, n, prop_group)
+                    self._sum_theta_val(
+                        protein_sequence, seq_len, self.lambda_val, n, prop_group
+                    )
                     for n in range(1, self.lambda_val + 1)
                 ]
             )
