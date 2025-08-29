@@ -4,6 +4,7 @@ import torch.nn as nn
 from sklearn.base import BaseEstimator, clone
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectFromModel
+from sklearn.metrics import accuracy_score, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.utils.multiclass import type_of_target
 from sklearn.utils.validation import check_is_fitted, validate_data
@@ -65,6 +66,7 @@ class AptaNetPredictor(BaseEstimator):
                 from sklearn.utils._tags import RegressorTags
 
                 tags.regressor_tags = RegressorTags()
+                tags.regressor_tags.poor_score = True
             except ImportError:
                 pass
 
@@ -155,3 +157,16 @@ class AptaNetPredictor(BaseEstimator):
         # y = self.pipeline_.predict(X)
         # return self.classes_[y]
         return y
+
+    def score(self, X, y):
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = X.astype(np.float32, copy=False)
+        y = y.astype(np.float32, copy=False)
+
+        y_pred = self.predict(X)
+
+        if self.task == "classification":
+            return accuracy_score(y, y_pred)
+        else:
+            return r2_score(y, y_pred)

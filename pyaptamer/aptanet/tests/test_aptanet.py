@@ -65,3 +65,14 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaPipeline.
     """
     check(estimator)
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
+)
+@parametrize_with_checks([AptaNetPredictor(task="regression")])
+def test_sklearn_compatible_estimator_regression(estimator, check):
+    """
+    Run scikit-learn's compatibility checks on the AptaPipeline for regression.
+    """
+    check(estimator)
