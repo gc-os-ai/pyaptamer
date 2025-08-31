@@ -2,7 +2,7 @@ __author__ = "satvshr"
 
 import pytest
 
-from pyaptamer.deepatamer._model import DeepAptamerNN
+from pyaptamer.deepatamer._deepaptamer_nn import DeepAptamerNN
 from pyaptamer.deepatamer._pipeline import DeepAptamerPipeline
 
 

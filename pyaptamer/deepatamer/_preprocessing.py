@@ -27,6 +27,8 @@ def preprocess_seq_ohe(seq, seq_len=35):
     ----------
     seq : str
         A DNA sequence of length ≤ `seq_len`.
+    seq_len : int, optional, default=35
+        The length to which the sequence will be padded or truncated.
 
     Returns
     -------
@@ -52,6 +54,9 @@ def preprocess_seq_shape(seq, full_dna_shape=True):
     ----------
     seq : str
         A DNA sequence to be processed.
+    full_dna_shape : bool, optional, default=True
+        If True, uses the 138-length long `deepDNAshape` vector.
+        If False, uses the 126-length long `DNAshapeR` like vector.
 
     Returns
     -------
@@ -91,11 +96,15 @@ def preprocess_y(y):
         1 -> [1, 0]  (binder)
         0 -> [0, 1]  (non-binder)
 
-    Args:
-        y (array-like): list or numpy array of binary labels (0 or 1)
+    Parameters
+    ----------
+    y : np.ndarray
+        A 1D NumPy array of binary labels (0 or 1).
 
-    Returns:
-        np.ndarray: one-hot encoded labels with shape (n_samples, 2)
+    Returns
+    -------
+    np.ndarray
+        A 2D NumPy array of shape (len(y), 2) with one-hot encoded labels.
     """
     one_hot = np.zeros((len(y), 2), dtype=int)
     one_hot[y == 1] = [1, 0]

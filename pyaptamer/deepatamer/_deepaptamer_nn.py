@@ -141,7 +141,7 @@ class DeepAptamerNN(nn.Module):
             nn.Softmax(dim=-1),
         )
 
-        # Shape branch (B, 1, 126)
+        # Shape branch (B, 1, 126/138)
         self.shape_conv_pool = nn.Sequential(
             nn.Conv1d(
                 in_channels=1, out_channels=1, kernel_size=self.shape_conv_kernel_size
@@ -191,16 +191,16 @@ class DeepAptamerNN(nn.Module):
             Logits tensor of shape (batch_size, 2), representing the predicted
             class scores for binary classification.
         """
-        s = x_ohe.permute(0, 2, 1)
-        s = self.seq_conv(s)
-        s = s.permute(0, 2, 1)
-        s = self.seq_fc(s)
+        out_ohe = x_ohe.permute(0, 2, 1)
+        out_ohe = self.seq_conv(out_ohe)
+        out_ohe = out_ohe.permute(0, 2, 1)
+        out_ohe = self.seq_fc(out_ohe)
 
-        h = self.shape_conv_pool(x_shape)
-        h = h.transpose(1, 2)
-        h = self.shape_fc(h)
+        out_shape = self.shape_conv_pool(x_shape)
+        out_shape = out_shape.transpose(1, 2)
+        out_shape = self.shape_fc(out_shape)
 
-        x = torch.cat([s, h], dim=1)
+        x = torch.cat([out_ohe, out_shape], dim=1)
 
         x, _ = self.bilstm(x)
 

@@ -11,7 +11,7 @@ def ohe(seq):
     One-hot encodes a single DNA sequence.
 
     Each character is converted into a one-hot vector. Unknown characters are encoded
-    as [0, 0, 0, 0].
+    as [0, 0, 0, 0]. Column order is [A, T, C, G].
 
     Parameters
     ----------
@@ -22,7 +22,6 @@ def ohe(seq):
     -------
     np.ndarray
         A 2D NumPy array of shape (seq_len, 4), where the sequence is one-hot encoded.
-        Column order is [A, T, C, G].
     """
     alphabet = "ATCG"
     mapping = {base: i for i, base in enumerate(alphabet)}
@@ -47,11 +46,19 @@ def pad_sequence(seq, seq_len=35):
     ----------
     seq : str
         DNA sequence of length ≤ `seq_len`.
+    seq_len : int, optional, default=35
+        The length to which the sequence will be padded or truncated.
 
     Returns
     -------
     str
         The padded sequence of exactly `seq_len` characters.
+
+    Raises
+    -------
+    ValueError
+        If the input sequence length exceeds `seq_len`.
+
     """
     if len(seq) > seq_len:
         raise ValueError(f"Sequence length {len(seq)} exceeds {seq_len}: '{seq}'")
@@ -63,6 +70,12 @@ def run_deepdna_prediction(seq, mode="cpu"):
     """
     Run deepDNAshape prediction for all DNA structural features (MGW, HelT, ProT, Roll)
     on a single DNA sequence.
+
+    The four DNA shape features are:
+        - MGW: Minor Groove Width
+        - HelT: Helical Twist
+        - ProT: Propeller Twist
+        - Roll: Roll angle
 
     Parameters
     ----------
@@ -93,6 +106,12 @@ def remove_na(shape_vectors):
     Trim deepDNAShape predictions to match DeepAptamer's convention
     (remove edge positions that correspond to NA in original DNAshape).
 
+    The four DNA shape features used are:
+        - MGW: Minor Groove Width
+        - HelT: Helical Twist
+        - ProT: Propeller Twist
+        - Roll: Roll angle
+
     Parameters
     ----------
     shape_vectors : list of list of float
@@ -102,10 +121,10 @@ def remove_na(shape_vectors):
     -------
     list of lists of float
         A list of 4 lists after trimming:
-        - MGW (drop first 2 and last 2 → len=31)
-        - HelT (drop first and last → len=32)
-        - ProT (drop first 2 and last 2 → len=31)
-        - Roll (drop first and last → len=32)
+        - MGW (drop first 2 and last 2 -> len=31)
+        - HelT (drop first and last -> len=32)
+        - ProT (drop first 2 and last 2 -> len=31)
+        - Roll (drop first and last -> len=32)
     """
     mgw, helt, prot, roll = shape_vectors
 
