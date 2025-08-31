@@ -70,13 +70,19 @@ def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
 )
-@parametrize_with_checks([AptaNetClassifier()])
+@parametrize_with_checks(
+    estimators=[AptaNetClassifier()],
+    # TODO: for some reason this is not picking it up. The if block is a workaround.
+    # expected_failed_checks={
+    #    "check_pipeline_consistency": "estimator is non-deterministic"
+    # },
+)
 def test_sklearn_compatible_estimator(estimator, check):
     """
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
-    non_determinism_fail_checks = ["check_pipeline_consistency"]
-    if check.func.__name__ not in non_determinism_fail_checks:
+    expected_failed_checks = ["check_pipeline_consistency"]
+    if check.func.__name__ not in expected_failed_checks:
         try:
             check(estimator)
         except Exception as e:

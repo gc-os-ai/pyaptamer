@@ -75,12 +75,8 @@ class AptaNetPipeline:
 
     def predict_proba(self, X):
         check_is_fitted(self)
-        return self.pipeline_.named_steps["clf"].predict_proba(
-            self.pipeline_.named_steps["features"].transform(X)
-        )
+        return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
         check_is_fitted(self)
-        return self.pipeline_.named_steps["clf"].predict(
-            self.pipeline_.named_steps["features"].transform(X)
-        )
+        return self.pipeline_.predict(X)
