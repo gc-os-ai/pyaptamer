@@ -39,10 +39,6 @@ class BaseAptamerEval(BaseObject, ABC):
         (appending), while '_A' indicates adding 'A' to the left (prepending). As an
         example, the input 'A_C__GU_' would be reconstructed to 'UCAG'.
 
-        Example:
-            Input: 'A_C__GU_'
-            Output: 'UCAG'
-
         Parameters
         ----------
         sequence : str
@@ -52,6 +48,14 @@ class BaseAptamerEval(BaseObject, ABC):
         -------
         str
             The reconstructed RNA sequence.
+
+        Examples
+        --------
+        >>> from pyaptamer.experiments import BaseAptamerEval
+        >>> experiment = BaseAptamerEval(target="DHRNE")
+        >>> reconstructed_seq = experiment.reconstruct("A_C__GU_")
+        >>> print(reconstructed_seq)
+        UCAG
         """
         # already reconstructed
         if "_" not in sequence:
