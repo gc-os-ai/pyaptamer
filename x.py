@@ -1,4 +1,3 @@
-from pyaptamer.datasets._loaders._pfoa_loader import load_pfoa_structure
+from pyaptamer.aptanet import AptaNetPipeline
 
-a = load_pfoa_structure()
-print(a.id)
+print(AptaNetPipeline().__class__.__name__)

@@ -1,5 +1,5 @@
 __author__ = "satvshr"
-__all__ = ["AptaNetPredictor"]
+__all__ = ["AptaNetClassifier"]
 
 import numpy as np
 import torch
@@ -13,17 +13,16 @@ from sklearn.utils.validation import check_is_fitted, validate_data
 from torch import optim
 
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
-from pyaptamer.utils.tag_checks import task_check
 
 
-class AptaNetPredictor(ClassifierMixin, BaseEstimator):
+class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     """
     This estimator applies a tree-based `SelectFromModel` using a RandomForest
     to filter input features, then trains a skorch-wrapped multi-layer perceptron
-    (`AptaNetMLP`) with BCE-with-logits (default). This mirrors the AptaNet-style deep
+    (`AptaNetMLP`) with BCE-with-logits. This mirrors the AptaNet-style deep
     model used for aptamer–protein interaction prediction.
 
-    This predictor builds an internal sklearn `Pipeline` and delegates `fit`,
+    This classifier builds an internal sklearn `Pipeline` and delegates `fit`,
     `predict`, and other methods to it, while exposing convenient knobs for both
     the selector and the neural network.
 
@@ -40,8 +39,6 @@ class AptaNetPredictor(ClassifierMixin, BaseEstimator):
 
     Parameters
     ----------
-    task : str, default="classification"
-        Task type, either "classification" or "regression".
     input_dim : int or None, default=None
         Size of the input layer in the neural net. If `None`, it should be
         inferred from the feature matrix shape by the underlying module.
@@ -69,11 +66,8 @@ class AptaNetPredictor(ClassifierMixin, BaseEstimator):
         Verbosity level for the underlying skorch `NeuralNetBinaryClassifier`.
     """
 
-    _tags = {"tasks": ["classification", "regression"]}
-
     def __init__(
         self,
-        task="classification",
         input_dim=None,
         hidden_dim=128,
         n_hidden=7,
@@ -87,7 +81,6 @@ class AptaNetPredictor(ClassifierMixin, BaseEstimator):
         threshold="mean",
         verbose=0,
     ):
-        self.task = task
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.n_hidden = n_hidden
@@ -100,10 +93,9 @@ class AptaNetPredictor(ClassifierMixin, BaseEstimator):
         self.random_state = random_state
         self.threshold = threshold
         self.verbose = verbose
-        task_check(self)
 
     def _build_pipeline(self):
-        from skorch import NeuralNetBinaryClassifier, NeuralNetRegressor
+        from skorch import NeuralNetBinaryClassifier
 
         base_estimator = self.estimator or RandomForestClassifier(
             n_estimators=300, max_depth=9, random_state=self.random_state
@@ -114,42 +106,23 @@ class AptaNetPredictor(ClassifierMixin, BaseEstimator):
             threshold=self.threshold,
         )
 
-        if self.task == "classification":
-            net = NeuralNetBinaryClassifier(
-                module=AptaNetMLP,
-                module__input_dim=self.input_dim,
-                module__hidden_dim=self.hidden_dim,
-                module__n_hidden=self.n_hidden,
-                module__dropout=self.dropout,
-                module__output_dim=1,
-                module__use_lazy=True,
-                criterion=nn.BCEWithLogitsLoss,
-                max_epochs=self.max_epochs,
-                lr=self.lr,
-                optimizer=optim.RMSprop,
-                optimizer__alpha=self.alpha,
-                optimizer__eps=self.eps,
-                device="cuda" if torch.cuda.is_available() else "cpu",
-                verbose=self.verbose,
-            )
-        else:
-            net = NeuralNetRegressor(
-                module=AptaNetMLP,
-                module__input_dim=self.input_dim,
-                module__hidden_dim=self.hidden_dim,
-                module__n_hidden=self.n_hidden,
-                module__dropout=self.dropout,
-                module__output_dim=1,
-                module__use_lazy=True,
-                criterion=nn.MSELoss,
-                max_epochs=self.max_epochs,
-                lr=self.lr,
-                optimizer=optim.RMSprop,
-                optimizer__alpha=self.alpha,
-                optimizer__eps=self.eps,
-                device="cuda" if torch.cuda.is_available() else "cpu",
-                verbose=self.verbose,
-            )
+        net = NeuralNetBinaryClassifier(
+            module=AptaNetMLP,
+            module__input_dim=self.input_dim,
+            module__hidden_dim=self.hidden_dim,
+            module__n_hidden=self.n_hidden,
+            module__dropout=self.dropout,
+            module__output_dim=1,
+            module__use_lazy=True,
+            criterion=nn.BCEWithLogitsLoss,
+            max_epochs=self.max_epochs,
+            lr=self.lr,
+            optimizer=optim.RMSprop,
+            optimizer__alpha=self.alpha,
+            optimizer__eps=self.eps,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            verbose=self.verbose,
+        )
 
         return Pipeline([("select", selector), ("net", net)])
 
