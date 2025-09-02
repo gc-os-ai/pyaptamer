@@ -62,8 +62,36 @@ jobs:
       - name: check missing __init__ files
         run: bash build_tools/fail_on_missing_init_files.sh
 
+  detect-notebooks-change:
+    needs: code-quality
+    name: detect change affecting notebooks
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      notebooks: ${{ steps.check.outputs.notebooks }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Needed to access the full git history
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Check if examples, pyaptamer or pyproject.toml changed
+        id: check
+        run: |
+          if git diff --quiet origin/main -- examples/ pyaptamer/ pyproject.toml; then
+            echo "No notebook related changes"
+            echo "notebooks=false" >> $GITHUB_OUTPUT
+          else
+            echo "Detected changes in notebooks or pyaptamer"
+            echo "notebooks=true" >> $GITHUB_OUTPUT
+          fi
+
   run-jupyter-notebooks:
     needs: code-quality
+    if: ${{ needs.detect-notebooks-change.outputs.notebooks == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
