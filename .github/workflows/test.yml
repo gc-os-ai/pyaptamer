@@ -158,3 +158,6 @@ jobs:
       - name: Show available branches
         run: git branch -a
 
+      - name: Run tests
+        run: |
+          python -m pytest pyaptamer -p no:warnings
