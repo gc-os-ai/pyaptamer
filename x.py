@@ -1,3 +1,3 @@
-from pyaptamer.aptanet import AptaNetPipeline
+from pyaptamer.datasets import load_csv_dataset
 
-print(AptaNetPipeline().__class__.__name__)
+print(load_csv_dataset("train_li2014"))

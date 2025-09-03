@@ -1,4 +1,7 @@
+import pandas as pd
 from sklearn.base import clone
+
+from pyaptamer.utils.tag_checks import task_check
 
 
 class Benchmark:
@@ -13,11 +16,15 @@ class Benchmark:
       evaluators: list[callable(y_true, y_pred) -> float]
     """
 
-    def __init__(self, estimators, train_datasets, test_datasets, evaluators):
+    _tags = {"tasks": ["classification", "regression"]}
+
+    def __init__(self, estimators, train_datasets, test_datasets, evaluators, task):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
         self.train_datasets = train_datasets
         self.test_datasets = test_datasets
         self.evaluators = evaluators if isinstance(evaluators, list) else [evaluators]
+        self.task = task
+        self.results = None
 
     def run(self):
         # Each estimator is trained on each training dataset and evaluated on all test
@@ -38,6 +45,7 @@ class Benchmark:
         #     ...
         #   }
         # }
+        task_check(self)
         results = {}
 
         for estimator in self.estimators:
@@ -64,4 +72,27 @@ class Benchmark:
 
                     results[estimator_name][train_name][test_name] = test_results
 
-        return results
+        self.results = self._to_df(results)
+
+        return self.results
+
+    def _to_df(self, results):
+        """Convert nested dict results → dict of DataFrames and print neatly."""
+        dfs = {}
+        for estimator, train_dict in results.items():
+            train_df = []
+            for train_set, test_dict in train_dict.items():
+                df = pd.DataFrame(test_dict)  # metrics × test_sets
+                df["train_set"] = train_set
+                df = df.set_index(["train_set"], append=True)
+                df = df.reorder_levels(["train_set", df.index.names[0]])
+                train_df.append(df)
+
+            dfs[estimator] = pd.concat(train_df)
+
+        # Print nicely
+        for est, df in dfs.items():
+            print(f"\n=== {est} ===")
+            print(df)
+
+        return dfs
