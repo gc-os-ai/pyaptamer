@@ -91,3 +91,32 @@ def pairs_to_features(X, k=4):
 
     # Ensure float32 for PyTorch compatibility
     return np.vstack(feats).astype(np.float32)
+
+
+def rna2dna(sequence: str) -> str:
+    """
+    Convert an RNA sequence to a DNA sequence.
+
+    Nucleotides 'U' in the RNA sequence are replaced with 'T' in the DNA sequence.
+    Unknown nucleotides are replaced with 'N'. Other nucleotides ('A', 'C', 'G')
+    remain unchanged.
+
+    Parameters
+    ----------
+    sequence : str
+        The RNA sequence to be converted.
+
+    Returns
+    -------
+    str
+        The converted DNA sequence.
+    """
+    # Replace nucleotides 'U' with 'T'
+    result = sequence.translate(str.maketrans("U", "T"))
+
+    # Replace any unknown characters with 'N'
+    for char in result:
+        if char not in "ACGT":
+            result = result.replace(char, "N")
+
+    return result
