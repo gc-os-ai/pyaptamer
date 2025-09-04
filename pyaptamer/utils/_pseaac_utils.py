@@ -7,17 +7,16 @@ is used for efficient membership testing.
 
 Functions
 ---------
-is_valid_aa(seq)
-    Returns True if all characters in the input string are valid amino acid
-    codes, False otherwise.
+clean_protein_seq(seq)
+    Replaces invalid amino acids with "N" and warn the user.
 """
 
 AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 
-def is_valid_aa(seq):
+def clean_protein_seq(seq):
     """
-    Check if the sequence contains only valid amino acids.
+    Replace invalid amino acids with "N" and warn the user.
 
     Parameters
     ----------
@@ -26,7 +25,27 @@ def is_valid_aa(seq):
 
     Returns
     -------
-    bool
-        True if all characters are valid amino acids, False otherwise.
+    str
+        Cleaned protein sequence where all invalid characters have been replaced
+        with "N".
     """
-    return all(aa in AMINO_ACIDS for aa in seq)
+    import warnings
+
+    cleaned = []
+    invalid_found = False
+
+    for aa in seq:
+        if aa in AMINO_ACIDS:
+            cleaned.append(aa)
+        else:
+            cleaned.append("N")
+            invalid_found = True
+
+    if invalid_found:
+        warnings.warn(
+            "Invalid amino acid(s) found in sequence. Replaced with 'N'.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    return "".join(cleaned)

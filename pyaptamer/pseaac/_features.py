@@ -6,7 +6,7 @@ from collections import Counter
 import numpy as np
 
 from pyaptamer.pseaac._props import aa_props
-from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, is_valid_aa
+from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
 class PSeAAC:
@@ -225,11 +225,8 @@ class PSeAAC:
                 f"Protein sequence is too short, should be longer than `lambda_val`. "
                 f"Sequence length: {seq_len}, `lambda_val`: {self.lambda_val}."
             )
-        if not is_valid_aa(protein_sequence):
-            raise ValueError(
-                "Invalid amino acid found in protein_sequence. "
-                f"Only {''.join(AMINO_ACIDS)} are allowed."
-            )
+
+        protein_sequence = clean_protein_seq(protein_sequence)
 
         all_pseaac = []
         for prop_group in self.prop_groups:

@@ -1,5 +1,4 @@
 import pandas as pd
-from sklearn.base import clone
 from sklearn.model_selection import train_test_split
 
 from pyaptamer.utils.tag_checks import task_check
@@ -111,6 +110,8 @@ class Benchmarking:
             self._validate_xy(df, name=name)
 
     def _normalize_to_dict(self, data, prefix):
+        if data is None:
+            return None
         if isinstance(data, pd.DataFrame):
             return {f"{prefix}_0": data}
         if isinstance(data, list):
@@ -226,6 +227,8 @@ class Benchmarking:
             Mapping estimator_name -> DataFrame of metrics
             (rows = train_set, cols = test_sets).
         """
+        import copy
+
         task_check(self)
         results = {}
 
@@ -234,7 +237,7 @@ class Benchmarking:
             results[estimator_name] = {}
 
             for train_name, train_df in self.train_datasets.items():
-                model = clone(estimator)
+                model = copy.deepcopy(estimator)
                 model.fit(train_df["X"], train_df["y"])
                 results[estimator_name][train_name] = {}
 
