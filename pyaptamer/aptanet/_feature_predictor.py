@@ -18,7 +18,25 @@ from pyaptamer.utils.tag_checks import task_check
 
 
 class _BaseTabularSupervised(BaseEstimator):
-    """Common base for supervised tabular predictors (classification/regression)."""
+    """
+    Common base for AptaNet-style supervised tabular estimators supporting
+    both classification and regression.
+
+    This base class wires up a 2-stage pipeline: a tree-based
+    `SelectFromModel` feature selector and a skorch-wrapped multi-layer
+    perceptron (`AptaNetMLP`). Subclasses are responsible for constructing
+    the exact pipeline in `_build_pipeline` (e.g., choosing classifier vs
+    regressor variants and losses).
+
+    Parameters
+    ----------
+    task : {"classification", "regression"}, default="classification"
+        Whether the estimator behaves as a classifier or regressor.
+    random_state : int or None, default=None
+        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
+    verbose : int, default=0
+        Verbosity level propagated to the underlying skorch network.
+    """
 
     def __init__(self, task="classification", random_state=None, verbose=0):
         self.task = task
@@ -26,6 +44,26 @@ class _BaseTabularSupervised(BaseEstimator):
         self.verbose = verbose
 
     def fit(self, X, y):
+        """
+        Fit the AptaNet pipeline to data.
+
+        This method validates inputs, applies feature selection using
+        a tree-based estimator, and trains the underlying skorch-wrapped
+        neural network.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data.
+        y : array-like of shape (n_samples,)
+            Target values. Must be binary if task="classification",
+            continuous if task="regression".
+
+        Returns
+        -------
+        self : object
+            Fitted estimator.
+        """
         task_check(self)
         X, y = validate_data(self, X, y)
 
@@ -51,6 +89,22 @@ class _BaseTabularSupervised(BaseEstimator):
         return self
 
     def predict(self, X):
+        """
+        Predict using the fitted AptaNet pipeline.
+
+        For classification, this returns class labels. For regression,
+        this returns continuous values.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        y : ndarray of shape (n_samples,)
+            Predicted class labels or regression values.
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
@@ -76,6 +130,69 @@ class _BaseTabularSupervised(BaseEstimator):
 
 
 class AptaNetPredictor(_BaseTabularSupervised):
+    """
+    This estimator applies a tree-based `SelectFromModel` using a RandomForest
+    to filter input features, then trains a skorch-wrapped multi-layer perceptron
+    (`AptaNetMLP`). This mirrors the AptaNet-style deep model used for
+    aptamer–protein interaction prediction [1]_.
+
+    This estimator builds an internal sklearn `Pipeline` and delegates `fit`,
+    `predict`, and other methods to it, while exposing convenient knobs for both
+    the selector and the neural network. It supports both binary classification
+    (BCE-with-logits) and regression (MSE), controlled via the `task` parameter.
+
+    Parameters
+    ----------
+    task : {"classification", "regression"}, default="classification"
+        Whether the estimator is a classifier (binary) or regressor.
+    input_dim : int or None, default=None
+        Size of the input layer in the neural net. If `None`, it should be
+        inferred from the feature matrix shape by the underlying module.
+    hidden_dim : int, default=128
+        Number of units in each hidden layer of the neural net.
+    n_hidden : int, default=7
+        Number of hidden layers in the neural net.
+    dropout : float, default=0.3
+        Dropout probability used in the neural net.
+    max_epochs : int, default=200
+        Maximum number of training epochs for the neural net.
+    lr : float, default=0.00014
+        Learning rate for the optimizer (RMSprop).
+    alpha : float, default=0.9
+        Discounting factor (rho) for the squared-gradient moving average in RMSprop.
+    eps : float, default=1e-08
+        Epsilon value for numerical stability in RMSprop.
+    estimator : sklearn estimator or None, default=None
+        Estimator used for feature selection. If `None`, a `RandomForestClassifier`
+        is used when `task="classification"` and a `RandomForestRegressor` when
+        `task="regression"`.
+    random_state : int or None, default=None
+        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
+    threshold : str or float, default="mean"
+        Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
+    verbose : int, default=0
+        Verbosity level for the underlying skorch network.
+
+    References
+    ----------
+
+    .. [1] Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
+      aptamer–protein interaction prediction. Sci Rep 11, 6074 (2021).
+      https://doi.org/10.1038/s41598-021-85629-0
+    .. [2] https://github.com/nedaemami/AptaNet
+    .. [3] https://www.nature.com/articles/s41598-021-85629-0.pdf
+
+    Examples
+    --------
+    >>> from pyaptamer.aptanet import AptaNetPredictor
+    >>> import numpy as np
+    >>> X = np.random.rand(40, 128).astype(np.float32)
+    >>> y = np.random.randint(0, 2, size=40)
+    >>> clf = AptaNetPredictor(task="classification", input_dim=128, max_epochs=1)
+    >>> clf.fit(X, y)
+    >>> preds = clf.predict(X)
+    """
+
     _tags = {"tasks": ["classification", "regression"]}
 
     def __init__(
@@ -180,3 +297,31 @@ class AptaNetPredictor(_BaseTabularSupervised):
             )
 
         return Pipeline([("select", selector), ("net", net)])
+
+    def predict_proba(self, X):
+        """
+        Predict class probabilities for classification tasks.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        p : ndarray of shape (n_samples, n_classes)
+            Predicted class probabilities.
+
+        Raises
+        ------
+        AttributeError
+            If called when task="regression".
+        """
+        if self.task != "classification":
+            raise AttributeError(
+                "predict_proba is only available when task='classification'."
+            )
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = X.astype(np.float32, copy=False)
+        return self.pipeline_.predict_proba(X)
