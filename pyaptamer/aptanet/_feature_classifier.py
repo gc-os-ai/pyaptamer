@@ -153,7 +153,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         return self
 
     def predict_proba(self, X):
-        """Probability estimates for samples in `X`.
+        """Predict probability estimates for samples in `X`.
 
         Parameters
         ----------
@@ -172,6 +172,20 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
+        """Predict class labels for samples in `X`.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,) or (n_samples, n_classes)
+            A vector or matrix containing the predictions. For binary and multicass
+            classification, shape will be (n_samples,). For multi-label classification,
+            shape will be (n_samples, n_classes).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)

@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
-from pyaptamer.experiments._aptamer_eval import BaseAptamerEval
+from pyaptamer.experiments._aptamer import BaseAptamerEval
 
 
 class MockModel(nn.Module):

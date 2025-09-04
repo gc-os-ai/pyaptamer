@@ -113,7 +113,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         Device to run the model on.
     prot_words : dict[str, int]
         A dictionary mapping protein 3-mer protein subsequences to integer token IDs.
-        Useful to encode protein sequences into their numerical representions.
+        Used to encode protein sequences into their numerical representions.
 
     Attributes
     ----------

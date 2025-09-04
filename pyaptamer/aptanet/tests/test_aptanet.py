@@ -9,17 +9,18 @@ from sklearn.utils.estimator_checks import parametrize_with_checks
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline
 
 
+@pytest.fixture
+def aptamer_seq():
+    return "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+
+
+@pytest.fixture
+def protein_seq():
+    return "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+
+
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
-@pytest.mark.parametrize(
-    "aptamer_seq, protein_seq",
-    [
-        (
-            "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC",
-            "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
-        )
-    ],
 )
 def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
     """
@@ -39,15 +40,6 @@ def test_pipeline_fit_and_predict(aptamer_seq, protein_seq):
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
-@pytest.mark.parametrize(
-    "aptamer_seq, protein_seq",
-    [
-        (
-            "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC",
-            "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
-        )
-    ],
 )
 def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
@@ -72,7 +64,12 @@ def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
 )
 @parametrize_with_checks(
     estimators=[AptaNetClassifier()],
-    # TODO: for some reason this is not picking it up. The if block is a workaround.
+    # TODO: for some reason, despite including `check_pipeline_consistency` in the
+    # checks that are supposed to fail (via `expected_failed_checks` parameter), the
+    # check is still run and obviously fails. Currently, the if block is the only
+    # workaround that works, and skips the check completely. Note that,
+    # `check_pipeline_consistency` will never pass for non-deterministic estimators as
+    # in our case. If anyone has a better working solution, please suggest.
     # expected_failed_checks={
     #    "check_pipeline_consistency": "estimator is non-deterministic"
     # },

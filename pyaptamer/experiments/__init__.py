@@ -3,4 +3,4 @@
 __author__ = ["nennomp"]
 __all__ = ["AptamerEvalAptaNet", "AptamerEvalAptaTrans"]
 
-from pyaptamer.experiments._aptamer_eval import AptamerEvalAptaNet, AptamerEvalAptaTrans
+from pyaptamer.experiments._aptamer import AptamerEvalAptaNet, AptamerEvalAptaTrans
