@@ -198,30 +198,30 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
 
     Parameters
     ----------
-    input_dim : int or None, default=None
-        Input dimensionality of the neural net. If None, inferred from data.
+        Size of the input layer in the neural net. If `None`, it should be
+        inferred from the feature matrix shape by the underlying module.
     hidden_dim : int, default=128
-        Number of units in each hidden layer.
+        Number of units in each hidden layer of the neural net.
     n_hidden : int, default=7
-        Number of hidden layers.
+        Number of hidden layers in the neural net.
     dropout : float, default=0.3
-        Dropout probability.
+        Dropout probability used in the neural net.
     max_epochs : int, default=200
-        Max training epochs.
+        Maximum number of training epochs for the neural net.
     lr : float, default=0.00014
-        Learning rate for RMSprop.
+        Learning rate for the optimizer (RMSprop).
     alpha : float, default=0.9
-        RMSprop smoothing factor.
+        Discounting factor (rho) for the squared-gradient moving average in RMSprop.
     eps : float, default=1e-08
-        RMSprop epsilon.
+        Epsilon value for numerical stability in RMSprop.
     estimator : sklearn estimator or None, default=None
-        Base estimator for feature selection.
+        Estimator used for feature selection. If `None`, a `RandomForestClassifier`.
     random_state : int or None, default=None
-        Random seed for reproducibility.
+        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
     threshold : str or float, default="mean"
-        Feature selection threshold.
+        Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
     verbose : int, default=0
-        Verbosity for skorch `NeuralNetRegressor`.
+        Verbosity level for the underlying skorch `NeuralNetBinaryClassifier`.
     """
 
     def __init__(
