@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
-from pyaptamer.aptanet import AptaNetPredictor
+from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 
@@ -30,7 +30,7 @@ class AptaNetPipeline:
         The k-mer size used to generate aptamer k-mer vectors.
 
     classifier : sklearn-compatible estimator or None, default=None
-        Estimator applied after feature selection. If None, uses `AptaNetPredictor`.
+        Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
     Attributes
     ----------
@@ -63,7 +63,7 @@ class AptaNetPipeline:
 
     def __init__(self, k=None, classifier=None):
         self.k = k
-        self.classifier = classifier or AptaNetPredictor()
+        self.classifier = classifier or AptaNetClassifier()
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
