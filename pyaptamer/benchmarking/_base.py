@@ -79,11 +79,38 @@ class Benchmarking:
         self.results = None
 
         # prepare datasets immediately
-        self._prepare_datasets()
+        self._build_datasets()
+
+    def _build_datasets(self):
+        """
+        Build self.train_datasets and self.test_datasets from provided inputs.
+        """
+        # case A: user provided raw datasets to split
+        if self._raw_datasets is not None:
+            for name, df in self._raw_datasets.items():
+                train, test, train_name, test_name = self._split_dataset(name, df)
+                self.train_datasets[train_name] = train
+                self.test_datasets[test_name] = test
+
+        # case B: user provided train/test datasets (each may be raw or preprocessed)
+        if self._train_datasets_in is not None:
+            for name, df in self._train_datasets_in.items():
+                self.train_datasets[name] = self._ensure_preprocessed(df)
+
+        if self._test_datasets_in is not None:
+            for name, df in self._test_datasets_in.items():
+                self.test_datasets[name] = self._ensure_preprocessed(df)
+
+        if not self.train_datasets or not self.test_datasets:
+            raise ValueError(
+                "No datasets prepared. Provide either `datasets` to split or "
+                "`train_datasets` and `test_datasets` (raw or with ['X','y'])."
+            )
+
+        for name, df in {**self.train_datasets, **self.test_datasets}.items():
+            self._validate_xy(df, name=name)
 
     def _normalize_to_dict(self, data, prefix):
-        if data is None:
-            return None
         if isinstance(data, pd.DataFrame):
             return {f"{prefix}_0": data}
         if isinstance(data, list):
@@ -92,7 +119,7 @@ class Benchmarking:
             return data
         raise ValueError(f"Unsupported dataset type: {type(data)}")
 
-    def _maybe_preprocess(self, df):
+    def _ensure_preprocessed(self, df):
         """
         Ensure df has only ["X","y"].
         - If extra columns are present, warn and return only ["X","y"].
@@ -118,13 +145,13 @@ class Benchmarking:
         df_proc = self.preprocessor.transform(df)
         return df_proc[["X", "y"]]
 
-    def _split_one(self, name, df):
+    def _split_dataset(self, name, df):
         """
         Split a single dataset into train/test and return preprocessed splits.
         Works whether `df` is raw or already preprocessed.
         Returns (train_df, test_df, train_name, test_name).
         """
-        df_proc = self._maybe_preprocess(df)
+        df_proc = self._ensure_preprocessed(df)
         X, y = df_proc["X"], df_proc["y"]
 
         stratify_vec = (
@@ -146,31 +173,28 @@ class Benchmarking:
         test_name = f"{name}__test"
         return train_df, test_df, train_name, test_name
 
-    def _prepare_datasets(self):
-        """
-        Build self.train_datasets and self.test_datasets from provided inputs.
-        """
-        # case A: user provided raw datasets to split
-        if self._raw_datasets is not None:
-            for name, df in self._raw_datasets.items():
-                train, test, train_name, test_name = self._split_one(name, df)
-                self.train_datasets[train_name] = train
-                self.test_datasets[test_name] = test
+    def _validate_xy(self, df, name="dataset"):
+        if not {"X", "y"}.issubset(df.columns):
+            raise ValueError(f"{name} is missing required columns ['X','y'].")
 
-        # case B: user provided train/test datasets (each may be raw or preprocessed)
-        if self._train_datasets_in is not None:
-            for name, df in self._train_datasets_in.items():
-                self.train_datasets[name] = self._maybe_preprocess(df)
+        if len(df["X"]) != len(df["y"]):
+            raise ValueError(f"{name} has mismatched X/y lengths.")
 
-        if self._test_datasets_in is not None:
-            for name, df in self._test_datasets_in.items():
-                self.test_datasets[name] = self._maybe_preprocess(df)
+        if self.task == "classification":
+            # y should be discrete
+            if pd.api.types.is_numeric_dtype(
+                df["y"]
+            ) and not pd.api.types.is_integer_dtype(df["y"]):
+                raise ValueError(
+                    f"{name}: classification target y must be categorical/integer, not"
+                    "float."
+                )
+        elif self.task == "regression":
+            # y should be numeric
+            if not pd.api.types.is_numeric_dtype(df["y"]):
+                raise ValueError(f"{name}: regression target y must be numeric.")
 
-        if not self.train_datasets or not self.test_datasets:
-            raise ValueError(
-                "No datasets prepared. Provide either `datasets` to split or "
-                "`train_datasets` and `test_datasets` (raw or with ['X','y'])."
-            )
+        return df[["X", "y"]]
 
     def _to_df(self, results):
         """Convert nested dict results → dict of DataFrames and print neatly."""

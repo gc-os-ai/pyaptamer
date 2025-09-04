@@ -2,18 +2,23 @@ class NoNewPublicMethods(type):
     """A metaclass that prevents subclasses from:
     1. Adding new public methods.
     2. Overriding existing public methods.
-    Use using `metaclass=NoNewPublicMethods` in your class definition.
+    Use with `metaclass=NoNewPublicMethods`.
     """
 
     def __init__(cls, name, bases, namespace):
-        # Collect all public methods already defined in base classes
+        # if the only base is object, allow free definition (root class)
+        if all(base is object for base in bases):
+            super().__init__(name, bases, namespace)
+            return
+
+        # collect all allowed public methods from bases
         allowed = {}
         for base in bases:
             for attr_name, attr_val in base.__dict__.items():
                 if callable(attr_val) and not attr_name.startswith("_"):
                     allowed[attr_name] = attr_val
 
-        # Check new class namespace for public methods
+        # check the new class namespace
         for attr_name, attr_val in namespace.items():
             if callable(attr_val) and not attr_name.startswith("_"):
                 if attr_name not in allowed:
