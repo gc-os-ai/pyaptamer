@@ -29,7 +29,7 @@ class AptaNetPipeline:
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
 
-    classifier : Estimator or None, default=None
+    classifier : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
     Attributes
@@ -63,7 +63,7 @@ class AptaNetPipeline:
 
     def __init__(self, k=None, classifier=None):
         self.k = k
-        self.classifier = classifier or AptaNetClassifier()
+        self.classifier = classifier
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
@@ -71,7 +71,8 @@ class AptaNetPipeline:
             kw_args=self.k,
             validate=False,
         )
-        return Pipeline([("features", transformer), ("clf", clone(self.classifier))])
+        self._classifier = self.classifier or AptaNetClassifier()
+        return Pipeline([("features", transformer), ("clf", clone(self._classifier))])
 
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
