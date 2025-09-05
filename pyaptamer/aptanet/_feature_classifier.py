@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetClassifier"]
 
 import numpy as np
@@ -25,6 +25,8 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     This classifier builds an internal sklearn `Pipeline` and delegates `fit`,
     `predict`, and other methods to it, while exposing convenient knobs for both
     the selector and the neural network.
+
+    The estimator is non-deterministic and only supports binary classification.
 
     References
     ----------
@@ -127,6 +129,12 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     def fit(self, X, y):
         X, y = validate_data(self, X, y)
 
+        y_type = type_of_target(y, input_name="y", raise_unknown=True)
+        if y_type != "binary":
+            raise ValueError(
+                "Only binary classification is supported. The type of the target "
+                f"is {y_type}."
+            )
         if "continuous" in type_of_target(y):
             raise ValueError("continuous target is not supported for classification")
 
@@ -142,7 +150,40 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         self.pipeline_.fit(X, y)
         return self
 
+    def predict_proba(self, X):
+        """Predict probability estimates for samples in `X`.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, n_classes)
+            A vector or matrix containing the probability estimates for each sample and
+            for each class.
+        """
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = X.astype(np.float32, copy=False)
+        return self.pipeline_.predict_proba(X)
+
     def predict(self, X):
+        """Predict class labels for samples in `X`.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input samples.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,) or (n_samples, n_classes)
+            A vector or matrix containing the predictions. For binary and multicass
+            classification, shape will be (n_samples,). For multi-label classification,
+            shape will be (n_samples, n_classes).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = X.astype(np.float32, copy=False)
@@ -151,5 +192,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
+        tags.classifier_tags.multi_class = False
         tags.classifier_tags.poor_score = True
+        tags.non_deterministic = True
         return tags

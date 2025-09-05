@@ -1,13 +1,15 @@
-"""Test suite for the Aptamer experiment class."""
+"""Test suite for the AptamerEval experiment classes."""
 
 __author__ = ["nennomp"]
 
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
 from torch import Tensor
 
-from pyaptamer.experiments import Aptamer
+from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
+from pyaptamer.experiments._aptamer import BaseAptamerEval
 
 
 class MockModel(nn.Module):
@@ -30,27 +32,35 @@ class MockModel(nn.Module):
         pass
 
 
+class MockAptaNetPipeline:
+    """Mock AptaNetPipeline for testing."""
+
+    def __init__(self, fixed_score=0.7):
+        self.fixed_score = fixed_score
+        self.is_fitted = True
+
+    def predict_proba(self, X):
+        """
+        Mock predict method that returns fixed scores for binary classification (no
+        binding, binding).
+        """
+        # return probability scores as a list
+        return np.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
+
+    def fit(self, X, y):
+        """Mock fit method."""
+        self.is_fitted = True
+        return self
+
+
 @pytest.fixture
-def experiment():
-    target = "DHRNE"
-    model = MockModel()
-    device = torch.device("cpu")
-    return Aptamer(
-        target=target,
-        model=model,
-        device=device,
-        prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.2},
-    )
+def target():
+    return "ACDEFGHIKLMNPQRSTVWY"
 
 
 @pytest.fixture
 def target_encoded():
     return torch.tensor([[1, 2, 3]])
-
-
-@pytest.fixture
-def target():
-    return "ACGU"
 
 
 @pytest.fixture
@@ -68,8 +78,67 @@ def prot_words():
     return {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, "AUG": 0.1, "CGA": 0.4}
 
 
-class TestAptamer:
-    """Test suite for the Aptamer() class."""
+@pytest.fixture
+def pipeline():
+    """Create a mock pipeline for testing."""
+    return MockAptaNetPipeline()
+
+
+@pytest.fixture
+def aptatrans_experiment(target, model, default_device, prot_words):
+    return AptamerEvalAptaTrans(
+        target=target,
+        model=model,
+        device=default_device,
+        prot_words=prot_words,
+    )
+
+
+@pytest.fixture
+def aptanet_experiment(target, pipeline):
+    """Create an AptamerEvalAptaNet instance for testing."""
+    return AptamerEvalAptaNet(target=target, pipeline=pipeline)
+
+
+class TestBaseAptamerEval:
+    """Test suite for the BaseAptamerEval abstract base class."""
+
+    def test_cannot_instantiate_abstract_class(self):
+        """Check that the abstract base class cannot be instantiated directly."""
+        with pytest.raises(TypeError):
+            BaseAptamerEval("ACGT")
+
+    def test_inputnames(self, aptanet_experiment):
+        """Check that the inputs of the experiment are correctly returned."""
+        inputs = aptanet_experiment._inputnames()
+        assert inputs == ["aptamer_candidate"]
+
+    @pytest.mark.parametrize(
+        "sequence, expected",
+        [
+            ("", ""),  # empty sequence
+            ("ACGU", "ACGU"),  # already reconstructed
+            ("A_C_G_U_", "UGCA"),  # all prepended
+            ("_A_C_G_U", "ACGU"),  # all appended
+            ("A__C", "AC"),  # mixed prepend and append
+            ("A_U_G_G_C_", "CGGUA"),  # complex mixed sequence
+        ],
+    )
+    def test_base_reconstruct(self, aptanet_experiment, sequence, expected):
+        """Check sequence reconstruction with various inputs."""
+        result = aptanet_experiment.reconstruct(sequence)
+        assert result == expected
+
+    def test_base_reconstruct_odd_length_error(self, aptanet_experiment):
+        """Check that odd length encoded sequences raise an assertion error."""
+        with pytest.raises(
+            AssertionError, match="Encoded sequence must have even length"
+        ):
+            aptanet_experiment.reconstruct("A_C")  # length 3, should be even
+
+
+class TestAptamerEvalAptaTrans:
+    """Test suite for the AptamerEvalAptaTrans class."""
 
     @pytest.mark.parametrize(
         "device",
@@ -85,7 +154,7 @@ class TestAptamer:
     )
     def test_init(self, target, model, device, prot_words):
         """Check correct initialization."""
-        experiment = Aptamer(
+        experiment = AptamerEvalAptaTrans(
             target=target,
             model=model,
             device=device,
@@ -93,19 +162,19 @@ class TestAptamer:
         )
         assert experiment.target_encoded.device.type == device.type
 
-    def test_inputnames(self, experiment):
+    def test_inputnames(self, aptatrans_experiment):
         """Check that the inputs of the experiment are correctly returned."""
-        inputs = experiment._inputnames()
+        inputs = aptatrans_experiment._inputnames()
         assert inputs == ["aptamer_candidate"]
 
-    def test_reconstruct(self, experiment):
+    def test_reconstruct(self, aptatrans_experiment):
         """Check sequence reconstruction."""
         # empty sequence
-        result_str, result_vector = experiment.reconstruct("")
+        result_str, result_vector = aptatrans_experiment.reconstruct("")
         assert result_str == ""
         assert torch.equal(result_vector, torch.tensor([]))
         # prepend and append
-        result_str, result_vector = experiment.reconstruct("A_C__G_U")
+        result_str, result_vector = aptatrans_experiment.reconstruct("A_C__G_U")
         assert result_str == "CAGU"
         # 100 is the maximum length specified in our mock model
         assert result_vector.shape == (1, 100)
@@ -113,20 +182,139 @@ class TestAptamer:
         assert result_vector[0, 1] != 0  # second triplet should not be 0
         assert torch.all(result_vector[0, 2:] == 0)  # rest should be padding
 
-    def test_evaluate(self, experiment):
+    def test_evaluate(self, aptatrans_experiment):
         """Check that the experiment's evaluation method works correctly."""
         aptamer_candidate = "A_C_GU"
-        score = experiment.evaluate(aptamer_candidate)
+        score = aptatrans_experiment.evaluate(aptamer_candidate)
         assert isinstance(score, Tensor)
         assert score.shape == (1,)
 
-    def test_evaluate_imap(self, experiment):
+    def test_evaluate_imap(self, aptatrans_experiment):
         """
         Check that the experiment's evaluation method works correctly when returning
         interaction map.
         """
         aptamer_candidate = "ACGU"
-        score = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
+        score = aptatrans_experiment.evaluate(
+            aptamer_candidate, return_interaction_map=True
+        )
         assert isinstance(score, Tensor)
         # 100 is the maximum length specified in our mock model
-        assert score.shape == (1, 1, 100, experiment.target_encoded.shape[1])
+        assert score.shape == (1, 1, 100, aptatrans_experiment.target_encoded.shape[1])
+
+
+class TestAptamerEvalAptaNet:
+    """Test suite for the AptamerEvalAptaNet class."""
+
+    def test_init(self, target, pipeline):
+        """Check correct initialization."""
+        experiment = AptamerEvalAptaNet(target=target, pipeline=pipeline)
+        assert experiment.target == target
+        assert experiment.pipeline == pipeline
+
+    def test_inputnames(self, aptanet_experiment):
+        """Check that the inputs of the experiment are correctly returned."""
+        inputs = aptanet_experiment._inputnames()
+        assert inputs == ["aptamer_candidate"]
+
+    @pytest.mark.parametrize(
+        "sequence, expected",
+        [
+            ("", ""),  # empty sequence
+            ("ACGU", "ACGU"),  # already reconstructed
+            ("A_C_G_U_", "UGCA"),  # all prepended
+            ("_A_C_G_U", "ACGU"),  # all appended
+            ("A__C", "AC"),  # mixed prepend and append
+            ("A_U_G_G_C_", "CGGUA"),  # complex mixed sequence
+        ],
+    )
+    def test_reconstruct(self, aptanet_experiment, sequence, expected):
+        """Check sequence reconstruction with various inputs."""
+        result = aptanet_experiment.reconstruct(sequence)
+        assert result == expected
+
+    def test_reconstruct_odd_length_error(self, aptanet_experiment):
+        """Check that odd length encoded sequences raise an assertion error."""
+        with pytest.raises(
+            AssertionError, match="Encoded sequence must have even length"
+        ):
+            aptanet_experiment.reconstruct("A_C")  # length 3, should be even
+
+    def test_evaluate(self, aptanet_experiment):
+        """Check that the experiment's evaluation method works correctly."""
+        aptamer_candidate = "A_C_G_U_"
+        score = aptanet_experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, Tensor)
+        assert score.shape == (1,)
+        assert 0 <= score.item() <= 1  # probability should be between 0 and 1
+
+    def test_evaluate_empty_sequence(self, aptanet_experiment):
+        """Check evaluation with empty sequence."""
+        score = aptanet_experiment.evaluate("")
+        assert isinstance(score, Tensor)
+        assert score.shape == (1,)
+
+    def test_evaluate_already_reconstructed(self, aptanet_experiment):
+        """Check evaluation with already reconstructed sequence."""
+        aptamer_candidate = "ACGU"  # no underscores
+        score = aptanet_experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, Tensor)
+        assert score.shape == (1,)
+
+    def test_evaluate_different_scores(self, target):
+        """Check that different pipelines return different scores."""
+        pipeline1 = MockAptaNetPipeline(fixed_score=0.3)
+        pipeline2 = MockAptaNetPipeline(fixed_score=0.8)
+
+        experiment1 = AptamerEvalAptaNet(target=target, pipeline=pipeline1)
+        experiment2 = AptamerEvalAptaNet(target=target, pipeline=pipeline2)
+
+        aptamer_candidate = "A_C_G_U_"
+        score1 = experiment1.evaluate(aptamer_candidate)
+        score2 = experiment2.evaluate(aptamer_candidate)
+
+        assert score1.item() != score2.item()
+        assert round(score1.item(), 1) == 0.3
+        assert round(score2.item(), 1) == 0.8
+
+    def test_pipeline_called_correctly(self, target):
+        """Check that the pipeline is called with correct arguments."""
+
+        class SpyPipeline(MockAptaNetPipeline):
+            def __init__(self):
+                super().__init__()
+                self.last_call_args = None
+                self.last_call_kwargs = None
+
+            def predict_proba(self, X):
+                self.last_call_args = (X,)
+                return super().predict_proba(X)
+
+        spy_pipeline = SpyPipeline()
+        experiment = AptamerEvalAptaNet(target=target, pipeline=spy_pipeline)
+
+        aptamer_candidate = "A_U_G_C_"
+        experiment.evaluate(aptamer_candidate)
+
+        # check that predict was called with correct arguments
+        assert spy_pipeline.last_call_args is not None
+        assert len(spy_pipeline.last_call_args[0]) == 1  # one sequence pair
+        aptamer_seq, target_seq = spy_pipeline.last_call_args[0][0]
+        assert aptamer_seq == "CGUA"  # reconstructed sequence
+        assert target_seq == target
+
+    @pytest.mark.parametrize(
+        "aptamer_candidate",
+        [
+            "A_C_G_U_",
+            "_A_C_G_U",
+            "A__C_G_U",
+            "",
+            "ACGU",
+        ],
+    )
+    def test_evaluate_various_candidates(self, aptanet_experiment, aptamer_candidate):
+        """Test evaluation with various aptamer candidate formats."""
+        score = aptanet_experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, Tensor)
+        assert score.shape == (1,)
