@@ -13,7 +13,7 @@ from torch import Tensor
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
+from pyaptamer.utils._rna import (
     generate_all_aptamer_triplets,
 )
 

@@ -8,7 +8,12 @@ import numpy as np
 import pytest
 import torch
 
-from pyaptamer.utils import dna2rna, encode_rna, generate_all_aptamer_triplets, rna2vec
+from pyaptamer.utils._rna import (
+    dna2rna,
+    encode_rna,
+    generate_all_aptamer_triplets,
+    rna2vec,
+)
 
 
 @pytest.mark.parametrize(
