@@ -52,25 +52,19 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> import torch  # doctest: +SKIP
-    >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
-    >>> from pyaptamer.mcts import MCTS  # doctest: +SKIP
-    >>> device = torch.device(
-    ...     "cuda" if torch.cuda.is_available() else "cpu"
-    ... )  # doctest: +SKIP
-    >>> target = "MCKY"  # doctest: +SKIP
-    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
-    ...     device
-    ... )  # doctest: +SKIP
-    >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
-    >>> mcts = MCTS(depth=10, experiment=experiment)  # doctest: +SKIP
-    >>> candidate = mcts.run()  # doctest: +SKIP
-    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
-    ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
-    ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])  # doctest: +SKIP
-    tensor([0.5000])
+    >>> import torch
+    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
+    >>> from pyaptamer.experiments import Aptamer
+    >>> from pyaptamer.mcts import MCTS
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> target = "MCKY"
+    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
+    >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
+    >>> candidate = mcts.run(verbose=False)
     """
 
     def __init__(
@@ -387,8 +381,8 @@ class TreeNode:
     def uct_score(self) -> float:
         """Compute upper confidence bound applied to trees (UCT) score.
 
-        UCT balances the trade-off between exploration (visting new paths) and
-        exploitation (visting known paths).
+        UCT balances the trade-off between exploration (visiting new paths) and
+        exploitation (visiting known paths).
         See:
         - https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
 
