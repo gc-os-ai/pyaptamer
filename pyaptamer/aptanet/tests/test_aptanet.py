@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 import sys
 
 import numpy as np
