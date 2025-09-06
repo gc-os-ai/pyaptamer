@@ -5,7 +5,6 @@ import pytest
 
 from pyaptamer.pseaac import PSeAAC
 from pyaptamer.pseaac._props import aa_props
-from pyaptamer.pseaac.tests._props import solution
 
 
 def test_normalized_values():
@@ -53,29 +52,15 @@ def test_pseaac_transform_sequence_too_short(seq, lambda_val):
         p.transform(seq)
 
 
-@pytest.mark.skip(reason="Pending issue #34")
-@pytest.mark.parametrize(
-    "seq,expected_vector",
-    [
-        (
-            "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR",
-            solution,
-        )
-    ],
-)
-def test_pseaac_vectorization(seq):
+def test_pseaac_vectorization():
     """
     Test that the PSeAAC vectorization works without throwing an error.
-
-    Parameters
-    ----------
-    seq : str
-        Protein sequence to transform.
 
     Asserts
     ----------
     Output vector after PSeAAC is a numpy array.
     """
+    seq = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
     p = PSeAAC()
     pv = p.transform(seq)
 
