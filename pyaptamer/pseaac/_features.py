@@ -67,7 +67,7 @@ class PSeAAC:
         The lambda parameter defining the number of sequence-order correlation factors.
         This also determines the minimum length allowed for input protein sequences,
         which should be of length greater than `lambda_val`.
-    weight : float, optional, default=0.15
+    weight : float, optional, default=0.05
         The weight factor for the sequence-order correlation features.
 
     Attributes
@@ -99,7 +99,7 @@ class PSeAAC:
     [0.008 0.008 0.008 0.008 0.008 0.008 0.023 0.023 0.023 0.023]
     """
 
-    def __init__(self, lambda_val=30, weight=0.15):
+    def __init__(self, lambda_val=30, weight=0.05):
         self.lambda_val = lambda_val
         self.weight = weight
 
@@ -116,9 +116,9 @@ class PSeAAC:
             (18, 19, 20),
         ]
 
-    def _average_aa(self, seq):
+    def _normalized_aa(self, seq):
         """
-        Compute the average amino acid composition for a sequence.
+        Compute the normalized amino acid composition for a sequence.
 
         Parameters
         ----------
@@ -128,10 +128,10 @@ class PSeAAC:
         Returns
         -------
         dict
-            Dictionary mapping amino acid to its average frequency.
+            Dictionary mapping amino acid to its normalized frequency.
         """
         counts = Counter(seq)
-        total = len(AMINO_ACIDS)
+        total = len(seq)
         return {aa: counts.get(aa, 0) / total if total > 0 else 0 for aa in AMINO_ACIDS}
 
     def _theta_rirj(self, ri, rj, prop_group):
@@ -160,7 +160,7 @@ class PSeAAC:
         )
         return np.mean(diffs**2)
 
-    def _sum_theta_val(self, seq, seq_len, lambda_val, n, prop_group):
+    def _sum_theta_val(self, seq, seq_len, n, prop_group):
         """
         Compute the average theta value for a sequence and property group.
 
@@ -170,9 +170,6 @@ class PSeAAC:
             Protein sequence.
         seq_len : int
             Length of the sequence.
-        lambda_val : int
-            The lambda parameter defining the number of sequence-order correlation
-            factors.
         n : int
             Offset for theta calculation.
         prop_group : tuple of int
@@ -184,8 +181,7 @@ class PSeAAC:
             Average theta value.
         """
         return sum(
-            self._theta_rirj(seq[i], seq[i + n], prop_group)
-            for i in range(seq_len - lambda_val)
+            self._theta_rirj(seq[i], seq[i + n], prop_group) for i in range(seq_len - n)
         ) / (seq_len - n)
 
     def transform(self, protein_sequence):
@@ -233,14 +229,12 @@ class PSeAAC:
 
         all_pseaac = []
         for prop_group in self.prop_groups:
-            aa_freq = self._average_aa(protein_sequence)
+            aa_freq = self._normalized_aa(protein_sequence)
             sum_all_aa_freq = sum(aa_freq.values())
 
             all_theta_val = np.array(
                 [
-                    self._sum_theta_val(
-                        protein_sequence, seq_len, self.lambda_val, n, prop_group
-                    )
+                    self._sum_theta_val(protein_sequence, seq_len, n, prop_group)
                     for n in range(1, self.lambda_val + 1)
                 ]
             )
