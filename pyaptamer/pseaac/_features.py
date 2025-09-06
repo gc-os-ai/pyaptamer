@@ -222,7 +222,7 @@ class PSeAAC:
             # First 20 features: normalized amino acid composition
             all_pseaac.extend(np.round(aa_freq / denominator_val, 3))
 
-            # Next λ features: theta values
+            # Next `self.lambda_val` features: theta values
             all_pseaac.extend(
                 np.round((self.weight * all_theta_val) / denominator_val, 3)
             )
