@@ -96,7 +96,7 @@ class PSeAAC:
     >>> pseaac = PSeAAC()
     >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])
-    [0.008 0.008 0.008 0.008 0.008 0.008 0.023 0.023 0.023 0.023]
+    [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
     """
 
     def __init__(self, lambda_val=30, weight=0.05):
