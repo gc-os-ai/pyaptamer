@@ -93,7 +93,7 @@ def pairs_to_features(X, k=4):
     return np.vstack(feats).astype(np.float32)
 
 
-def rna2dna(sequence: str) -> str:
+def rna2dna(seq):
     """
     Convert an RNA sequence to a DNA sequence.
 
@@ -103,7 +103,7 @@ def rna2dna(sequence: str) -> str:
 
     Parameters
     ----------
-    sequence : str
+    seq : str
         The RNA sequence to be converted.
 
     Returns
@@ -112,7 +112,7 @@ def rna2dna(sequence: str) -> str:
         The converted DNA sequence.
     """
     # Replace nucleotides 'U' with 'T'
-    result = sequence.translate(str.maketrans("U", "T"))
+    result = seq.translate(str.maketrans("U", "T"))
 
     # Replace any unknown characters with 'N'
     for char in result:
