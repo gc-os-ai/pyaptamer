@@ -1,3 +1,5 @@
+__author__ = "satvshr"
+
 import numpy as np
 import pytest
 
@@ -31,6 +33,24 @@ def test_normalized_values():
                 f"Mismatch for {aa}, {prop}: "
                 f"{normalized_df.loc[aa, prop]} != {manual_norm.loc[aa, prop]}"
             )
+
+
+@pytest.mark.parametrize(
+    "seq,lambda_val",
+    [
+        ("ACDEFGHIK", 10),  # length 9, lambda_val 10
+        ("ACDAA", 5),  # length 5, lambda_val 5
+        ("A", 2),  # length 1, lambda_val 2
+    ],
+)
+def test_pseaac_transform_sequence_too_short(seq, lambda_val):
+    """
+    Test that the PSeAAC transform method raises an error for protein sequences of
+    length smaller or equal to lambda_val.
+    """
+    p = PSeAAC(lambda_val=lambda_val)
+    with pytest.raises(ValueError, match="Protein sequence is too short"):
+        p.transform(seq)
 
 
 @pytest.mark.skip(reason="Pending issue #34")

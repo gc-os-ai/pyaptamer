@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["is_valid_aa"]
+
 """
 Utility functions for amino acid sequence validation in PSeAAC.
 

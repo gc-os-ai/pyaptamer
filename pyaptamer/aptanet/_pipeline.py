@@ -13,7 +13,7 @@ from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 class AptaNetPipeline:
     """
-    AptaNet algorithm for aptamer–protein interaction prediction (Emami et al., 2021)
+    AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
     Implements the AptaNet algorithm, a deep learning method that combines
     sequence-derived features with RandomForest-based feature selection and a
@@ -29,8 +29,14 @@ class AptaNetPipeline:
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
 
-    classifier : sklearn-compatible estimator or None, default=None
+    classifier : Estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
+
+    Attributes
+    ----------
+    pipeline_ : sklearn.pipeline.Pipeline
+        The underlying sklearn Pipeline object that handles feature extraction,
+        feature selection, and classification.
 
     References
     ----------
@@ -40,7 +46,6 @@ class AptaNetPipeline:
         https://doi.org/10.1038/s41598-021-85629-0
     .. [2] GitHub repository: https://github.com/nedaemami/AptaNet
     .. [3] PDF version of the article: https://www.nature.com/articles/s41598-021-85629-0.pdf
-
 
     Examples
     --------

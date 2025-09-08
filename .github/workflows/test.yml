@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: python environment step
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -62,6 +62,69 @@ jobs:
       - name: check missing __init__ files
         run: bash build_tools/fail_on_missing_init_files.sh
 
+  detect-notebooks-change:
+    needs: code-quality
+    name: detect change affecting notebooks
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      notebooks: ${{ steps.check.outputs.notebooks }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Needed to access the full git history
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Check if examples, pyaptamer or pyproject.toml changed
+        id: check
+        run: |
+          if git diff --quiet origin/main -- examples/ pyaptamer/ pyproject.toml; then
+            echo "No notebook related changes"
+            echo "notebooks=false" >> $GITHUB_OUTPUT
+          else
+            echo "Detected changes in notebooks or pyaptamer"
+            echo "notebooks=true" >> $GITHUB_OUTPUT
+          fi
+
+  run-jupyter-notebooks:
+    needs: code-quality
+    if: ${{ needs.detect-notebooks-change.outputs.notebooks == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: git remote set-branches origin 'main'
+
+      - run: git fetch --depth 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install package and dependencies
+        run: |
+          python -m pip install .[dev] --no-cache-dir
+          python -m pip install jupyter nbconvert nbformat --no-cache-dir
+
+      - name: Show dependencies
+        run: python -m pip list
+
+      - name: Show available branches
+        run: git branch -a
+
+      - name: Run jupyter notebooks
+        run: |
+          python -m pip install jupyter nbconvert ipykernel
+          python -m ipykernel install --user --name=python3 --display-name "Python 3 (CI)"
+          bash build_tools/run_all_notebooks.sh
+
   run-tests-no-extras:
     needs: code-quality
     strategy:
@@ -78,7 +141,7 @@ jobs:
       - run: git fetch --depth 1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
