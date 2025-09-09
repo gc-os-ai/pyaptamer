@@ -128,7 +128,10 @@ class PSeAAC:
         Returns
         -------
         np.ndarray
-            A 1D array containing the frequencies of the amino acids.
+            A 1D NumPy array of length 20, where each entry corresponds to the frequency
+            of a standard amino acid in the input sequence. The order of amino acids is:
+            ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R',
+            'S', 'T', 'V', 'W', 'Y']
         """
         counts = Counter(seq)
         total = len(seq)
