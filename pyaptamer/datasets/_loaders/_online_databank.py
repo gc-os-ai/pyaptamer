@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["load_from_rcsb"]
+
 from Bio.PDB import PDBList
 
 from pyaptamer.utils.pdb_to_struct import pdb_to_struct
