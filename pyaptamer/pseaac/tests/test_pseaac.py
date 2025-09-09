@@ -53,7 +53,6 @@ def test_pseaac_transform_sequence_too_short(seq, lambda_val):
         p.transform(seq)
 
 
-@pytest.mark.skip(reason="Pending issue #34")
 @pytest.mark.parametrize(
     "seq,expected_vector",
     [
