@@ -2,7 +2,8 @@
 
 
 def task_check(estimator):
-    if estimator.task not in estimator._tags["tasks"]:
+    tags = estimator.get_tags()
+    if estimator.task not in tags["tasks"]:
         raise ValueError(
-            f"Invalid task '{estimator.task}'. Must be a {estimator._tags['tasks']}."
+            f"Invalid task '{estimator.task}'. Must be one of {tags['tasks']}."
         )

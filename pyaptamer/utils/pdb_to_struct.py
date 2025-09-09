@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["pdb_to_struct"]
+
 from Bio.PDB import PDBParser
 
 

@@ -1,10 +1,11 @@
 import pandas as pd
+from skbase.base import BaseObject
 from sklearn.model_selection import train_test_split
 
 from pyaptamer.utils.tag_checks import task_check
 
 
-class Benchmarking:
+class Benchmarking(BaseObject):
     """
     Train on each train dataset and evaluate on every test dataset
     with each estimator & evaluator.
@@ -59,8 +60,8 @@ class Benchmarking:
         self.evaluators = evaluators if isinstance(evaluators, list) else [evaluators]
         self.task = task
         self.preprocessor = preprocessor
-        self.test_size = float(test_size)
-        self.stratify_flag = bool(stratify)
+        self.test_size = test_size
+        self.stratify_flag = stratify
         self.random_state = random_state
 
         # accept either (datasets) or (train/test)
@@ -165,6 +166,7 @@ class Benchmarking:
             test_size=self.test_size,
             random_state=self.random_state,
             stratify=stratify_vec,
+            shuffle=True,
         )
 
         train_df = pd.DataFrame({"X": X_train, "y": y_train}).reset_index()

@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["generate_kmer_vecs", "pairs_to_features"]
+
 from itertools import product
 
 import numpy as np
