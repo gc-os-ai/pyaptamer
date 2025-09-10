@@ -1,0 +1,132 @@
+"""Test suite for the Aptamer experiment class."""
+
+__author__ = ["nennomp"]
+
+import pytest
+import torch
+import torch.nn as nn
+from torch import Tensor
+
+from pyaptamer.experiments import Aptamer
+
+
+class MockModel(nn.Module):
+    def __init__(self, fixed_score=0.5):
+        super().__init__()
+        self.fixed_score = fixed_score
+        # mock embeddings with required attributes
+        self.apta_embedding = type("MockEmbedding", (), {"max_len": 100})()
+        self.prot_embedding = type("MockEmbedding", (), {"max_len": 150})()
+
+    def forward_imap(self, x_apta, x_prot):
+        # return a randomly generated interaction map for testing
+        return torch.randn(1, 1, x_apta.size(1), x_prot.size(1))
+
+    def forward(self, x_apta, x_prot):
+        # return a fixed score for deterministic testing
+        return torch.tensor([self.fixed_score])
+
+    def eval(self):
+        pass
+
+
+@pytest.fixture
+def experiment():
+    target = "DHRNE"
+    model = MockModel()
+    device = torch.device("cpu")
+    return Aptamer(
+        target=target,
+        model=model,
+        device=device,
+        prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.2},
+    )
+
+
+@pytest.fixture
+def target_encoded():
+    return torch.tensor([[1, 2, 3]])
+
+
+@pytest.fixture
+def target():
+    return "ACGU"
+
+
+@pytest.fixture
+def model():
+    return MockModel()
+
+
+@pytest.fixture
+def default_device():
+    return torch.device("cpu")
+
+
+@pytest.fixture
+def prot_words():
+    return {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, "AUG": 0.1, "CGA": 0.4}
+
+
+class TestAptamer:
+    """Test suite for the Aptamer() class."""
+
+    @pytest.mark.parametrize(
+        "device",
+        [
+            (torch.device("cpu")),
+            pytest.param(
+                torch.device("cuda"),
+                marks=pytest.mark.skipif(
+                    not torch.cuda.is_available(), reason="CUDA not available"
+                ),
+            ),
+        ],
+    )
+    def test_init(self, target, model, device, prot_words):
+        """Check correct initialization."""
+        experiment = Aptamer(
+            target=target,
+            model=model,
+            device=device,
+            prot_words=prot_words,
+        )
+        assert experiment.target_encoded.device.type == device.type
+
+    def test_inputnames(self, experiment):
+        """Check that the inputs of the experiment are correctly returned."""
+        inputs = experiment._inputnames()
+        assert inputs == ["aptamer_candidate"]
+
+    def test_reconstruct(self, experiment):
+        """Check sequence reconstruction."""
+        # empty sequence
+        result_str, result_vector = experiment.reconstruct("")
+        assert result_str == ""
+        assert torch.equal(result_vector, torch.tensor([]))
+        # prepend and append
+        result_str, result_vector = experiment.reconstruct("A_C__G_U")
+        assert result_str == "CAGU"
+        # 100 is the maximum length specified in our mock model
+        assert result_vector.shape == (1, 100)
+        assert result_vector[0, 0] != 0  # first triplet should not be 0
+        assert result_vector[0, 1] != 0  # second triplet should not be 0
+        assert torch.all(result_vector[0, 2:] == 0)  # rest should be padding
+
+    def test_evaluate(self, experiment):
+        """Check that the experiment's evaluation method works correctly."""
+        aptamer_candidate = "A_C_GU"
+        score = experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, Tensor)
+        assert score.shape == (1,)
+
+    def test_evaluate_imap(self, experiment):
+        """
+        Check that the experiment's evaluation method works correctly when returning
+        interaction map.
+        """
+        aptamer_candidate = "ACGU"
+        score = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
+        assert isinstance(score, Tensor)
+        # 100 is the maximum length specified in our mock model
+        assert score.shape == (1, 1, 100, experiment.target_encoded.shape[1])

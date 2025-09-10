@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["aa_props"]
+
 import numpy as np
 import pandas as pd
 
@@ -85,6 +88,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
 
     Examples
     --------
+    >>> from pyaptamer.pseaac._props import aa_props
     >>> df = aa_props()
     >>> arr = aa_props(type="numpy", normalize=True)
     """

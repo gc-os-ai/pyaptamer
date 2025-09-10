@@ -5,3 +5,9 @@ repos:
       - id: ruff-format
       - id: ruff
         args: [--fix]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: mixed-line-ending
+        args: ['--fix=lf']
