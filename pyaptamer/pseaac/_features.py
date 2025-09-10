@@ -69,10 +69,11 @@ class PSeAAC:
     Parameters
     ----------
     lambda_val : int, optional, default=30
-        Number of sequence-order correlation factors. Input protein sequences must be
-        longer than this value.
+        The lambda parameter defining the number of sequence-order correlation factors.
+        This also determines the minimum length allowed for input protein sequences,
+        which should be of length greater than `lambda_val`.
     weight : float, optional, default=0.05
-        Weight factor for the sequence-order correlation features.
+        The weight factor for the sequence-order correlation features.
     prop_indices : list[int] or None, optional
         Indices of properties to use (0-based). If None, all 21 properties are used.
     group_props : int or None, optional
@@ -96,7 +97,7 @@ class PSeAAC:
     ----------
     Shen HB, Chou KC. PseAAC: a flexible web server for generating various kinds of
     protein pseudo amino acid composition. Anal Biochem. 2008 Feb 15;373(2):386-8.
-    doi: 10.1016/j.ab.2007.10.012. PMID: 17976365.
+    doi: 10.1016/j.ab.2007.10.012. Epub 2007 Oct 13. PMID: 17976365.
 
     Example
     -------
