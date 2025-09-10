@@ -129,36 +129,26 @@ class PSeAAC:
         self.lambda_val = lambda_val
         self.weight = weight
 
-        self._n_props = aa_props(type="numpy", normalize=True).shape[1]
-        self._indices = (
-            list(range(self._n_props)) if prop_indices is None else prop_indices
-        )
+        self.np_matrix = aa_props(list_props=prop_indices, type="numpy", normalize=True)
+        n_cols = self.np_matrix.shape[1]
 
         if custom_groups:
             self.prop_groups = custom_groups
         elif group_props is None:
-            # No grouping; each property becomes its own group
-            self.prop_groups = [[i] for i in self._indices]
-        else:
-            if len(self._indices) % group_props != 0:
+            if n_cols % 3 != 0:
                 raise ValueError(
-                    f"Number of properties ({len(self._indices)}) must be divisible by "
+                    "Default grouping expects number of properties divisible by 3."
+                )
+            self.prop_groups = [list(range(i, i + 3)) for i in range(0, n_cols, 3)]
+        else:
+            if n_cols % group_props != 0:
+                raise ValueError(
+                    f"Number of properties ({n_cols}) must be divisible by"
                     f"group_props ({group_props})."
                 )
             self.prop_groups = [
-                self._indices[i : i + group_props]
-                for i in range(0, len(self._indices), group_props)
+                list(range(i, i + group_props)) for i in range(0, n_cols, group_props)
             ]
-
-        # Load only needed properties from aa_props
-        self.np_matrix = aa_props(
-            list_props=self._indices, type="numpy", normalize=True
-        )
-        self.index_map = {idx: i for i, idx in enumerate(self._indices)}
-        # Remap property groups to local indices
-        self.prop_groups = [
-            [self.index_map[i] for i in group] for group in self.prop_groups
-        ]
 
     def _normalized_aa(self, seq):
         """

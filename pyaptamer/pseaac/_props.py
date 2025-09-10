@@ -66,7 +66,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
 
     Parameters
     ----------
-    n_props : list of int, optional
+    list_props : list of int, optional
         List of indices (0-based) of properties to include (e.g., [0, 4, 7]).
         If None, returns all 21 properties.
     type : {'numpy', 'pandas'}, default='numpy'
