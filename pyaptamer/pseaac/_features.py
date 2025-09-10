@@ -123,8 +123,7 @@ class PSeAAC:
             raise ValueError(
                 "Specify only one of `group_props` or `custom_groups`,not both."
             )
-        if custom_groups:
-            prop_indices = [x for group in custom_groups for x in group]
+
         self.np_matrix = aa_props(
             prop_indices=prop_indices, type="numpy", normalize=True
         )
