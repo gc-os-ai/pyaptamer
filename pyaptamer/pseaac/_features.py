@@ -119,27 +119,36 @@ class PSeAAC:
         self.lambda_val = lambda_val
         self.weight = weight
 
+        if group_props is not None and custom_groups is not None:
+            raise ValueError(
+                "Specify only one of `group_props` or `custom_groups`,not both."
+            )
+        if custom_groups:
+            prop_indices = [x for group in custom_groups for x in group]
         self.np_matrix = aa_props(
             prop_indices=prop_indices, type="numpy", normalize=True
         )
-        n_cols = self.np_matrix.shape[1]  # The number of properties selected
+        self._n_cols = self.np_matrix.shape[1]  # The number of properties selected
 
         if custom_groups:
             self.prop_groups = custom_groups
         elif group_props is None:
-            if n_cols % 3 != 0:
+            if self._n_cols % 3 != 0:
                 raise ValueError(
                     "Default grouping expects number of properties divisible by 3."
                 )
-            self.prop_groups = [list(range(i, i + 3)) for i in range(0, n_cols, 3)]
+            self.prop_groups = [
+                list(range(i, i + 3)) for i in range(0, self._n_cols, 3)
+            ]
         else:
-            if n_cols % group_props != 0:
+            if self._n_cols % group_props != 0:
                 raise ValueError(
-                    f"Number of properties ({n_cols}) must be divisible by"
+                    f"Number of properties ({self._n_cols}) must be divisible by"
                     f"group_props ({group_props})."
                 )
             self.prop_groups = [
-                list(range(i, i + group_props)) for i in range(0, n_cols, group_props)
+                list(range(i, i + group_props))
+                for i in range(0, self._n_cols, group_props)
             ]
 
     def _normalized_aa(self, seq):

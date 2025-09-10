@@ -97,12 +97,12 @@ def test_pseaac_vectorization(seq, expected_vector):
 @pytest.mark.parametrize(
     "seq,prop_indices,group_props,custom_groups,expected_len",
     [
-        # Test case 1: default props, group of 3 (should result in 7 groups × 50 = 350)
+        # Test case 1: default props, group of 3 (should result in 7 groups * 50 = 350)
         (vector, None, None, None, 350),
-        # Test case 2: select only 6 props, group into 2 (3 groups × 50 = 150)
+        # Test case 2: select only 6 props, group into 2 (3 groups * 50 = 150)
         (vector, [0, 1, 2, 3, 4, 5], 2, None, 150),
-        # Test case 3: custom grouping of 4 groups → 4 × 50 = 200
-        (vector, [0, 1, 2, 3, 4, 5, 6, 7], None, [[0, 1], [2, 3], [4, 5], [6, 7]], 200),
+        # Test case 3: custom grouping of 4 groups(4 groups * 50 = 200)
+        (vector, None, None, [[0, 1], [2, 3], [4, 5], [6, 7]], 200),
     ],
 )
 def test_pseaac_configurations(
