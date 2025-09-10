@@ -19,74 +19,73 @@ class PSeAAC:
     the PseAAC model by Chou.
 
     The PSeAAC algorithm uses normalized physicochemical (NP) properties of amino
-    acids, which we load from a predefined matrix using `aa_props`. These properties
-    can be grouped using one of the following options:
+    acids, loaded from a predefined matrix using `aa_props`. Properties can be grouped
+    in one of three ways:
 
+    - `prop_indices`: A list of property indices (0-based) to select from the 21
+      available properties. If None, all 21 properties are used.
+    - `group_props`: If provided as an integer, the selected properties are grouped
+      into chunks of this size (e.g., `group_props=3` groups into sets of 3).
+      If None, the default is groups of size 3 (7 groups for 21 properties).
+    - `custom_groups`: A list of lists, where each sublist contains local column
+      indices into the selected property matrix. This overrides all other grouping
+      logic.
 
-    - `prop_indices`: A list of property indices (0-based) to use (e.g.,
-    `prop_indices=[3, 4, 8]` uses property groups [Polarity, Molecular Weight,
-    Bulkiness] (refer table below)).
-    - If `group_props` is an integer, the selected properties are grouped into chunks of
-    that size (e.g., `group_props=3` groups into sets of 3). If `group_props` is None,
-    then each property is treated as its own group.
-    - If `custom_groups` is provided, it overrides all other logic. It must be a list of
-    lists, where each sublist contains indices (0-based) of properties to group
-    together. (e.g., `prop_indices=[[3, 4], [8]]` groups Polarity and Molecular Weight
-    together, and Bulkiness is its own group).
+    The 21 physicochemical properties (columns) are:
 
-
-    The properties in order are:
-
-    0. Hydrophobicity
-    1. Hydrophilicity
-    2. Side-chain Mass
-    3. Polarity
-    4. Molecular Weight
-    5. Melting Point
-    6. Transfer Free Energy
-    7. Buriability
-    8. Bulkiness
-    9. Solvation Free Energy
-    10. Relative Mutability
-    11. Residue Volume
-    12. Volume
-    13. Amino Acid Distribution
-    14. Hydration Number
-    15. Isoelectric Point
-    16. Compressibility
-    17. Chromatographic Index
-    18. Unfolding Entropy Change
-    19. Unfolding Enthalpy Change
-    20. Unfolding Gibbs Free Energy Change
+        0. Hydrophobicity
+        1. Hydrophilicity
+        2. Side-chain Mass
+        3. Polarity
+        4. Molecular Weight
+        5. Melting Point
+        6. Transfer Free Energy
+        7. Buriability
+        8. Bulkiness
+        9. Solvation Free Energy
+        10. Relative Mutability
+        11. Residue Volume
+        12. Volume
+        13. Amino Acid Distribution
+        14. Hydration Number
+        15. Isoelectric Point
+        16. Compressibility
+        17. Chromatographic Index
+        18. Unfolding Entropy Change
+        19. Unfolding Enthalpy Change
+        20. Unfolding Gibbs Free Energy Change
 
     Each feature vector consists of:
 
     - 20 normalized amino acid composition features (frequency of each standard
-    amino acid)
-    - `self.lambda_val` sequence-order correlation features based on physicochemical
-    similarity between residues.
-    These (20 + `self.lambda_val`) features are computed for each of 7 predefined
-    property groups, resulting in a final vector of length (20 + `self.lambda_val`) * 7.
+      amino acid)
+    - `lambda_val` sequence-order correlation features (theta values) computed
+      from the selected physicochemical property groups.
 
-    See `transform` method for usage.
+    For each property group, the above (20 + `lambda_val`) features are computed,
+    resulting in a final vector of length (20 + lambda_val) * number of normalized
+            physiochemical (NP) property groups of amino acids (default 7).
 
     Parameters
     ----------
     lambda_val : int, optional, default=30
-        The lambda parameter defining the number of sequence-order correlation factors.
-        This also determines the minimum length allowed for input protein sequences,
-        which should be of length greater than `lambda_val`.
+        Number of sequence-order correlation factors. Input protein sequences must be
+        longer than this value.
     weight : float, optional, default=0.05
-        The weight factor for the sequence-order correlation features.
+        Weight factor for the sequence-order correlation features.
+    prop_indices : list[int] or None, optional
+        Indices of properties to use (0-based). If None, all 21 properties are used.
+    group_props : int or None, optional
+        Group size for selected properties. If None, defaults to groups of 3.
+    custom_groups : list[list[int]] or None, optional
+        Explicit groupings of local property indices. Overrides `group_props`.
 
     Attributes
     ----------
-    np_matrix : np.ndarray
-        A 20x21 matrix of normalized physicochemical properties for the 20 standard
-        amino acids.
-    prop_groups : list of tuple
-        List of 7 tuples, each containing indices of 3 properties that form a property
-        group.
+    np_matrix : np.ndarray of shape (20, n_props)
+        Normalized property values for the selected amino acids and properties.
+    prop_groups : list[list[int]]
+        Groupings of local property indices into `np_matrix`.
 
     Methods
     -------
@@ -97,17 +96,7 @@ class PSeAAC:
     ----------
     Shen HB, Chou KC. PseAAC: a flexible web server for generating various kinds of
     protein pseudo amino acid composition. Anal Biochem. 2008 Feb 15;373(2):386-8.
-    doi: 10.1016/j.ab.2007.10.012. Epub 2007 Oct 13. PMID: 17976365.
-
-    Parameters
-    ----------
-    prop_indices : list of int, optional
-        List of property indices to use (0-based). If None, all properties are used.
-    group_props : int or None, optional
-        Group properties into chunks of this size. If None, no grouping
-        (each property is its own group).
-    custom_groups : list of list of int, optional
-        Explicit custom groupings of property indices. Overrides group_props logic.
+    doi: 10.1016/j.ab.2007.10.012. PMID: 17976365.
 
     Example
     -------
@@ -129,8 +118,10 @@ class PSeAAC:
         self.lambda_val = lambda_val
         self.weight = weight
 
-        self.np_matrix = aa_props(list_props=prop_indices, type="numpy", normalize=True)
-        n_cols = self.np_matrix.shape[1]
+        self.np_matrix = aa_props(
+            prop_indices=prop_indices, type="numpy", normalize=True
+        )
+        n_cols = self.np_matrix.shape[1]  # The number of properties selected
 
         if custom_groups:
             self.prop_groups = custom_groups
@@ -224,7 +215,7 @@ class PSeAAC:
         -------
         np.ndarray
             A 1D NumPy array of length (20 + `self.lambda_val) * number of normalized
-            physiochemical (NP) property groups of amino acids (7).
+            physiochemical (NP) property groups of amino acids (default 7).
             Each element consists of:
             - 20 normalized amino acid composition features
             - `self.lambda_val` normalized sequence-order correlation factors (theta

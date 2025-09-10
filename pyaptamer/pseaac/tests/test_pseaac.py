@@ -98,7 +98,7 @@ def test_pseaac_vectorization(seq, expected_vector):
     "seq,prop_indices,group_props,custom_groups,expected_len",
     [
         # Test case 1: default props, group of 3 (should result in 7 groups × 50 = 350)
-        (vector, None, 3, None, 350),
+        (vector, None, None, None, 350),
         # Test case 2: select only 6 props, group into 2 (3 groups × 50 = 150)
         (vector, [0, 1, 2, 3, 4, 5], 2, None, 150),
         # Test case 3: custom grouping of 4 groups → 4 × 50 = 200

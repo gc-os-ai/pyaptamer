@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def aa_props(list_props=None, type="numpy", normalize=True):
+def aa_props(prop_indices=None, type="numpy", normalize=True):
     """
     Amino acid physicochemical property matrix for PSeAAC.
 
@@ -13,6 +13,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
     20 standard amino acids. Each row corresponds to an amino acid (in the order:
     A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y), and each column
     corresponds to a property (P1–P21). The properties are in the order:
+
     - Hydrophobicity
     - Hydrophilicity
     - Side-chain Mass
@@ -37,6 +38,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
 
     References
     ----------
+
     - https://github.com/nedaemami/AptaNet/blob/main/feature_extraction.py
     - Hydrophobicity values are from JACS, 1962, 84: 4240-4246. (C. Tanford)
     - Hydrophilicity values are from PNAS, 1981, 78:3824-3828 (T.P.Hopp & K.R.Woods)
@@ -66,7 +68,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
 
     Parameters
     ----------
-    list_props : list of int, optional
+    prop_indices : list of int, optional
         List of indices (0-based) of properties to include (e.g., [0, 4, 7]).
         If None, returns all 21 properties.
     type : {'numpy', 'pandas'}, default='numpy'
@@ -82,6 +84,7 @@ def aa_props(list_props=None, type="numpy", normalize=True):
     Returns
     -------
     props : numpy.ndarray or pandas.DataFrame (depending on `type`)
+
         - Rows: standard amino acids (A, C, D, ..., Y)
         - Columns: physicochemical properties of the standard amino acids.
         - Entries: raw or normalized property values depending on `normalize`.
@@ -1073,9 +1076,9 @@ def aa_props(list_props=None, type="numpy", normalize=True):
             ]
         ).T  # shape (20, 21)
 
-    if list_props is not None:
-        props = props[:, list_props]
-        selected_names = [prop_names[i] for i in list_props]
+    if prop_indices is not None:
+        props = props[:, prop_indices]
+        selected_names = [prop_names[i] for i in prop_indices]
     else:
         selected_names = prop_names
 
