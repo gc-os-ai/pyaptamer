@@ -37,7 +37,6 @@ class PSeAAC:
 
     The properties in order are:
 
-
     0. Hydrophobicity
     1. Hydrophilicity
     2. Side-chain Mass
@@ -60,9 +59,7 @@ class PSeAAC:
     19. Unfolding Enthalpy Change
     20. Unfolding Gibbs Free Energy Change
 
-
     Each feature vector consists of:
-
 
     - 20 normalized amino acid composition features (frequency of each standard
     amino acid)
@@ -121,29 +118,43 @@ class PSeAAC:
     [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
     """
 
-    def __init__(self, prop_indices=None, group_props=None, custom_groups=None):
-        n_props = aa_props(type="numpy", normalize=True).shape[1]
-        indices = list(range(n_props)) if prop_indices is None else prop_indices
+    def __init__(
+        self,
+        lambda_val=30,
+        weight=0.05,
+        prop_indices=None,
+        group_props=None,
+        custom_groups=None,
+    ):
+        self.lambda_val = lambda_val
+        self.weight = weight
+
+        self._n_props = aa_props(type="numpy", normalize=True).shape[1]
+        self._indices = (
+            list(range(self._n_props)) if prop_indices is None else prop_indices
+        )
 
         if custom_groups:
             self.prop_groups = custom_groups
         elif group_props is None:
             # No grouping; each property becomes its own group
-            self.prop_groups = [[i] for i in indices]
+            self.prop_groups = [[i] for i in self._indices]
         else:
-            if len(indices) % group_props != 0:
+            if len(self._indices) % group_props != 0:
                 raise ValueError(
-                    f"Number of properties ({len(indices)}) must be divisible by "
+                    f"Number of properties ({len(self._indices)}) must be divisible by "
                     f"group_props ({group_props})."
                 )
             self.prop_groups = [
-                indices[i : i + group_props]
-                for i in range(0, len(indices), group_props)
+                self._indices[i : i + group_props]
+                for i in range(0, len(self._indices), group_props)
             ]
 
         # Load only needed properties from aa_props
-        self.np_matrix = aa_props(list_props=indices, type="numpy", normalize=True)
-        self.index_map = {idx: i for i, idx in enumerate(indices)}
+        self.np_matrix = aa_props(
+            list_props=self._indices, type="numpy", normalize=True
+        )
+        self.index_map = {idx: i for i, idx in enumerate(self._indices)}
         # Remap property groups to local indices
         self.prop_groups = [
             [self.index_map[i] for i in group] for group in self.prop_groups
@@ -198,7 +209,7 @@ class PSeAAC:
         diffs = rj - ri
         return np.mean(diffs**2)
 
-    def transform(self, protein_sequence, lambda_val=30, weight=0.15):
+    def transform(self, protein_sequence):
         """
         Generate the PseAAC feature vector for the given protein sequence.
 
