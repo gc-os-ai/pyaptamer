@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from skbase.base import BaseObject
 from sklearn.model_selection import train_test_split
@@ -11,16 +12,21 @@ class Benchmarking(BaseObject):
     with each estimator & evaluator.
 
     You can either:
-      (A) pass `datasets` (raw frames with columns ["aptamer","protein","y"])
-          and let this class preprocess + split for you; or
-      (B) pass `train_datasets` and `test_datasets`
+
+      - pass `datasets` (raw frames with columns ["aptamer","protein","y"] OR
+          preprocessed ["X","y"]) and let this class preprocess + split for you; or
+      - pass `train_datasets` and `test_datasets`
           which may be EITHER raw (["aptamer","protein","y"]) OR preprocessed
           (["X","y"]).
 
+    To input datasets, you should input a dictionary of DataFrames, with the format
+    being { "dataset_name": pd.DataFrame(...) }.
     Parameters
     ----------
     estimators : list[estimator] | estimator
+        List of sklearn-like estimators with fit/predict.
     evaluators : list[callable] | callable
+        List of callables with signature (y_true, y_pred) -> float.
     task : str
         "classification" or "regression".
     preprocessor : BasePreprocessor | None
@@ -47,7 +53,6 @@ class Benchmarking(BaseObject):
         estimators,
         evaluators,
         task,
-        *,
         preprocessor=None,
         datasets=None,
         train_datasets=None,
@@ -111,15 +116,14 @@ class Benchmarking(BaseObject):
             self._validate_xy(df, name=name)
 
     def _normalize_to_dict(self, data, prefix):
+        """Convert single DataFrame to dict or return existing dict."""
         if data is None:
             return None
         if isinstance(data, pd.DataFrame):
             return {f"{prefix}_0": data}
-        if isinstance(data, list):
-            return {f"{prefix}_{i}": df for i, df in enumerate(data)}
         if isinstance(data, dict):
             return data
-        raise ValueError(f"Unsupported dataset type: {type(data)}")
+        raise ValueError(f"Data must be DataFrame or dict, {type(data)} given.")
 
     def _ensure_preprocessed(self, df):
         """
@@ -169,8 +173,8 @@ class Benchmarking(BaseObject):
             shuffle=True,
         )
 
-        train_df = pd.DataFrame({"X": X_train, "y": y_train}).reset_index()
-        test_df = pd.DataFrame({"X": X_test, "y": y_test}).reset_index()
+        train_df = pd.DataFrame({"X": X_train, "y": y_train}).reset_index(drop=True)
+        test_df = pd.DataFrame({"X": X_test, "y": y_test}).reset_index(drop=True)
 
         train_name = f"{name}__train"
         test_name = f"{name}__test"
@@ -184,7 +188,7 @@ class Benchmarking(BaseObject):
             raise ValueError(f"{name} has mismatched X/y lengths.")
 
         if self.task == "classification":
-            # y should be discrete
+            df["y"] = df["y"].astype(int)
             if pd.api.types.is_numeric_dtype(
                 df["y"]
             ) and not pd.api.types.is_integer_dtype(df["y"]):
@@ -193,17 +197,36 @@ class Benchmarking(BaseObject):
                     "float."
                 )
         elif self.task == "regression":
-            # y should be numeric
             if not pd.api.types.is_numeric_dtype(df["y"]):
                 raise ValueError(f"{name}: regression target y must be numeric.")
 
         return df[["X", "y"]]
 
     def _to_df(self, results):
-        """Convert nested dict results → dict of DataFrames and print neatly."""
+        """
+        Convert nested dict results to summary statistics and print detailed DataFrames.
+
+        Returns
+        -------
+        dict
+            Summary statistics containing:
+            - 'mean_scores': Average score per metric across all test sets
+            - 'best_model': Name of estimator with highest average performance
+            - 'best_score': Best score achieved
+            - 'per_estimator_stats': Dictionary of statistics per estimator
+        """
         dfs = {}
+        summary_stats = {
+            "mean_scores": {},
+            "best_model": None,
+            "best_score": 0,
+            "per_estimator_stats": {},
+        }
+
         for estimator, train_dict in results.items():
             train_df_blocks = []
+            estimator_scores = []
+
             for train_set, test_dict in train_dict.items():
                 df = pd.DataFrame(test_dict)  # metrics × test_sets
                 df["train_set"] = train_set
@@ -211,13 +234,32 @@ class Benchmarking(BaseObject):
                 df = df.reorder_levels(["train_set", df.index.names[0]])
                 train_df_blocks.append(df)
 
+                # Collect scores for summary
+                for metric in df.columns:
+                    estimator_scores.extend(df[metric].values)
+
             dfs[estimator] = pd.concat(train_df_blocks)
 
+            # Calculate per-estimator statistics
+            mean_score = np.mean(estimator_scores)
+            summary_stats["per_estimator_stats"][estimator] = {
+                "mean_score": mean_score,
+                "std_score": np.std(estimator_scores),
+                "max_score": np.max(estimator_scores),
+                "min_score": np.min(estimator_scores),
+            }
+
+            # Track best model
+            if mean_score > summary_stats["best_score"]:
+                summary_stats["best_score"] = mean_score
+                summary_stats["best_model"] = estimator
+
+        # Print detailed results
         for est, df in dfs.items():
             print(f"\n=== {est} ===")
             print(df)
 
-        return dfs
+        return summary_stats
 
     def run(self):
         """
