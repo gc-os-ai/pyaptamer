@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.9,<3.13"]
 
@@ -59,6 +59,7 @@ class AptaNetPipeline:
     >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
     >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
     >>> preds = pipe.predict(X_test_pairs)
+    >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
     def __init__(self, k=None, classifier=None):
@@ -77,6 +78,10 @@ class AptaNetPipeline:
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
+
+    def predict_proba(self, X):
+        check_is_fitted(self)
+        return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
         check_is_fitted(self)
