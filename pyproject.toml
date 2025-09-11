@@ -31,6 +31,10 @@ dev = [
     "pre-commit",
 ]
 
+test = [
+    "deepDNAshape @ git+https://github.com/JinsenLi/deepDNAshape.git@main"
+]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
@@ -38,7 +42,7 @@ exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "UP", "N", "C4"]
-ignore = ["N803", "N806"]
+ignore = ["N803", "N806", "N812"]
 
 [tool.ruff.format]
 quote-style = "double"
