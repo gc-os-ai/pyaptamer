@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from pyaptamer.utils._aptatrans_utils import encode_protein, rna2vec
+from pyaptamer.utils import encode_rna, rna2vec
 from pyaptamer.utils._augment import augment_reverse
 
 
@@ -94,7 +94,7 @@ class APIDataset(Dataset):
                 sequence_type="rna",
             )
         )
-        x_prot = encode_protein(
+        x_prot = encode_rna(
             sequences=x_prot,
             words=self.prot_words,
             max_len=self.prot_max_len,
