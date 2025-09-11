@@ -84,7 +84,9 @@ class TestAptamerEvalConcrete:
 
     @pytest.fixture
     def experiment(self, request, target, model, device, prot_words, pipeline):
-        """Fixture that returns an initialized AptamerEval instance based on the parameter."""
+        """
+        Fixture that returns an initialized AptamerEval instance based on the parameter.
+        """
         if request.param == "aptatrans":
             return AptamerEvalAptaTrans(
                 target=target,
