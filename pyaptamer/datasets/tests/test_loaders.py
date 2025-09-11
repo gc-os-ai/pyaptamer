@@ -1,3 +1,5 @@
+__author__ = ["nennomp", "satvshr"]
+
 import pandas as pd
 import pytest
 from Bio.PDB.Structure import Structure

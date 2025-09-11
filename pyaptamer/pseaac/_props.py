@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["aa_props"]
+
 import numpy as np
 import pandas as pd
 

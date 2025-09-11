@@ -49,3 +49,9 @@ docstring-code-format = true
 
 [tool.setuptools.packages.find]
 include = ["pyaptamer*"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+pyaptamer = ["datasets/data/*.pdb"]
