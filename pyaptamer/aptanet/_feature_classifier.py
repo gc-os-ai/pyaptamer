@@ -355,7 +355,5 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
-        tags.classifier_tags.multi_class = False
-        tags.classifier_tags.poor_score = True
-        tags.non_deterministic = True
+        tags.regressor_tags.poor_score = True
         return tags

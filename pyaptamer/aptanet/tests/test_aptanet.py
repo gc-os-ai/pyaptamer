@@ -67,7 +67,8 @@ def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     assert preds.shape == (40, 2)
     assert preds.dtype == np.float32
     assert np.all((preds >= 0) & (preds <= 1))
-    
+
+
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     """
@@ -84,6 +85,7 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert np.issubdtype(preds.dtype, np.floating)
+
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"

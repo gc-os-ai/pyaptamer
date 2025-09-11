@@ -19,7 +19,9 @@ class BaseAptamerEval(BaseObject, ABC):
     Parameters
     ----------
     target : str
-        Target sequence string.
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
     """
 
     def __init__(self, target: str) -> None:
@@ -105,8 +107,10 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
 
     Parameters
     ----------
-    target : str, optional
-        Target sequence string.
+    target : str
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
     model : torch.nn.Module
         Model to use for assigning scores.
     device : torch.device
@@ -238,7 +242,9 @@ class AptamerEvalAptaNet(BaseAptamerEval):
     Parameters
     ----------
     target : str
-        Target protein sequence string.
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
     pipeline : AptaNetPipeline
         Fitted AptaNetPipeline to use for assigning scores.
 
