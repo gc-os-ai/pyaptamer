@@ -38,8 +38,8 @@ def test_dna2rna_edge_cases():
 
 def test_generate_triplets():
     """Check generation of all possible 3-mer RNA subsequences (triplets)."""
-    words = generate_triplets()
     nucleotides = ["A", "C", "G", "U", "N"]
+    words = generate_triplets(letters=nucleotides)
     expected_count = len(nucleotides) ** 3  # 5^3 = 125 triplets
 
     assert isinstance(words, dict)
