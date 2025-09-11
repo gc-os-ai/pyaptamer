@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["Benchmarking"]
+
 import numpy as np
 import pandas as pd
 from skbase.base import BaseObject
@@ -21,6 +24,7 @@ class Benchmarking(BaseObject):
 
     To input datasets, you should input a dictionary of DataFrames, with the format
     being { "dataset_name": pd.DataFrame(...) }.
+
     Parameters
     ----------
     estimators : list[estimator] | estimator
@@ -44,6 +48,34 @@ class Benchmarking(BaseObject):
         (only when splitting).
     random_state : int | None
         Random state for reproducibility in splits.
+
+    Example
+    -------
+    >>> import pandas as pd
+    >>> from sklearn.metrics import accuracy_score
+    >>> from pyaptamer.benchmarking._base import Benchmarking
+    >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.benchmarking.preprocessors.aptanet import AptaNetPreprocessor
+    >>> from pyaptamer.datasets import load_csv_dataset
+    >>> df = load_csv_dataset(
+    ...     "train_li2014"
+    ... )  # expects columns ['aptamer','protein','label']
+    >>> df = df[:10]  # smaller example
+    >>> df = df.rename(columns={"label": "y"})
+    >>> df["y"] = df["y"].map({"negative": 0, "positive": 1})
+    >>> pre = AptaNetPreprocessor()
+    >>> clf = AptaNetPipeline()
+    >>> bench = Benchmarking(
+    ...     estimators=[clf],
+    ...     evaluators=[accuracy_score],
+    ...     task="classification",
+    ...     preprocessor=pre,
+    ...     datasets=df,
+    ...     test_size=0.25,
+    ...     stratify=True,
+    ...     random_state=1337,
+    ... )
+    >>> bench.run()
     """
 
     _tags = {"tasks": ["classification", "regression"]}

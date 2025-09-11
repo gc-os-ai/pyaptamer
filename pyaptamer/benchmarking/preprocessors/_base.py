@@ -1,3 +1,6 @@
+__author__ = "satvshr"
+__all__ = ["BasePreprocessor"]
+
 import pandas as pd
 
 from pyaptamer.utils.meta_classes import NoNewPublicMethods

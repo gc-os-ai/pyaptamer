@@ -1,8 +1,24 @@
+__author__ = "satvshr"
+__all__ = ["NoNewPublicMethods"]
+
+
 class NoNewPublicMethods(type):
-    """A metaclass that prevents subclasses from:
-    1. Adding new public methods.
-    2. Overriding existing public methods.
-    Use with `metaclass=NoNewPublicMethods`.
+    """
+    Metaclass that prevents subclasses from adding or overriding public methods.
+
+    This metaclass enforces a stable public API: when a new subclass is created,
+    it will raise a TypeError if the subclass defines any new public methods
+    or overrides an existing public method defined on a base class.
+
+    "Public" means any attribute name that does not start with a single
+    underscore. Private names (starting with '_') are allowed to be added or
+    overridden.
+
+    Raises
+    ------
+    TypeError
+        If a subclass defines new public methods or overrides existing public
+        methods from its base classes.
     """
 
     def __init__(cls, name, bases, namespace):
