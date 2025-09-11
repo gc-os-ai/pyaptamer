@@ -90,7 +90,7 @@ jobs:
           fi
 
   run-jupyter-notebooks:
-    needs: code-quality
+    needs: detect-notebooks-change
     if: ${{ needs.detect-notebooks-change.outputs.notebooks == 'true' }}
     runs-on: ubuntu-latest
     steps:
