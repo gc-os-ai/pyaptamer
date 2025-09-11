@@ -13,9 +13,7 @@ from torch import Tensor
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
-    generate_all_aptamer_triplets,
-)
+from pyaptamer.utils import generate_triplets
 
 
 class AptaTransPipeline:
@@ -118,7 +116,7 @@ class AptaTransPipeline:
             unique indices, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_all_aptamer_triplets()
+        apta_words = generate_triplets(letters=["A", "C", "G", "U", "N"])
 
         # filter out protein words with below average frequency
         mean_freq = np.mean(list(prot_words.values()))

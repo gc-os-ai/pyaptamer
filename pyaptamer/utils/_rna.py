@@ -2,7 +2,7 @@ __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
     "encode_rna",
-    "generate_all_aptamer_triplets",
+    "generate_triplets",
     "rna2vec",
 ]
 
@@ -39,25 +39,24 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_all_aptamer_triplets() -> dict[str, int]:
-    """
-    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
-    unique indices.
+def generate_triplets(letters: list[str]) -> dict[str, int]:
+    """Generate a dictionary of all possible triplets combinations from given letters.
+
+    Parameters
+    ----------
+    letters : list[str]
+        List of characters to form triplets from.
 
     Returns
     -------
     dict[str, int]
-        A dictionary where keys are 3-mer RNA subsequences and values are unique
-        indices.
+        A dictionary mapping each triplet to a unique integer ID.
     """
-    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
-    # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
-    # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
-    words = {
-        "".join(triplet): i + 1
-        for i, triplet in enumerate(product(nucleotides, repeat=3))
-    }
-    return words
+    triplets = {}
+    for idx, triplet in enumerate(product(letters, repeat=3)):
+        triplets["".join(triplet)] = idx + 1
+
+    return triplets
 
 
 def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
@@ -102,7 +101,7 @@ def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndar
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
 
-    words = generate_all_aptamer_triplets()
+    words = generate_triplets(letters=["A", "C", "G", "U", "N"])
 
     result = []
     for sequence in sequence_list:
