@@ -102,7 +102,7 @@ def rna2vec(
 
     Examples
     --------
-    >>> from pyaptamer.utils._aptatrans_utils import rna2vec
+    >>> from pyaptamer.utils import rna2vec
     >>> rna = rna2vec(["AAAC"], sequence_type="rna", max_sequence_length=4)
     >>> print(rna)
     [[1 2 0 0]]
