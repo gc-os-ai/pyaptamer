@@ -311,25 +311,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         )
         return self
 
-    def predict_proba(self, X):
-        """Predict probability estimates for samples in `X`.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Input samples.
-
-        Returns
-        -------
-        ndarray of shape (n_samples, n_classes)
-            A vector or matrix containing the probability estimates for each sample and
-            for each class.
-        """
-        check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
-        X = X.astype(np.float32, copy=False)
-        return self.pipeline_.predict_proba(X)
-
     def predict(self, X):
         """
         Predict continuous values for samples in `X`.
