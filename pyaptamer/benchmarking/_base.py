@@ -75,7 +75,7 @@ class Benchmarking(BaseObject):
     ...     stratify=True,
     ...     random_state=1337,
     ... )
-    >>> bench.run()
+    >>> summary = bench.run()
     """
 
     _tags = {"tasks": ["classification", "regression"]}
