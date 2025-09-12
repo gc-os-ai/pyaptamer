@@ -25,7 +25,7 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     Test if Pipeline predictions are valid class labels and shape matches input
     for classification.
     """
-    pipe = AptaNetPipeline()
+    pipe = AptaNetPipeline(k=4)
 
     X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
