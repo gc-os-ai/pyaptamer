@@ -6,7 +6,6 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
-import numpy as np
 import torch
 from torch import Tensor
 
@@ -14,16 +13,13 @@ from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
-    generate_all_aptamer_triplets,
+    generate_triplets,
 )
+from pyaptamer.utils._base import filter_words
 
 
 class AptaTransPipeline:
-    """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
-
-    Algorithm as originally described in Shin et al [1]_.
-
-    Reimplemented based on the publication and the original codebase.
+    """AptaTrans pipeline as described in [1]_.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans.
 
@@ -118,18 +114,15 @@ class AptaTransPipeline:
             unique indices, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_all_aptamer_triplets()
+        apta_words = generate_triplets(letters=["A", "C", "G", "U", "N"])
 
         # filter out protein words with below average frequency
-        mean_freq = np.mean(list(prot_words.values()))
-        prot_words = [seq for seq, freq in prot_words.items() if freq > mean_freq]
-        prot_words = {word: i + 1 for i, word in enumerate(prot_words)}
+        prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> Aptamer:
         """Initialize the aptamer experiment."""
-        # initialize the aptamer recommendation experiment
         experiment = Aptamer(
             target=target,
             model=self.model,
