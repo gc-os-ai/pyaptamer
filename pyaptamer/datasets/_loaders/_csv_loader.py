@@ -16,7 +16,7 @@ def load_csv_dataset(name, target_col, return_x_y=False):
     name : str
         Name of the dataset (file basename without `.csv`) located in the
         package `dataset/data/` directory.
-    target_col : str, optional, default="label"
+    target_col : str
         Column name in the CSV to use as the target variable.
     return_x_y : bool, optional, default=False
         If True, return (X, y) as NumPy arrays. If False, return a sklearn.utils.Bunch
