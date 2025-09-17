@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import pandas as pd
 from skbase.base import BaseObject
-from sklearn.model_selection import check_cv, train_test_split
+from sklearn.model_selection import cross_validate, train_test_split
 
 from pyaptamer.utils.tag_checks import task_check
 
@@ -17,10 +17,10 @@ class Benchmarking(BaseObject):
 
     You can either:
 
-      - pass `X, y` (feature matrix and labels/targets) and let this class
-        split into train/test for you (if cv=None); or
-      - pass explicit `train_X, train_y, test_X, test_y` (if cv=None); or
-      - pass `X, y` along with `cv` to use cross-validation.
+    - pass `X, y` (feature matrix and labels/targets) and let this class
+        split into train/test automatically (if `cv=None`); or
+    - pass explicit `train_X, train_y, test_X, test_y` (if `cv=None`); or
+    - pass `X, y` along with `cv` to use cross-validation.
 
     Parameters
     ----------
@@ -108,38 +108,48 @@ class Benchmarking(BaseObject):
         self.random_state = random_state
         self.cv = cv
 
-        if self.cv is None:
-            if X is not None and y is not None:
-                (
-                    self.train_X,
-                    self.test_X,
-                    self.train_y,
-                    self.test_y,
-                ) = train_test_split(
-                    X,
-                    y,
-                    test_size=self.test_size,
-                    random_state=self.random_state,
-                    stratify=y if self.stratify else None,
-                    shuffle=True,
-                )
-            elif (
-                train_X is not None
-                and train_y is not None
-                and test_X is not None
-                and test_y is not None
-            ):
-                self.train_X, self.train_y = train_X, train_y
-                self.test_X, self.test_y = test_X, test_y
-            else:
+        # case 1: explicit train/test provided
+        if (
+            train_X is not None
+            and train_y is not None
+            and test_X is not None
+            and test_y is not None
+        ):
+            if self.cv is not None:
                 raise ValueError(
-                    "Provide either (X, y) or (train_X, train_y, test_X, test_y)"
-                    "when cv=None."
+                    "Cannot use both explicit train/test splits and cross-validation. "
+                    "Either provide (train_X, train_y, test_X, test_y) or (X, y, cv)."
                 )
-        else:
+            self.train_X, self.train_y = train_X, train_y
+            self.test_X, self.test_y = test_X, test_y
+
+        # case 2: (X, y) with cv
+        elif self.cv is not None:
             if X is None or y is None:
                 raise ValueError("Provide (X, y) when using cross-validation.")
             self.X, self.y = X, y
+
+        # case 3: (X, y) with hold-out split
+        elif X is not None and y is not None:
+            (
+                self.train_X,
+                self.test_X,
+                self.train_y,
+                self.test_y,
+            ) = train_test_split(
+                X,
+                y,
+                test_size=self.test_size,
+                random_state=self.random_state,
+                stratify=y if self.stratify else None,
+                shuffle=True,
+            )
+
+        else:
+            raise ValueError(
+                "Provide either (X, y), (X, y, cv), or"
+                "(train_X, train_y, test_X, test_y)."
+            )
 
         self.results = None
 
@@ -167,56 +177,41 @@ class Benchmarking(BaseObject):
             cols = ["train", "test"].
         """
         task_check(self)
-
         results = {}
 
-        if self.cv is not None:
-            # Cross-validation mode
-            cv = check_cv(self.cv, y=self.y, classifier=None)
-
+        if hasattr(self, "X") and hasattr(self, "y"):
             for estimator in self.estimators:
                 est_name = estimator.__class__.__name__
-                metric_scores = {
-                    metric.__name__: {"train": [], "test": []}
-                    for metric in self.evaluators
+
+                scoring = {
+                    getattr(
+                        evaluator,
+                        "__name__",
+                        getattr(evaluator, "name", evaluator.__class__.__name__),
+                    ): evaluator
+                    for evaluator in self.evaluators
                 }
 
-                for train_idx, test_idx in cv.split(self.X, self.y):
-                    X_train, X_test = self.X[train_idx], self.X[test_idx]
-                    y_train, y_test = self.y[train_idx], self.y[test_idx]
-
-                    model = copy.deepcopy(estimator)
-                    model.fit(X_train, y_train)
-
-                    # evaluate on both train and test fold parts
-                    for split_name, (X_split, y_split) in {
-                        "train": (X_train, y_train),
-                        "test": (X_test, y_test),
-                    }.items():
-                        y_pred = model.predict(X_split)
-                        for evaluator in self.evaluators:
-                            eval_name = getattr(
-                                evaluator,
-                                "__name__",
-                                getattr(
-                                    evaluator, "name", evaluator.__class__.__name__
-                                ),
-                            )
-                            metric_scores[eval_name][split_name].append(
-                                evaluator(y_split, y_pred)
-                            )
+                cv_results = cross_validate(
+                    estimator,
+                    self.X,
+                    self.y,
+                    cv=self.cv,
+                    scoring=scoring,
+                    return_train_score=True,
+                )
 
                 # average across folds
-                results[est_name] = {
-                    metric: {
-                        "train": float(np.mean(scores["train"])),
-                        "test": float(np.mean(scores["test"])),
+                est_scores = {}
+                for metric in scoring.keys():
+                    est_scores[metric] = {
+                        "train": float(np.mean(cv_results[f"train_{metric}"])),
+                        "test": float(np.mean(cv_results[f"test_{metric}"])),
                     }
-                    for metric, scores in metric_scores.items()
-                }
+
+                results[est_name] = est_scores
 
         else:
-            # Hold-out mode
             for estimator in self.estimators:
                 est_name = estimator.__class__.__name__
                 model = copy.deepcopy(estimator)
@@ -228,16 +223,15 @@ class Benchmarking(BaseObject):
                     "test": (self.test_X, self.test_y),
                 }.items():
                     y_pred = model.predict(X_split)
-                    scores = {}
                     for evaluator in self.evaluators:
                         eval_name = getattr(
                             evaluator,
                             "__name__",
                             getattr(evaluator, "name", evaluator.__class__.__name__),
                         )
-                        scores[eval_name] = evaluator(y_split, y_pred)
-                    for eval_name, score in scores.items():
-                        est_scores.setdefault(eval_name, {})[split_name] = score
+                        est_scores.setdefault(eval_name, {})[split_name] = evaluator(
+                            y_split, y_pred
+                        )
 
                 results[est_name] = est_scores
 
