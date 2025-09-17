@@ -61,14 +61,14 @@ class AptaNetPipeline:
     >>> preds = pipe.predict(X_test_pairs)
     """
 
-    def __init__(self, k=None, classifier=None):
+    def __init__(self, k=4, classifier=None):
         self.k = k
         self.classifier = classifier
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
             func=pairs_to_features,
-            kw_args=self.k,
+            kw_args={"k": self.k},
             validate=False,
         )
         self._classifier = self.classifier or AptaNetClassifier()
