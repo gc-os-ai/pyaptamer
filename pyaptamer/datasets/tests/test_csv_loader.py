@@ -11,9 +11,9 @@ TARGET_COL = "label"
 
 def test_load_csv_return_x_y():
     """
-    When return_x_y=True the loader should return two numpy arrays (X, y).
+    When return_X_y=True the loader should return two numpy arrays (X, y).
     """
-    X, y = load_csv_dataset(DATASET_NAME, target_col=TARGET_COL, return_x_y=True)
+    X, y = load_csv_dataset(DATASET_NAME, target_col=TARGET_COL, return_X_y=True)
 
     assert isinstance(X, np.ndarray), "X should be a numpy array"
     assert isinstance(y, np.ndarray), "y should be a numpy array"
@@ -23,10 +23,10 @@ def test_load_csv_return_x_y():
 
 def test_load_csv_returns_bunch():
     """
-    When return_x_y=False the loader should return a sklearn.utils.Bunch-like object
+    When return_X_y=False the loader should return a sklearn.utils.Bunch-like object
     containing data, target and frame.
     """
-    bunch = load_csv_dataset(DATASET_NAME, target_col=TARGET_COL, return_x_y=False)
+    bunch = load_csv_dataset(DATASET_NAME, target_col=TARGET_COL, return_X_y=False)
 
     assert isinstance(bunch, Bunch), "Returned object should be a sklearn.utils.Bunch"
     assert bunch.data.shape[0] == len(bunch.frame), (
