@@ -1,6 +1,8 @@
 __author__ = "satvshr"
 __all__ = ["Benchmarking"]
 
+import copy
+
 import numpy as np
 import pandas as pd
 from skbase.base import BaseObject
@@ -62,20 +64,24 @@ class Benchmarking(BaseObject):
 
     Example
     -------
+    >>> import pandas as pd
+    >>> import numpy as np
     >>> from sklearn.metrics import accuracy_score
-    >>> from sklearn.linear_model import LogisticRegression
-    >>> from sklearn.datasets import make_classification
-    >>> X, y = make_classification(n_samples=100, n_features=20, random_state=0)
+    >>> from pyaptamer.benchmarking._base import Benchmarking
+    >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.datasets import load_csv_dataset
+    >>> X, y = load_csv_dataset("train_li2014", "label", return_X_y=True)
+    >>> X = X[:10]  # smaller example
+    >>> y = y[:10]
+    >>> y = np.where(y == "positive", 1, 0)
+    >>> clf = AptaNetPipeline()
     >>> bench = Benchmarking(
-    ...     estimators=[LogisticRegression(max_iter=1000)],
+    ...     estimators=[clf],
     ...     evaluators=[accuracy_score],
     ...     X=X,
     ...     y=y,
-    ...     test_size=0.3,
-    ...     random_state=42,
     ... )
-    >>> results = bench.run()
-    >>> print(results)
+    >>> summary = bench.run()  # doctest: +SKIP
     """
 
     _tags = {"tasks": ["classification", "regression"]}
@@ -92,7 +98,7 @@ class Benchmarking(BaseObject):
         test_y=None,
         test_size=0.2,
         stratify=True,
-        random_state=42,
+        random_state=None,
         cv=None,
     ):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
@@ -109,7 +115,14 @@ class Benchmarking(BaseObject):
                     self.test_X,
                     self.train_y,
                     self.test_y,
-                ) = self._split_dataset(X, y)
+                ) = train_test_split(
+                    X,
+                    y,
+                    test_size=self.test_size,
+                    random_state=self.random_state,
+                    stratify=y if self.stratify else None,
+                    shuffle=True,
+                )
             elif (
                 train_X is not None
                 and train_y is not None
@@ -129,18 +142,6 @@ class Benchmarking(BaseObject):
             self.X, self.y = X, y
 
         self.results = None
-
-    def _split_dataset(self, X, y):
-        """Split into train/test arrays."""
-        stratify_vec = y if self.stratify else None
-        return train_test_split(
-            X,
-            y,
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=stratify_vec,
-            shuffle=True,
-        )
 
     def _to_df(self, results):
         """Convert nested results to a unified DataFrame."""
@@ -165,10 +166,6 @@ class Benchmarking(BaseObject):
             Results table with rows = (estimator, metric),
             cols = ["train", "test"].
         """
-        import copy
-
-        from sklearn.base import clone
-
         task_check(self)
 
         results = {}
@@ -188,7 +185,7 @@ class Benchmarking(BaseObject):
                     X_train, X_test = self.X[train_idx], self.X[test_idx]
                     y_train, y_test = self.y[train_idx], self.y[test_idx]
 
-                    model = clone(estimator)
+                    model = copy.deepcopy(estimator)
                     model.fit(X_train, y_train)
 
                     # evaluate on both train and test fold parts
