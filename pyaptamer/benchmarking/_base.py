@@ -1,14 +1,13 @@
 __author__ = "satvshr"
 __all__ = ["Benchmarking"]
 
-
 import numpy as np
 import pandas as pd
-from skbase.base import BaseObject
+from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_validate
 
 
-class Benchmarking(BaseObject):
+class Benchmarking:
     """
     Benchmark estimators using cross-validation.
 
@@ -74,6 +73,20 @@ class Benchmarking(BaseObject):
         self.cv = cv
         self.results = None
 
+    def _to_scorers(self, metrics):
+        """Convert metric callables to a dict of scorers."""
+        scorers = {}
+        for metric in metrics:
+            if not callable(metric):
+                raise ValueError("Each metric should be a callable.")
+            name = (
+                metric.__name__
+                if hasattr(metric, "__name__")
+                else metric.__class__.__name__
+            )
+            scorers[name] = make_scorer(metric)
+        return scorers
+
     def _to_df(self, results):
         """Convert nested results to a unified DataFrame."""
         records = []
@@ -96,39 +109,25 @@ class Benchmarking(BaseObject):
         pd.DataFrame
             Results table with rows = (estimator, metric),
             cols = ["train", "test"].
-
-        Example
-        -------
-                                        train  test
-        estimator       metric
-        AptaNetPipeline accuracy_score    1.0   1.0
         """
+        self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
         for estimator in self.estimators:
             est_name = estimator.__class__.__name__
-
-            scoring = {
-                getattr(
-                    evaluator,
-                    "__name__",
-                    getattr(evaluator, "name", evaluator.__class__.__name__),
-                ): evaluator
-                for evaluator in self.metrics
-            }
 
             cv_results = cross_validate(
                 estimator,
                 self.X,
                 self.y,
                 cv=self.cv,
-                scoring=scoring,
+                scoring=self.scorers_,
                 return_train_score=True,
             )
 
             # average across folds
             est_scores = {}
-            for metric in scoring.keys():
+            for metric in self.scorers_.keys():
                 est_scores[metric] = {
                     "train": float(np.mean(cv_results[f"train_{metric}"])),
                     "test": float(np.mean(cv_results[f"test_{metric}"])),
