@@ -96,6 +96,12 @@ class Benchmarking(BaseObject):
         pd.DataFrame
             Results table with rows = (estimator, metric),
             cols = ["train", "test"].
+
+        Example
+        -------
+                                        train  test
+        estimator       metric
+        AptaNetPipeline accuracy_score    1.0   1.0
         """
         results = {}
 
