@@ -8,8 +8,6 @@ import pandas as pd
 from skbase.base import BaseObject
 from sklearn.model_selection import cross_validate, train_test_split
 
-from pyaptamer.utils.tag_checks import task_check
-
 
 class Benchmarking(BaseObject):
     """
@@ -175,8 +173,13 @@ class Benchmarking(BaseObject):
         pd.DataFrame
             Results table with rows = (estimator, metric),
             cols = ["train", "test"].
+
+        Example
+        -------
+                                        train  test
+        estimator       metric
+        AptaNetPipeline accuracy_score    1.0   1.0
         """
-        task_check(self)
         results = {}
 
         if hasattr(self, "X") and hasattr(self, "y"):
