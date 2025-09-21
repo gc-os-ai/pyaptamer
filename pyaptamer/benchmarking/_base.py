@@ -26,7 +26,7 @@ class Benchmarking(BaseObject):
     ----------
     estimators : list[estimator] | estimator
         List of sklearn-like estimators implementing `fit` and `predict`.
-    evaluators : list[callable] | callable
+    metrics : list[callable] | callable
         List of callables with signature ``(y_true, y_pred) -> float``.
     X : array-like, optional
         Feature matrix. Used together with `y` if explicit train/test splits
@@ -77,7 +77,7 @@ class Benchmarking(BaseObject):
     >>> clf = AptaNetPipeline()
     >>> bench = Benchmarking(
     ...     estimators=[clf],
-    ...     evaluators=[accuracy_score],
+    ...     metrics=[accuracy_score],
     ...     X=X,
     ...     y=y,
     ... )
@@ -89,7 +89,7 @@ class Benchmarking(BaseObject):
     def __init__(
         self,
         estimators,
-        evaluators,
+        metrics,
         X=None,
         y=None,
         train_X=None,
@@ -102,7 +102,7 @@ class Benchmarking(BaseObject):
         cv=None,
     ):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
-        self.evaluators = evaluators if isinstance(evaluators, list) else [evaluators]
+        self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.test_size = test_size
         self.stratify = stratify
         self.random_state = random_state
@@ -189,7 +189,7 @@ class Benchmarking(BaseObject):
                         "__name__",
                         getattr(evaluator, "name", evaluator.__class__.__name__),
                     ): evaluator
-                    for evaluator in self.evaluators
+                    for evaluator in self.metrics
                 }
 
                 cv_results = cross_validate(
@@ -223,7 +223,7 @@ class Benchmarking(BaseObject):
                     "test": (self.test_X, self.test_y),
                 }.items():
                     y_pred = model.predict(X_split)
-                    for evaluator in self.evaluators:
+                    for evaluator in self.metrics:
                         eval_name = getattr(
                             evaluator,
                             "__name__",
