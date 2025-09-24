@@ -1,10 +1,9 @@
 __author__ = "rpgv"
-__all__ = ["load_from_rcsb"]
+__all__ = ["load_aptacom"]
 
 from datasets import load_dataset
 import pandas as pd
 
-from pyaptamer.utils.pdb_to_struct import pdb_to_struct
 
 
 def load_aptacom(format_='pandas', as_df=False):
