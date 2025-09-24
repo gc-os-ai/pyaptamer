@@ -24,7 +24,7 @@ def load_aptacom(format_='pandas', as_df=False):
     -------
     dataset: Hugging face dataset in a pandas compatible format.
     """
-    aptacom = load_dataset('rpgv/AptaCom')['train'].with_format(format)
+    aptacom = load_dataset('rpgv/AptaCom')['train'].with_format(format_)
     if as_df and format_=='pandas': aptacom = pd.DataFrame().from_dict(aptacom);
     
 
