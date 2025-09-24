@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = "rpgv"
 __all__ = ["load_from_rcsb"]
 
 from datasets import load_dataset
