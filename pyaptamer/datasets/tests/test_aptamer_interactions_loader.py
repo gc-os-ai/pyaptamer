@@ -76,7 +76,7 @@ def sample_aptadb_data():
         'ligand_type': ['Protein', 'Protein', 'Protein'],
         'binding_conditions': ['pH 7.4, 25°C', 'pH 7.0, 37°C', 'pH 8.0, 25°C'],
         'reference_pubmed_id': ['12345678', '87654321', '11223344'],
-        'interaction_present': [True, True, False]
+        'interaction_present': [1, 1, 0]
     })
 
 
