@@ -2,11 +2,10 @@
 
 __author__ = ["nennomp"]
 
-import numpy as np
+import numpy
 import pytest
 import torch
 import torch.nn as nn
-from torch import Tensor
 
 from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
 
@@ -44,7 +43,7 @@ class MockAptaNetPipeline:
         binding, binding).
         """
         # return probability scores as a list
-        return np.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
+        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
 
     def fit(self, X, y):
         """Mock fit method."""
@@ -123,31 +122,27 @@ class TestAptamerEvalConcrete:
         """Check that the experiment's evaluation method works correctly."""
         aptamer_candidate = "ACGU"
         score = experiment.evaluate(aptamer_candidate)
-        assert isinstance(score, Tensor)
-        assert score.shape == (1,)
+        assert isinstance(score, numpy.float64)
 
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_empty_sequence(self, experiment):
         """Check evaluation with empty sequence."""
         score = experiment.evaluate("")
-        assert isinstance(score, Tensor)
-        assert score.shape == (1,)
+        assert isinstance(score, numpy.float64)
 
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_with_underscores(self, experiment):
         """Check evaluation with sequences containing underscores."""
         aptamer_candidate = "A_C_G_U_"
         score = experiment.evaluate(aptamer_candidate)
-        assert isinstance(score, Tensor)
-        assert score.shape == (1,)
+        assert isinstance(score, numpy.float64)
 
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_already_reconstructed(self, experiment):
         """Check evaluation with already reconstructed sequence."""
         aptamer_candidate = "ACGU"  # no underscores
         score = experiment.evaluate(aptamer_candidate)
-        assert isinstance(score, Tensor)
-        assert score.shape == (1,)
+        assert isinstance(score, numpy.float64)
 
     def test_reconstruct_aptanet(self, aptanet_experiment):
         """Check sequence reconstruction in AptamerEvalAptaNet."""
@@ -180,6 +175,6 @@ class TestAptamerEvalConcrete:
         score = aptatrans_experiment.evaluate(
             aptamer_candidate, return_interaction_map=True
         )
-        assert isinstance(score, Tensor)
+        assert isinstance(score, numpy.ndarray)
         # 100 is the maximum length specified in our mock model
         assert score.shape == (1, 1, 100, aptatrans_experiment.target_encoded.shape[1])

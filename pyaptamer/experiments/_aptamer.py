@@ -3,6 +3,7 @@ __all__ = ["AptamerEvalAptaNet", "AptamerEvalAptaTrans"]
 
 from abc import ABC, abstractmethod
 
+import numpy as np
 import torch
 from skbase.base import BaseObject
 from torch import Tensor
@@ -84,7 +85,7 @@ class BaseAptamerEval(BaseObject, ABC):
         return result
 
     @abstractmethod
-    def evaluate(self, aptamer_candidate: str, **kwargs) -> Tensor:
+    def evaluate(self, aptamer_candidate: str, **kwargs) -> np.float64:
         """Evaluate the given aptamer candidate against the target protein.
 
         Parameters
@@ -96,7 +97,7 @@ class BaseAptamerEval(BaseObject, ABC):
 
         Returns
         -------
-        Tensor
+        np.float64
             The score assigned to the aptamer candidate.
         """
         pass
@@ -177,8 +178,9 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
 
         Returns
         -------
-        str
-            The reconstructed RNA sequence.
+        tuple[str, Tensor]
+            A tuple containing the reconstructed RNA sequence and its numerical
+            representation, respectively.
         """
         # get the base reconstructed sequence
         reconstructed_seq = super().reconstruct(sequence)
@@ -197,7 +199,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     @torch.no_grad()
     def evaluate(
         self, aptamer_candidate: str, return_interaction_map: bool = False
-    ) -> Tensor:
+    ) -> np.float64 | np.ndarray:
         """Evaluate the given aptamer candidate against the target protein.
 
         If `return_interaction_map` is set to `True`, the method returns the
@@ -216,7 +218,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
 
         Returns
         -------
-        Tensor
+        np.float64 or np.ndarray
             The score assigned to the aptamer candidate if `return_interaction_map` is
             `False`. If `return_interaction_map` is `True`, the interaction map, of
             shape (batch_size, 1, seq_len_aptamer, seq_len_protein).
@@ -225,14 +227,21 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         self.model.eval()
 
         if return_interaction_map:
-            return self.model.forward_imap(
-                aptamer_candidate.to(self.device),
-                self.target_encoded,
+            return (
+                self.model.forward_imap(
+                    aptamer_candidate.to(self.device),
+                    self.target_encoded,
+                )
+                .cpu()
+                .detach()
+                .numpy()
             )
         else:
-            return self.model(
-                aptamer_candidate.to(self.device),
-                self.target_encoded,
+            return np.float64(
+                self.model(
+                    aptamer_candidate.to(self.device),
+                    self.target_encoded,
+                ).item()
             )
 
 
@@ -269,7 +278,7 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         super().__init__(target)
         self.pipeline = pipeline
 
-    def evaluate(self, aptamer_candidate: str) -> Tensor:
+    def evaluate(self, aptamer_candidate: str) -> np.float64:
         """Evaluate the given aptamer candidate against the target protein.
 
         Parameters
@@ -282,10 +291,10 @@ class AptamerEvalAptaNet(BaseAptamerEval):
 
         Returns
         -------
-        Tensor
+        np.float64
             The probability score assigned to the aptamer candidate.
         """
         aptamer_seq = self.reconstruct(aptamer_candidate)
         score = self.pipeline.predict_proba(X=[(aptamer_seq, self.target)])
 
-        return torch.tensor(score[:, 1])  # return the positive class probability
+        return np.float64(score[:, 1].item())  # return the positive class probability
