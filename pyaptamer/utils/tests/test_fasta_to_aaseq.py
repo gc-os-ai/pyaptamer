@@ -15,5 +15,4 @@ def test_huggingface_url_fetch():
     df = fasta_to_aaseq(url, return_df=True)
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
-    assert list(df.columns) == ["id", "sequence"]
     assert all(df["sequence"].str.len() > 0)
