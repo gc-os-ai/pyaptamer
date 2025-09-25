@@ -16,11 +16,13 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
     ----------
     path : str or dict
         Path or identifier for the dataset. Can be:
+
           - A Hugging Face Hub dataset name (e.g. "imdb").
           - A local dataset path.
           - A URL to a dataset file.
           - A dictionary of split-to-file mappings, e.g.
             `{"train": "train.txt", "test": "test.txt"}`.
+
     keep_in_memory : bool, default=True
         Whether to keep the dataset in memory instead of writing to disk cache.
     **kwargs : dict

@@ -16,29 +16,35 @@ def fasta_to_aaseq(fasta_path, return_df=False):
 
     Parameters
     ----------
-    fasta_path : str or os.PathLike
+    ``fasta_path`` : str or os.PathLike
         Input source for FASTA sequences. Can be:
-          - Local file path (absolute or relative) located in 'pyaptamer/datasets/data'.
+
+          - Local file path (absolute or relative) located in
+          ``pyaptamer/datasets/data``.
           - Hugging Face Hub reference.
-    return_df : bool, default=False
-        If True, return a pandas DataFrame with columns:
-          - `id` : str
-              FASTA record identifier (header without '>').
-          - `sequence` : str
+
+    ``return_df`` : bool, default=False
+        If True, return a pandas DataFrame with index = FASTA record id and
+        a single column:
+
+          - ``sequence`` : str
               Sequence string (amino acid or nucleotide).
+
         If False, return a list of sequence strings.
 
     Returns
     -------
     list of str or pandas.DataFrame
-        - If `return_df=False`: list of sequences (str).
-        - If `return_df=True`: DataFrame with 'id' and 'sequence' columns.
-        Returns empty list/DataFrame if no sequences are found.
+
+        - If ``return_df=False``: list of sequences (str).
+        - If ``return_df=True``: DataFrame indexed by record id with a
+          ``sequence`` column. Returns an empty DataFrame with index name
+          ``id`` if no records are found.
+
     """
     path = os.path.join(os.path.dirname(__file__), "..", "data", fasta_path)
     if os.path.exists(path):
         fasta_handle = path
-
     else:
         dataset = hf_to_dataset(fasta_path)
         content = "\n".join(dataset[:]["text"])
@@ -50,6 +56,7 @@ def fasta_to_aaseq(fasta_path, return_df=False):
     ]
 
     if return_df:
-        return pd.DataFrame(records)
+        df = pd.DataFrame(records).set_index("id")
+        return df
 
     return [r["sequence"] for r in records]
