@@ -9,6 +9,10 @@ from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
 from pyaptamer.datasets._loaders._one_gnh import load_1gnh, load_1gnh_structure
 from pyaptamer.datasets._loaders._online_databank import load_from_rcsb
 from pyaptamer.datasets._loaders._pfoa import load_pfoa, load_pfoa_structure
+from pyaptamer.datasets._loaders.load_aptamer_interactions import (
+    load_aptadb,
+    load_interactions,
+)
 
 __all__ = [
     "load_aptacom_full",
@@ -20,5 +24,6 @@ __all__ = [
     "load_1gnh",
     "load_1gnh_structure",
     "load_from_rcsb",
-    "load_csv_dataset",
+    "load_aptadb",
+    "load_interactions",
 ]
