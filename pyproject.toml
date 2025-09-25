@@ -14,6 +14,7 @@ authors = [
 
 dependencies = [
     "biopython>=1.83",
+    "lightning>=2.5.3",
     "numpy>=2.0.2",
     "openmm>=8.3.0,<8.4.0",
     "pandas>=2.0.0",
@@ -38,7 +39,7 @@ exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "UP", "N", "C4"]
-ignore = ["N803", "N806"]
+ignore = ["N803", "N806", "N812"]
 
 [tool.ruff.format]
 quote-style = "double"

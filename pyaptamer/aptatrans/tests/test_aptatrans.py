@@ -254,7 +254,7 @@ class TestAptaTransPipeline:
                 captured_args.update(kwargs)
 
         monkeypatch.setattr(
-            "pyaptamer.aptatrans.pipeline.AptamerEvalAptaTrans", MockAptamer
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", MockAptamer
         )
 
         # test experiment initialization
@@ -299,7 +299,7 @@ class TestAptaTransPipeline:
             return MockExperiment()
 
         monkeypatch.setattr(
-            "pyaptamer.aptatrans.pipeline.AptamerEvalAptaTrans", mock_aptamer
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
         )
 
         # test prediction - note the typo fix: self.experiment -> experiment
@@ -347,7 +347,7 @@ class TestAptaTransPipeline:
             return MockExperiment()
 
         monkeypatch.setattr(
-            "pyaptamer.aptatrans.pipeline.AptamerEvalAptaTrans", mock_aptamer
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
         )
 
         # mock MCTS to return deterministic candidates
@@ -371,7 +371,7 @@ class TestAptaTransPipeline:
                     "score": candidate_data[2],  # evaluation score
                 }
 
-        monkeypatch.setattr("pyaptamer.aptatrans.pipeline.MCTS", MockMCTS)
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
 
         # test recommendation
         candidates = pipeline.recommend(target=target, n_candidates=n_candidates)
