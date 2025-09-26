@@ -2,7 +2,7 @@ __author__ = "satvshr"
 
 import os
 
-from pyaptamer.utils.pdb_to_aaseq import pdb_to_aaseq
+from pyaptamer.utils import pdb_to_aaseq
 
 
 def test_pdb_to_aaseq():
@@ -22,7 +22,7 @@ def test_pdb_to_aaseq():
         assert isinstance(seq, str), "Each entry should be a string"
         assert len(seq) > 0, "Each sequence string should not be empty"
 
-    sequences = pdb_to_aaseq(pdb_file_path, return_df=True)
+    sequences = pdb_to_aaseq(pdb_file_path, return_type="pd.df")
 
     assert not sequences.empty, "Returned DataFrame should not be empty"
     assert "sequence" in sequences.columns, "DataFrame should have a 'sequence' column"
