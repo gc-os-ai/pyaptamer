@@ -37,9 +37,7 @@ def load_csv_dataset(name, target_col, return_X_y=False):
             column
             - y : ndarray of shape (n_samples,) from the target column
     """
-    path = os.path.relpath(
-        os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
-    )
+    path = os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
 
     df = pd.read_csv(path)
 
