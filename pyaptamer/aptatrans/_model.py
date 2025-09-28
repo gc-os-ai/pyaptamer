@@ -296,45 +296,49 @@ class AptaTrans(nn.Module):
 
         self.load_state_dict(state_dict, strict=True)
 
-    def forward_encoders(
-        self,
-        x_apta: tuple[Tensor, Tensor],
-        x_prot: tuple[Tensor, Tensor],
-    ):
-        """Forward pass through the encoders only.
+    def forward_encoder(
+        self, x: tuple[Tensor, Tensor], encoder_type: str
+    ) -> tuple[Tensor, Tensor]:
+        """Forward pass through the aptamer or protein encoder.
 
-        This method performs a forward pass through the encoders, including the
-        token predictors, for pretraining.
+        This method performs a forward pass through the aptamer or protein encoder,
+        including the corresponding token predictor, for pretraining.
 
         Parameters
         ----------
-        x_apta, x_prot : tuple[Tensor, Tensor]
+        x : tuple[Tensor, Tensor]
             A tuple of tensors containing the features for masked tokens and secondary
-            structure prediction, for aptamers and proteins, respectively. Shapes are
-            (batch_size (b1), seq_len (s1)) and (batch_size (b2), seq_len (s2)),
-            respectively.
+            structure prediction, for aptamers or proteins. Shapes is (batch_size (b),
+            seq_len (s)).
+        encoder_type: str
+            A string indicating whether to use the aptamer or protein encoder. Options
+            are 'apta' or 'prot'.
 
         Returns
         -------
-        tuple[Tensor, Tensor], tuple[Tensor, Tensor]
+        tuple[Tensor, Tensor]
             A tuple of tensors containing the predictions for masked tokens and
-            secondary structure, for aptamers and proteins, respectively. For aptamers,
-            the shapes are (b1, s1, n_embeddings (n1)) and (b1, s1, target_dim (t1)),
-            for the masked tokens and secondary structure, respectively. For proteins,
-            the shapes are (b2, s2, n_embeddings (n2)) and (b2, s2, target_dim (t2)),
+            secondary structure, for aptamers or proteins, depending on `encoder_type`.
+            Shapes are (b, s, n_embeddings (n)) and (b, s, target_dim (t)),
             respectively.
+
+        Raises
+        -------
+        ValueError
+            If `encoder_type` is not 'apta' or 'prot'.
         """
-        # pretrain aptamers' encoder
-        out_apta_mt = self.encoder_apta(x_apta[0])
-        out_apta_ss = self.encoder_apta(x_apta[1])
-        y_apta_mt, y_apta_ss = self.token_predictor_apta(out_apta_mt, out_apta_ss)
-
-        # pretrain proteins' encoder
-        out_prot_mt = self.encoder_prot(x_prot[0])
-        out_prot_ss = self.encoder_prot(x_prot[1])
-        y_prot_mt, y_prot_ss = self.token_predictor_prot(out_prot_mt, out_prot_ss)
-
-        return (y_apta_mt, y_apta_ss), (y_prot_mt, y_prot_ss)
+        if encoder_type == "apta":  # pretrain aptamers' encoder
+            out_apta_mt = self.encoder_apta(x[0])
+            out_apta_ss = self.encoder_apta(x[1])
+            return self.token_predictor_apta(out_apta_mt, out_apta_ss)
+        elif encoder_type == "prot":  # pretrain proteins' encoder
+            out_prot_mt = self.encoder_prot(x[0])
+            out_prot_ss = self.encoder_prot(x[1])
+            return self.token_predictor_prot(out_prot_mt, out_prot_ss)
+        else:
+            raise ValueError(
+                f"Unknown encoder_type: {encoder_type}. Options are 'apta' or 'prot'."
+            )
 
     def forward_imap(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
         """Forward pass to compute the interaction map.
