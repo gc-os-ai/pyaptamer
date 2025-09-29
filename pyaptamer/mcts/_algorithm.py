@@ -54,7 +54,7 @@ class MCTS(BaseObject):
     --------
     >>> import torch
     >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> from pyaptamer.experiments import Aptamer
+    >>> from pyaptamer.experiments import AptamerEvalAptaTrans
     >>> from pyaptamer.mcts import MCTS
     >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
@@ -62,7 +62,7 @@ class MCTS(BaseObject):
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> target = "MCKY"
     >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
-    >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
     """
@@ -236,8 +236,9 @@ class MCTS(BaseObject):
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
-            score (`score`).
+            Dictionary containing the final reconstructed candidate sequence
+            (`candidate`), the corresponding unreconstructed candidate sequence
+            (`sequence`), and its score (`score`).
         """
         self._reset()
 
@@ -279,7 +280,7 @@ class MCTS(BaseObject):
 
         self.candidate = self.base
         return {
-            "candidate": self.experiment.reconstruct(self.candidate)[0],
+            "candidate": self.experiment.reconstruct(self.candidate),
             "sequence": self.candidate,
             "score": self.experiment.evaluate(self.candidate),
         }
