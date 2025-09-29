@@ -14,5 +14,5 @@ def test_download_aptacom(as_df):
     """
     dataset = load_aptacom(as_df)
     if not isinstance(dataset, (Dataset, DataFrame)):
-        raise ValueError(f"Expected a datasets.Dataset or pandas.DataFrame but got  {type(dataset)}")
+        raise ValueError(f"Dataset format {type(dataset)} is not DataFrame or Dataset")
 
