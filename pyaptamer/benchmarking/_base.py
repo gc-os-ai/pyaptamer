@@ -36,10 +36,15 @@ class Benchmarking:
     Attributes
     ----------
     results : pd.DataFrame
-        Results table after calling :meth:`run`.
+        DataFrame produced by :meth:`run`.
 
-        - Rows = MultiIndex (estimator, metric)
-        - Cols = ["train", "test"]
+        - Index: pandas.MultiIndex with two levels (names shown in parentheses)
+            - level 0 "estimator": estimator name
+            - level 1 "metric": evaluator name
+        - Columns: ["train", "test"] (both floats)
+        - Cell values: mean scores (float) computed across CV folds:
+            - "train" = mean of cross_validate(...)[f"train_{metric}"]
+            - "test"  = mean of cross_validate(...)[f"test_{metric}"]
 
     Example
     -------
@@ -48,9 +53,12 @@ class Benchmarking:
     >>> from sklearn.model_selection import PredefinedSplit
     >>> from pyaptamer.benchmarking._base import Benchmarking
     >>> from pyaptamer.aptanet import AptaNetPipeline
-    >>> X = np.random.randn(10, 5)
-    >>> y = np.random.randint(0, 2, size=10)
-    >>> clf = AptaNetPipeline()
+    >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+    >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> # dataset: 20 aptamer–protein pairs
+    >>> X = [(aptamer_seq, protein_seq) for _ in range(20)]
+    >>> y = np.array([0] * 10 + [1] * 10, dtype=np.float32)
+    >>> clf = AptaNetPipeline(k=4)
     >>> # define a fixed train/test split
     >>> test_fold = np.ones(len(y)) * -1
     >>> test_fold[-2:] = 0
@@ -106,9 +114,16 @@ class Benchmarking:
 
         Returns
         -------
-        pd.DataFrame
-            Results table with rows = (estimator, metric),
-            cols = ["train", "test"].
+        results : pd.DataFrame
+
+            - Index: pandas.MultiIndex with two levels (names shown in parentheses)
+                - level 0 "estimator": estimator name
+                - level 1 "metric": evaluator name
+            - Columns: ["train", "test"] (both floats)
+            - Cell values: mean scores (float) computed across CV folds:
+                - "train" = mean of cross_validate(...)[f"train_{metric}"]
+                - "test"  = mean of cross_validate(...)[f"test_{metric}"]
+
         """
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
