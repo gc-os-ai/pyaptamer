@@ -38,8 +38,8 @@ class BaseAptamerEval(BaseObject, ABC):
 
         The experiment expects aptamer candidates in a specific (encoded) format
         involving pairs of nucleotide letters and direction markers (underscores). For
-        instance, 'A_' indicates adding 'A' to the right of the current sequence
-        (appending), while '_A' indicates adding 'A' to the left (prepending). As an
+        instance, 'A_' indicates adding 'A' to the left of the current sequence
+        (prepending), while '_A' indicates adding 'A' to the right (appending). As an
         example, the input 'A_C__GU_' would be reconstructed to 'UCAG'.
 
         Parameters
@@ -165,8 +165,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
 
         The experiment expects aptamer candidates in a specific (encoded) format
         involving pairs of nucleotide letters and direction markers (underscores). For
-        instance, 'A_' indicates adding 'A' to the right of the current sequence
-        (appending), while '_A' indicates adding 'A' to the left (prepending). As an
+        instance, 'A_' indicates adding 'A' to the left of the current sequence
+        (prepending), while '_A' indicates adding 'A' to the right (appending). As an
         example, the input 'A_C__GU_' would be reconstructed to 'UCAG'. Then, the
         reconstructed sequence is converted to a numerical representation using the
         `rna2vec` function.
