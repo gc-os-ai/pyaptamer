@@ -13,7 +13,6 @@ def test_download_aptacom(as_df):
     The download_aptacom function 
     """
     dataset = load_aptacom(as_df)
-    assert isinstance(dataset, (Dataset,DataFrame)), (
-        f"Expected a datasets.Dataset or pandas.DataFrame but got  {type(dataset)}"
-    )
-    
+    if not isinstance(dataset, (Dataset, DataFrame)):
+        raise ValueError(f"Expected a datasets.Dataset or pandas.DataFrame but got  {type(dataset)}")
+
