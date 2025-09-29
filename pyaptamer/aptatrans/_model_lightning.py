@@ -96,7 +96,7 @@ class AptaTransLightning(L.LightningModule):
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
         y_hat = self.model(x_apta, x_prot)
-        loss = F.binary_cross_entropy(y_hat, y.float())
+        loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:

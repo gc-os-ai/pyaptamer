@@ -76,7 +76,7 @@ class MaskedDataset(Dataset):
                 f"Got x: {len(x)}, y: {len(y)}"
             )
 
-        self.x, y = np.array(x), np.array(y)
+        self.x, self.y = np.array(x), np.array(y)
         self.max_len = max_len
         self.mask_idx = mask_idx
         self.masked_rate = masked_rate

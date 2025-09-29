@@ -289,10 +289,9 @@ class AptaTrans(nn.Module):
             )
             state_dict = torch.hub.load_state_dict_from_url(
                 url=url,
+                model_dir=os.path.dirname(path),
                 map_location=torch.device("cpu"),
             )
-            print(f"Saving to {path}...")
-            torch.save(state_dict, path)
 
         self.load_state_dict(state_dict, strict=True)
 
