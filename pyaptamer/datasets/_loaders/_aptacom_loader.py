@@ -1,9 +1,8 @@
 __author__ = "rpgv"
 __all__ = ["load_aptacom"]
 
-from datasets import load_dataset
 import pandas as pd
-
+from datasets import load_dataset
 
 
 def load_aptacom(as_df=False):
@@ -22,7 +21,8 @@ def load_aptacom(as_df=False):
     """
     aptacom = load_dataset('rpgv/AptaCom')['train']
     dataset = aptacom.with_format('pandas')
-    if as_df: dataset = pd.DataFrame().from_dict(aptacom);
+    if as_df: 
+        dataset = pd.DataFrame().from_dict(aptacom)
     
 
     return dataset

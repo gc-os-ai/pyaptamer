@@ -1,10 +1,10 @@
 __author__ = "rpgv"
 
 import pytest
-
-from pyaptamer.datasets import load_aptacom
 from datasets import Dataset
 from pandas import DataFrame
+
+from pyaptamer.datasets import load_aptacom
 
 
 @pytest.mark.parametrize("as_df", [True, False])
