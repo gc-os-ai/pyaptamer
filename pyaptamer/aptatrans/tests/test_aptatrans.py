@@ -280,8 +280,8 @@ class TestAptaTransPipeline:
             ),
         ],
     )
-    def test_predict_api(self, device, candidate, target, monkeypatch):
-        """Check predict_api() returns interaction scores correctly."""
+    def test_predict(self, device, candidate, target, monkeypatch):
+        """Check predict returns interaction scores correctly."""
         # setup
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
@@ -306,8 +306,8 @@ class TestAptaTransPipeline:
             pipeline, "_init_aptamer_experiment", lambda target: MockExperiment()
         )
 
-        # test predict_api
-        score = pipeline.predict_api(candidate=candidate, target=target)
+        # test predict
+        score = pipeline.predict(candidate=candidate, target=target)
 
         # check output
         assert isinstance(score, torch.Tensor)

@@ -6,22 +6,20 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
-import numpy as np
 import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import Aptamer
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import generate_triplets
+from pyaptamer.utils import (
+    generate_triplets,
+)
+from pyaptamer.utils._base import filter_words
 
 
 class AptaTransPipeline:
-    """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
-
-    Algorithm as originally described in Shin et al [1]_.
-
-    Reimplemented based on the publication and the original codebase.
+    """AptaTrans pipeline as described in [1]_.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans.
 
@@ -36,7 +34,8 @@ class AptaTransPipeline:
     model : AptaTrans
         An instance of the AptaTrans() class.
     prot_words : dict[str, int]
-        A dictionary mapping protein 3-mer subsequences to integer token IDs.
+        A dictionary mapping protein words to their frequency. This should be computed
+        on the protein dataset used for pretraining the protein encoder.
     depth : int, optional, default=20
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
@@ -45,9 +44,9 @@ class AptaTransPipeline:
     Attributes
     ----------
     apta_words, prot_words : dict[str, int]
-        A dictionary mapping aptamer and protein 3-mer subsequences to unique indices,
-        respectively. In particular, `prot_words` now contains only 3-mers with
-        above-average frequency.
+        A dictionary mapping aptamer 3-mer subsequences to unique indices, and protein
+        words to their frequency. In particular, `prot_words` now contains only protein
+        words with above-average frequency.
 
     References
     ----------
@@ -101,8 +100,8 @@ class AptaTransPipeline:
         """Initialize aptamer and protein word vocabularies.
 
         For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
-        integer indices. For proteins, 3-mers with below-average frequency are filtered
-        out. Then, they are mapped to integer indices.
+        integer indices. For proteins, load protein words mapped to their frequency and
+        filter out those with below-average frequency.
 
         Parameters
         ----------
@@ -112,22 +111,19 @@ class AptaTransPipeline:
         Returns
         -------
         tuple[dict[str, int], dict[str, int]]
-            A tuple of dictionaries mapping aptamer and protein 3-mer subsequences to
-            unique indices, respectively.
+            A tuple of dictionaries mapping aptamer 3-mer subsequences to unique
+            indices and protein words to their frequencies, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
         apta_words = generate_triplets(letters=["A", "C", "G", "U", "N"])
 
         # filter out protein words with below average frequency
-        mean_freq = np.mean(list(prot_words.values()))
-        prot_words = [seq for seq, freq in prot_words.items() if freq > mean_freq]
-        prot_words = {word: i + 1 for i, word in enumerate(prot_words)}
+        prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> Aptamer:
         """Initialize the aptamer experiment."""
-        # initialize the aptamer recommendation experiment
         experiment = Aptamer(
             target=target,
             model=self.model,
@@ -160,7 +156,7 @@ class AptaTransPipeline:
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate, return_interaction_map=True)
 
-    def predict_api(self, candidate: str, target: str) -> Tensor:
+    def predict(self, candidate: str, target: str) -> Tensor:
         """Predict aptamer-protein interaction (API) score for a given target protein.
 
         This methods initializes a new aptamer experiment for the given aptamer
