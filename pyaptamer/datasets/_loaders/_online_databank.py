@@ -3,7 +3,7 @@ __all__ = ["load_from_rcsb"]
 
 from Bio.PDB import PDBList
 
-from pyaptamer.utils.pdb_to_struct import pdb_to_struct
+from pyaptamer.utils import pdb_to_struct
 
 
 def load_from_rcsb(pdb_id, overwrite=False):
