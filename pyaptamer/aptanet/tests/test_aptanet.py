@@ -66,7 +66,7 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     Test if Pipeline predictions are valid floats and shape matches input
     for regression.
     """
-    pipe = AptaNetPipeline(classifier=AptaNetRegressor())
+    pipe = AptaNetPipeline(estimator=AptaNetRegressor())
 
     X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
     y = np.linspace(0, 1, 40).astype(np.float32)

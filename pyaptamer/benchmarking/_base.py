@@ -1,157 +1,99 @@
 __author__ = "satvshr"
 __all__ = ["Benchmarking"]
 
-import copy
-
 import numpy as np
 import pandas as pd
-from skbase.base import BaseObject
-from sklearn.model_selection import cross_validate, train_test_split
-
-from pyaptamer.utils.tag_checks import task_check
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import cross_validate
 
 
-class Benchmarking(BaseObject):
+class Benchmarking:
     """
-    Benchmark estimators on train/test splits or cross-validation.
+    Benchmark estimators using cross-validation.
 
-    You can either:
+    You can:
 
-    - pass `X, y` (feature matrix and labels/targets) and let this class
-        split into train/test automatically (if `cv=None`); or
-    - pass explicit `train_X, train_y, test_X, test_y` (if `cv=None`); or
-    - pass `X, y` along with `cv` to use cross-validation.
+    - pass `X, y` (feature matrix and labels/targets) along with `cv`
+      to use any cross-validation strategy;
+    - if you want a fixed train/test split, pass a `PredefinedSplit`
+      object as `cv`.
 
     Parameters
     ----------
     estimators : list[estimator] | estimator
         List of sklearn-like estimators implementing `fit` and `predict`.
-    evaluators : list[callable] | callable
-        List of callables with signature ``(y_true, y_pred) -> float``.
-    X : array-like, optional
-        Feature matrix. Used together with `y` if explicit train/test splits
-        are not provided.
-    y : array-like, optional
-        Target vector. Used together with `X` if explicit train/test splits
-        are not provided.
-    train_X : array-like, optional
-        Training feature matrix (ignored if `cv` is given).
-    train_y : array-like, optional
-        Training labels/targets (ignored if `cv` is given).
-    test_X : array-like, optional
-        Test feature matrix (ignored if `cv` is given).
-    test_y : array-like, optional
-        Test labels/targets (ignored if `cv` is given).
-    test_size : float, default=0.2
-        Fraction of data to reserve for the test split when splitting `X, y`.
-        Ignored if `cv` is provided.
-    stratify : bool, default=True
-        If True, and the task is classification, stratify the train/test split
-        using `y`. Ignored if `cv` is provided.
-    random_state : int or None, default=42
-        Random state for reproducibility in splits.
+    metrics : list[callable] | callable
+        List of callables with signature `(y_true, y_pred) -> float`.
+    X : array-like
+        Feature matrix.
+    y : array-like
+        Target vector.
     cv : int, CV splitter, or None, default=None
-        Cross-validation strategy. If provided, results are averaged
-        across folds and returned in the same format as hold-out mode.
+        Cross-validation strategy. If `None`, defaults to 5-fold CV.
+        If you want to use an explicit train/test split, pass a
+        `PredefinedSplit` object.
 
     Attributes
     ----------
     results : pd.DataFrame
-        Results table after calling :meth:`run`.
+        DataFrame produced by :meth:`run`.
 
-        - Rows = MultiIndex (estimator, metric)
-        - Cols = ["train", "test"]
+        - Index: pandas.MultiIndex with two levels (names shown in parentheses)
+            - level 0 "estimator": estimator name
+            - level 1 "metric": evaluator name
+        - Columns: ["train", "test"] (both floats)
+        - Cell values: mean scores (float) computed across CV folds:
+            - "train" = mean of cross_validate(...)[f"train_{metric}"]
+            - "test"  = mean of cross_validate(...)[f"test_{metric}"]
 
     Example
     -------
-    >>> import pandas as pd
     >>> import numpy as np
     >>> from sklearn.metrics import accuracy_score
+    >>> from sklearn.model_selection import PredefinedSplit
     >>> from pyaptamer.benchmarking._base import Benchmarking
     >>> from pyaptamer.aptanet import AptaNetPipeline
-    >>> from pyaptamer.datasets import load_csv_dataset
-    >>> X, y = load_csv_dataset("train_li2014", "label", return_X_y=True)
-    >>> X = X[:10]  # smaller example
-    >>> y = y[:10]
-    >>> y = np.where(y == "positive", 1, 0)
-    >>> clf = AptaNetPipeline()
+    >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+    >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> # dataset: 20 aptamer–protein pairs
+    >>> X = [(aptamer_seq, protein_seq) for _ in range(20)]
+    >>> y = np.array([0] * 10 + [1] * 10, dtype=np.float32)
+    >>> clf = AptaNetPipeline(k=4)
+    >>> # define a fixed train/test split
+    >>> test_fold = np.ones(len(y)) * -1
+    >>> test_fold[-2:] = 0
+    >>> cv = PredefinedSplit(test_fold)
     >>> bench = Benchmarking(
     ...     estimators=[clf],
-    ...     evaluators=[accuracy_score],
+    ...     metrics=[accuracy_score],
     ...     X=X,
     ...     y=y,
+    ...     cv=cv,
     ... )
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    _tags = {"tasks": ["classification", "regression"]}
-
-    def __init__(
-        self,
-        estimators,
-        evaluators,
-        X=None,
-        y=None,
-        train_X=None,
-        train_y=None,
-        test_X=None,
-        test_y=None,
-        test_size=0.2,
-        stratify=True,
-        random_state=None,
-        cv=None,
-    ):
+    def __init__(self, estimators, metrics, X, y, cv=None):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
-        self.evaluators = evaluators if isinstance(evaluators, list) else [evaluators]
-        self.test_size = test_size
-        self.stratify = stratify
-        self.random_state = random_state
+        self.metrics = metrics if isinstance(metrics, list) else [metrics]
+        self.X = X
+        self.y = y
         self.cv = cv
-
-        # case 1: explicit train/test provided
-        if (
-            train_X is not None
-            and train_y is not None
-            and test_X is not None
-            and test_y is not None
-        ):
-            if self.cv is not None:
-                raise ValueError(
-                    "Cannot use both explicit train/test splits and cross-validation. "
-                    "Either provide (train_X, train_y, test_X, test_y) or (X, y, cv)."
-                )
-            self.train_X, self.train_y = train_X, train_y
-            self.test_X, self.test_y = test_X, test_y
-
-        # case 2: (X, y) with cv
-        elif self.cv is not None:
-            if X is None or y is None:
-                raise ValueError("Provide (X, y) when using cross-validation.")
-            self.X, self.y = X, y
-
-        # case 3: (X, y) with hold-out split
-        elif X is not None and y is not None:
-            (
-                self.train_X,
-                self.test_X,
-                self.train_y,
-                self.test_y,
-            ) = train_test_split(
-                X,
-                y,
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=y if self.stratify else None,
-                shuffle=True,
-            )
-
-        else:
-            raise ValueError(
-                "Provide either (X, y), (X, y, cv), or"
-                "(train_X, train_y, test_X, test_y)."
-            )
-
         self.results = None
+
+    def _to_scorers(self, metrics):
+        """Convert metric callables to a dict of scorers."""
+        scorers = {}
+        for metric in metrics:
+            if not callable(metric):
+                raise ValueError("Each metric should be a callable.")
+            name = (
+                metric.__name__
+                if hasattr(metric, "__name__")
+                else metric.__class__.__name__
+            )
+            scorers[name] = make_scorer(metric)
+        return scorers
 
     def _to_df(self, results):
         """Convert nested results to a unified DataFrame."""
@@ -168,72 +110,45 @@ class Benchmarking(BaseObject):
 
     def run(self):
         """
-        Train each estimator and evaluate with hold-out or cross-validation.
+        Train each estimator and evaluate with cross-validation.
 
         Returns
         -------
-        pd.DataFrame
-            Results table with rows = (estimator, metric),
-            cols = ["train", "test"].
+        results : pd.DataFrame
+
+            - Index: pandas.MultiIndex with two levels (names shown in parentheses)
+                - level 0 "estimator": estimator name
+                - level 1 "metric": evaluator name
+            - Columns: ["train", "test"] (both floats)
+            - Cell values: mean scores (float) computed across CV folds:
+                - "train" = mean of cross_validate(...)[f"train_{metric}"]
+                - "test"  = mean of cross_validate(...)[f"test_{metric}"]
+
         """
-        task_check(self)
+        self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
-        if hasattr(self, "X") and hasattr(self, "y"):
-            for estimator in self.estimators:
-                est_name = estimator.__class__.__name__
+        for estimator in self.estimators:
+            est_name = estimator.__class__.__name__
 
-                scoring = {
-                    getattr(
-                        evaluator,
-                        "__name__",
-                        getattr(evaluator, "name", evaluator.__class__.__name__),
-                    ): evaluator
-                    for evaluator in self.evaluators
+            cv_results = cross_validate(
+                estimator,
+                self.X,
+                self.y,
+                cv=self.cv,
+                scoring=self.scorers_,
+                return_train_score=True,
+            )
+
+            # average across folds
+            est_scores = {}
+            for metric in self.scorers_.keys():
+                est_scores[metric] = {
+                    "train": float(np.mean(cv_results[f"train_{metric}"])),
+                    "test": float(np.mean(cv_results[f"test_{metric}"])),
                 }
 
-                cv_results = cross_validate(
-                    estimator,
-                    self.X,
-                    self.y,
-                    cv=self.cv,
-                    scoring=scoring,
-                    return_train_score=True,
-                )
-
-                # average across folds
-                est_scores = {}
-                for metric in scoring.keys():
-                    est_scores[metric] = {
-                        "train": float(np.mean(cv_results[f"train_{metric}"])),
-                        "test": float(np.mean(cv_results[f"test_{metric}"])),
-                    }
-
-                results[est_name] = est_scores
-
-        else:
-            for estimator in self.estimators:
-                est_name = estimator.__class__.__name__
-                model = copy.deepcopy(estimator)
-                model.fit(self.train_X, self.train_y)
-
-                est_scores = {}
-                for split_name, (X_split, y_split) in {
-                    "train": (self.train_X, self.train_y),
-                    "test": (self.test_X, self.test_y),
-                }.items():
-                    y_pred = model.predict(X_split)
-                    for evaluator in self.evaluators:
-                        eval_name = getattr(
-                            evaluator,
-                            "__name__",
-                            getattr(evaluator, "name", evaluator.__class__.__name__),
-                        )
-                        est_scores.setdefault(eval_name, {})[split_name] = evaluator(
-                            y_split, y_pred
-                        )
-
-                results[est_name] = est_scores
+            results[est_name] = est_scores
 
         self.results = self._to_df(results)
         return self.results

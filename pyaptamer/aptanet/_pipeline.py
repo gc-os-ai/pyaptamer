@@ -2,6 +2,7 @@ __author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.9,<3.13"]
 
+from skbase.base import BaseObject
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
@@ -11,7 +12,7 @@ from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 
-class AptaNetPipeline:
+class AptaNetPipeline(BaseObject):
     """
     AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
@@ -22,14 +23,14 @@ class AptaNetPipeline:
 
     The pipeline starts from string pairs, converts them into numeric features
     (aptamer k-mer frequencies + protein PSeAAC), applies tree-based feature
-    selection, and feeds the result into the classifier.
+    selection, and feeds the result into the estimator.
 
     Parameters
     ----------
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
 
-    classifier : sklearn-compatible estimator or None, default=None
+    estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
     Attributes
@@ -62,9 +63,9 @@ class AptaNetPipeline:
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
-    def __init__(self, k=4, classifier=None):
+    def __init__(self, k=4, estimator=None):
         self.k = k
-        self.classifier = classifier
+        self.estimator = estimator
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
@@ -72,8 +73,8 @@ class AptaNetPipeline:
             kw_args={"k": self.k},
             validate=False,
         )
-        self._classifier = self.classifier or AptaNetClassifier()
-        return Pipeline([("features", transformer), ("clf", clone(self._classifier))])
+        self._estimator = self.estimator or AptaNetClassifier()
+        return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
