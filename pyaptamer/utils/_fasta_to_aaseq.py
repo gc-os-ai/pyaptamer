@@ -7,7 +7,7 @@ from io import StringIO
 import pandas as pd
 from Bio import SeqIO
 
-from pyaptamer.utils.hf_to_dataset import hf_to_dataset
+from pyaptamer.utils._hf_to_dataset import hf_to_dataset
 
 
 def fasta_to_aaseq(fasta_path, return_df=False):

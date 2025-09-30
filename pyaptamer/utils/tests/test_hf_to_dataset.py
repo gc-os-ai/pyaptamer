@@ -1,6 +1,6 @@
 import os
 
-from pyaptamer.utils.hf_to_dataset import hf_to_dataset
+from pyaptamer.utils import hf_to_dataset
 
 
 def test_hf_hub_dataset_load():
