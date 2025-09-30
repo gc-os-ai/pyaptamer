@@ -17,16 +17,6 @@ params = [
 ]
 
 
-@pytest.fixture
-def aptamer_seq():
-    return "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
-
-
-@pytest.fixture
-def protein_seq():
-    return "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
-
-
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
 )
@@ -51,6 +41,7 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
 )
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
     Test if Pipeline probability estimates predictions returns floats and shape matches
