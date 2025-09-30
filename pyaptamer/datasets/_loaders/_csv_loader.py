@@ -29,9 +29,7 @@ def load_csv_dataset(name, target_col, return_X_y=False):
             - X_df : pd.DataFrame of shape (n_samples, n_features)
             - y_df : pd.DataFrame of shape (n_samples, 1)
     """
-    path = os.path.relpath(
-        os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
-    )
+    path = os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
 
     df = pd.read_csv(path)
 
