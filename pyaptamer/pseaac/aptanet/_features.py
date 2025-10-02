@@ -5,7 +5,7 @@ from collections import Counter
 
 import numpy as np
 
-from pyaptamer.aptanet.pseaac._props import aa_props
+from pyaptamer.pseaac.aptanet._props import aa_props
 from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
@@ -101,7 +101,7 @@ class AptaNetPSeAAC:
 
     Example
     -------
-    >>> from pyaptamer.aptanet.pseaac import AptaNetPSeAAC
+    >>> from pyaptamer.pseaac.aptanet import AptaNetPSeAAC
     >>> pseaac = AptaNetPSeAAC()
     >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])

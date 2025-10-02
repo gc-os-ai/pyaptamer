@@ -91,7 +91,7 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
 
     Examples
     --------
-    >>> from pyaptamer.aptanet.pseaac._props import aa_props
+    >>> from pyaptamer.pseaac.aptanet._props import aa_props
     >>> df = aa_props()
     >>> arr = aa_props(type="numpy", normalize=True)
     """

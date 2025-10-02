@@ -103,11 +103,11 @@ class PSeAAC:
     -------
     >>> from pyaptamer.pseaac import PSeAAC
     >>> seq = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
-    # Select only 6 properties and group into 3 groups of equal size
+    >>> # Select only 6 properties and group into 3 groups of equal size
     >>> pseaac = PSeAAC(prop_indices=[0, 1, 2, 3, 4, 5], group_props=2)
-    # Custom grouping (4 groups)
+    >>> # Custom grouping (4 groups)
     >>> pseaac = PSeAAC(custom_groups=[[0, 1], [2, 3], [4, 5], [6, 7]])
-    # Default: all properties, grouped into 7 groups of 3
+    >>> # Default: all properties, grouped into 7 groups of 3
     >>> pseaac = PSeAAC()
     >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])

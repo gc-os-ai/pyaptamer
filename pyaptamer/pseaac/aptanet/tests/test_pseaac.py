@@ -3,9 +3,9 @@ __author__ = "satvshr"
 import numpy as np
 import pytest
 
-from pyaptamer.aptanet.pseaac import AptaNetPSeAAC
-from pyaptamer.aptanet.pseaac._props import aa_props
-from pyaptamer.aptanet.pseaac.tests._props import solution
+from pyaptamer.pseaac.aptanet import AptaNetPSeAAC
+from pyaptamer.pseaac.aptanet._props import aa_props
+from pyaptamer.pseaac.aptanet.tests._props import solution
 
 vector = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
 
