@@ -1,15 +1,15 @@
 __author__ = ["nennomp", "satvshr"]
-__all__ = ["PSeAAC"]
+__all__ = ["AptaNetPSeAAC"]
 
 from collections import Counter
 
 import numpy as np
 
-from pyaptamer.pseaac._props import aa_props
+from pyaptamer.pseaac.aptanet._props import aa_props
 from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
-class PSeAAC:
+class AptaNetPSeAAC:
     """
     Compute Pseudo Amino Acid Composition (PseAAC) features for a protein sequence.
 
@@ -101,14 +101,8 @@ class PSeAAC:
 
     Example
     -------
-    >>> from pyaptamer.pseaac import PSeAAC
-    >>> seq = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
-    >>> # Select only 6 properties and group into 3 groups of equal size
-    >>> pseaac = PSeAAC(prop_indices=[0, 1, 2, 3, 4, 5], group_props=2)
-    >>> # Custom grouping (4 groups)
-    >>> pseaac = PSeAAC(custom_groups=[[0, 1], [2, 3], [4, 5], [6, 7]])
-    >>> # Default: all properties, grouped into 7 groups of 3
-    >>> pseaac = PSeAAC()
+    >>> from pyaptamer.pseaac.aptanet import AptaNetPSeAAC
+    >>> pseaac = AptaNetPSeAAC()
     >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])
     [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
