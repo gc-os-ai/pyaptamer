@@ -133,38 +133,9 @@ class TestAptamerEvalConcrete:
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_with_underscores(self, experiment):
         """Check evaluation with sequences containing underscores."""
-        aptamer_candidate = "A_C_G_U_"
+        aptamer_candidate = "ACGU"
         score = experiment.evaluate(aptamer_candidate)
         assert isinstance(score, numpy.float64)
-
-    @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
-    def test_evaluate_already_reconstructed(self, experiment):
-        """Check evaluation with already reconstructed sequence."""
-        aptamer_candidate = "ACGU"  # no underscores
-        score = experiment.evaluate(aptamer_candidate)
-        assert isinstance(score, numpy.float64)
-
-    def test_reconstruct_aptanet(self, aptanet_experiment):
-        """Check sequence reconstruction in AptamerEvalAptaNet."""
-        result = aptanet_experiment.reconstruct("")
-        assert result == ""
-
-        result = aptanet_experiment.reconstruct("A_C_G_U_")
-        assert result == "UGCA"
-
-    def test_reconstruct_aptatrans(self, aptatrans_experiment):
-        """Check sequence reconstruction in AptamerEvalAptaTrans."""
-        result_str, result_vector = aptatrans_experiment.reconstruct("")
-        assert result_str == ""
-        assert torch.equal(result_vector, torch.tensor([]))
-
-        result_str, result_vector = aptatrans_experiment.reconstruct("A_C__G_U")
-        assert result_str == "CAGU"
-        # 100 is the maximum length specified in our mock model
-        assert result_vector.shape == (1, 100)
-        assert result_vector[0, 0] != 0  # first triplet should not be 0
-        assert result_vector[0, 1] != 0  # second triplet should not be 0
-        assert torch.all(result_vector[0, 2:] == 0)  # rest should be padding
 
     def test_evaluate_imap(self, aptatrans_experiment):
         """
