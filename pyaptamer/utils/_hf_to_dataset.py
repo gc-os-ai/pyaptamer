@@ -17,7 +17,7 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
     path : str or dict
         Path or identifier for the dataset. Can be:
 
-          - A Hugging Face Hub dataset name (e.g. "imdb").
+          - A Hugging Face Hub dataset name (e.g. "imdb", "username/dataset_name").
           - A local dataset path.
           - A URL to a dataset file.
           - A dictionary of split-to-file mappings, e.g.
@@ -30,8 +30,12 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
 
     Returns
     -------
-    datasets.Dataset
-        A Hugging Face datasets.Dataset object.
+    datasets.Dataset or datasets.DatasetDict
+        - If the source provides multiple splits (e.g. "train", "test"),
+          a `datasets.DatasetDict` is returned.
+        - If only a single split is present, the corresponding
+          `datasets.Dataset` is returned directly (this function unwraps
+          single-split DatasetDicts automatically).
     """
     try:
         ds = load_dataset(path, keep_in_memory=keep_in_memory, **kwargs)

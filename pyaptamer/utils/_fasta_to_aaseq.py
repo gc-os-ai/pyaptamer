@@ -12,39 +12,55 @@ from pyaptamer.utils._hf_to_dataset import hf_to_dataset
 
 def fasta_to_aaseq(fasta_path, return_df=False):
     """
-    Extract sequences from a FASTA file, Hugging Face dataset, or URL.
+    Extract sequences from a FASTA file, Hugging Face dataset (FASTA-as-text),
+    or URL.
 
     Parameters
     ----------
-    ``fasta_path`` : str or os.PathLike
-        Input source for FASTA sequences. Can be:
+    fasta_path : str
+        Input location for FASTA content. Three input types are supported,
+        tried in this order:
 
-          - Local file path (absolute or relative) located in
-          ``pyaptamer/datasets/data``.
-          - Hugging Face Hub reference.
+        1. Local filesystem path (absolute or relative to current working dir).
+        2. Hugging Face dataset identifier. If the string is not an existing
+           local path, the function passes it to ``hf_to_dataset`` and expects
+           the returned dataset to contain a column named ``"text"`` where each
+           row is a FASTA line. In other words, the dataset must be a FASTA file
+           that was uploaded as a text dataset on the Hub. Other schemas are not
+           supported.
+        3. URL. If ``fasta_path`` is a direct URL pointing to a text file
+           (e.g. a FASTA file hosted on a website), it is also handled via
+           ``hf_to_dataset``. As with Hugging Face datasets, the content is
+           expected to be plain FASTA text.
 
-    ``return_df`` : bool, default=False
-        If True, return a pandas DataFrame with index = FASTA record id and
-        a single column:
-
-          - ``sequence`` : str
-              Sequence string (amino acid or nucleotide).
-
-        If False, return a list of sequence strings.
+    return_df : bool, default=False
+        If ``False`` (default) return a Python list of sequences (one str per
+        FASTA record, in the order they appear). If ``True`` return a
+        ``pandas.DataFrame`` indexed by the FASTA record id with a single column
+        named ``"sequence"``.
 
     Returns
     -------
-    list of str or pandas.DataFrame
+    list[str] or pandas.DataFrame
 
-        - If ``return_df=False``: list of sequences (str).
-        - If ``return_df=True``: DataFrame indexed by record id with a
-          ``sequence`` column. Returns an empty DataFrame with index name
-          ``id`` if no records are found.
+        - If ``return_df=False``: list of sequence strings.
+        - If ``return_df=True``: DataFrame with FASTA record ids as index
+          and one column ``"sequence"``.
+
+    Examples
+    --------
+
+    - Local FASTA file:
+      ``fasta_to_aaseq("my_sequences.fasta")``
+    - Hugging Face dataset identifier (dataset must contain FASTA text in a
+      column named "text"):
+      ``fasta_to_aaseq("username/fasta_dataset", return_df=True)``
+    - Direct URL to a FASTA file:
+      ``fasta_to_aaseq("https://example.org/my_sequences.fasta")``
 
     """
-    path = os.path.join(os.path.dirname(__file__), "..", "data", fasta_path)
-    if os.path.exists(path):
-        fasta_handle = path
+    if os.path.exists(fasta_path):
+        fasta_handle = fasta_path
     else:
         dataset = hf_to_dataset(fasta_path)
         content = "\n".join(dataset[:]["text"])
