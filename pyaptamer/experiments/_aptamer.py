@@ -40,7 +40,8 @@ class BaseAptamerEval(BaseObject, ABC):
         ----------
         aptamer_candidate : str
             The aptamer candidate to evaluate. It should be a string consisting of
-            letters representing nucleotides: 'A', 'C', 'G', and 'U'.
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
         **kwargs
             Additional keyword arguments specific to the implementation.
 
@@ -123,7 +124,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         ----------
         aptamer_candidate : str
             The aptamer candidate to evaluate. It should be a string consisting of
-            letters representing nucleotides: 'A', 'C', 'G', and 'U'.
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
         return_interaction_map : bool, optional, default=False
             Whether to return the interaction map or not.
 
@@ -204,7 +206,8 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         ----------
         aptamer_candidate : str
             The aptamer candidate to evaluate. It should be a string consisting of
-            letters representing nucleotides: 'A', 'C', 'G', and 'U'.
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
 
         Returns
         -------

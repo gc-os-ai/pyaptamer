@@ -128,7 +128,7 @@ class MCTS(BaseObject):
         Returns
         -------
         str
-            The reconstructed RNA sequence.
+            The reconstructed sequence.
         """
         # already reconstructed
         if "_" not in sequence:
