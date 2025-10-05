@@ -11,28 +11,25 @@ def _download_dataset(
 ) -> None:
     """Download a Kaggle dataset to the specified directory and unzip it.
 
-    This is a private helper function used internally by the module.
-
     Parameters
     ----------
     dataset_name : str
-        The Kaggle dataset identifier in format "username/dataset-name"
+        Kaggle dataset identifier like "username/dataset-name".
     target_dir : Path
-        Directory where the dataset should be downloaded and extracted
+        Directory to download and extract the dataset.
     force_download : bool, default False
-        If True, download even if CSV files already exist in target_dir
+        If True, download even if CSV files already exist in target_dir.
 
     Raises
     ------
     ImportError
-        If the kaggle package is not installed
+        If the kaggle package is not installed.
     Exception
-        If the download fails for any reason
+        If the download fails for any reason.
 
     Notes
     -----
-    This function requires the kaggle package to be installed and properly
-    configured with API credentials.
+    Requires kaggle package installed and configured with API credentials.
     """
     import kaggle  # avoid import-time auth
 
@@ -46,27 +43,25 @@ def _download_dataset(
 
 
 def _find_csv(directory: Path) -> Path | None:
-    """Find the most appropriate CSV file in a directory.
-
-    This is a private helper function that implements smart CSV file detection.
+    """Return the most appropriate CSV file path from a directory.
 
     Parameters
     ----------
     directory : Path
-        Directory to search for CSV files
+        Directory to look for CSV files.
 
     Returns
     -------
     Path or None
-        Path to the most appropriate CSV file, or None if no CSV files found
+        Path to CSV file or None if none found.
 
     Notes
     -----
-    Selection priority:
-    1. If only one CSV file exists, return it
-    2. If multiple CSV files exist, prefer files with names containing:
-       "aptamer", "interaction", "main", or "data"
-    3. If no preferred names found, return the first CSV file
+    Preference order:
+    1. If only one CSV, return it.
+    2. If multiple, prefer files with "aptamer", "interaction", "main", or "data"
+    in name.
+    3. Otherwise, return first CSV found.
     """
     csv_files = list(directory.glob("*.csv"))
 
@@ -76,7 +71,6 @@ def _find_csv(directory: Path) -> Path | None:
     if len(csv_files) == 1:
         return csv_files[0]
 
-    # Look for files with preferred keywords in their names
     preferred_keywords = ["aptamer", "interaction", "main", "data"]
     candidates = [
         f
@@ -88,22 +82,17 @@ def _find_csv(directory: Path) -> Path | None:
 
 
 def _normalize_interaction_present(df: pd.DataFrame) -> None:
-    """Normalize interaction present column in the dataset.
-
-    This is a private helper function for data preprocessing.
-    Currently a placeholder for future implementation.
+    """Placeholder to normalize 'interaction_present' column in the DataFrame.
 
     Parameters
     ----------
     df : pd.DataFrame
-        The dataframe to normalize
+        DataFrame to normalize.
 
     Notes
     -----
-    This function is currently not implemented and serves as a placeholder
-    for future data normalization functionality.
+    Currently not implemented, kept for future data normalization.
     """
-    # TODO: Implement interaction present normalization
     return
 
 
@@ -113,48 +102,40 @@ def load_aptamer_interactions(
     encoding: str | None = None,
     **read_csv_kwargs,
 ) -> pd.DataFrame:
-    """Load an aptamer interactions CSV file into a pandas DataFrame.
+    """Load aptamer interactions CSV into a pandas DataFrame.
 
-    This function provides robust CSV loading with automatic encoding detection
-    and error handling for various file formats commonly found in biological
-    datasets.
+    Tries common encodings automatically for robust loading.
 
     Parameters
     ----------
     path : str or Path
-        Path to the CSV file containing aptamer interaction data
+        Path to CSV file with aptamer interactions.
     encoding : str, optional
-        Specific file encoding to use. If None (default), multiple common
-        encodings will be tried automatically
+        Specific file encoding to use. If None, tries common encodings.
     **read_csv_kwargs
-        Additional keyword arguments passed directly to pandas.read_csv()
+        Additional arguments passed to pandas.read_csv().
 
     Returns
     -------
     pd.DataFrame
-        DataFrame containing the loaded aptamer interaction data
+        DataFrame with aptamer interaction data.
 
     Raises
     ------
     RuntimeError
-        If the CSV file cannot be read with any of the attempted encodings
+        If CSV cannot be read with any attempted encodings.
 
     Notes
     -----
-    The function attempts the following encodings in order:
-    - utf-8
-    - utf-8-sig (for files with BOM)
-    - latin-1
-    - cp1252
-    - windows-1252
+    Encodings tried (in order): utf-8, utf-8-sig, latin-1, cp1252, windows-1252.
     """
     candidate_encodings = (
         [
             "utf-8",
-            "utf-8-sig",  # For files with byte order mark
+            "utf-8-sig",
             "latin-1",
-            "cp1252",  # Common Windows encoding
-            "windows-1252",  # Alternative Windows encoding
+            "cp1252",
+            "windows-1252",
         ]
         if encoding is None
         else [encoding]
@@ -171,8 +152,7 @@ def load_aptamer_interactions(
             continue
 
     raise RuntimeError(
-        f"Failed to read CSV at {path} with candidate encodings "
-        f"{candidate_encodings}: {last_error}"
+        f"Failed to read CSV {path} with encodings {candidate_encodings}: {last_error}"
     )
 
 
@@ -182,11 +162,7 @@ def load_interactions(
     encoding: str | None = None,
     **read_csv_kwargs,
 ) -> pd.DataFrame:
-    """Load interaction data from a CSV file.
-
-    This is a convenience alias for load_aptamer_interactions() with identical
-    functionality and parameters.
-    """
+    """Alias for load_aptamer_interactions with same parameters and return."""
     return load_aptamer_interactions(
         path=path,
         encoding=encoding,
@@ -202,7 +178,35 @@ def load_aptadb(
     encoding: str | None = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """Download and load aptamer-interactions Kaggle dataset as DataFrame."""
+    """Download and load aptamer-interactions dataset from Kaggle as DataFrame.
+
+    Parameters
+    ----------
+    dataset_name : str, optional
+        Kaggle dataset name.
+    cache_dir : str or Path, optional
+        Local directory for caching dataset files.
+    force_download : bool, default False
+        If True, download dataset even if cached files exist.
+    encoding : str, optional
+        Encoding for CSV file loading.
+    **kwargs
+        Additional arguments passed to CSV loader.
+
+    Returns
+    -------
+    pd.DataFrame
+        Loaded dataset as a pandas DataFrame.
+
+    Raises
+    ------
+    ImportError
+        If the 'kaggle' package is missing.
+    RuntimeError
+        If dataset download fails.
+    FileNotFoundError
+        If no CSV file found after download.
+    """
     if cache_dir is None:
         cache_dir = (
             Path.home() / ".pyaptamer" / "cache" / dataset_name.replace("/", "_")
@@ -216,7 +220,6 @@ def load_aptadb(
         try:
             _download_dataset(dataset_name, cache_dir, force_download=force_download)
         except ImportError as err:
-            # Re-raise ImportError for clear messaging when kaggle is missing
             raise ImportError(
                 "The 'kaggle' package is required to download datasets. "
                 "Install it with: pip install kaggle"
