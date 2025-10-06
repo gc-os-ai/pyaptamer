@@ -7,7 +7,9 @@ import os
 import pandas as pd
 import requests
 from Bio import SeqIO
-from Bio.PDB import PDBParser, PPBuilder
+
+from ._pdb_to_struct import pdb_to_struct
+from ._struct_to_aaseq import struct_to_aaseq
 
 
 def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=None):
@@ -15,8 +17,9 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
     Extract amino-acid sequences from a PDB file.
 
     Tries SEQRES records first (full deposited sequence).
-    Falls back to ATOM coordinates if SEQRES missing.
-    Optionally, retrieves canonical UniProt sequence for the PDB ID.
+    Falls back to using the package's pdb -> Structure -> sequences converters
+    if SEQRES records are not present. Optionally, retrieves canonical UniProt
+    sequence for the PDB ID.
 
     Parameters
     ----------
@@ -24,22 +27,36 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
         Path to a PDB file.
     return_type : {'list', 'pd.df'}, optional, default='list'
         Format of returned value:
-          - 'list' : list of amino acid strings (one per chain)
-          - 'pd.df' : DataFrame with chain id and sequence
+          - ``'list'`` : list of amino acid strings (one per chain / polypeptide)
+          - ``'pd.df'`` : pandas.DataFrame with a single column ``'sequence'``.
+            Rows are indexed 0..n-1 (no chain identifiers).
     use_uniprot : bool, optional, default=False
         If True, fetches the UniProt sequence using the PDB ID.
-        Requires `pdb_id` argument to be set.
+        Requires the ``pdb_id`` argument to be set.
     pdb_id : str, optional
-        PDB ID (e.g., '1a3n') required if use_uniprot=True.
+        PDB ID (e.g., ``'1a3n'``) required if ``use_uniprot=True``.
 
     Returns
     -------
     list of str or pandas.DataFrame
-        Depending on `return_type`.
-    """
+        Depending on ``return_type``. If ``'list'``, returns a Python list of
+        sequence strings (one element per chain / polypeptide). If ``'pd.df'``,
+        returns a DataFrame with a single column ``'sequence'`` and a default
+        integer index (no chain IDs).
 
+    Raises
+    ------
+    FileNotFoundError
+        If the given ``pdb_file_path`` does not exist.
+    ValueError
+        If ``return_type`` is not one of the supported values, or if
+        ``use_uniprot=True`` but no mapping / fasta could be retrieved.
+    """
     pdb_path = os.fspath(pdb_file_path)
-    sequences, chains = [], []
+    if not os.path.exists(pdb_path):
+        raise FileNotFoundError(f"PDB file not found: {pdb_path}")
+
+    sequences = []
 
     # Try SEQRES records first
     with open(pdb_path) as handle:
@@ -48,20 +65,13 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
     if seqres_records:
         for record in seqres_records:
             sequences.append(str(record.seq))
-            chains.append(getattr(record, "id", None))
     else:
-        # Fall back to ATOM records
-        parser = PDBParser(QUIET=True)
-        structure = parser.get_structure("pdb", pdb_path)
-        ppb = PPBuilder()
-        for model in structure:
-            for chain in model:
-                peptides = ppb.build_peptides(chain)
-                if not peptides:
-                    continue
-                seq = "".join(str(p.get_sequence()) for p in peptides)
-                sequences.append(seq)
-                chains.append(chain.id)
+        # Fall back to using pdb_to_struct + struct_to_aaseq helpers
+        structure = pdb_to_struct(pdb_path)
+        sequences = struct_to_aaseq(structure)
+
+    if len(sequences) == 0:
+        raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
 
     if use_uniprot:
         if not pdb_id:
@@ -86,13 +96,11 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
 
         record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
         sequences = [str(record.seq)]
-        chains = [uniprot_id]
 
     if return_type == "list":
         return sequences
     elif return_type == "pd.df":
-        df = pd.DataFrame({"chain": chains, "sequence": sequences})
-        df = df.set_index("chain")
+        df = pd.DataFrame({"sequence": sequences})
         return df
     else:
         raise ValueError("`return_type` must be either 'list' or 'pd.df'")
