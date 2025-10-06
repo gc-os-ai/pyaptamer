@@ -111,6 +111,49 @@ class MCTS(BaseObject):
         self.base = ""
         self.candidate = ""
 
+    def _reconstruct(self, sequence: str) -> str:
+        """Reconstruct the aptamer sequence.
+
+        The algorithms produces expects aptamer candidates in a specific format
+        involving pairs of nucleotide letters and direction markers (underscores). For
+        instance, 'A_' indicates adding 'A' to the left of the current sequence
+        (prepending), while '_A' indicates adding 'A' to the right (appending). As an
+        example, the input 'A_C__GU_' would be reconstructed to 'UCAG'.
+
+        Parameters
+        ----------
+        sequence : str
+            Encoded sequence with direction markers (underscores).
+
+        Returns
+        -------
+        str
+            The reconstructed sequence.
+        """
+        # already reconstructed
+        if "_" not in sequence:
+            return sequence
+
+        # if the sequence is not reconstructed yet, it should have an even length
+        # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
+        # direction marker).
+        assert len(sequence) % 2 == 0, (
+            f"Encoded sequence must have even length, got {len(sequence)}."
+        )
+
+        # reconstruct
+        result = ""
+        for i in range(0, len(sequence), 2):
+            match sequence[i]:
+                case "_":
+                    # append the next values
+                    result = result + sequence[i + 1]
+                case _:
+                    # prepend the current value
+                    result = sequence[i] + result
+
+        return result
+
     def _selection(self, node: "TreeNode") -> "TreeNode":
         """Select a node for expansion.
 
@@ -278,10 +321,11 @@ class MCTS(BaseObject):
             round_count += 1
 
         self.candidate = self.base
+        reconstructed_candidate = self._reconstruct(self.candidate)
         return {
-            "candidate": self.experiment.reconstruct(self.candidate)[0],
+            "candidate": reconstructed_candidate,
             "sequence": self.candidate,
-            "score": self.experiment.evaluate(self.candidate),
+            "score": self.experiment.evaluate(reconstructed_candidate),
         }
 
 
