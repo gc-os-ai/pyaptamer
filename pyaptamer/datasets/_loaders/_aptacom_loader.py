@@ -91,10 +91,14 @@ def load_complete_aptacom(as_df=False, filter_entries=None):
                 in filter_map[filter_entries][1]
             )
 
-    if as_df:
-        dataset = pd.DataFrame().from_dict(aptacom)
-    else:
-        dataset = aptacom.with_format("pandas")
+    try:
+        if as_df:
+            dataset = pd.DataFrame().from_dict(aptacom)
+        else:
+            dataset = aptacom.with_format("pandas")
+    except: 
+        raise ValueError("""'as_df' parameter expects
+                          a boolean (True or False)""")
 
     return dataset
 
@@ -152,36 +156,43 @@ def load_aptacom_for_training(as_df=False, filter_entries=None, tagret_id=False)
                 lambda x: x[filter_map[filter_entries][0]]
                 in filter_map[filter_entries][1]
             )
+    try:
+        if tagret_id:
+            aptacom = aptacom.map(
+                remove_columns=[
+                    "reference",
+                    "aptamer_chemistry",
+                    "aptamer_name",
+                    "target_name",
+                    "origin",
+                    "target_chemistry",
+                    "new_affinity",
+                ]
+            )
+        else:
+            aptacom = aptacom.map(
+                remove_columns=[
+                    "reference",
+                    "aptamer_chemistry",
+                    "aptamer_name",
+                    "target_name",
+                    "origin",
+                    "target_chemistry",
+                    "external_id",
+                    "new_affinity",
+                ]
+            )
+    except: 
+        raise ValueError("""'target_id' parameter expects
+                          a boolean (True or False)""")
 
-    if tagret_id:
-        aptacom = aptacom.map(
-            remove_columns=[
-                "reference",
-                "aptamer_chemistry",
-                "aptamer_name",
-                "target_name",
-                "origin",
-                "target_chemistry",
-                "new_affinity",
-            ]
-        )
-    else:
-        aptacom = aptacom.map(
-            remove_columns=[
-                "reference",
-                "aptamer_chemistry",
-                "aptamer_name",
-                "target_name",
-                "origin",
-                "target_chemistry",
-                "external_id",
-                "new_affinity",
-            ]
-        )
-
-    if as_df:
-        dataset = pd.DataFrame().from_dict(aptacom)
-    else:
-        dataset = aptacom.with_format("pandas")
+    try:
+        if as_df:
+            dataset = pd.DataFrame().from_dict(aptacom)
+        else:
+            dataset = aptacom.with_format("pandas")
+    except: 
+        raise ValueError("""'as_df' parameter expects
+                          a boolean (True or False)""")
 
     return dataset
