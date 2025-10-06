@@ -81,21 +81,6 @@ def _find_csv(directory: Path) -> Path | None:
     return candidates[0] if candidates else csv_files[0]
 
 
-def _normalize_interaction_present(df: pd.DataFrame) -> None:
-    """Placeholder to normalize 'interaction_present' column in the DataFrame.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to normalize.
-
-    Notes
-    -----
-    Currently not implemented, kept for future data normalization.
-    """
-    return
-
-
 def load_aptamer_interactions(
     path: str | Path,
     *,
