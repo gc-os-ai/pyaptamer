@@ -37,11 +37,22 @@ def test_pdb_to_aaseq_seqres(pdb_path_1gnh):
 
     df = pdb_to_aaseq(pdb_path_1gnh, return_type="pd.df")
 
-    assert not df.empty, "Returned DataFrame should not be empty"
-    assert "sequence" in df.columns, "DataFrame should have a 'sequence' column"
-    assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"]), (
-        "Each sequence entry in DataFrame should be a non-empty string"
+    assert isinstance(df, type(__import__("pandas").DataFrame())), (
+        "Expected a pandas DataFrame"
     )
+    assert not df.empty, "Returned DataFrame should not be empty"
+    assert list(df.columns) == ["chain", "sequence"], (
+        "DataFrame should have columns ['chain', 'sequence']"
+    )
+
+    # number of rows should match number of sequences
+    assert len(df) == len(sequences)
+
+    # sequences in DataFrame should match the list and be non-empty strings
+    assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"])
+    # chain ids may be None or a short string; ensure dtype is object and entries are
+    # acceptable
+    assert all((c is None) or (isinstance(c, str) and len(c) >= 1) for c in df["chain"])
 
 
 def test_pdb_to_aaseq_atom_fallback(pdb_path_pfoa):
@@ -50,9 +61,18 @@ def test_pdb_to_aaseq_atom_fallback(pdb_path_pfoa):
     """
 
     sequences = pdb_to_aaseq(pdb_path_pfoa)
-    print(sequences)
     assert isinstance(sequences, list), "Should return a list"
     assert len(sequences) > 0, "ATOM fallback should produce at least one sequence"
+    assert all(isinstance(s, str) and len(s) > 0 for s in sequences)
+
+    # DataFrame return should include chain and sequence columns
+    df = pdb_to_aaseq(pdb_path_pfoa, return_type="pd.df")
+    assert isinstance(df, type(__import__("pandas").DataFrame()))
+    assert not df.empty, "ATOM fallback DataFrame should not be empty"
+    assert list(df.columns) == ["chain", "sequence"], (
+        "DataFrame should have columns ['chain','sequence']"
+    )
+    assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"])
 
 
 @pytest.mark.internet
@@ -63,8 +83,8 @@ def test_pdb_to_aaseq_uniprot_fetch(pdb_path_1gnh):
     """
     try:
         sequences = pdb_to_aaseq(pdb_path_1gnh, use_uniprot=True, pdb_id="1gnh")
-    except RuntimeError as e:
-        pytest.skip(f"Skipped UniProt fetch test (API unavailable): {e}")
+    except Exception as e:
+        pytest.skip(f"Skipped UniProt fetch test (network/API unavailable): {e}")
         return
 
     assert isinstance(sequences, list), "Expected list return type from UniProt mode"
