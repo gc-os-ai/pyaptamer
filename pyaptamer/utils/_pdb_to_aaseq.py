@@ -27,9 +27,10 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
         Path to a PDB file.
     return_type : {'list', 'pd.df'}, optional, default='list'
         Format of returned value:
-          - ``'list'`` : list of amino acid strings (one per chain / polypeptide)
-          - ``'pd.df'`` : pandas.DataFrame with a single column ``'sequence'``.
-            Rows are indexed 0..n-1 (no chain identifiers).
+          - ``'list'`` : Python list of amino-acid strings (one per chain / polypeptide)
+          - ``'pd.df'`` : pandas.DataFrame with columns ``'chain'`` and ``'sequence'``
+            (one row per chain/polypeptide). If chain ids are not available they may
+            be ``None``.
     use_uniprot : bool, optional, default=False
         If True, fetches the UniProt sequence using the PDB ID.
         Requires the ``pdb_id`` argument to be set.
@@ -41,36 +42,39 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
     list of str or pandas.DataFrame
         Depending on ``return_type``. If ``'list'``, returns a Python list of
         sequence strings (one element per chain / polypeptide). If ``'pd.df'``,
-        returns a DataFrame with a single column ``'sequence'`` and a default
-        integer index (no chain IDs).
+        returns a DataFrame with columns ``'chain'`` and ``'sequence'`` and a
+        default integer index.
 
     Raises
     ------
     FileNotFoundError
         If the given ``pdb_file_path`` does not exist.
     ValueError
-        If ``return_type`` is not one of the supported values, or if
-        ``use_uniprot=True`` but no mapping / fasta could be retrieved.
+        If ``return_type`` is not one of the supported values, or if no sequences could
+        be extracted, or if ``use_uniprot=True`` but no mapping / fasta could be
+        retrieved.
     """
     pdb_path = os.fspath(pdb_file_path)
     if not os.path.exists(pdb_path):
         raise FileNotFoundError(f"PDB file not found: {pdb_path}")
-
-    sequences = []
 
     # Try SEQRES records first
     with open(pdb_path) as handle:
         seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
     if seqres_records:
+        records = []
         for record in seqres_records:
-            sequences.append(str(record.seq))
+            records.append(
+                {"chain": getattr(record, "id", None), "sequence": str(record.seq)}
+            )
+        df = pd.DataFrame.from_records(records, columns=["chain", "sequence"])
     else:
         # Fall back to using pdb_to_struct + struct_to_aaseq helpers
         structure = pdb_to_struct(pdb_path)
-        sequences = struct_to_aaseq(structure)
+        df = struct_to_aaseq(structure)
 
-    if len(sequences) == 0:
+    if df.empty:
         raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
 
     if use_uniprot:
@@ -95,12 +99,15 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=No
         fasta_data = fasta_resp.text
 
         record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
-        sequences = [str(record.seq)]
+        df = pd.DataFrame(
+            [{"chain": None, "sequence": str(record.seq)}],
+            columns=["chain", "sequence"],
+        )
 
     if return_type == "list":
-        return sequences
+        return df["sequence"].tolist()
     elif return_type == "pd.df":
-        df = pd.DataFrame({"sequence": sequences})
-        return df
+        # return a DataFrame with exactly 'chain' and 'sequence' columns
+        return df.reset_index(drop=True)[["chain", "sequence"]]
     else:
         raise ValueError("`return_type` must be either 'list' or 'pd.df'")
