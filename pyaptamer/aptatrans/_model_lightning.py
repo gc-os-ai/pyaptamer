@@ -12,7 +12,7 @@ from torch import Tensor
 
 
 class AptaTransLightning(L.LightningModule):
-    """LightningModule wrapper for training the AptaTrans deep neural network [1]_.
+    """LightningModule wrapper for the AptaTrans deep neural network [1]_.
 
     This class defines a LightningModule which acts as a wrapper for the AptaTrans
     model, implemented as a `torch.nn.Module` in `pyaptamer.aptatrans._model.py`.

@@ -2,7 +2,7 @@ __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
     "encode_rna",
-    "generate_triplets",
+    "generate_all_aptamer_triplets",
     "rna2vec",
 ]
 
@@ -39,8 +39,9 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_triplets(letters: list[str]) -> dict[str, int]:
-    """Generate a dictionary of all possible triplets combinations from given letters.
+def generate_all_aptamer_triplets(letters: list[str]) -> dict[str, int]:
+    """
+    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to unique indices.
 
     Parameters
     ----------
@@ -57,7 +58,6 @@ def generate_triplets(letters: list[str]) -> dict[str, int]:
         triplets["".join(triplet)] = idx + 1
 
     return triplets
-
 
 def rna2vec(
     sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
@@ -124,7 +124,7 @@ def rna2vec(
         # generate all ss triplets
         letters = ["S", "H", "M", "I", "B", "X", "E"]
 
-    triplets = generate_triplets(letters=letters)
+    triplets = generate_all_aptamer_triplets(letters=letters)
 
     result = []
     for sequence in sequence_list:
