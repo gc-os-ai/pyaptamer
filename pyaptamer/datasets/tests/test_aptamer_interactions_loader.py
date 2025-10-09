@@ -13,7 +13,6 @@ from pyaptamer.datasets._loaders.load_aptamer_interactions import (
 
 def test_local_csv(tmp_path):
     """Test loading aptamer data from a local CSV file.
-
     Parameters
     ----------
     tmp_path : Path
@@ -37,7 +36,6 @@ def test_local_csv(tmp_path):
 
 def test_uses_cache(tmp_path):
     """Test that cached data is used instead of downloading.
-
     Parameters
     ----------
     tmp_path : Path
@@ -63,7 +61,6 @@ def test_uses_cache(tmp_path):
 
 def test_requires_kaggle(tmp_path):
     """Test that ImportError is raised when kaggle package is missing.
-
     Parameters
     ----------
     tmp_path : Path
@@ -77,7 +74,6 @@ def test_requires_kaggle(tmp_path):
 
 def test_invalid_dataset(tmp_path):
     """Test error handling for invalid dataset download.
-
     Parameters
     ----------
     tmp_path : Path
@@ -101,7 +97,6 @@ def test_invalid_dataset(tmp_path):
 @pytest.fixture
 def sample_aptadb_data():
     """Create sample aptamer interaction data for testing.
-
     Returns
     -------
     pd.DataFrame
@@ -129,7 +124,6 @@ def sample_aptadb_data():
 
 def test_sample_columns(sample_aptadb_data):
     """Test that sample data contains expected columns and data types.
-
     Parameters
     ----------
     sample_aptadb_data : pd.DataFrame
@@ -162,11 +156,9 @@ def test_sample_columns(sample_aptadb_data):
 @pytest.mark.slow
 def test_cache_consistency(tmp_path):
     """Test that consecutive calls with cache yield identical DataFrames.
-
     This test verifies that two consecutive calls yield same DataFrame
     when using cache. It avoids network by seeding the cache with a
     local CSV.
-
     Parameters
     ----------
     tmp_path : Path
