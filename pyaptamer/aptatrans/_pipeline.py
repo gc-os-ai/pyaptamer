@@ -25,6 +25,12 @@ class AptaTransPipeline:
 
     Reimplemented based on the publication and the original codebase.
 
+    Original implementation: https://github.com/PNUMLB/AptaTrans.
+
+    The AptaTrans pipeline combines leverages AptaTrans' deep neural network for
+    aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_,
+    recommends candidate aptamers for a given target protein.
+
     Parameters
     ----------
     device : torch.device
