@@ -29,7 +29,7 @@ class MCTS(BaseObject):
         Maximum depth of the search tree, also the length of the generated sequences.
     n_iterations : int, optional
         Number of iterations per round for the MCTS algorithm.
-    experiment : BaseExperiment, optional, default=None
+    experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
     Attributes
