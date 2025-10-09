@@ -41,7 +41,8 @@ def dna2rna(sequence: str) -> str:
 
 def generate_all_aptamer_triplets(letters: list[str]) -> dict[str, int]:
     """
-    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to unique indices.
+    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
+    unique indices.
 
     Parameters
     ----------
@@ -58,6 +59,7 @@ def generate_all_aptamer_triplets(letters: list[str]) -> dict[str, int]:
         triplets["".join(triplet)] = idx + 1
 
     return triplets
+
 
 def rna2vec(
     sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275

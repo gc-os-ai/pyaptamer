@@ -19,13 +19,11 @@ from pyaptamer.utils._base import filter_words
 
 
 class AptaTransPipeline:
-    """AptaTrans pipeline for aptamer affinity prediction, by Shin et al [1]_.
+    """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
 
-    Original implementation: https://github.com/PNUMLB/AptaTrans.
+    Algorithm as originally described in Shin et al [1]_.
 
-    The AptaTrans pipeline combines leverages AptaTrans' deep neural network for
-    aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_,
-    recommends candidate aptamers for a given target protein.
+    Reimplemented based on the publication and the original codebase.
 
     Parameters
     ----------
