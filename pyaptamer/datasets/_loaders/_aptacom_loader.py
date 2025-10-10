@@ -96,8 +96,8 @@ def load_complete_aptacom(as_df=False, filter_entries=None):
             dataset = pd.DataFrame().from_dict(aptacom)
         else:
             dataset = aptacom.with_format("pandas")
-    except: 
-        raise ValueError("""'as_df' parameter expects
+    except Exception as e:
+        print(f"""Error: {e}\n'as_df' parameter expects
                           a boolean (True or False)""")
 
     return dataset
@@ -182,8 +182,8 @@ def load_aptacom_for_training(as_df=False, filter_entries=None, tagret_id=False)
                     "new_affinity",
                 ]
             )
-    except: 
-        raise ValueError("""'target_id' parameter expects
+    except Exception as e:
+        print(f"""Error: {e}\n'target_id' parameter expects
                           a boolean (True or False)""")
 
     try:
@@ -191,8 +191,8 @@ def load_aptacom_for_training(as_df=False, filter_entries=None, tagret_id=False)
             dataset = pd.DataFrame().from_dict(aptacom)
         else:
             dataset = aptacom.with_format("pandas")
-    except: 
-        raise ValueError("""'as_df' parameter expects
+    except Exception as e:
+        print(f"""Error: {e}\n'as_df' parameter expects
                           a boolean (True or False)""")
 
     return dataset
