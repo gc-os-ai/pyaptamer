@@ -3,7 +3,7 @@ __author__ = "satvshr"
 import numpy as np
 import pytest
 
-from pyaptamer.pseaac import PSeAAC
+from pyaptamer.pseaac import AptaNetPSeAAC, PSeAAC
 from pyaptamer.pseaac._props import aa_props
 from pyaptamer.pseaac.tests._props import solution
 
@@ -14,21 +14,15 @@ def test_normalized_values():
     """
     Test that normalized property matrix matches expected normalized values.
 
-    Asserts
-    -------
-    All normalized property values match the hard-coded normalized matrix
-    for each amino acid and property.
+    This test targets the common `aa_props` normalization and therefore uses
+    the package-level `aa_props` implementation.
     """
-    # Get original and normalized property matrices as DataFrames
     original_df = aa_props(type="pandas", normalize=False)
     normalized_df = aa_props(type="pandas", normalize=True)
 
-    # Manually normalize the original matrix (z-score, column-wise,
-    # rounded to 3 decimals)
     manual_norm = (original_df - original_df.mean()) / original_df.std(ddof=0)
     manual_norm = manual_norm.round(3)
 
-    # Compare each value
     for aa in original_df.index:
         for prop in original_df.columns:
             assert normalized_df.loc[aa, prop] == manual_norm.loc[aa, prop], (
@@ -37,6 +31,7 @@ def test_normalized_values():
             )
 
 
+@pytest.mark.parametrize("PCLASS", [PSeAAC, AptaNetPSeAAC])
 @pytest.mark.parametrize(
     "seq,lambda_val",
     [
@@ -45,12 +40,12 @@ def test_normalized_values():
         ("A", 2),  # length 1, lambda_val 2
     ],
 )
-def test_pseaac_transform_sequence_too_short(seq, lambda_val):
+def test_pseaac_transform_sequence_too_short(PCLASS, seq, lambda_val):
     """
-    Test that the PSeAAC transform method raises an error for protein sequences of
-    length smaller or equal to lambda_val.
+    Both PSeAAC implementations must raise for sequences shorter than or equal
+    to `lambda_val`.
     """
-    p = PSeAAC(lambda_val=lambda_val)
+    p = PCLASS(lambda_val=lambda_val)
     with pytest.raises(ValueError, match="Protein sequence is too short"):
         p.transform(seq)
 
@@ -66,21 +61,11 @@ def test_pseaac_transform_sequence_too_short(seq, lambda_val):
 )
 def test_pseaac_vectorization(seq, expected_vector):
     """
-    Test that the PSeAAC vectorization produces the expected feature vector.
-
-    Parameters
-    ----------
-    seq : str
-        Protein sequence to transform.
-    expected_vector : list of float
-        Expected PSeAAC feature vector.
-
-    Asserts
-    -------
-    The produced vector matches the expected vector in length and
-    values (within tolerance).
+    Test that the AptaNet-specific PSeAAC vectorization produces the expected
+    feature vector. This compares against the provided `solution` which matches
+    the AptaNet implementation.
     """
-    p = PSeAAC()
+    p = AptaNetPSeAAC()
     pv = p.transform(seq)
 
     assert len(pv) == len(expected_vector), (

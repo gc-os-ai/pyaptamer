@@ -5,7 +5,7 @@ from collections import Counter
 
 import numpy as np
 
-from pyaptamer.pseaac.aptanet._props import aa_props
+from pyaptamer.pseaac._props import aa_props
 from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
