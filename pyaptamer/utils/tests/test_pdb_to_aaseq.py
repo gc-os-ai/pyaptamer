@@ -15,9 +15,9 @@ def pdb_path_1gnh():
 
 
 @pytest.fixture
-def pdb_path_pfoa():
+def pdb_path_1gnh_no_seqres():
     return os.path.join(
-        os.path.dirname(__file__), "..", "..", "datasets", "data", "pfoa.pdb"
+        os.path.dirname(__file__), "..", "..", "datasets", "data", "1gnh_no_seqres.pdb"
     )
 
 
@@ -55,18 +55,18 @@ def test_pdb_to_aaseq_seqres(pdb_path_1gnh):
     assert all((c is None) or (isinstance(c, str) and len(c) >= 1) for c in df["chain"])
 
 
-def test_pdb_to_aaseq_atom_fallback(pdb_path_pfoa):
+def test_pdb_to_aaseq_atom_fallback(pdb_path_1gnh_no_seqres):
     """
-    Use the packaged 'pfoa.pdb' (ATOM-only) to exercise the ATOM fallback.
+    Use the packaged '1gnh_no_seqres.pdb' (ATOM-only) to exercise the ATOM fallback.
     """
 
-    sequences = pdb_to_aaseq(pdb_path_pfoa)
+    sequences = pdb_to_aaseq(pdb_path_1gnh_no_seqres)
     assert isinstance(sequences, list), "Should return a list"
     assert len(sequences) > 0, "ATOM fallback should produce at least one sequence"
     assert all(isinstance(s, str) and len(s) > 0 for s in sequences)
 
     # DataFrame return should include chain and sequence columns
-    df = pdb_to_aaseq(pdb_path_pfoa, return_type="pd.df")
+    df = pdb_to_aaseq(pdb_path_1gnh_no_seqres, return_type="pd.df")
     assert isinstance(df, type(__import__("pandas").DataFrame()))
     assert not df.empty, "ATOM fallback DataFrame should not be empty"
     assert list(df.columns) == ["chain", "sequence"], (
@@ -75,7 +75,6 @@ def test_pdb_to_aaseq_atom_fallback(pdb_path_pfoa):
     assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"])
 
 
-@pytest.mark.internet
 def test_pdb_to_aaseq_uniprot_fetch(pdb_path_1gnh):
     """
     Test UniProt fetch mode using PDB ID 1gnh.
