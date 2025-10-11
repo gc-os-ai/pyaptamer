@@ -18,48 +18,53 @@ class PSeAAC:
     selected physicochemical properties and sequence-order correlations as described in
     the PseAAC model by Chou.
 
-    The PSeAAC algorithm uses 21 normalized physiochemical (NP) properties of amino
-    acids, which we load from a predefined matrix using `aa_props`.These 21 properties
-    are grouped into 7 distinct property groups, with each group containing
-    3 consecutive properties. Specifically, the groups are arranged in order as follows:
-    Group 1 includes properties 1–3, Group 2 includes properties 4–6, and so on, up to
-    Group 7, which includes properties 19–21. The properties in order are:
+    The PSeAAC algorithm uses normalized physicochemical (NP) properties of amino
+    acids, loaded from a predefined matrix using `aa_props`. Properties can be grouped
+    in one of three ways:
 
+    - `prop_indices`: A list of property indices (0-based) to select from the 21
+      available properties. If None, all 21 properties are used.
+    - `group_props`: If provided as an integer, the selected properties are grouped
+      into chunks of this size (e.g., `group_props=3` groups into sets of 3).
+      If None, the default is groups of size 3 (7 groups for 21 properties).
+    - `custom_groups`: A list of lists, where each sublist contains local column
+      indices into the selected property matrix. This overrides all other grouping
+      logic.
 
-    1. Hydrophobicity
-    2. Hydrophilicity
-    3. Side-chain Mass
-    4. Polarity
-    5. Molecular Weight
-    6. Melting Point
-    7. Transfer Free Energy
-    8. Buriability
-    9. Bulkiness
-    10. Solvation Free Energy
-    11. Relative Mutability
-    12. Residue Volume
-    13. Volume
-    14. Amino Acid Distribution
-    15. Hydration Number
-    16. Isoelectric Point
-    17. Compressibility
-    18. Chromatographic Index
-    19. Unfolding Entropy Change
-    20. Unfolding Enthalpy Change
-    21. Unfolding Gibbs Free Energy Change
+    The 21 physicochemical properties (columns) are:
 
+        0. Hydrophobicity
+        1. Hydrophilicity
+        2. Side-chain Mass
+        3. Polarity
+        4. Molecular Weight
+        5. Melting Point
+        6. Transfer Free Energy
+        7. Buriability
+        8. Bulkiness
+        9. Solvation Free Energy
+        10. Relative Mutability
+        11. Residue Volume
+        12. Volume
+        13. Amino Acid Distribution
+        14. Hydration Number
+        15. Isoelectric Point
+        16. Compressibility
+        17. Chromatographic Index
+        18. Unfolding Entropy Change
+        19. Unfolding Enthalpy Change
+        20. Unfolding Gibbs Free Energy Change
 
     Each feature vector consists of:
 
-
     - 20 normalized amino acid composition features (frequency of each standard
-    amino acid)
-    - `self.lambda_val` sequence-order correlation features based on physicochemical
-    similarity between residues.
-    These (20 + `self.lambda_val`) features are computed for each of 7 predefined
-    property groups, resulting in a final vector of length (20 + `self.lambda_val`) * 7.
+      amino acid)
+    - `lambda_val` sequence-order correlation features (theta values) computed
+      from the selected physicochemical property groups.
 
-    See `transform` method for usage.
+    For each property group, the above (20 + `lambda_val`) features are computed,
+    resulting in a final vector of length (20 + lambda_val) * number of normalized
+            physiochemical (NP) property groups of amino acids (default 7).
 
     Parameters
     ----------
@@ -69,15 +74,19 @@ class PSeAAC:
         which should be of length greater than `lambda_val`.
     weight : float, optional, default=0.05
         The weight factor for the sequence-order correlation features.
+    prop_indices : list[int] or None, optional
+        Indices of properties to use (0-based). If None, all 21 properties are used.
+    group_props : int or None, optional
+        Group size for selected properties. If None, defaults to groups of 3.
+    custom_groups : list[list[int]] or None, optional
+        Explicit groupings of local property indices. Overrides `group_props`.
 
     Attributes
     ----------
-    np_matrix : np.ndarray
-        A 20x21 matrix of normalized physicochemical properties for the 20 standard
-        amino acids.
-    prop_groups : list of tuple
-        List of 7 tuples, each containing indices of 3 properties that form a property
-        group.
+    np_matrix : np.ndarray of shape (20, n_props)
+        Normalized property values for the selected amino acids and properties.
+    prop_groups : list[list[int]]
+        Groupings of local property indices into `np_matrix`.
 
     Methods
     -------
@@ -93,28 +102,59 @@ class PSeAAC:
     Example
     -------
     >>> from pyaptamer.pseaac import PSeAAC
+    >>> seq = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
+    >>> # Select only 6 properties and group into 3 groups of equal size
+    >>> pseaac = PSeAAC(prop_indices=[0, 1, 2, 3, 4, 5], group_props=2)
+    >>> # Custom grouping (4 groups)
+    >>> pseaac = PSeAAC(custom_groups=[[0, 1], [2, 3], [4, 5], [6, 7]])
+    >>> # Default: all properties, grouped into 7 groups of 3
     >>> pseaac = PSeAAC()
     >>> features = pseaac.transform("ACDEFGHIKLMNPQRHIKLMNPQRSTVWHIKLMNPQRSTVWY")
     >>> print(features[:10])
     [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
     """
 
-    def __init__(self, lambda_val=30, weight=0.05):
+    def __init__(
+        self,
+        lambda_val=30,
+        weight=0.05,
+        prop_indices=None,
+        group_props=None,
+        custom_groups=None,
+    ):
         self.lambda_val = lambda_val
         self.weight = weight
 
-        # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
-        self.np_matrix = aa_props(type="numpy", normalize=True)
-        # Each prop_group is a tuple of 3 columns (property indices)
-        self.prop_groups = [
-            (0, 1, 2),
-            (3, 4, 5),
-            (6, 7, 8),
-            (9, 10, 11),
-            (12, 13, 14),
-            (15, 16, 17),
-            (18, 19, 20),
-        ]
+        if group_props is not None and custom_groups is not None:
+            raise ValueError(
+                "Specify only one of `group_props` or `custom_groups`,not both."
+            )
+
+        self.np_matrix = aa_props(
+            prop_indices=prop_indices, type="numpy", normalize=True
+        )
+        self._n_cols = self.np_matrix.shape[1]  # The number of properties selected
+
+        if custom_groups:
+            self.prop_groups = custom_groups
+        elif group_props is None:
+            if self._n_cols % 3 != 0:
+                raise ValueError(
+                    "Default grouping expects number of properties divisible by 3."
+                )
+            self.prop_groups = [
+                list(range(i, i + 3)) for i in range(0, self._n_cols, 3)
+            ]
+        else:
+            if self._n_cols % group_props != 0:
+                raise ValueError(
+                    f"Number of properties ({self._n_cols}) must be divisible by"
+                    f"group_props ({group_props})."
+                )
+            self.prop_groups = [
+                list(range(i, i + group_props))
+                for i in range(0, self._n_cols, group_props)
+            ]
 
     def _normalized_aa(self, seq):
         """
@@ -179,12 +219,18 @@ class PSeAAC:
         protein_sequence : str
             The input protein sequence consisting of valid amino acid characters
             (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
+        lambda_val : int, default=30
+            The maximum distance between residues considered in the sequence-order
+            correlation (θ) calculations.
+        weight : float, default=0.15
+            The weight factor that balances the contribution of sequence-order
+            correlation features relative to amino acid composition features.
 
         Returns
         -------
         np.ndarray
             A 1D NumPy array of length (20 + `self.lambda_val) * number of normalized
-            physiochemical (NP) property groups of amino acids (7).
+            physiochemical (NP) property groups of amino acids (default 7).
             Each element consists of:
             - 20 normalized amino acid composition features
             - `self.lambda_val` normalized sequence-order correlation factors (theta
