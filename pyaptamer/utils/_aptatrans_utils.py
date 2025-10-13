@@ -5,7 +5,7 @@ __all__ = ["seq2vec"]
 
 import numpy as np
 
-from pyaptamer.utils import generate_triplets
+from pyaptamer.utils import generate_all_aptamer_triplets
 
 
 def seq2vec(
@@ -53,7 +53,9 @@ def seq2vec(
     >>> seq2vec(sequences, words, seq_max_len=4)
     (array([[1., 2., 0., 0.]]), array([[91.,  0.,  0.,  0.]]))
     """
-    words_ss = generate_triplets(letters=["", "H", "B", "E", "G", "I", "T", "S", "-"])
+    words_ss = generate_all_aptamer_triplets(
+        letters=["", "H", "B", "E", "G", "I", "T", "S", "-"]
+    )
 
     outputs = []
     outputs_ss = []

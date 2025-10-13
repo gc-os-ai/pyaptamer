@@ -10,10 +10,10 @@ import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
-from pyaptamer.experiments import Aptamer
+from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
-    generate_triplets,
+    generate_all_aptamer_triplets,
 )
 from pyaptamer.utils._base import filter_words
 
@@ -115,16 +115,16 @@ class AptaTransPipeline:
             indices and protein words to their frequencies, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_triplets(letters=["A", "C", "G", "U", "N"])
+        apta_words = generate_all_aptamer_triplets(letters=["A", "C", "G", "U", "N"])
 
         # filter out protein words with below average frequency
         prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)
 
-    def _init_aptamer_experiment(self, target: str) -> Aptamer:
-        """Initialize the aptamer experiment."""
-        experiment = Aptamer(
+    def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
+        """Initialize the aptamer recommendation experiment."""
+        experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,

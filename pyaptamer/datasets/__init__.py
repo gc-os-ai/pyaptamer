@@ -8,8 +8,8 @@ from pyaptamer.datasets._loaders._pfoa_loader import load_pfoa_structure
 
 __all__ = [
     "load_csv_dataset",
-    "load_from_rcsb",
     "load_hf_dataset",
     "load_pfoa_structure",
     "load_1gnh_structure",
+    "load_from_rcsb",
 ]
