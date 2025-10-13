@@ -36,7 +36,7 @@ def test_dna2rna_edge_cases():
     assert dna2rna("AcGt") == "ANGN"
 
 
-def test_generate_triplets():
+def test_generate_all_aptamer_triplets():
     """Check generation of all possible 3-mer RNA subsequences (triplets)."""
     nucleotides = ["A", "C", "G", "U", "N"]
     words = generate_all_aptamer_triplets(letters=nucleotides)
