@@ -23,7 +23,6 @@ dependencies = [
     "scikit-learn>=1.3.0",
     "skorch",
     "imblearn",
-    "requests",
 ]
 
 [project.optional-dependencies]
