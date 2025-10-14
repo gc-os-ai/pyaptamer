@@ -1,113 +1,46 @@
 __author__ = "satvshr"
 __all__ = ["pdb_to_aaseq"]
 
-import io
 import os
 
 import pandas as pd
-import requests
 from Bio import SeqIO
 
-from ._pdb_to_struct import pdb_to_struct
-from ._struct_to_aaseq import struct_to_aaseq
 
-
-def pdb_to_aaseq(pdb_file_path, return_type="list", use_uniprot=False, pdb_id=None):
+def pdb_to_aaseq(pdb_file_path, return_type="list"):
     """
-    Extract amino-acid sequences from a PDB file.
-
-    Tries SEQRES records first (full deposited sequence).
-    Falls back to using the package's pdb -> Structure -> sequences converters
-    if SEQRES records are not present. Optionally, retrieves canonical UniProt
-    sequence for the PDB ID.
-
+    Extract amino-acid sequences (SEQRES) from a PDB file.
     Parameters
     ----------
     pdb_file_path : str or os.PathLike
         Path to a PDB file.
     return_type : {'list', 'pd.df'}, optional, default='list'
-        Format of returned value:
-          - ``'list'`` : Python list of amino-acid strings (one per chain / polypeptide)
-          - ``'pd.df'`` : pandas.DataFrame with columns ``'chain'`` and ``'sequence'``
-            (one row per chain/polypeptide). If chain ids are not available they may
-            be ``None``.
-    use_uniprot : bool, optional, default=False
-        If True, fetches the UniProt sequence using the PDB ID.
-        Requires the ``pdb_id`` argument to be set.
-    pdb_id : str, optional
-        PDB ID (e.g., ``'1a3n'``) required if ``use_uniprot=True``.
-
+        Format of the returned value:
+        - ``'list'`` : return a Python list of sequence strings (one per chain).
+        - ``'pd.df'`` : return a pandas.DataFrame indexed by chain id with a single
+        column ``'sequence'`` containing one-letter amino-acid strings.
     Returns
     -------
     list of str or pandas.DataFrame
-        Depending on ``return_type``. If ``'list'``, returns a Python list of
-        sequence strings (one element per chain / polypeptide). If ``'pd.df'``,
-        returns a DataFrame with columns ``'chain'`` and ``'sequence'`` and a
-        default integer index.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the given ``pdb_file_path`` does not exist.
-    ValueError
-        If ``return_type`` is not one of the supported values, or if no sequences could
-        be extracted, or if ``use_uniprot=True`` but no mapping / fasta could be
-        retrieved.
+        Depending on ``return_type``. If ``'list'``, returns a list of sequence
+        strings (one per SEQRES chain). If ``'pd.df'``, returns a DataFrame
+        where the index is the chain identifier when present (index name ``'chain'``)
+        and the column ``'sequence'`` contains the sequences. If no SEQRES records
+        are found, returns an empty list or empty DataFrame respectively.
     """
     pdb_path = os.fspath(pdb_file_path)
-    if not os.path.exists(pdb_path):
-        raise FileNotFoundError(f"PDB file not found: {pdb_path}")
+    sequences = []
+    chains = []
 
-    # Try SEQRES records first
     with open(pdb_path) as handle:
-        seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
-
-    if seqres_records:
-        records = []
-        for record in seqres_records:
-            records.append(
-                {"chain": getattr(record, "id", None), "sequence": str(record.seq)}
-            )
-        df = pd.DataFrame.from_records(records, columns=["chain", "sequence"])
-    else:
-        # Fall back to using pdb_to_struct + struct_to_aaseq helpers
-        structure = pdb_to_struct(pdb_path)
-        df = struct_to_aaseq(structure)
-
-    if df.empty:
-        raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
-
-    if use_uniprot:
-        if not pdb_id:
-            raise ValueError("`pdb_id` must be provided when use_uniprot=True")
-
-        pdb_id = pdb_id.lower()
-        mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
-        mapping_resp = requests.get(mapping_url, timeout=10)
-        mapping_resp.raise_for_status()
-        mapping_data = mapping_resp.json()
-        uniprot_ids = list(mapping_data.get(pdb_id, {}).get("UniProt", {}).keys())
-
-        if not uniprot_ids:
-            raise ValueError(f"No UniProt mapping found for PDB ID '{pdb_id}'")
-
-        uniprot_id = uniprot_ids[0]
-
-        fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
-        fasta_resp = requests.get(fasta_url, timeout=10)
-        fasta_resp.raise_for_status()
-        fasta_data = fasta_resp.text
-
-        record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
-        df = pd.DataFrame(
-            [{"chain": None, "sequence": str(record.seq)}],
-            columns=["chain", "sequence"],
-        )
+        for record in SeqIO.parse(handle, "pdb-seqres"):
+            sequences.append(str(record.seq))
+            chains.append(getattr(record, "id", None))
 
     if return_type == "list":
-        return df["sequence"].tolist()
-    elif return_type == "pd.df":
-        # return a DataFrame with exactly 'chain' and 'sequence' columns
-        return df.reset_index(drop=True)[["chain", "sequence"]]
-    else:
-        raise ValueError("`return_type` must be either 'list' or 'pd.df'")
+        return sequences
+
+    if return_type == "pd.df":
+        df = pd.DataFrame({"chain": chains, "sequence": sequences})
+        df = df.set_index("chain")
+        return df

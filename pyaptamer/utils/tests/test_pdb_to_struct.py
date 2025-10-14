@@ -2,7 +2,7 @@ __author__ = "satvshr"
 
 import os
 
-from pyaptamer.utils import pdb_to_struct
+from pyaptamer.utils.pdb_to_struct import pdb_to_struct
 
 
 def test_pdb_to_struct():
