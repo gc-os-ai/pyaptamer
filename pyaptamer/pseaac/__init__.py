@@ -1,5 +1,6 @@
 """The PSeAAC encoding algorithm"""
 
-from pyaptamer.pseaac._features import PSeAAC
+from pyaptamer.pseaac._pseaac_aptanet import AptaNetPSeAAC
+from pyaptamer.pseaac._pseaac_general import PSeAAC
 
-__all__ = ["PSeAAC"]
+__all__ = ["PSeAAC", "AptaNetPSeAAC"]
