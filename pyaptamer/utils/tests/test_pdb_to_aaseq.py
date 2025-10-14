@@ -2,7 +2,7 @@ __author__ = "satvshr"
 
 import os
 
-from pyaptamer.utils import pdb_to_aaseq
+from pyaptamer.utils._pdb_to_aaseq import pdb_to_aaseq
 
 
 def test_pdb_to_aaseq():
