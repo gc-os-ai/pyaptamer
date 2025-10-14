@@ -1,5 +1,6 @@
 """Utils for the pyaptamer package."""
 
+__author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
     "encode_rna",
