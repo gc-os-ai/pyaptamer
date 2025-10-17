@@ -5,7 +5,7 @@ __all__ = ["seq2vec"]
 
 import numpy as np
 
-from pyaptamer.utils import generate_all_aptamer_triplets
+from pyaptamer.utils import generate_nplets
 
 
 def seq2vec(
@@ -42,8 +42,9 @@ def seq2vec(
     -------
     tuple[np.ndarray, np.ndarray]
         A tuple of numpy arrays, containing the padded primary sequence indices array
-        and the padded secondary structure indices array, respectively. Both have shape
-        (n_sequences, seq_max_len).
+        and the padded secondary structure indices array, respectively. The former has
+        sequence length (n_sequences, seq_max_len), the latter (n_sequences, len
+        (`words_ss`) = 584).
 
     Examples
     --------
@@ -51,10 +52,10 @@ def seq2vec(
     >>> words = {"AA": 1, "AC": 2, "A": 3}
     >>> sequences = (["AAAC"], ["HHHC"])
     >>> seq2vec(sequences, words, seq_max_len=4)
-    (array([[1., 2., 0., 0.]]), array([[91.,  0.,  0.,  0.]]))
+    (array([[1., 2., 0., 0.]]), array([[9., 0., 0., 0.]]))
     """
-    words_ss = generate_all_aptamer_triplets(
-        letters=["", "H", "B", "E", "G", "I", "T", "S", "-"]
+    words_ss = generate_nplets(
+        letters=["H", "B", "E", "G", "I", "T", "S", "-"], repeat=range(1, 4)
     )
 
     outputs = []

@@ -60,8 +60,8 @@ class MCTS(BaseObject):
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> model = AptaTrans(apta_embedding, prot_embedding)
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> target = "MCKY"
-    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
+    >>> target = "DHRNE"
+    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)

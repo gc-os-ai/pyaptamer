@@ -2,10 +2,11 @@ __author__ = ["nennomp"]
 __all__ = [
     "dna2rna",
     "encode_rna",
-    "generate_all_aptamer_triplets",
+    "generate_nplets",
     "rna2vec",
 ]
 
+from collections.abc import Iterable
 from itertools import product
 
 import numpy as np
@@ -39,26 +40,38 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_all_aptamer_triplets(letters: list[str]) -> dict[str, int]:
+def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str, int]:
     """
-    Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
-    unique indices.
+    Generate a dictionary containing all possible n-plets of given characters.
+
+    This method generates all possible n-plets, specified by the `repeat` parameter, of
+    characters contained in `letters`. Each n-plet is mapped to a unique integer ID.
 
     Parameters
     ----------
     letters : list[str]
-        List of characters to form triplets from.
+        List of characters to form n-plets from.
+    repeat : int or Iterable[int]
+        The length(s) of the sequences to generate. If an int is given, only that length
+        is generated (e.g., triplets). If a list or range is given, all lengths are
+        generated.
 
     Returns
     -------
     dict[str, int]
-        A dictionary mapping each triplet to a unique integer ID.
+        A dictionary mapping each n-plet to a unique integer ID (1-indexed).
     """
-    triplets = {}
-    for idx, triplet in enumerate(product(letters, repeat=3)):
-        triplets["".join(triplet)] = idx + 1
+    if isinstance(repeat, int):
+        repeat = [repeat]
 
-    return triplets
+    nplets = {}
+    idx = 1
+    for r in repeat:
+        for combo in product(letters, repeat=r):
+            nplets["".join(combo)] = idx
+            idx += 1
+
+    return nplets
 
 
 def rna2vec(
@@ -126,7 +139,7 @@ def rna2vec(
         # generate all ss triplets
         letters = ["S", "H", "M", "I", "B", "X", "E"]
 
-    triplets = generate_all_aptamer_triplets(letters=letters)
+    triplets = generate_nplets(letters=letters, repeat=3)
 
     result = []
     for sequence in sequence_list:

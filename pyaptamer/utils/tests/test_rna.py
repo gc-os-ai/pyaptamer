@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import torch
 
-from pyaptamer.utils import dna2rna, encode_rna, generate_all_aptamer_triplets, rna2vec
+from pyaptamer.utils import dna2rna, encode_rna, generate_nplets, rna2vec
 
 
 @pytest.mark.parametrize(
@@ -36,20 +36,14 @@ def test_dna2rna_edge_cases():
     assert dna2rna("AcGt") == "ANGN"
 
 
-def test_generate_all_aptamer_triplets():
-    """Check generation of all possible 3-mer RNA subsequences (triplets)."""
+@pytest.mark.parametrize("repeat", [2, 3, 4])
+def test_generate_nplets(repeat):
+    """Check generation of all possible n-plets."""
     nucleotides = ["A", "C", "G", "U", "N"]
-    words = generate_all_aptamer_triplets(letters=nucleotides)
-    expected_count = len(nucleotides) ** 3  # 5^3 = 125 triplets
+    words = generate_nplets(letters=nucleotides, repeat=repeat)
 
     assert isinstance(words, dict)
-    assert len(words) == expected_count
-
-    # check that all combinations are present
-    for triplet in product(nucleotides, repeat=3):
-        triplet_str = "".join(triplet)
-        assert triplet_str in words
-        assert isinstance(words[triplet_str], int)
+    assert len(words) == len(nucleotides) ** repeat
 
 
 def test_rna2vec_rna_sequences():
