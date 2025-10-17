@@ -185,7 +185,7 @@ class AptaTrans(nn.Module):
 
         Returns
         -------
-        nn.Sequential
+        nn.ModuleList
             A sequential container with the encoder's architectural components.
         TokenPredictor
             A token predictor layer for masked token and secondary structure prediction.
@@ -218,18 +218,15 @@ class AptaTrans(nn.Module):
             d_out_ss=embedding_config.target_dim,
         )
 
-        return (
-            nn.Sequential(
-                OrderedDict(
-                    [
-                        ("embedding", embedding),
-                        ("pos_encoding", pos_encoding),
-                        ("encoder", encoder),
-                    ]
-                )
-            ),
-            token_predictor,
+        encoder_module = nn.ModuleList([embedding, pos_encoding, encoder])
+
+        # pass the the encoder a padding mask to ignore zero-padded tokens
+        encoder_module.forward = lambda x: encoder(
+            pos_encoding(embedding(x)),
+            src_key_padding_mask=(x == 0),  # padding mask
         )
+
+        return (encoder_module, token_predictor)
 
     def _make_layer(
         self,

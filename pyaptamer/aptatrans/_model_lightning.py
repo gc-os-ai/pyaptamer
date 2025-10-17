@@ -225,6 +225,6 @@ class AptaTransEncoderLightning(AptaTransLightning):
             x=(x_mlm, x_ssp), encoder_type=self.encoder_type
         )
 
-        loss_mlm = F.cross_entropy(y_mlm_hat, y_mlm.float())
-        loss_ssp = F.cross_entropy(y_ssp_hat, y_ssp.float())
+        loss_mlm = F.cross_entropy(y_mlm_hat.transpose(1, 2), y_mlm.long())
+        loss_ssp = F.cross_entropy(y_ssp_hat.transpose(1, 2), y_ssp.long())
         return self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
