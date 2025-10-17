@@ -67,9 +67,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     device : torch.device
         Device to run the model on.
     prot_words : dict[str, float]
-        A dictionary mapping protein 3-mer protein subsequences to their frequency in
-        the dataset using for training the model used in the experiment. Used to encode
-        protein sequences into their numerical representions.
+        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
+        Used to encode protein sequences into their numerical representions.
 
     Attributes
     ----------
@@ -84,9 +83,9 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> model = AptaTrans(apta_embedding, prot_embedding)
-    >>> target = "DHRNE"
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
+    >>> target = "DHRNE"
+    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> aptamer_candidate = "AUGGC"
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
