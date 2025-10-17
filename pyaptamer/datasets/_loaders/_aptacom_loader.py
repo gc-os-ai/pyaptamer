@@ -71,7 +71,7 @@ def prepare_xy(ds):
     --------
     Pandas dataframe object processed for training
     with columns "aptamer_sequence", "target_sequence",
-    "new_affinity" and a total of 1061 columns
+    "new_affinity" and a total of 709 rows
     """
     ds.dropna(
         subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
