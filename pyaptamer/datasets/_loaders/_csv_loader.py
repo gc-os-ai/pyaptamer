@@ -2,24 +2,12 @@ __author__ = ["nennomp"]
 __all__ = ["load_csv_dataset"]
 
 import os
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Literal,
-    NamedTuple,
-    TypedDict,
-    overload,
-)
 
 import pandas as pd
 
 
 def load_csv_dataset(
-    name: str, 
-    keep_default_na: bool = True, 
-    na_values: list[str] | None = None
+    name: str, keep_default_na: bool = True, na_values: list[str] | None = None
 ) -> pd.DataFrame:
     """Load a dataset from a CSV file.
 
