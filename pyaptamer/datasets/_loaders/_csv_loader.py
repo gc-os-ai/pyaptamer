@@ -30,11 +30,7 @@ def load_csv_dataset(
     FileNotFoundError
         If the specified CSV file does not exist.
     """
-    # path = os.path.relpath(
-    #    os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
-    # )
-
-    path = os.path.join(
+    path = os.path.relpath(
         os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
     )
 
