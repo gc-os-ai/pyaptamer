@@ -1,34 +1,42 @@
 __author__ = "rpgv"
 
 import pytest
-from datasets import Dataset
 from pandas import DataFrame
 
-from pyaptamer.datasets import load_aptacom_for_training, load_complete_aptacom
+from pyaptamer.datasets import load_aptacom_full, load_aptacom_xy
 
 
-@pytest.mark.parametrize("as_df", [True, False])
 @pytest.mark.parametrize(
-    "filter_entries", ["protein_target", "small_target", "dna_apt", "rna_apt"]
+    "select_columns",
+    [
+        ["reference"],
+        ["aptamer_chemistry"],
+        ["aptamer_name"],
+        ["target_name"],
+        ["aptamer_sequence"],
+        ["origin"],
+        ["target_chemistry"],
+        ["external_id"],
+        ["target_sequence"],
+        ["new_affinity"],
+    ],
 )
-def test_download_aptacom(as_df, filter_entries):
+def test_load_aptacom_full(select_columns):
     """
     The test_download_aptacom function
     """
-    dataset = load_complete_aptacom(as_df, filter_entries)
-    if not isinstance(dataset, Dataset | DataFrame):
-        raise ValueError(f"Dataset format {type(dataset)} is not DataFrame or Dataset")
+    dataset = load_aptacom_full(select_columns)
+    if not isinstance(dataset, DataFrame):
+        raise ValueError(f"""Dataset format {type(dataset)} 
+                is not DataFrame""")
 
 
-@pytest.mark.parametrize("as_df", [True, False])
-@pytest.mark.parametrize(
-    "filter_entries", ["protein_target", "small_target", "dna_apt", "rna_apt"]
-)
-@pytest.mark.parametrize("include_target_id", [True, False])
-def test_download_aptacom_for_training(as_df, filter_entries, include_target_id):
+@pytest.mark.parametrize("return_X_y", [True, False])
+def test_download_aptacom_x_y(return_X_y):
     """
     The test_download_aptacom function
     """
-    dataset = load_aptacom_for_training(as_df, filter_entries, include_target_id)
-    if not isinstance(dataset, Dataset | DataFrame):
-        raise ValueError(f"Dataset format {type(dataset)} is not DataFrame or Dataset")
+    dataset = load_aptacom_xy(return_X_y)
+    if not isinstance(dataset, tuple | DataFrame):
+        raise ValueError(f"""Dataset format {type(dataset)} 
+            is not X, y tuple or DataFrame""")

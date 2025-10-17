@@ -1,8 +1,7 @@
 __author__ = "rpgv"
-__all__ = ["load_complete_aptacom", "load_aptacom_for_training"]
+__all__ = ["load_aptacom_full", "load_aptacom_xy"]
 
-import pandas as pd
-from datasets import load_dataset
+from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
 
 filter_map = {
     "protein_target": ("target_chemistry", ["Protein", "peptide"]),
@@ -41,158 +40,100 @@ filter_map = {
 }
 
 
-def load_complete_aptacom(as_df=False, filter_entries=None):
-    """Loads a Hugging Face dataset with customizable
-    options.
-
-        Args:
-            as_df (bool, optional): If True, returns the
-                dataset as a pandas DataFrame.
-                    Defaults to False, which returns the dataset as
-                    a Hugging Face Dataset object.
-            filter_entries (str, optional):  A string used to
-                filter the dataset features.
-                    The format is a specific key:
-                        (protein_target, small_target, dna_apt, rna_apt)
-                        filters either by target (protein or small molecule)
-                        of by aptamer (dna or rna)
-                        Defaults to None,
-                            meaning no filtering is applied.
-
-        Returns:
-            object: A Hugging Face Dataset object (if as_df is
-            False) or a pandas DataFrame (if as_df is True) with
-            10 columns in total.
-            The returned object contains the dataset, possibly
-            filtered depending on the arguments affecting
-            the number of rows.
-
-            (
-            filter_entries: if protein_target, total of 1110 rows;
-            filter_entries: if small_target, total of 573 rows;
-            filter_entries: if dna_apt, total of 2395 rows;
-            filter_entries: if rna_apt, total of 1152 rows;
-            )
-
-        Raises:
-
-            ValueError: if filter_entries is a string but
-    contains an invalid format (e.g., empty string)
-
+def filter_columns(ds, columns=None):
+    """ " Selects columns to keep on dataset
+    Parameters:
+    -----------
+        ds: pd dataframe, required
+        Pandas dataframe to filter
+        columns: list, optional, default=None
+        If empty returns entire AptaCom dataset, otherwise
+        returns only the selected columns from the
+        AptaCom dataset
+    Returns:
+    --------
+        object: pandas dataframe object with
+        the selected columns
     """
-    aptacom = load_dataset("rpgv/AptaCom")["train"]
-    if filter_entries is not None:
-        if filter_entries not in filter_map.keys():
-            raise ValueError("""Key error\nFilter arguments: protein_target, 
-            small_target, dna_apt, rna_apt""")
-        else:
-            aptacom = aptacom.filter(
-                lambda x: x[filter_map[filter_entries][0]]
-                in filter_map[filter_entries][1]
-            )
 
-    try:
-        if as_df:
-            dataset = pd.DataFrame().from_dict(aptacom)
-        else:
-            dataset = aptacom.with_format("pandas")
-    except Exception as e:
-        print(f"""Error: {e}\n'as_df' parameter expects
-                          a boolean (True or False)""")
+    if columns is not None:
+        ds = ds[columns]
+    return ds
+
+
+def prepare_xy(ds):
+    """ " Prepares dataset for usage as training data
+    Parameters:
+    -----------
+    ds: pandas dataframe, required
+
+    Returns:
+    --------
+    Pandas dataframe object processed for training
+    with columns "aptamer_sequence", "target_sequence",
+    "new_affinity" and a total of 1061 columns
+    """
+    ds.dropna(
+        subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
+    )
+    ds = ds[["aptamer_sequence", "target_sequence", "new_affinity"]]
+    return ds
+
+
+def load_aptacom_full(select_columns=None):
+    """Loads a AptaCom dataset from hugging face
+    with customizable options.
+
+    Parameters:
+    -----------
+    select_columns: list, optional, default=None
+        A list used to filter the columns dataset features.
+        Defaults to empty, which returns the complete dataset.
+        Column names:
+        ['reference',
+        'aptamer_chemistry',
+        'aptamer_name',
+        'target_name',
+        'aptamer_sequence',
+        'origin',
+        'target_chemistry',
+        'external_id',
+        'target_sequence',
+        'new_affinity']
+
+    Returns:
+    --------
+        object: A pandas dataframe with 5556 rows in total.
+        The returned object contains the dataset, possibly
+        filtered with different columns.
+    """
+
+    aptacom = load_hf_dataset("AptaCom", store=False)
+    dataset = filter_columns(aptacom, columns=select_columns)
 
     return dataset
 
 
-def load_aptacom_for_training(as_df=False, filter_entries=None, tagret_id=False):
-    """Loads a Hugging Face dataset with customizable
-    options.
+def load_aptacom_xy(return_X_y=False):
+    """Loads Aptacom dataset for training
 
-        Args:
-            as_df (bool, optional): If True, returns the
-                dataset as a pandas DataFrame.
-                    Defaults to False, which returns the dataset as
-                    a Hugging Face Dataset object.
-            filter_entries (str, optional):  A string used to
-                filter the dataset features.
-                    The format is a specific key:
-                        (protein_target, small_target, dna_apt, rna_apt)
-                        filters either by target (protein or small molecule)
-                        of by aptamer (dna or rna)
-                        Defaults to None,
-                            meaning no filtering is applied.
-            tagret_id (bool, optional): If True, includes the
-                'external_id' column in the dataset.
-                    Defaults to False.  If False, the 'external_id' column is
-                    excluded.
+    Parameters:
+    ----------
+    return_X_y: bool, optional, default = False
+        If true returns X (aptamer and target sequence)
+        and y (new_affinity) otherwise returns a
+        pandas dataframe containing the three columns
 
-        Returns:
-            object: A Hugging Face Dataset object (if as_df is
-            False) or a pandas DataFrame (if as_df is True).
-            The returned object contains the dataset, possibly
-            filtered and with or without the 'external_id'
-            column, depending on the arguments.
-
-            (
-            tagret_id: if True, total of 3 columns;
-            filter_entries: if protein_target, total of 1110 rows;
-            filter_entries: if small_target, total of 573 rows;
-            filter_entries: if dna_apt, total of 2395 rows;
-            filter_entries: if rna_apt, total of 1152 rows;
-            )
-
-        Raises:
-
-            ValueError: if filter_entries is a string but
-    contains an invalid format (e.g., empty string)
-
+    Returns:
+    --------
+    Either a pandas dataframe with three columns
+    or two pandas dataframe objects with two and one
+    columns respectively
     """
-    aptacom = load_dataset("rpgv/AptaCom")["train"]
-    if filter_entries is not None:
-        if filter_entries not in filter_map.keys():
-            raise ValueError("""Key error\nFilter arguments: protein_target, 
-            small_target, dna_apt, rna_apt""")
-        else:
-            aptacom = aptacom.filter(
-                lambda x: x[filter_map[filter_entries][0]]
-                in filter_map[filter_entries][1]
-            )
-    try:
-        if tagret_id:
-            aptacom = aptacom.map(
-                remove_columns=[
-                    "reference",
-                    "aptamer_chemistry",
-                    "aptamer_name",
-                    "target_name",
-                    "origin",
-                    "target_chemistry",
-                    "new_affinity",
-                ]
-            )
-        else:
-            aptacom = aptacom.map(
-                remove_columns=[
-                    "reference",
-                    "aptamer_chemistry",
-                    "aptamer_name",
-                    "target_name",
-                    "origin",
-                    "target_chemistry",
-                    "external_id",
-                    "new_affinity",
-                ]
-            )
-    except Exception as e:
-        print(f"""Error: {e}\n'target_id' parameter expects
-                          a boolean (True or False)""")
-
-    try:
-        if as_df:
-            dataset = pd.DataFrame().from_dict(aptacom)
-        else:
-            dataset = aptacom.with_format("pandas")
-    except Exception as e:
-        print(f"""Error: {e}\n'as_df' parameter expects
-                          a boolean (True or False)""")
-
+    aptacom = load_hf_dataset("AptaCom", store=False)
+    dataset = prepare_xy(aptacom)
+    if return_X_y:
+        X = dataset[["aptamer_sequence", "target_sequence"]]
+        y = dataset[["new_affinity"]]
+        return X, y
     return dataset

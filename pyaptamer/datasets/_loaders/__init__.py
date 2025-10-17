@@ -1,8 +1,8 @@
 """Loaders for different data structures."""
 
 from pyaptamer.datasets._loaders._aptacom_loader import (
-    load_aptacom_for_training,
-    load_complete_aptacom,
+    load_aptacom_full,
+    load_aptacom_xy,
 )
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
 from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
@@ -12,8 +12,8 @@ from pyaptamer.datasets._loaders._pfoa_loader import load_pfoa_structure
 __all__ = [
     "load_pfoa_structure",
     "load_1gnh_structure",
-    "load_complete_aptacom",
-    "load_aptacom_for_training",
+    "load_aptacom_full",
+    "load_aptacom_xy",
     "load_csv_dataset",
     "load_hf_dataset",
     "load_pfoa_structure",
