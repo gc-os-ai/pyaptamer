@@ -5,7 +5,7 @@ import pandas as pd
 from Bio.PDB.Polypeptide import PPBuilder
 
 
-def struct_to_aaseq(structure, return_type="pd.df"):
+def struct_to_aaseq(structure, return_type="list"):
     """
     Extract amino-acid sequences from a Biopython Structure.
 
@@ -13,7 +13,7 @@ def struct_to_aaseq(structure, return_type="pd.df"):
     ----------
     structure :
         Bio.PDB.Structure.Structure object (e.g. produced by PDBParser).
-    return_type : {'pd.df', 'list'}, optional, default='pd.df'
+    return_type : {'pd.df', 'list'}, optional, default='list'
         - ``'pd.df'`` : return a pandas.DataFrame with exactly two columns
           (in this order): ``'chain'`` and ``'sequence'``. Each row corresponds
           to one peptide built by PPBuilder. The DataFrame uses the default

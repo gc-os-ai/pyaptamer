@@ -9,18 +9,19 @@ from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 def test_struct_to_aaseq():
     """
     Test that `struct_to_aaseq` correctly converts a Biopython Structure
-    into a pandas DataFrame with columns ['chain', 'sequence'].
+    into both a pandas DataFrame and a list of sequences.
 
     Asserts:
         - No exception is raised when calling the function.
-        - The return value is a pandas.DataFrame.
-        - The DataFrame has columns "chain" and "sequence" (in that order).
+        - The DataFrame return value has columns "chain" and "sequence" (in that order).
+        - The list return value is a list of strings matching the DataFrame sequences.
         - Each 'sequence' value is a non-empty string.
         - Each 'chain' value is a non-empty string.
     """
     structure = load_1gnh_structure()
 
-    df = struct_to_aaseq(structure)
+    # Request DataFrame explicitly (columns should be exactly ['chain','sequence'])
+    df = struct_to_aaseq(structure, return_type="pd.df")
 
     assert isinstance(df, pd.DataFrame), "Return value should be a pandas DataFrame"
     assert list(df.columns) == ["chain", "sequence"], (
@@ -35,3 +36,10 @@ def test_struct_to_aaseq():
         assert isinstance(seq, str) and len(seq) > 0, (
             "Each sequence should be a non-empty string"
         )
+
+    seq_list = struct_to_aaseq(structure)  # default list
+    assert isinstance(seq_list, list), "Default return should be a list of sequences"
+    assert len(seq_list) == len(df), "List length must match number of DataFrame rows"
+    assert seq_list == df["sequence"].tolist(), (
+        "List sequences must match DataFrame 'sequence' column"
+    )

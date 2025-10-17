@@ -56,7 +56,7 @@ def pdb_to_aaseq(pdb_file_path, return_type="list"):
     else:
         # Fall back to structure parsing
         structure = pdb_to_struct(pdb_path)
-        df = struct_to_aaseq(structure)
+        df = struct_to_aaseq(structure, return_type="pd.df")
 
     if df.empty:
         raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
