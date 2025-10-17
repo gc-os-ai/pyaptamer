@@ -39,88 +39,124 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_all_aptamer_triplets() -> dict[str, int]:
+def generate_all_aptamer_triplets(letters: list[str]) -> dict[str, int]:
     """
     Generate a dictionary mapping all possible 3-mer RNA subsequences (triplets) to
     unique indices.
 
+    Parameters
+    ----------
+    letters : list[str]
+        List of characters to form triplets from.
+
     Returns
     -------
     dict[str, int]
-        A dictionary where keys are 3-mer RNA subsequences and values are unique
-        indices.
+        A dictionary mapping each triplet to a unique integer ID.
     """
-    nucleotides = ["A", "C", "G", "U", "N"]  # 'N' marks unknown nucleotides
-    # create a dictionary mapping every possible 3-nucleotide combination (triplet) to
-    # a unique index, Should be 5^3 = 125 possible triplets (AAA, AAC, AAG, ..., NNN).
-    words = {
-        "".join(triplet): i + 1
-        for i, triplet in enumerate(product(nucleotides, repeat=3))
-    }
-    return words
+    triplets = {}
+    for idx, triplet in enumerate(product(letters, repeat=3)):
+        triplets["".join(triplet)] = idx + 1
+
+    return triplets
 
 
-def rna2vec(sequence_list: list[str], max_sequence_length: int = 275) -> np.ndarray:
-    """Convert a list of RNA sequences into a numerical representation.
+def rna2vec(
+    sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
+) -> np.ndarray:
+    """
+    Convert a list of RNA sequence or RNA secondary structures into a numerical
+    representation.
 
-    First, if not already in RNA format, the sequences are converted from DNA to RNA.
-    Then, all overlapping triplets (3-nucleotide combinations) are extracted from each
-    RNA sequence and mapped to unique indices. Finally, the sequences are zero padded
-    to length `max_sequence_length`. The result is a numpy array where each row
-    corresponds to a sequence, and each column corresponds to an integer representing
-    the triplet's index in dictionary `words`.
+    For RNA sequences, if not already in RNA format, the sequences are converted from
+    DNA to RNA. For both RNA and secondary structure sequences, all overlapping
+    triplets (3-nucleotide/character combinations) are extracted from each sequence and
+    mapped to unique indices. Finally, the sequences are zero padded to length
+    `max_sequence_length`. The result is a numpy array where each row corresponds to a
+    sequence, and each column corresponds to an integer representing the triplet's
+    index in the dictionary.
 
-    If the number of extracted triplets is grerater than `max_sequence_length`, the
+    If the number of extracted triplets is greater than `max_sequence_length`, the
     sequence is truncated to fit.
 
     Parameters
     ----------
     sequence_list : list[str]
-        A list containing RNA sequences as strings.
+        A list containing sequences as strings (RNA sequences or secondary structure
+        sequences).
+    sequence_type : str, optional, default="rna"
+        The type of sequence to process. Either "rna" for RNA sequences or "ss" for
+        secondary structure sequences.
     max_sequence_length : int, optional, default=275
         The maximum length of the output sequences.
 
     Returns
     -------
     np.ndarray
-        A numpy array containing the numerical representation of the RNA sequences, of
-        shape (1, `max_sequence_length`).
+        A numpy array containing the numerical representation of the sequences, of
+        shape (len(sequence_list), `max_sequence_length`).
 
     Raises
     ------
     ValueError
-        If `max_sequence_length` is less than or equal to 0.
+        If `max_sequence_length` is less than or equal to 0, or if `sequence_type`
+        is not "rna" or "ss".
 
     Examples
     --------
     >>> from pyaptamer.utils import rna2vec
-    >>> # two triplets: 'AAAC' -> ['AAA', 'AAC']
-    >>> rna = rna2vec(["AAAC"], max_sequence_length=4)
+    >>> rna = rna2vec(["AAAC"], sequence_type="rna", max_sequence_length=4)
     >>> print(rna)
     [[1 2 0 0]]
+    >>> # Secondary structure sequences
+    >>> ss = rna2vec(["SSHH"], sequence_type="ss", max_sequence_length=4)
+    >>> print(ss)
+    [[2 9 0 0]]
     """
     if max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
 
-    words = generate_all_aptamer_triplets()
+    if sequence_type not in ["rna", "ss"]:
+        raise ValueError("`sequence_type` must be either 'rna' or 'ss'.")
+
+    if sequence_type == "rna":
+        # generate all rna triplets, 'N' marks unknown nucleotides
+        letters = ["A", "C", "G", "U", "N"]
+    else:  # sequence_type == "ss"
+        # generate all ss triplets
+        letters = ["S", "H", "M", "I", "B", "X", "E"]
+
+    triplets = generate_all_aptamer_triplets(letters=letters)
 
     result = []
     for sequence in sequence_list:
-        sequence = dna2rna(sequence)
+        # convert DNA to RNA only for RNA sequences
+        if sequence_type == "rna":
+            sequence = dna2rna(sequence)
 
         # extract all overlapping triplets from the sequence
         # e.g., 'ACGUA' -> ['ACG', 'CGU', 'GUA']
         converted = [
-            words.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
+            triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
         # skip sequences that convert to an empty list
         if any(converted):
-            padded_sequence = np.pad(
-                array=converted,
-                pad_width=(0, max_sequence_length - len(converted)),
-                constant_values=0,
-            )
+            # truncate if too long
+            if max_sequence_length is not None and len(converted) > max_sequence_length:
+                converted = converted[:max_sequence_length]
+
+            # pad if too short
+            if max_sequence_length is not None:
+                pad_length = max_sequence_length - len(converted)
+                padded_sequence = np.pad(
+                    array=converted,
+                    pad_width=(0, pad_length),
+                    constant_values=0,
+                )
+            else:
+                padded_sequence = np.array(converted)
+
             result.append(padded_sequence)
 
     return np.array(result)
