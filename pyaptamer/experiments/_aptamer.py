@@ -1,26 +1,75 @@
 __author__ = ["nennomp"]
-__all__ = ["Aptamer"]
+__all__ = ["AptamerEvalAptaNet", "AptamerEvalAptaTrans"]
 
+from abc import ABC, abstractmethod
+
+import numpy as np
 import torch
 from skbase.base import BaseObject
-from torch import Tensor
 
 from pyaptamer.utils import encode_rna, rna2vec
 
 
-class Aptamer(BaseObject):
-    """Candidate aptamer evaluation for a given target protein.
+class BaseAptamerEval(BaseObject, ABC):
+    """Abstract base class for candidate aptamer evaluation against target proteins.
+
+    This class defines the common interface and shared functionality for aptamer
+    evaluation using different models or pipelines.
 
     Parameters
     ----------
-    target : str, optional
-        Target sequence string.
+    target : str
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
+    """
+
+    def __init__(self, target: str) -> None:
+        self.target = target
+        super().__init__()
+
+    def _inputnames(self) -> list[str]:
+        """Return the inputs of the experiment."""
+        return ["aptamer_candidate"]
+
+    @abstractmethod
+    def evaluate(self, aptamer_candidate: str, **kwargs) -> np.float64:
+        """Evaluate the given aptamer candidate against the target protein.
+
+        Parameters
+        ----------
+        aptamer_candidate : str
+            The aptamer candidate to evaluate. It should be a string consisting of
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
+        **kwargs
+            Additional keyword arguments specific to the implementation.
+
+        Returns
+        -------
+        np.float64
+            The score assigned to the aptamer candidate.
+        """
+        pass
+
+
+class AptamerEvalAptaTrans(BaseAptamerEval):
+    """Candidate aptamer evaluation for a given target protein using AptaTrans.
+
+    Parameters
+    ----------
+    target : str
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
     model : torch.nn.Module
         Model to use for assigning scores.
     device : torch.device
         Device to run the model on.
-    prot_words : dict[str, int]
-        A dictionary mapping protein 3-mer subsequences to integer token IDs.
+    prot_words : dict[str, float]
+        A dictionary mapping protein 3-mer protein subsequences to their frequency in
+        the dataset using for training the model used in the experiment. Used to encode
+        protein sequences into their numerical representions.
 
     Attributes
     ----------
@@ -31,14 +80,14 @@ class Aptamer(BaseObject):
     --------
     >>> import torch
     >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> from pyaptamer.experiments import Aptamer
+    >>> from pyaptamer.experiments import AptamerEvalAptaTrans
     >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> model = AptaTrans(apta_embedding, prot_embedding)
     >>> target = "DHRNE"
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
-    >>> experiment = Aptamer(target, model, device, prot_words)
+    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> aptamer_candidate = "AUGGC"
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
     >>> score = experiment.evaluate(aptamer_candidate)
@@ -51,7 +100,7 @@ class Aptamer(BaseObject):
         device: torch.device,
         prot_words: dict[str, int],
     ) -> None:
-        self.target = target
+        super().__init__(target)
         self.model = model
         self.device = device
 
@@ -61,74 +110,10 @@ class Aptamer(BaseObject):
             max_len=model.prot_embedding.max_len,
         ).to(device)
 
-        super().__init__()
-
-    def _inputnames(self) -> list[str]:
-        """Return the inputs of the experiment."""
-        return ["aptamer_candidate"]
-
-    def reconstruct(self, sequence: str = "") -> Tensor:
-        """Reconstruct the actual aptamer sequence from the encoded representation.
-
-        The encoding uses pairs like 'A_' (add A to left) and '_A' (add A to right).
-        This method converts these pairs back to the actual sequence. Then, from its
-        RNA sequence representation it is converted to a vector.
-
-        Parameters
-        ----------
-        seq : str
-            Encoded sequence with direction markers (underscores).
-
-        Returns
-        -------
-        tuple[str, torch.Tensor]
-            The reconstructed RNA sequence and its vector representation.
-        """
-        # already reconstructed
-        if "_" not in sequence:
-            return (
-                sequence,
-                torch.tensor(
-                    rna2vec(
-                        [sequence],
-                        max_sequence_length=self.model.apta_embedding.max_len,
-                    ),
-                    dtype=torch.int64,
-                ),
-            )
-
-        # if the sequence is not reconstructed yet, it should have an even length
-        # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
-        # direction marker).
-        assert len(sequence) % 2 == 0, (
-            f"Encoded sequence must have even length, got {len(sequence)}."
-        )
-
-        # reconstruct
-        result = ""
-        for i in range(0, len(sequence), 2):
-            match sequence[i]:
-                case "_":
-                    # append the next values
-                    result = result + sequence[i + 1]
-                case _:
-                    # prepend the current value
-                    result = sequence[i] + result
-
-        return (
-            result,
-            torch.tensor(
-                rna2vec(
-                    [result], max_sequence_length=self.model.apta_embedding.max_len
-                ),
-                dtype=torch.int64,
-            ),
-        )
-
     @torch.no_grad()
     def evaluate(
         self, aptamer_candidate: str, return_interaction_map: bool = False
-    ) -> Tensor:
+    ) -> np.float64 | np.ndarray:
         """Evaluate the given aptamer candidate against the target protein.
 
         If `return_interaction_map` is set to `True`, the method returns the
@@ -139,29 +124,96 @@ class Aptamer(BaseObject):
         ----------
         aptamer_candidate : str
             The aptamer candidate to evaluate. It should be a string consisting of
-            letters representing nucleotides: 'A_', '_A', 'C_', '_C', 'G_', '_G', 'U_',
-            '_U'. Underscores indicate whether the nucleotides are supposed to be (e.
-            g., 'A_') prepended or appended (e.g., '_A)'to the sequence.
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
         return_interaction_map : bool, optional, default=False
             Whether to return the interaction map or not.
 
         Returns
         -------
-        Tensor
+        np.float64 or np.ndarray
             The score assigned to the aptamer candidate if `return_interaction_map` is
             `False`. If `return_interaction_map` is `True`, the interaction map, of
             shape (batch_size, 1, seq_len_aptamer, seq_len_protein).
         """
-        aptamer_candidate = self.reconstruct(aptamer_candidate)[1]
         self.model.eval()
 
+        # convert the aptamer candidate to its numerical representation
+        aptamer_candidate = torch.tensor(
+            rna2vec(
+                [aptamer_candidate],
+                max_sequence_length=self.model.apta_embedding.max_len,
+            ),
+            dtype=torch.int64,
+        )
+
         if return_interaction_map:
-            return self.model.forward_imap(
-                aptamer_candidate.to(self.device),
-                self.target_encoded,
+            return (
+                self.model.forward_imap(
+                    aptamer_candidate.to(self.device),
+                    self.target_encoded,
+                )
+                .cpu()
+                .detach()
+                .numpy()
             )
         else:
-            return self.model(
-                aptamer_candidate.to(self.device),
-                self.target_encoded,
+            return np.float64(
+                self.model(
+                    aptamer_candidate.to(self.device),
+                    self.target_encoded,
+                ).item()
             )
+
+
+class AptamerEvalAptaNet(BaseAptamerEval):
+    """Candidate aptamer evaluation for a given target protein using AptaNet.
+
+    Parameters
+    ----------
+    target : str
+        Target sequence string consisting of amino acid letters and (possibly) unknown
+        characters. Interpreted as the amino-acid sequence of the binding target
+        protein.
+    pipeline : AptaNetPipeline
+        Fitted AptaNetPipeline to use for assigning scores.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.experiments import AptamerEvalAptaNet
+    >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+    >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
+    >>> labels = np.array([0] * 5, dtype=np.float32)
+    >>> pipeline = AptaNetPipeline()
+    >>> pipeline.fit(pairs, labels)
+    >>> target = "ACDEFACDEFACDEFACDEFACDEFACDEFACDEFACDEF"
+    >>> experiment = AptamerEvalAptaNet(target, pipeline)
+    >>> aptamer_candidate = "AUGGC"
+    >>> score = experiment.evaluate(aptamer_candidate)
+    """
+
+    def __init__(self, target: str, pipeline) -> None:
+        super().__init__(target)
+        self.pipeline = pipeline
+
+    def evaluate(self, aptamer_candidate: str) -> np.float64:
+        """Evaluate the given aptamer candidate against the target protein.
+
+        Parameters
+        ----------
+        aptamer_candidate : str
+            The aptamer candidate to evaluate. It should be a string consisting of
+            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
+            (for DNA).
+
+        Returns
+        -------
+        np.float64
+            The probability score assigned to the aptamer candidate.
+        """
+        score = self.pipeline.predict_proba(X=[(aptamer_candidate, self.target)])
+
+        return np.float64(score[:, 1].item())  # return the positive class probability

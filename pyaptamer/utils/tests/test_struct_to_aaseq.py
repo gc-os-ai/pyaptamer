@@ -1,7 +1,7 @@
 __author__ = "satvshr"
 
 from pyaptamer.datasets import load_1gnh_structure
-from pyaptamer.utils.struct_to_aaseq import struct_to_aaseq
+from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 
 def test_struct_to_aaseq():

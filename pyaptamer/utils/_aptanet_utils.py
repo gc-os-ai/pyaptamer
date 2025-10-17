@@ -5,7 +5,7 @@ from itertools import product
 
 import numpy as np
 
-from pyaptamer.pseaac import PSeAAC
+from pyaptamer.pseaac import AptaNetPSeAAC
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
@@ -84,7 +84,7 @@ def pairs_to_features(X, k=4):
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
     """
-    pseaac = PSeAAC()
+    pseaac = AptaNetPSeAAC()
 
     feats = []
     for aptamer_seq, protein_seq in X:

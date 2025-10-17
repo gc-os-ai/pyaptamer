@@ -45,8 +45,8 @@ class TestAptaTransModel:
         "batch_size, seq_len_apta, seq_len_prot, in_dim",
         [(2, 50, 100, 128), (4, 100, 150, 256), (8, 75, 125, 512)],
     )
-    def test_forward_encoders(self, batch_size, seq_len_apta, seq_len_prot, in_dim):
-        """Check forward_encoders() produces correct outputs for pretraining."""
+    def test_forward_encoder(self, batch_size, seq_len_apta, seq_len_prot, in_dim):
+        """Check forward_encoder() produces correct outputs for pretraining."""
         apta_embedding = EncoderPredictorConfig(
             num_embeddings=125, target_dim=8, max_len=seq_len_apta
         )
@@ -59,20 +59,23 @@ class TestAptaTransModel:
             in_dim=in_dim,
         )
 
-        x_apta_mt = torch.randint(0, 125, (batch_size, seq_len_apta))
+        x_apta_mlm = torch.randint(0, 125, (batch_size, seq_len_apta))
         x_apta_ss = torch.randint(0, 125, (batch_size, seq_len_apta))
-        x_prot_mt = torch.randint(0, 1000, (batch_size, seq_len_prot))
+        x_prot_mlm = torch.randint(0, 1000, (batch_size, seq_len_prot))
         x_prot_ss = torch.randint(0, 1000, (batch_size, seq_len_prot))
 
-        (y_apta_mt, y_apta_ss), (y_prot_mt, y_prot_ss) = model.forward_encoders(
-            x_apta=(x_apta_mt, x_apta_ss), x_prot=(x_prot_mt, x_prot_ss)
-        )
-
         # check output shapes for aptamer predictions
-        assert y_apta_mt.shape == (batch_size, seq_len_apta, 125)
+        y_apta_mlm, y_apta_ss = model.forward_encoder(
+            x=(x_apta_mlm, x_apta_ss), encoder_type="apta"
+        )
+        assert y_apta_mlm.shape == (batch_size, seq_len_apta, 125)
         assert y_apta_ss.shape == (batch_size, seq_len_apta, 8)
 
-        assert y_prot_mt.shape == (batch_size, seq_len_prot, 1000)
+        # check output shapes for protein predictions
+        y_prot_mlm, y_prot_ss = model.forward_encoder(
+            x=(x_prot_mlm, x_prot_ss), encoder_type="prot"
+        )
+        assert y_prot_mlm.shape == (batch_size, seq_len_prot, 1000)
         assert y_prot_ss.shape == (batch_size, seq_len_prot, 12)
 
     @pytest.mark.parametrize(
@@ -253,7 +256,9 @@ class TestAptaTransPipeline:
             def __init__(self, **kwargs):
                 captured_args.update(kwargs)
 
-        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.Aptamer", MockAptamer)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", MockAptamer
+        )
 
         # test experiment initialization
         experiment = pipeline._init_aptamer_experiment(target)
@@ -277,8 +282,8 @@ class TestAptaTransPipeline:
             ),
         ],
     )
-    def test_predict_api(self, device, candidate, target, monkeypatch):
-        """Check predict_api() returns interaction scores correctly."""
+    def test_predict(self, device, candidate, target, monkeypatch):
+        """Check predict returns interaction scores correctly."""
         # setup
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
@@ -296,15 +301,17 @@ class TestAptaTransPipeline:
         def mock_aptamer(**kwargs):
             return MockExperiment()
 
-        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.Aptamer", mock_aptamer)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
+        )
 
         # test prediction - note the typo fix: self.experiment -> experiment
         monkeypatch.setattr(
             pipeline, "_init_aptamer_experiment", lambda target: MockExperiment()
         )
 
-        # test predict_api
-        score = pipeline.predict_api(candidate=candidate, target=target)
+        # test predict
+        score = pipeline.predict(candidate=candidate, target=target)
 
         # check output
         assert isinstance(score, torch.Tensor)
@@ -342,7 +349,9 @@ class TestAptaTransPipeline:
         def mock_aptamer(**kwargs):
             return MockExperiment()
 
-        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.Aptamer", mock_aptamer)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
+        )
 
         # mock MCTS to return deterministic candidates
         class MockMCTS:
