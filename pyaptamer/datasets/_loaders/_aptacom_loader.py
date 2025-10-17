@@ -127,7 +127,7 @@ def load_aptacom_xy(return_X_y=False):
     --------
     Either a pandas dataframe with three columns
     or two pandas dataframe objects with two and one
-    columns respectively. 
+    columns respectively.
     """
     aptacom = load_hf_dataset("AptaCom", store=False)
     dataset = prepare_xy(aptacom)
