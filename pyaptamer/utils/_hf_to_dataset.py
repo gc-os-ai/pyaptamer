@@ -1,7 +1,12 @@
 __author__ = "satvshr"
 __all__ = ["hf_to_dataset"]
 
+import os
+
 from datasets import load_dataset
+
+# File formats not natively supported by `datasets.load_dataset`
+FILE_FORMATS = ["fasta", "pdb"]
 
 
 def hf_to_dataset(path, keep_in_memory=True, **kwargs):
@@ -10,18 +15,16 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
 
     This function first attempts to load the dataset natively using
     `datasets.load_dataset`. If the dataset format is unsupported, it falls back
-    to loading the file(s) as plain text via the "text" dataset loader.
+    to loading the file as plain text via the "text" dataset loader.
 
     Parameters
     ----------
-    path : str or dict
+    path : str
         Path or identifier for the dataset. Can be:
 
           - A Hugging Face Hub dataset name (e.g. "imdb", "username/dataset_name").
           - A local dataset path.
           - A URL to a dataset file.
-          - A dictionary of split-to-file mappings, e.g.
-            `{"train": "train.txt", "test": "test.txt"}`.
 
     keep_in_memory : bool, default=True
         Whether to keep the dataset in memory instead of writing to disk cache.
@@ -31,15 +34,19 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
     Returns
     -------
     datasets.Dataset or datasets.DatasetDict
+
         - If the source provides multiple splits (e.g. "train", "test"),
           a `datasets.DatasetDict` is returned.
         - If only a single split is present, the corresponding
           `datasets.Dataset` is returned directly (this function unwraps
           single-split DatasetDicts automatically).
+
     """
-    try:
+    ext = os.path.splitext(str(path))[-1].lstrip(".").lower()
+
+    if ext not in FILE_FORMATS:
         ds = load_dataset(path, keep_in_memory=keep_in_memory, **kwargs)
-    except Exception:
+    else:
         ds = load_dataset(
             "text",
             data_files=path,
