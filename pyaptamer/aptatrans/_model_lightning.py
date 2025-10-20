@@ -97,6 +97,9 @@ class AptaTransLightning(L.LightningModule):
         x_apta, x_prot, y = batch
         y_hat = self.model(x_apta, x_prot)
         loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
+
+        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
@@ -227,4 +230,8 @@ class AptaTransEncoderLightning(AptaTransLightning):
 
         loss_mlm = F.cross_entropy(y_mlm_hat.transpose(1, 2), y_mlm.long())
         loss_ssp = F.cross_entropy(y_ssp_hat.transpose(1, 2), y_ssp.long())
-        return self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
+        loss = self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
+
+        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
+        return loss
