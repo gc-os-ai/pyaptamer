@@ -3,9 +3,8 @@ __all__ = ["AptamerEvalAptaTrans"]
 import numpy as np
 import torch
 
-from pyaptamer.utils import encode_rna, rna2vec
-
 from pyaptamer.experiments._aptamer import BaseAptamerEval
+from pyaptamer.utils import encode_rna, rna2vec
 
 
 class AptamerEvalAptaTrans(BaseAptamerEval):
