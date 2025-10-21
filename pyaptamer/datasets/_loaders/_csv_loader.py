@@ -30,7 +30,9 @@ def load_csv_dataset(
     FileNotFoundError
         If the specified CSV file does not exist.
     """
-    path = os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
+    path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
+    )
 
     if os.path.exists(path):
         return pd.read_csv(path, keep_default_na=keep_default_na, na_values=na_values)
