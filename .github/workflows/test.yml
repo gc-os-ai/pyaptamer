@@ -121,7 +121,7 @@ jobs:
 
       - name: Run jupyter notebooks
         run: |
-          python -m pip install jupyter nbconvert ipykernel
+          python -m pip install jupyter nbconvert "ipykernel>=6.29.5,<7.0.0"
           python -m ipykernel install --user --name=python3 --display-name "Python 3 (CI)"
           bash build_tools/run_all_notebooks.sh
 

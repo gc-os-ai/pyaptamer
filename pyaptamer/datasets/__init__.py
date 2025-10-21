@@ -12,4 +12,5 @@ __all__ = [
     "load_pfoa_structure",
     "load_1gnh_structure",
     "load_from_rcsb",
+    "load_csv_dataset",
 ]
