@@ -23,6 +23,9 @@ def test_string_path():
     pd_df = loader.to_df_seq()
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
+    one_gnh_str = pd_df.iloc[1, 0]
+    assert one_gnh_str.startswith("QTDMSK")
+
 
 def test_pathlib_path():
     """Test loading with pathlib Path."""
@@ -35,3 +38,6 @@ def test_pathlib_path():
 
     pd_df = loader.to_df_seq()
     assert pd_df.shape == (len(DATA_PATHS), 1)
+
+    one_gnh_str = pd_df.iloc[1, 0]
+    assert one_gnh_str.startswith("QTDMSK")

@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from pyaptamer.utils import aa_str_to_letter
+
 
 class MoleculeLoader:
     """Molecule data connector.
@@ -72,9 +74,10 @@ class MoleculeLoader:
         sequence = []
         with open(path) as f:
             for line in f:
-                print(line)
                 if line.startswith("SEQRES"):
                     parts = line.split()
                     seq_parts = parts[4:]  # Skip the first four columns
                     sequence.extend(seq_parts)
+        # convert three-letter codes to one-letter codes
+        sequence = [aa_str_to_letter(aa) for aa in sequence]
         return "".join(sequence)
