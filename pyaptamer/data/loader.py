@@ -70,7 +70,7 @@ class MoleculeLoader:
             primary sequence extracted from PDB file
         """
         sequence = []
-        with open(path, "r") as f:
+        with open(path) as f:
             for line in f:
                 if line.startswith("SEQRES"):
                     parts = line.split()
