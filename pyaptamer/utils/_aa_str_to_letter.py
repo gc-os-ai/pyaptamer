@@ -1,6 +1,5 @@
 """Utility to convert amino acid three-letter codes to one-letter codes."""
 
-
 three_to_one = {
     "ALA": "A",
     "CYS": "C",
