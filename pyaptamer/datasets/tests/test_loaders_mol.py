@@ -1,7 +1,7 @@
 """Tests for molecule data loading module, toy data."""
 
 from pyaptamer.data.loader import MoleculeLoader
-from pyaptamer.datasets import load_pfoa, load_1gnh
+from pyaptamer.datasets import load_1gnh, load_pfoa
 
 
 def test_loaders_mol():
@@ -14,4 +14,3 @@ def test_loaders_mol():
 
     gnh_seq = gnh.to_df_seq().iloc[0, 0]
     assert gnh_seq.startswith("QTDMSRK")
-    
