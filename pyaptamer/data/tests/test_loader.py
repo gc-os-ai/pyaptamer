@@ -20,7 +20,7 @@ def test_string_path():
     loader = MoleculeLoader(full_paths)
     assert isinstance(loader, MoleculeLoader)
 
-    pd_df = loader.to_df()
+    pd_df = loader.to_df_seq()
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
 
@@ -33,5 +33,5 @@ def test_pathlib_path():
     loader = MoleculeLoader(full_paths)
     assert isinstance(loader, MoleculeLoader)
 
-    pd_df = loader.to_df()
+    pd_df = loader.to_df_seq()
     assert pd_df.shape == (len(DATA_PATHS), 1)

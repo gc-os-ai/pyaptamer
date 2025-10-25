@@ -28,7 +28,7 @@ class MoleculeLoader:
         elif isinstance(path, list):
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
-    def to_df(self):
+    def to_df_seq(self):
         """Return a pd.DataFrame of sequences.
 
         Returns
@@ -41,7 +41,7 @@ class MoleculeLoader:
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path) for path in paths]
+        seq_list = [self._load_dispatch(path, "seq") for path in paths]
         return pd.DataFrame(seq_list, columns=["sequence"])
 
     def _determine_type(self, path):
@@ -51,12 +51,12 @@ class MoleculeLoader:
         else:
             raise ValueError(f"Unsupported file type: {suffix}")
 
-    def _load_dispatch(self, path):
+    def _load_dispatch(self, path, mode="seq"):
         ptype = self._determine_type(path)
-        loader = getattr(self, f"_load_{ptype}")
+        loader = getattr(self, f"_load_{ptype}_{mode}")
         return loader(path)
 
-    def _load_pdb(self, path):
+    def _load_pdb_seq(self, path):
         """Load a PDB file and extract the primary sequence.
 
         Parameters
@@ -72,6 +72,7 @@ class MoleculeLoader:
         sequence = []
         with open(path) as f:
             for line in f:
+                print(line)
                 if line.startswith("SEQRES"):
                     parts = line.split()
                     seq_parts = parts[4:]  # Skip the first four columns
