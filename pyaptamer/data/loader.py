@@ -28,7 +28,6 @@ class MoleculeLoader:
     """
 
     def __init__(self, path, index=None, columns=None):
-
         self.path = path
         self.index = index
         self.columns = columns
