@@ -18,7 +18,7 @@ class MoleculeLoader:
 
         the following formats are currently supported:
 
-        * `pdb` format
+        * ``pdb`` format
 
     index : list, or pandas.Index coercible, optional
         row index for the structure; if None, integer RangeIndex is assumed
