@@ -19,9 +19,20 @@ class MoleculeLoader:
         the following formats are currently supported:
 
         * `pdb` format
+
+    index : list, or pandas.Index coercible, optional
+        row index for the structure; if None, integer RangeIndex is assumed
+
+    columns : list, optional
+        column names for the structure; if None, defaults to ["sequence"]
     """
 
-    def __init__(self, path):
+    def __init__(self, path, index=None, columns=None):
+
+        self.path = path
+        self.index = index
+        self.columns = columns
+
         if isinstance(path, str):
             path = [Path(path)]
             self._path = path
@@ -44,7 +55,13 @@ class MoleculeLoader:
         paths = self._path
 
         seq_list = [self._load_dispatch(path, "seq") for path in paths]
-        return pd.DataFrame(seq_list, columns=["sequence"])
+
+        if self.columns is None:
+            columns = ["sequence"]
+        else:
+            columns = self.columns
+
+        return pd.DataFrame(seq_list, columns=columns, index=self.index)
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()
