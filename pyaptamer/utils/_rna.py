@@ -178,7 +178,7 @@ def encode_rna(
     words: dict[str, int],
     max_len: int,
     word_max_len: int = 3,
-    return_type : str = "tensor",
+    return_type: str = "tensor",
 ):
     """Encode RNA sequences into their numerical representations.
 
