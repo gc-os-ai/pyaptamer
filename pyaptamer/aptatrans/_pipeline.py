@@ -13,7 +13,7 @@ from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
-    generate_all_aptamer_triplets,
+    generate_nplets,
 )
 from pyaptamer.utils._base import filter_words
 
@@ -37,9 +37,11 @@ class AptaTransPipeline:
         The device on which to run the model.
     model : AptaTrans
         An instance of the AptaTrans() class.
-    prot_words : dict[str, int]
-        A dictionary mapping protein words to their frequency. This should be computed
-        on the protein dataset used for pretraining the protein encoder.
+    prot_words : dict[str, float]
+        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
+        Used to encode protein sequences into their numerical representions. The
+        subsequences and their frequency should come from the same dataset used for
+        pretraining the protein encoder.
     depth : int, optional, default=20
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
@@ -50,7 +52,7 @@ class AptaTransPipeline:
     apta_words, prot_words : dict[str, int]
         A dictionary mapping aptamer 3-mer subsequences to unique indices, and protein
         words to their frequency. In particular, `prot_words` now contains only protein
-        words with above-average frequency.
+        words with above-average frequency, mapped to unique integer IDs
 
     References
     ----------
@@ -104,8 +106,8 @@ class AptaTransPipeline:
         """Initialize aptamer and protein word vocabularies.
 
         For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
-        integer indices. For proteins, load protein words mapped to their frequency and
-        filter out those with below-average frequency.
+        integer indices. For proteins, load protein words mapped to their frequency,
+        filter out those with below-average frequency, and assign unique integer IDs.
 
         Parameters
         ----------
@@ -119,9 +121,10 @@ class AptaTransPipeline:
             indices and protein words to their frequencies, respectively.
         """
         # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_all_aptamer_triplets(letters=["A", "C", "G", "U", "N"])
+        apta_words = generate_nplets(letters=["A", "C", "G", "U", "N"], repeat=3)
 
-        # filter out protein words with below average frequency
+        # filter out protein words with below average frequency and assign unique
+        # integer IDs
         prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)

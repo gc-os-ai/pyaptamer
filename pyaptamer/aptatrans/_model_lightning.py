@@ -97,6 +97,45 @@ class AptaTransLightning(L.LightningModule):
         x_apta, x_prot, y = batch
         y_hat = self.model(x_apta, x_prot)
         loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
+
+        # compute accuracy
+        y_pred = (y_hat.squeeze(0) > 0.5).float()
+        accuracy = (y_pred == y.float()).float().mean()
+
+        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log(
+            "train_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True
+        )
+
+        return loss
+
+    def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+        """Defines a single (mini-batch) step in the test loop.
+
+        Parameters
+        ----------
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch_idx: int
+            Index of the batch.
+
+        Returns
+        -------
+        Tensor
+            The computed loss for the batch.
+        """
+        # (input aptamers, input proteins, ground-truth targets)
+        x_apta, x_prot, y = batch
+        y_hat = self.model(x_apta, x_prot)
+        loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
+
+        # compute accuracy
+        y_pred = (y_hat.squeeze(0) > 0.5).float()
+        accuracy = (y_pred == y.float()).float().mean()
+
+        self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log("test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
+
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
@@ -225,6 +264,10 @@ class AptaTransEncoderLightning(AptaTransLightning):
             x=(x_mlm, x_ssp), encoder_type=self.encoder_type
         )
 
-        loss_mlm = F.cross_entropy(y_mlm_hat, y_mlm.float())
-        loss_ssp = F.cross_entropy(y_ssp_hat, y_ssp.float())
-        return self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
+        loss_mlm = F.cross_entropy(y_mlm_hat.transpose(1, 2), y_mlm.long())
+        loss_ssp = F.cross_entropy(y_ssp_hat.transpose(1, 2), y_ssp.long())
+        loss = self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
+
+        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
+        return loss
