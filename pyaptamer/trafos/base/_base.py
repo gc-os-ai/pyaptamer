@@ -11,7 +11,7 @@ class BaseTransform(BaseEstimator):
 
     _tags = {
         "object_type": "transformer",
-        # "input_type": 
+        # "input_type":
         "capability:y": False,
         "output_type": "numeric",
         "property:fit_is_empty": False,
@@ -143,7 +143,7 @@ class BaseTransform(BaseEstimator):
         """
         return self.fit(X, y).transform(X)
 
-    def _check_X_y(self, X, y):
+    def _check_X_y(self, X, y):  # noqa: N802
         """Check X and y inputs.
 
         Coerces X to a pd.DataFrame.
@@ -165,7 +165,7 @@ class BaseTransform(BaseEstimator):
 
         return X, y
 
-    def _check_X(self, X):
+    def _check_X(self, X):  # noqa: N802
         """Check X input.
 
         Same as _check_X_y but only for X.
