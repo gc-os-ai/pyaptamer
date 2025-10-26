@@ -9,5 +9,6 @@ __all__ = [
     "load_csv_dataset",
     "load_hf_dataset",
     "load_pfoa_structure",
+    "load_1gnh",
     "load_1gnh_structure",
 ]
