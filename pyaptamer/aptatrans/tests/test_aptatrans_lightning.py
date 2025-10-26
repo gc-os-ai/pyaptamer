@@ -19,9 +19,13 @@ def mock_model():
             self.dummy_param = nn.Parameter(torch.zeros(1))
 
         def forward_encoder(self, x, encoder_type):
+            batch_size, seq_len = x[0].shape
+            vocab_size = 125
+            ss_classes = 8
+
             return (
-                torch.rand(x[0].shape[0], x[0].shape[1], 10),
-                torch.rand(x[1].shape[0], x[1].shape[1], 10),
+                torch.randn(batch_size, seq_len, vocab_size),
+                torch.randn(batch_size, seq_len, ss_classes),
             )
 
         def forward(self, x_apta, x_prot):
@@ -66,15 +70,19 @@ class TestAptaTransLightning:
         "batch_size, seq_len",
         [(4, 50), (8, 100), (2, 75)],
     )
-    def test_training_step(self, lightning_model, batch_size, seq_len):
-        """Check training_step computes loss correctly."""
+    @pytest.mark.parametrize(
+        "step_method",
+        ["training_step", "test_step"],
+    )
+    def test_step(self, lightning_model, batch_size, seq_len, step_method):
+        """Check training_step and test_step compute loss correctly."""
         # create dummy batch
         x_apta = torch.randint(0, 4, (batch_size, seq_len))
         x_prot = torch.randint(0, 20, (batch_size, seq_len))
         y = torch.randint(0, 2, (batch_size, 1)).float()
         batch = (x_apta, x_prot, y)
 
-        loss = lightning_model.training_step(batch, batch_idx=0)
+        loss = getattr(lightning_model, step_method)(batch, batch_idx=0)
 
         # check that loss is a scalar tensor
         assert isinstance(loss, torch.Tensor)
@@ -105,16 +113,18 @@ class TestAptaTransEncoderLightning:
     )
     def test_training_step(self, lightning_model, batch_size, seq_len):
         """Check training_step computes loss correctly."""
-        # create dummy batch
-        x_mlm = torch.randint(0, 125, (batch_size, seq_len, 10))
-        x_ss = torch.randint(0, 125, (batch_size, seq_len, 10))
-        y_mlm = torch.randint(0, 125, (batch_size, seq_len, 10))
-        y_ss = torch.randint(0, 8, (batch_size, seq_len, 10))
-        batch = (x_mlm, x_ss, y_mlm, y_ss)
+
+        # Create dummy input tensors with expected shapes
+        x_mlm = torch.randint(0, 125, (batch_size, seq_len))
+        x_ssp = torch.randint(0, 125, (batch_size, seq_len))
+        y_mlm = torch.randint(0, 125, (batch_size, seq_len))
+        y_ssp = torch.randint(0, 8, (batch_size, seq_len))
+
+        batch = (x_mlm, x_ssp, y_mlm, y_ssp)
 
         loss = lightning_model.training_step(batch, batch_idx=0)
 
-        # check that loss is a scalar tensor
+        # check that the output is a valid scalar loss
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert loss.item() >= 0
