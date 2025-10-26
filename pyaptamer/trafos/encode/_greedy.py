@@ -130,3 +130,21 @@ class GreedyEncoder(BaseTransform):
         result_df = pd.DataFrame(result_np, index=X.index)
 
         return result_df
+
+    def get_test_params(self):
+        """Get test parameters for GreedyEncoder.
+
+        Returns
+        -------
+        params : dict
+            Test parameters for GreedyEncoder.
+        """
+        param0 = {
+            "words": {"A": 1, "C": 2, "G": 3, "U": 4, "AC": 5, "GU": 6},
+        }
+        param1 = {
+            "words": {"A": 1, "C": 2, "G": 3, "U": 4},
+            "max_len": 10,
+            "word_max_len": 2,
+        }
+        return [param0, param1]
