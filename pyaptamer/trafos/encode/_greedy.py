@@ -27,6 +27,7 @@ class GreedyEncoder(BaseTransform):
     ----------
     words : dict[str, int]
         A dictionary mapping k-mers to unique indices.
+        Keys should normally not contain the special unknown token (0).
     max_len : int, optional, default=None
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
