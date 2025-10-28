@@ -10,8 +10,6 @@ from collections.abc import Iterable
 from itertools import product
 
 import numpy as np
-import torch
-from torch import Tensor
 
 
 def dna2rna(sequence: str) -> str:
@@ -180,7 +178,8 @@ def encode_rna(
     words: dict[str, int],
     max_len: int,
     word_max_len: int = 3,
-) -> Tensor:
+    return_type: str = "tensor",
+):
     """Encode RNA sequences into their numerical representations.
 
     This function tokenizes protein sequences using a greedy longest-match approach,
@@ -198,6 +197,11 @@ def encode_rna(
         or padded to this length.
     word_max_len : int, optional, default=3
         Maximum length of amino acid patterns to consider during tokenization.
+    return_type : str, optional, default="tensor"
+        The type of the returned encoded sequences.
+
+        * "tensor": returns a PyTorch Tensor
+        * "numpy": returns a NumPy ndarray
 
     Returns
     -------
@@ -248,4 +252,9 @@ def encode_rna(
     # convert to numpy array first
     result = np.array(encoded_sequences, dtype=np.int64)
 
-    return torch.tensor(result, dtype=torch.int64)
+    if return_type == "numpy":
+        return result
+    else:  # return_type == "tensor"
+        import torch
+
+        return torch.tensor(result, dtype=torch.int64)
