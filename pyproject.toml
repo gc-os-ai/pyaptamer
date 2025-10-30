@@ -17,7 +17,7 @@ dependencies = [
     "datasets>=4.0.0",
     "lightning>=2.5.3",
     "numpy>=2.0.2",
-    "openmm>=8.3.0,<8.4.0",
+    "openmm>=8.3.0,<8.5.0",
     "pandas>=2.0.0",
     "scikit-base",
     "torch>=2.5.1",
