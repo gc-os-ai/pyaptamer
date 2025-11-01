@@ -41,19 +41,21 @@ filter_map = {
 
 
 def filter_columns(ds, columns=None):
-    """ " Selects columns to keep on dataset
+    """ Select columns to keep on dataset.
+
     Parameters:
     -----------
-        ds: pd dataframe, required
+    ds: pd.DataFrame, required
         Pandas dataframe to filter
         columns: list, optional, default=None
         If empty returns entire AptaCom dataset, otherwise
         returns only the selected columns from the
         AptaCom dataset
+    
     Returns:
     --------
-        object: pandas dataframe object with
-        the selected columns
+    pd.DataFrame
+        pandas dataframe object with the selected columns
     """
 
     if columns is not None:
@@ -62,16 +64,19 @@ def filter_columns(ds, columns=None):
 
 
 def prepare_xy(ds):
-    """ " Prepares dataset for usage as training data
+    """ Prepare dataset for usage as training data.
+
     Parameters:
     -----------
-    ds: pandas dataframe, required
+    ds: pd.DataFrame
+        Pandas dataframe to prepare for training
 
     Returns:
     --------
-    Pandas dataframe object processed for training
-    with columns "aptamer_sequence", "target_sequence",
-    "new_affinity" and a total of 709 rows
+    pd.DataFrame
+        Pandas dataframe object processed for training
+        with columns "aptamer_sequence", "target_sequence",
+        "new_affinity" and a total of 709 rows
     """
     ds.dropna(
         subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
@@ -81,8 +86,7 @@ def prepare_xy(ds):
 
 
 def load_aptacom_full(select_columns=None):
-    """Loads a AptaCom dataset from hugging face
-    with customizable options.
+    """Load AptaCom dataset from hugging facewith customizable options.
 
     Parameters:
     -----------
@@ -90,6 +94,7 @@ def load_aptacom_full(select_columns=None):
         A list used to filter the columns dataset features.
         Defaults to empty, which returns the complete dataset.
         Column names:
+
         ['reference',
         'aptamer_chemistry',
         'aptamer_name',
@@ -103,7 +108,8 @@ def load_aptacom_full(select_columns=None):
 
     Returns:
     --------
-        object: A pandas dataframe with 5556 rows in total.
+    pd.DataFrame
+        A pandas dataframe with 5556 rows in total.
         The returned object contains the dataset, possibly
         filtered with different columns.
     """
@@ -125,9 +131,10 @@ def load_aptacom_xy(return_X_y=False):
 
     Returns:
     --------
-    Either a pandas dataframe with three columns
-    or two pandas dataframe objects with two and one
-    columns respectively.
+    pd.DataFrame or tuple of pd.DataFrame
+        Either a pandas dataframe with three columns
+        or two pandas dataframe objects with two and one
+        columns respectively.
     """
     aptacom = load_hf_dataset("AptaCom", store=False)
     dataset = prepare_xy(aptacom)
