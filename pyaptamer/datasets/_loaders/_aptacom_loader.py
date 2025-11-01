@@ -41,7 +41,7 @@ filter_map = {
 
 
 def filter_columns(ds, columns=None):
-    """ Select columns to keep on dataset.
+    """Select columns to keep on dataset.
 
     Parameters:
     -----------
@@ -51,7 +51,7 @@ def filter_columns(ds, columns=None):
         If empty returns entire AptaCom dataset, otherwise
         returns only the selected columns from the
         AptaCom dataset
-    
+
     Returns:
     --------
     pd.DataFrame
@@ -64,7 +64,7 @@ def filter_columns(ds, columns=None):
 
 
 def prepare_xy(ds):
-    """ Prepare dataset for usage as training data.
+    """Prepare dataset for usage as training data.
 
     Parameters:
     -----------
