@@ -1,6 +1,6 @@
 import pandas as pd
 
-from pyaptamer.utils._pdb_to_seq_uniprot import pdb_to_seq_uniprot
+from pyaptamer.utils import pdb_to_seq_uniprot
 
 
 def test_pdb_to_seq_uniprot():
