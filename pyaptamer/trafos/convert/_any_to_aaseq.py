@@ -19,8 +19,10 @@ class AnyToAASeq(BaseTransform):
 
     Supported Formats
     -----------------
-    The file formats supported by :func:`Bio.SeqIO.parse` are mentioned here:
-    https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
+    The file formats supported by :func:`Bio.SeqIO.parse` are mentioned below:
+
+    - https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
+    - https://biopython.org/wiki/SeqIO
 
     Attributes
     ----------
