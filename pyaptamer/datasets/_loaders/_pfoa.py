@@ -1,9 +1,22 @@
-__author__ = "satvshr"
-__all__ = ["load_pfoa_structure"]
+__author__ = ["satvshr", "fkiraly"]
+__all__ = ["load_pfoa", "load_pfoa_structure"]
 
 import os
 
-from Bio.PDB import PDBParser
+
+def load_pfoa():
+    """Load the PFOA molecule as a MoleculeLoader.
+
+    Returns
+    -------
+    loader : MoleculeLoader
+        A MoleculeLoader object representing the PFOA molecule.
+    """
+    from pyaptamer.data.loader import MoleculeLoader
+
+    pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "pfoa.pdb")
+
+    return MoleculeLoader(pdb_path)
 
 
 def load_pfoa_structure(pdb_path=None):
@@ -21,6 +34,8 @@ def load_pfoa_structure(pdb_path=None):
     structure : Bio.PDB.Structure.Structure
         A Biopython Structure object representing the PFOA molecule.
     """
+    from Bio.PDB import PDBParser
+
     pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "pfoa.pdb")
 
     parser = PDBParser(QUIET=True)
