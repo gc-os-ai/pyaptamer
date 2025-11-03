@@ -3,6 +3,7 @@
 __author__ = ["nennomp"]
 __all__ = ["AptaTrans"]
 
+import os
 from collections import OrderedDict
 from collections.abc import Callable
 
@@ -44,6 +45,8 @@ class AptaTrans(nn.Module):
     conv_layers : list[int], optional, default=[3, 3, 3]
         List specifying the number of convolutional blocks in each convolutional
         layer.
+    pretrained : bool, optional, default=False
+        If True, load the best weights from the pretrained model.
 
     Attributes
     ----------
@@ -84,7 +87,7 @@ class AptaTrans(nn.Module):
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> x_apta = torch.randint(high=16, size=(128, 10))
     >>> x_prot = torch.randint(high=16, size=(128, 10))
-    >>> model = AptaTrans(apta_embedding, prot_embedding)
+    >>> model = AptaTrans(apta_embedding, prot_embedding, pretrained=False)
     >>> imap = model.forward_imap(x_apta, x_prot)
     >>> preds = model(x_apta, x_prot)
     """
@@ -98,6 +101,7 @@ class AptaTrans(nn.Module):
         n_heads: int = 8,
         conv_layers: list[int] | None = None,
         dropout: float = 0.1,
+        pretrained: bool = False,
     ) -> None:
         """
         Raises
@@ -163,6 +167,9 @@ class AptaTrans(nn.Module):
             )
         )
 
+        if pretrained:
+            self.load_pretrained_weights()
+
     def _make_encoder(
         self,
         embedding_config: EncoderPredictorConfig,
@@ -178,7 +185,7 @@ class AptaTrans(nn.Module):
 
         Returns
         -------
-        nn.Sequential
+        nn.ModuleList
             A sequential container with the encoder's architectural components.
         TokenPredictor
             A token predictor layer for masked token and secondary structure prediction.
@@ -211,18 +218,15 @@ class AptaTrans(nn.Module):
             d_out_ss=embedding_config.target_dim,
         )
 
-        return (
-            nn.Sequential(
-                OrderedDict(
-                    [
-                        ("embedding", embedding),
-                        ("pos_encoding", pos_encoding),
-                        ("encoder", encoder),
-                    ]
-                )
-            ),
-            token_predictor,
+        encoder_module = nn.ModuleList([embedding, pos_encoding, encoder])
+
+        # pass the the encoder a padding mask to ignore zero-padded tokens
+        encoder_module.forward = lambda x: encoder(
+            pos_encoding(embedding(x)),
+            src_key_padding_mask=(x == 0),  # padding mask
         )
+
+        return (encoder_module, token_predictor)
 
     def _make_layer(
         self,
@@ -256,45 +260,81 @@ class AptaTrans(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward_encoders(
-        self,
-        x_apta: tuple[Tensor, Tensor],
-        x_prot: tuple[Tensor, Tensor],
-    ):
-        """Forward pass through the encoders only.
+    def load_pretrained_weights(self, store: bool = True) -> None:
+        """Load pretrained model weights from hugging face.
 
-        This method performs a forward pass through the encoders, including the
-        token predictors, for pretraining.
+        If the weights are not found locally, they will be downloaded from hugging face.
 
         Parameters
         ----------
-        x_apta, x_prot : tuple[Tensor, Tensor]
-            A tuple of tensors containing the features for masked tokens and secodnary
-            structure prediction, for aptamers and proteins, respectively. Shapes are
-            (batch_size (b1), seq_len (s1)) and (batch_size (b2), seq_len (s2)),
-            respectively.
+        store : bool, optional, default=True
+            If True, the pretrained weights will be saved locally. If False, the weights
+            will be downloaded but not saved to disk.
+        """
+        path = os.path.relpath(
+            os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
+        )
+
+        if os.path.exists(path):
+            print(f"Loading pretrained weights from {path}...")
+            state_dict = torch.load(path, map_location=torch.device("cpu"))
+        else:
+            print("Downloading best weights from hugging face...")
+            url = (
+                "https://huggingface.co/gcos/pyaptamer-aptatrans/resolve/main/"
+                "pretrained.pt"
+            )
+            state_dict = torch.hub.load_state_dict_from_url(
+                url=url,
+                model_dir=os.path.dirname(path),
+                map_location=torch.device("cpu"),
+            )
+
+        self.load_state_dict(state_dict, strict=True)
+
+    def forward_encoder(
+        self, x: tuple[Tensor, Tensor], encoder_type: str
+    ) -> tuple[Tensor, Tensor]:
+        """Forward pass through the aptamer or protein encoder.
+
+        This method performs a forward pass through the aptamer or protein encoder,
+        including the corresponding token predictor, for pretraining.
+
+        Parameters
+        ----------
+        x : tuple[Tensor, Tensor]
+            A tuple of tensors containing the features for masked tokens and secondary
+            structure prediction, for aptamers or proteins. Shapes is (batch_size (b),
+            seq_len (s)).
+        encoder_type: str
+            A string indicating whether to use the aptamer or protein encoder. Options
+            are 'apta' or 'prot'.
 
         Returns
         -------
-        tuple[Tensor, Tensor], tuple[Tensor, Tensor]
+        tuple[Tensor, Tensor]
             A tuple of tensors containing the predictions for masked tokens and
-            secondary structure, for aptamers and proteins, respectively. For aptamers,
-            the shapes are (b1, s1, n_embeddings (n1)) and (b1, s1, target_dim (t1)),
-            for the masked tokens and secondary structure, respectively. For proteins,
-            the shapes are (b2, s2, n_embeddings (n2)) and (b2, s2, target_dim (t2)),
+            secondary structure, for aptamers or proteins, depending on `encoder_type`.
+            Shapes are (b, s, n_embeddings (n)) and (b, s, target_dim (t)),
             respectively.
+
+        Raises
+        -------
+        ValueError
+            If `encoder_type` is not 'apta' or 'prot'.
         """
-        # pretrain aptamers' encoder
-        out_apta_mt = self.encoder_apta(x_apta[0])
-        out_apta_ss = self.encoder_apta(x_apta[1])
-        y_apta_mt, y_apta_ss = self.token_predictor_apta(out_apta_mt, out_apta_ss)
-
-        # pretrain proteins' encoder
-        out_prot_mt = self.encoder_prot(x_prot[0])
-        out_prot_ss = self.encoder_prot(x_prot[1])
-        y_prot_mt, y_prot_ss = self.token_predictor_prot(out_prot_mt, out_prot_ss)
-
-        return (y_apta_mt, y_apta_ss), (y_prot_mt, y_prot_ss)
+        if encoder_type == "apta":  # pretrain aptamers' encoder
+            out_apta_mt = self.encoder_apta(x[0])
+            out_apta_ss = self.encoder_apta(x[1])
+            return self.token_predictor_apta(out_apta_mt, out_apta_ss)
+        elif encoder_type == "prot":  # pretrain proteins' encoder
+            out_prot_mt = self.encoder_prot(x[0])
+            out_prot_ss = self.encoder_prot(x[1])
+            return self.token_predictor_prot(out_prot_mt, out_prot_ss)
+        else:
+            raise ValueError(
+                f"Unknown encoder_type: {encoder_type}. Options are 'apta' or 'prot'."
+            )
 
     def forward_imap(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
         """Forward pass to compute the interaction map.

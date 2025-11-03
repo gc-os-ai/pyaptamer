@@ -1,4 +1,4 @@
-__author__ = ["satvshr"]
+__author__ = ["nennomp"]
 __all__ = ["load_csv_dataset"]
 
 import os
@@ -6,38 +6,37 @@ import os
 import pandas as pd
 
 
-def load_csv_dataset(name, target_col, return_X_y=False):
-    """
-    Load a dataset from a CSV file in DataFrame format.
+def load_csv_dataset(
+    name: str, keep_default_na: bool = True, na_values: list[str] | None = None
+) -> pd.DataFrame:
+    """Load a dataset from a CSV file.
 
     Parameters
     ----------
     name : str
-        Name of the dataset (file basename without `.csv`) located in the
-        package `dataset/data/` directory.
-    target_col : str
-        Column name in the CSV to use as the target variable.
-    return_X_y : bool, optional, default=False
-        If True, return (X_df, y_df) as pandas DataFrames.
-        If False, return the full DataFrame (features + target).
+        Name of the dataset to load.
+    keep_default_na : bool, optional, default=True
+        Whether to keep the default NaN values or not. Depending on `na_values`.
+    na_values : list[str] | None, optional, default=None
+        Additional strings to recognize as NaN values.
 
     Returns
     -------
-    pandas.DataFrame or tuple of pandas.DataFrame
-        If `return_X_y` is False, returns the full DataFrame with all columns.
-        If `return_X_y` is True, returns:
-            - X_df : pd.DataFrame of shape (n_samples, n_features)
-            - y_df : pd.DataFrame of shape (n_samples, 1)
+    pandas.DataFrame
+        A DataFrame containing the dataset loaded from the CSV file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified CSV file does not exist.
     """
-    path = os.path.relpath(
+    path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
     )
 
-    df = pd.read_csv(path)
-
-    if return_X_y:
-        X_df = df.drop(columns=[target_col])
-        y_df = df[[target_col]]
-        return X_df, y_df
-
-    return df
+    if os.path.exists(path):
+        return pd.read_csv(path, keep_default_na=keep_default_na, na_values=na_values)
+    else:
+        raise FileNotFoundError(
+            f"Dataset {name} not found at {path}. Please ensure the file exists."
+        )
