@@ -3,7 +3,7 @@ AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaTransPipeline"]
 
 import torch
@@ -12,9 +12,6 @@ from torch import Tensor
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
-    generate_nplets,
-)
 from pyaptamer.utils._base import filter_words
 
 
@@ -95,47 +92,23 @@ class AptaTransPipeline:
         self.device = device
         self.model = model.to(device)
         self.depth = depth
+        self.prot_words = prot_words
         self.n_iterations = n_iterations
 
-        self.apta_words, self.prot_words = self._init_words(prot_words)
+        self.prot_words_ = None
 
-    def _init_words(
-        self,
-        prot_words: dict[str, float],
-    ) -> tuple[dict[str, int], dict[str, int]]:
-        """Initialize aptamer and protein word vocabularies.
-
-        For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
-        integer indices. For proteins, load protein words mapped to their frequency,
-        filter out those with below-average frequency, and assign unique integer IDs.
-
-        Parameters
-        ----------
-        prot_words : dict[str, float]
-            A dictionary containing protein 3-mer subsequences and their frequencies.
-
-        Returns
-        -------
-        tuple[dict[str, int], dict[str, int]]
-            A tuple of dictionaries mapping aptamer 3-mer subsequences to unique
-            indices and protein words to their frequencies, respectively.
-        """
-        # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_nplets(letters=["A", "C", "G", "U", "N"], repeat=3)
-
-        # filter out protein words with below average frequency and assign unique
-        # integer IDs
-        prot_words = filter_words(prot_words)
-
-        return (apta_words, prot_words)
+    def _init_vocabularies(self):
+        if self.prot_words_ is None:
+            self.prot_words_ = filter_words(self.prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer recommendation experiment."""
+        self._init_vocabularies()
         experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,
-            prot_words=self.prot_words,
+            prot_words=self.prot_words_,
         )
         return experiment
 
@@ -163,6 +136,11 @@ class AptaTransPipeline:
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate, return_interaction_map=True)
 
+    def fit(self):
+        """Placeholder fit method for compatibility with sklearn-like pipelines."""
+        self._init_vocabularies()
+        return self
+
     def predict(self, candidate: str, target: str) -> Tensor:
         """Predict aptamer-protein interaction (API) score for a given target protein.
 
@@ -180,7 +158,7 @@ class AptaTransPipeline:
         Returns
         -------
         Tensor
-            A tensor containing the predicted interaction score.
+           A tensor of dtype torch.float64 containing the predicted interaction score.
         """
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate)
