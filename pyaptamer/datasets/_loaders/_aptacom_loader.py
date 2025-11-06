@@ -67,7 +67,7 @@ def _filter_columns(ds, columns=None):
 
 def prepare_x_y(ds):
     """
-    Prepare dataset for training by selecting required columns and dropping rows with missing values.
+    Prepare dataset by selecting required columns and dropping rows with missing values.
 
     This function:
     - Drops rows with missing values in the columns
