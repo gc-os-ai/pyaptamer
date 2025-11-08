@@ -18,14 +18,6 @@ from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils._base import filter_words
 
-# ---- TRAINING CONSTANTS ---- #
-BATCH_SIZE = 32
-APTA_MAX_LEN = 100
-PROT_MAX_LEN = 100
-LEARNING_RATE = 1e-5
-WEIGHT_DECAY = 1e-5
-MAX_EPOCHS = 50
-
 
 class AptaTransPipeline(BaseObject):
     """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
@@ -55,6 +47,18 @@ class AptaTransPipeline(BaseObject):
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
         The number of iterations for the MCTS algorithm.
+    batch_size : int, default=16
+        Batch size for training and inference.
+    apta_max_len : int, default=275
+        Maximum aptamer sequence length.
+    prot_max_len : int, default=867
+        Maximum protein sequence length.
+    learning_rate : float, default=1e-5
+        Learning rate for training the AptaTrans model.
+    weight_decay : float, default=1e-5
+        Weight decay for training the AptaTrans model.
+    max_epochs : int, default=50
+        Maximum number of epochs for training the AptaTrans model.
 
     Attributes
     ----------
@@ -99,6 +103,12 @@ class AptaTransPipeline(BaseObject):
         prot_words: dict[str, float],
         depth: int = 20,
         n_iterations: int = 1000,
+        batch_size: int = 16,
+        apta_max_len: int = 275,
+        prot_max_len: int = 867,
+        learning_rate: float = 1e-5,
+        weight_decay: float = 1e-5,
+        max_epochs: int = 50,
     ) -> None:
         super().__init__()
         self.device = device
@@ -106,6 +116,12 @@ class AptaTransPipeline(BaseObject):
         self.depth = depth
         self.prot_words = prot_words
         self.n_iterations = n_iterations
+        self.batch_size = batch_size
+        self.apta_max_len = apta_max_len
+        self.prot_max_len = prot_max_len
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.max_epochs = max_epochs
         self.prot_words_ = None
 
     def _init_vocabularies(self):
@@ -132,12 +148,12 @@ class AptaTransPipeline(BaseObject):
             x_apta=train_dataset["aptamer"].to_numpy(),
             x_prot=train_dataset["protein"].to_numpy(),
             y=train_dataset["label"].to_numpy(),
-            apta_max_len=APTA_MAX_LEN,
-            prot_max_len=PROT_MAX_LEN,
+            apta_max_len=self.apta_max_len,
+            prot_max_len=self.prot_max_len,
             prot_words=self.prot_words_,
         )
 
-        dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
         return dataloader
 
     def fit(self, train_dataset):
@@ -168,12 +184,12 @@ class AptaTransPipeline(BaseObject):
 
         model_lightning = AptaTransLightning(
             model=self.model,
-            lr=LEARNING_RATE,
-            weight_decay=WEIGHT_DECAY,
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
         )
 
         trainer = L.Trainer(
-            max_epochs=MAX_EPOCHS,
+            max_epochs=self.max_epochs,
             accelerator="auto",
             devices="auto",
             log_every_n_steps=10,
