@@ -76,9 +76,7 @@ class AptaTransLightning(L.LightningModule):
         self.weight_decay = weight_decay
         self.betas = betas
 
-    def _step(
-        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
-    ) -> Tensor:
+    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
         Parameters
@@ -148,17 +146,16 @@ class AptaTransLightning(L.LightningModule):
         loss, accuracy = self._step(batch, batch_idx)
 
         self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
-        self.log(
-            "test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True
-        )
+        self.log("test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
 
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Defines the optimizer to be used during training."""
         params = [
-            p for name, p in self.model.named_parameters()
-            if 'token_predictor' not in name
+            p
+            for name, p in self.model.named_parameters()
+            if "token_predictor" not in name
         ]
 
         optimizer = torch.optim.Adam(
@@ -259,9 +256,7 @@ class AptaTransEncoderLightning(AptaTransLightning):
         self.weight_mlm = weight_mlm
         self.weight_ssp = weight_ssp
 
-    def _step(
-        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
-    ) -> Tensor:
+    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
         The loss function is a weighted sum of the masked language modeling (MLM)
@@ -330,18 +325,16 @@ class AptaTransEncoderLightning(AptaTransLightning):
         loss = self._step(batch, batch_idx)
         self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
-    
+
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Defines the optimizer to be used during training."""
         if self.encoder_type == "apta":
-            params = (
-                list(self.model.encoder_apta.parameters()) +
-                list(self.model.token_predictor_apta.parameters())
+            params = list(self.model.encoder_apta.parameters()) + list(
+                self.model.token_predictor_apta.parameters()
             )
         elif self.encoder_type == "prot":
-            params = (
-                list(self.model.encoder_prot.parameters()) +
-                list(self.model.token_predictor_prot.parameters())
+            params = list(self.model.encoder_prot.parameters()) + list(
+                self.model.token_predictor_prot.parameters()
             )
 
         optimizer = torch.optim.Adam(
