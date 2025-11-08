@@ -8,7 +8,7 @@ __all__ = ["AptaTransPipeline"]
 
 import lightning as L
 import torch
-from sklearn.base import BaseObject
+from skbase.base import BaseObject
 from torch import Tensor
 from torch.utils.data import DataLoader
 
