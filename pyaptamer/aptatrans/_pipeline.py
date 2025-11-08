@@ -8,6 +8,7 @@ __all__ = ["AptaTransPipeline"]
 
 import lightning as L
 import torch
+from sklearn.base import BaseObject
 from torch import Tensor
 from torch.utils.data import DataLoader
 
@@ -26,7 +27,7 @@ WEIGHT_DECAY = 1e-5
 MAX_EPOCHS = 50
 
 
-class AptaTransPipeline:
+class AptaTransPipeline(BaseObject):
     """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
 
     Algorithm as originally described in Shin et al [1]_.
