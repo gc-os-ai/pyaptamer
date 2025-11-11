@@ -42,13 +42,13 @@ filter_map = {
 }
 
 
-def _filter_columns(ds, columns=None):
+def _filter_columns(df, columns=None):
     """
     Select a subset of columns from a pandas DataFrame.
 
     Parameters
     ----------
-    ds : pandas.DataFrame
+    df : pandas.DataFrame
         Input DataFrame to filter.
     columns : list[str] or None, optional
         Column names to keep. If None, returns the input DataFrame unchanged.
@@ -61,11 +61,11 @@ def _filter_columns(ds, columns=None):
 
     """
     if columns is not None:
-        ds = ds[columns]
-    return ds
+        df = df[columns]
+    return df
 
 
-def prepare_x_y(ds):
+def prepare_x_y(df):
     """
     Prepare dataset by selecting required columns and dropping rows with missing values.
 
@@ -76,7 +76,7 @@ def prepare_x_y(ds):
 
     Parameters
     ----------
-    ds : pandas.DataFrame
+    df : pandas.DataFrame
         Input DataFrame containing at least the columns
         "aptamer_sequence", "target_sequence", and "new_affinity".
 
@@ -88,11 +88,11 @@ def prepare_x_y(ds):
         and with rows containing no missing values in those columns.
 
     """
-    ds.dropna(
+    df.dropna(
         subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
     )
-    ds = ds[["aptamer_sequence", "target_sequence", "new_affinity"]]
-    return ds
+    df = df[["aptamer_sequence", "target_sequence", "new_affinity"]]
+    return df
 
 
 def load_aptacom_full(select_columns=None):
