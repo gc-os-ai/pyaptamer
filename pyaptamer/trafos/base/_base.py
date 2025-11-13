@@ -62,7 +62,7 @@ class BaseTransform(BaseEstimator):
             Returns self.
         """
         raise ValueError(
-            "abstract method _transform called, "
+            "abstract method _fit called, "
             "this should be implemented in the subclass"
         )
 

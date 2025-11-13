@@ -76,6 +76,32 @@ class AptaTransLightning(L.LightningModule):
         self.weight_decay = weight_decay
         self.betas = betas
 
+    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+        """Defines a single (mini-batch) step in the training/test loop.
+
+        Parameters
+        ----------
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch_idx: int
+            Index of the batch.
+
+        Returns
+        -------
+        Tensor
+            The computed loss for the batch.
+        """
+        # (input aptamers, input proteins, ground-truth targets)
+        x_apta, x_prot, y = batch
+        y_hat = torch.flatten(self.model(x_apta, x_prot))
+        loss = F.binary_cross_entropy(y_hat, y.float())
+
+        # compute accuracy
+        y_pred = (y_hat > 0.5).float()
+        accuracy = (y_pred == y.float()).float().mean()
+
+        return loss, accuracy
+
     def training_step(
         self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
     ) -> Tensor:
@@ -93,14 +119,7 @@ class AptaTransLightning(L.LightningModule):
         Tensor
             The computed loss for the batch.
         """
-        # (input aptamers, input proteins, ground-truth targets)
-        x_apta, x_prot, y = batch
-        y_hat = self.model(x_apta, x_prot)
-        loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
-
-        # compute accuracy
-        y_pred = (y_hat.squeeze(0) > 0.5).float()
-        accuracy = (y_pred == y.float()).float().mean()
+        loss, accuracy = self._step(batch, batch_idx)
 
         self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         self.log(
@@ -124,14 +143,7 @@ class AptaTransLightning(L.LightningModule):
         Tensor
             The computed loss for the batch.
         """
-        # (input aptamers, input proteins, ground-truth targets)
-        x_apta, x_prot, y = batch
-        y_hat = self.model(x_apta, x_prot)
-        loss = F.binary_cross_entropy(y_hat.squeeze(0), y.float())
-
-        # compute accuracy
-        y_pred = (y_hat.squeeze(0) > 0.5).float()
-        accuracy = (y_pred == y.float()).float().mean()
+        loss, accuracy = self._step(batch, batch_idx)
 
         self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         self.log("test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
@@ -140,8 +152,14 @@ class AptaTransLightning(L.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Defines the optimizer to be used during training."""
+        params = [
+            p
+            for name, p in self.model.named_parameters()
+            if "token_predictor" not in name
+        ]
+
         optimizer = torch.optim.Adam(
-            self.parameters(),
+            params,
             lr=self.lr,
             weight_decay=self.weight_decay,
             betas=self.betas,
@@ -238,10 +256,8 @@ class AptaTransEncoderLightning(AptaTransLightning):
         self.weight_mlm = weight_mlm
         self.weight_ssp = weight_ssp
 
-    def training_step(
-        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
-    ) -> Tensor:
-        """Defines a single (mini-batch) step in the training loop.
+    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+        """Defines a single (mini-batch) step in the training/test loop.
 
         The loss function is a weighted sum of the masked language modeling (MLM)
         loss and the secondary structure prediction (SSP) loss.
@@ -268,6 +284,63 @@ class AptaTransEncoderLightning(AptaTransLightning):
         loss_ssp = F.cross_entropy(y_ssp_hat.transpose(1, 2), y_ssp.long())
         loss = self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
 
-        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
-
         return loss
+
+    def training_step(
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
+    ) -> Tensor:
+        """Defines a single (mini-batch) step in the training loop.
+
+        Parameters
+        ----------
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch_idx: int
+            Index of the batch.
+
+        Returns
+        -------
+        Tensor
+            The computed loss for the batch.
+        """
+        loss = self._step(batch, batch_idx)
+        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        return loss
+
+    def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+        """Defines a single (mini-batch) step in the test loop.
+
+        Parameters
+        ----------
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch_idx: int
+            Index of the batch.
+
+        Returns
+        -------
+        Tensor
+            The computed loss for the batch.
+        """
+        loss = self._step(batch, batch_idx)
+        self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        return loss
+
+    def configure_optimizers(self) -> torch.optim.Optimizer:
+        """Defines the optimizer to be used during training."""
+        if self.encoder_type == "apta":
+            params = list(self.model.encoder_apta.parameters()) + list(
+                self.model.token_predictor_apta.parameters()
+            )
+        elif self.encoder_type == "prot":
+            params = list(self.model.encoder_prot.parameters()) + list(
+                self.model.token_predictor_prot.parameters()
+            )
+
+        optimizer = torch.optim.Adam(
+            params,
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            betas=self.betas,
+        )
+        return optimizer
