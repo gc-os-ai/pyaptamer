@@ -49,6 +49,13 @@ def hf_to_dataset(path, download_locally=False, **kwargs):
     Returns
     -------
     datasets.Dataset or datasets.DatasetDict
+
+        - If the source provides multiple splits (e.g. "train", "test"),
+          a `datasets.DatasetDict` is returned.
+        - If only a single split is present, the corresponding
+          `datasets.Dataset` is returned directly (this function unwraps
+          single-split DatasetDicts automatically).
+
     """
     original_path = path
 
