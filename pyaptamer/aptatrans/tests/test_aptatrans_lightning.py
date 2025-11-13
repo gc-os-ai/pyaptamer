@@ -79,7 +79,7 @@ class TestAptaTransLightning:
         # create dummy batch
         x_apta = torch.randint(0, 4, (batch_size, seq_len))
         x_prot = torch.randint(0, 20, (batch_size, seq_len))
-        y = torch.randint(0, 2, (batch_size, 1)).float()
+        y = torch.randint(0, 2, (batch_size,)).float()
         batch = (x_apta, x_prot, y)
 
         loss = getattr(lightning_model, step_method)(batch, batch_idx=0)
