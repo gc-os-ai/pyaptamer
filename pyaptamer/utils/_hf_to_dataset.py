@@ -3,33 +3,48 @@ __all__ = ["hf_to_dataset"]
 
 import os
 
+import requests
 from datasets import load_dataset
 
 # File formats not natively supported by `datasets.load_dataset`
 FILE_FORMATS = ["fasta", "pdb"]
 
 
-def hf_to_dataset(path, keep_in_memory=True, **kwargs):
+def _download_to_cwd(url):
+    """Download URL into ./hf_datasets/ preserving the filename."""
+    os.makedirs("hf_datasets", exist_ok=True)
+
+    filename = os.path.basename(url)
+    local_path = os.path.join("hf_datasets", filename)
+
+    # Download only if file doesn't already exist
+    if not os.path.exists(local_path):
+        r = requests.get(url)
+        r.raise_for_status()
+        with open(local_path, "wb") as f:
+            f.write(r.content)
+
+    return local_path
+
+
+def hf_to_dataset(path, download_locally=False, **kwargs):
     """
     Load any Hugging Face dataset or file into a `datasets.Dataset`.
 
-    This function first attempts to load the dataset natively using
-    `datasets.load_dataset`. If the dataset format is unsupported, it falls back
-    to loading the file as plain text via the "text" dataset loader.
+    If `download_locally=True` and `path` is a URL, the file is downloaded into
+    ./hf_datasets/<filename> before loading. This is especially useful for tools
+    like AnyToAASeq, which require local file paths.
 
     Parameters
     ----------
     path : str
-        Path or identifier for the dataset. Can be:
+        HF dataset name, local file path, or URL.
 
-          - A Hugging Face Hub dataset name (e.g. "imdb", "username/dataset_name").
-          - A local dataset path.
-          - A URL to a dataset file.
+    download_locally : bool, default=False
+        If True and `path` is a URL, download the file into ./hf_datasets/.
 
-    keep_in_memory : bool, default=True
-        Whether to keep the dataset in memory instead of writing to disk cache.
     **kwargs : dict
-        Additional keyword arguments passed to `datasets.load_dataset`.
+        Additional arguments passed to `datasets.load_dataset`.
 
     Returns
     -------
@@ -42,15 +57,22 @@ def hf_to_dataset(path, keep_in_memory=True, **kwargs):
           single-split DatasetDicts automatically).
 
     """
+    original_path = path
+
+    # Download external file when requested
+    if download_locally and str(path).startswith(("http://", "https://")):
+        path = _download_to_cwd(path)
+
+    # File extension
     ext = os.path.splitext(str(path))[-1].lstrip(".").lower()
 
+    # Load dataset depending on file type
     if ext not in FILE_FORMATS:
-        ds = load_dataset(path, keep_in_memory=keep_in_memory, **kwargs)
+        ds = load_dataset(original_path if not download_locally else path, **kwargs)
     else:
         ds = load_dataset(
             "text",
-            data_files=path,
-            keep_in_memory=keep_in_memory,
+            data_files=(original_path if not download_locally else path),
             **kwargs,
         )
 
