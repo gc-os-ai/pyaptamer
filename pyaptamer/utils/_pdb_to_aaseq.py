@@ -61,6 +61,9 @@ def pdb_to_aaseq(pdb_file_path, return_type="list"):
     if df.empty:
         raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
 
+    # Remove duplicate sequences
+    df = df.drop_duplicates(subset=["sequence"], keep="first").reset_index(drop=True)
+
     if return_type == "list":
         return df["sequence"].tolist()
     elif return_type == "pd.df":
