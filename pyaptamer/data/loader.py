@@ -31,24 +31,14 @@ class MoleculeLoader:
     - https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
     - https://biopython.org/wiki/SeqIO
 
-    Behaviour
-    ---------
-
-    - One row is returned per file.
-    = Both PDB files and SeqIO-handled formats return lists of sequences.
-    - For ``.pdb`` files, :func:`pdb_to_aaseq` returns a list containing one or
-      more amino-acid strings.
-    - For SeqIO-handled formats, all sequences in the file are read and returned
-      as a list of amino-acid strings.
-
     Parameters
     ----------
     path : str, Path, or list
-        File location(s) of molecule files.
+        File location(s) of molecule files. One row is returned per file.
     index : list, or pandas.Index coercible, optional
         row index for the structure; if None, integer RangeIndex is assumed
     columns : list, optional
-        Column names of the returned DataFrame. Defaults to ``["sequence"]``.
+        Column names for the structure; if None, defaults to ``["sequence"]``.
     """
 
     def __init__(self, path, index=None, columns=None):
@@ -114,8 +104,9 @@ class MoleculeLoader:
         Uses :func:`pdb_to_aaseq` internally.
 
         Parameters
-        ----------
+        -----------
         path : Path
+            path to PDB file
 
         Returns
         --------
