@@ -67,16 +67,15 @@ class MoleculeLoader:
         Each file in ``path`` yields one row in the output DataFrame.
 
         Returns
-        --------
+        -------
         pd.DataFrame
-            The column ``"sequence"`` (or provided column name) contains a list
-            of sequences for each file. The list may contain:
+            The sequence column contains:
 
-            - one sequence (typical for PDB files),
-            - or multiple sequences (e.g. multi-FASTA or multi-GenBank files).
+            - for PDB files: a single amino-acid string,
+              representing the concatenated unique chain sequences;
+            - for SeqIO-readable formats: a list of amino-acid strings
+              (one per sequence record in the file).
 
-        The loader uses the format override ``fmt`` passed at construction time
-        if present; otherwise the file extension is used to infer the parser.
         """
         paths = self._path
 
