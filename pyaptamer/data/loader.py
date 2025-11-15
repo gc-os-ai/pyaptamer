@@ -18,10 +18,12 @@ class MoleculeLoader:
 
     Supported file types
     --------------------
-    The loader determines the type from the file extension:
+    The loader determines the type from the file extension by default, but a
+    format override can be provided to force a specific loader:
 
-    - ``.pdb`` -> handled by :func:`pdb_to_aaseq` (PDB SEQRES extraction)
-    - any other extension -> passed to :mod:`Bio.SeqIO` for parsing
+    - ``fmt="pdb"`` -> handled by :func:`pdb_to_aaseq` (PDB SEQRES extraction)
+    - any other format string (e.g. ``"fasta"``, ``"genbank"``) -> passed to
+      :mod:`Bio.SeqIO` for parsing
 
     Thus, all formats supported by :func:`Bio.SeqIO.parse` are accepted,
     including FASTA, GenBank, EMBL, FASTQ, and many more.
@@ -36,15 +38,20 @@ class MoleculeLoader:
     path : str, Path, or list
         File location(s) of molecule files. One row is returned per file.
     index : list, or pandas.Index coercible, optional
-        row index for the structure; if None, integer RangeIndex is assumed
+        Row index for the resulting DataFrame; if None, integer RangeIndex is used.
     columns : list, optional
-        Column names for the structure; if None, defaults to ``["sequence"]``.
+        Column names for the resulting DataFrame; if None, defaults to ``["sequence"]``.
+    fmt : str, optional
+        Optional format override. If provided, this format will be used instead
+        of inferring the format from the file extension. Examples: ``"pdb"``,
+        ``"fasta"``, ``"genbank"``.
     """
 
-    def __init__(self, path, index=None, columns=None):
+    def __init__(self, path, index=None, columns=None, fmt=None):
         self.path = path
         self.index = index
         self.columns = columns
+        self.fmt = fmt
 
         if isinstance(path, str):
             path = [Path(path)]
@@ -62,12 +69,14 @@ class MoleculeLoader:
         Returns
         --------
         pd.DataFrame
-            The column ``"sequence"`` contains a list of sequences for each
-            file. The list may contain:
+            The column ``"sequence"`` (or provided column name) contains a list
+            of sequences for each file. The list may contain:
 
             - one sequence (typical for PDB files),
             - or multiple sequences (e.g. multi-FASTA or multi-GenBank files).
 
+        The loader uses the format override ``fmt`` passed at construction time
+        if present; otherwise the file extension is used to infer the parser.
         """
         paths = self._path
 
@@ -81,13 +90,29 @@ class MoleculeLoader:
         return pd.DataFrame(seq_list, columns=columns, index=self.index)
 
     def _determine_type(self, path):
-        """Return file type inferred from suffix."""
+        """Return file type inferred from suffix or from the instance `fmt` override.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a file (used only when no fmt override is provided).
+
+        Returns
+        -------
+        str
+            Format string such as "pdb", "fasta", "genbank", etc.
+        """
+        # If user provided a format override, use it
+        if self.fmt:
+            return self.fmt
+
+        # Fallback to suffix-based inference
         suffix = path.suffix.lower()
         if suffix == ".pdb":
             return "pdb"
 
-        # All other suffixes are treated as SeqIO formats
-        return suffix[1:]
+        # strip leading dot; if no suffix, return None to indicate unknown
+        return suffix.lstrip(".") if suffix else None
 
     def _load_dispatch(self, path):
         """Dispatch loader based on file type."""
@@ -95,6 +120,13 @@ class MoleculeLoader:
 
         if fmt == "pdb":
             return self._load_pdb_seq(path)
+
+        if fmt is None:
+            # no suffix and no format override -> error
+            raise ValueError(
+                f"Could not determine file format for '{path}'."
+                "Provide a 'fmt' argument."
+            )
 
         return self._load_seqio(path, fmt)
 
@@ -141,4 +173,4 @@ class MoleculeLoader:
         if not seqs:
             raise ValueError(f"No sequences found in {path}")
 
-        return seqs
+        return [seqs]
