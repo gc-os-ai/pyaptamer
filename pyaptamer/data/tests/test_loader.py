@@ -28,7 +28,7 @@ def test_string_path():
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
     one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str[0].startswith("QTDMSRK")
+    assert one_gnh_str.startswith("QTDMSRK")
 
 
 def test_pathlib_path():
@@ -44,7 +44,7 @@ def test_pathlib_path():
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
     one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str[0].startswith("QTDMSRK")
+    assert one_gnh_str.startswith("QTDMSRK")
 
 
 @pytest.fixture

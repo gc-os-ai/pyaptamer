@@ -131,7 +131,7 @@ class MoleculeLoader:
         return self._load_seqio(path, fmt)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract its amino-acid sequences.
+        """Load a PDB file and extract its primary amino-acid sequence.
 
         Uses :func:`pdb_to_aaseq` internally.
 
@@ -142,12 +142,11 @@ class MoleculeLoader:
 
         Returns
         --------
-        list of str
-            Amino-acid sequences extracted from PDB SEQRES records.
-            Typically contains one sequence per chain.
+        str
+            Amino-acid sequences extracted from the PDB file.
         """
         sequence = pdb_to_aaseq(path)
-        return sequence
+        return "".join(sequence)
 
     def _load_seqio(self, path, format):
         """Load any file format supported by Biopython SeqIO.
