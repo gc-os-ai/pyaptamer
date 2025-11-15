@@ -83,11 +83,11 @@ class MoleculeLoader:
         seq_list = [self._load_dispatch(path) for path in paths]
 
         if self.columns is None:
-            columns = ["sequence"]
+            columns = "sequence"
         else:
             columns = self.columns
 
-        return pd.DataFrame(seq_list, columns=columns, index=self.index)
+        return pd.DataFrame({columns: seq_list}, index=self.index)
 
     def _determine_type(self, path):
         """Return file type inferred from suffix or from the instance `fmt` override.
@@ -173,4 +173,4 @@ class MoleculeLoader:
         if not seqs:
             raise ValueError(f"No sequences found in {path}")
 
-        return [seqs]
+        return seqs
