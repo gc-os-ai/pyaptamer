@@ -3,7 +3,7 @@ __author__ = "rpgv"
 import pytest
 from pandas import DataFrame
 
-from pyaptamer.datasets import load_aptacom_full, load_aptacom_xy
+from pyaptamer.datasets import load_aptacom_full, load_aptacom_x_y
 
 
 @pytest.mark.parametrize(
@@ -36,7 +36,7 @@ def test_download_aptacom_x_y(return_X_y):
     """
     The test_download_aptacom function
     """
-    dataset = load_aptacom_xy(return_X_y)
+    dataset = load_aptacom_x_y(return_X_y)
     if not isinstance(dataset, tuple | DataFrame):
         raise ValueError(f"""Dataset format {type(dataset)} 
             is not X, y tuple or DataFrame""")
