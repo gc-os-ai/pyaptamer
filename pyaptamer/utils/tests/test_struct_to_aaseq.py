@@ -2,7 +2,7 @@ __author__ = "satvshr"
 
 import pandas as pd
 
-from pyaptamer.datasets import load_1gnh_structure
+from pyaptamer.datasets import structure_loader
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 
@@ -18,7 +18,7 @@ def test_struct_to_aaseq():
         - Each 'sequence' value is a non-empty string.
         - Each 'chain' value is a non-empty string.
     """
-    structure = load_1gnh_structure()
+    structure = structure_loader("1gnh")
 
     # Request DataFrame explicitly (columns should be exactly ['chain','sequence'])
     df = struct_to_aaseq(structure, return_type="pd.df")
