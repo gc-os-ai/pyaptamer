@@ -15,6 +15,7 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
         PDB ID (e.g., '1a3n').
     return_type : {'list', 'pd.df'}, optional, default='list'
         Format of returned value:
+
           - ``'list'`` : list with one amino-acid sequence
           - ``'pd.df'`` : pandas.DataFrame with a single column ['sequence']
 
