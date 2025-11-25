@@ -70,6 +70,7 @@ def prepare_x_y(df):
     Prepare dataset by selecting required columns and dropping rows with missing values.
 
     This function:
+
     - Drops rows with missing values in the columns
       "aptamer_sequence", "target_sequence", and "new_affinity".
     - Keeps only those three columns.
@@ -86,7 +87,6 @@ def prepare_x_y(df):
         A DataFrame with exactly the columns:
         ["aptamer_sequence", "target_sequence", "new_affinity"],
         and with rows containing no missing values in those columns.
-
     """
     df.dropna(
         subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
