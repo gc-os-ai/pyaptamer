@@ -6,12 +6,12 @@ from pyaptamer.datasets._loaders._aptacom_loader import (
 )
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
 from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
-from pyaptamer.datasets._loaders._one_gnh import load_1gnh_structure
-from pyaptamer.datasets._loaders._pfoa_loader import load_pfoa_structure
-from pyaptamer.datasets._loaders.load_aptamer_interactions import (
+from pyaptamer.datasets._loaders._load_aptamer import (
     load_aptadb,
-    load_interactions,
+    load_encoders,
 )
+from pyaptamer.datasets._loaders._one_gnh import load_1gnh_structure
+from pyaptamer.datasets._loaders._pfoa import load_pfoa_structure
 
 __all__ = [
     "load_aptacom_full",
@@ -21,5 +21,5 @@ __all__ = [
     "load_1gnh_structure",
     "load_pfoa_structure",
     "load_aptadb",
-    "load_interactions",
+    "load_encoders",
 ]
