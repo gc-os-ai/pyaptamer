@@ -2,7 +2,7 @@
 
 from pyaptamer.datasets._loaders._aptacom_loader import (
     load_aptacom_full,
-    load_aptacom_xy,
+    load_aptacom_x_y,
 )
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
 from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
@@ -13,7 +13,7 @@ __all__ = [
     "load_pfoa_structure",
     "load_1gnh_structure",
     "load_aptacom_full",
-    "load_aptacom_xy",
+    "load_aptacom_x_y",
     "load_csv_dataset",
     "load_hf_dataset",
     "load_pfoa_structure",
