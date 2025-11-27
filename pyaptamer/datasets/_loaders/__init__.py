@@ -20,6 +20,7 @@ __all__ = [
     "load_hf_dataset",
     "load_1gnh_structure",
     "load_pfoa_structure",
+    "load_1gnh",
     "load_aptadb",
     "load_encoders",
 ]
