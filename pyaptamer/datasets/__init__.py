@@ -7,7 +7,7 @@ from pyaptamer.datasets._loaders._aptacom_loader import (
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
 from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
 
-# UPDATED: now using the new loader module
+
 from pyaptamer.datasets._loaders._load_aptamer import (
     load_aptadb,
     load_encoders,
