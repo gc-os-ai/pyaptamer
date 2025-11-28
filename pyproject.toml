@@ -25,7 +25,6 @@ dependencies = [
     "skorch",
     "imblearn",
     "datasets",
-    "requests",
 ]
 
 [project.optional-dependencies]

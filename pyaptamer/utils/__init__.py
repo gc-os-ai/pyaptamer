@@ -10,11 +10,9 @@ __all__ = [
     "struct_to_aaseq",
     "pdb_to_seq_uniprot",
     "pdb_to_aaseq",
-    "hf_to_dataset",
 ]
 
 from pyaptamer.utils._aa_str_to_letter import aa_str_to_letter
-from pyaptamer.utils._hf_to_dataset import hf_to_dataset
 from pyaptamer.utils._pdb_to_aaseq import pdb_to_aaseq
 from pyaptamer.utils._pdb_to_seq_uniprot import pdb_to_seq_uniprot
 from pyaptamer.utils._pdb_to_struct import pdb_to_struct
