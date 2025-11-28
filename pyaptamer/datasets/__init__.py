@@ -8,7 +8,7 @@ from pyaptamer.datasets._loaders import (
     load_5nu7,
     load_5nu7_structure,
     load_aptacom_full,
-    load_aptacom_xy,
+    load_aptacom_x_y,
     load_csv_dataset,
     load_from_rcsb,
     load_hf_dataset,
@@ -16,7 +16,7 @@ from pyaptamer.datasets._loaders import (
 
 __all__ = [
     "load_aptacom_full",
-    "load_aptacom_xy",
+    "load_aptacom_x_y",
     "load_csv_dataset",
     "load_hf_dataset",
     "load_from_rcsb",
