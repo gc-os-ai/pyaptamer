@@ -5,27 +5,28 @@ import pytest
 from Bio.PDB.Structure import Structure
 
 from pyaptamer.datasets import (
+    load_1brq_structure,
+    load_1gnh_structure,
+    load_5nu7_structure,
     load_csv_dataset,
     load_hf_dataset,
-    structure_loader,
 )
 
-# Replace old specific loaders with generic calls
 LOADERS = [
-    lambda: structure_loader("5nu7"),
-    lambda: structure_loader("1gnh"),
+    load_1gnh_structure,
+    load_1brq_structure,
+    load_5nu7_structure,
 ]
 
 
 @pytest.mark.parametrize("loader", LOADERS)
-def test_structure_loader_returns_structure(loader):
+def test_loader_returns_structure(loader):
     """
-    Each generic structure loader should run without error
-    and return a Biopython Structure.
+    Each loader should run without error and return a Biopython Structure.
     """
     struct = loader()
     assert isinstance(struct, Structure), (
-        f"{loader} did not return a Bio.PDB.Structure.Structure"
+        f"{loader.__name__}() did not return a Bio.PDB.Structure.Structure"
     )
 
 
@@ -42,12 +43,12 @@ def test_load_csv_dataset_file_not_found():
 
 
 def test_hf_dataset_loader_already_downloaded():
-    """Test loading a Hugging Face file when already downloaded locally."""
+    """Test loading a hugging face file when alwaready downloaded locally."""
     result = load_hf_dataset("dummy_data")
     assert isinstance(result, pd.DataFrame)
 
 
 def test_hf_dataset_loader_file_not_found():
-    """Test FileNotFoundError raised when file does not exist on HF."""
+    """Test FileNotFoundError raised when the file does not exist on hugging face."""
     with pytest.raises(FileNotFoundError, match="Dataset dummy_nonexistent not found"):
         load_hf_dataset("dummy_nonexistent")

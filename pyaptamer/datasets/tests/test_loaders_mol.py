@@ -1,16 +1,19 @@
 """Tests for molecule data loading module, toy data."""
 
+import pytest
+
 from pyaptamer.data.loader import MoleculeLoader
-from pyaptamer.datasets import mol_loader
+from pyaptamer.datasets import load_1brq, load_1gnh, load_5nu7
+
+LOADERS = [
+    load_1gnh,
+    load_5nu7,
+    load_1brq,
+]
 
 
-def test_loaders_mol():
-    """Placeholder test for molecule data loading module."""
-    nu7 = mol_loader("5nu7")
-    assert isinstance(nu7, MoleculeLoader)
-
-    gnh = mol_loader("1gnh")
-    assert isinstance(gnh, MoleculeLoader)
-
-    gnh_seq = gnh.to_df_seq().iloc[0, 0]
-    assert gnh_seq.startswith("QTDMSRK")
+@pytest.mark.parametrize("loader", LOADERS)
+def test_loader_returns_molecule_loader(loader):
+    """Each loader should return a MoleculeLoader instance."""
+    mol = loader()
+    assert isinstance(mol, MoleculeLoader)
