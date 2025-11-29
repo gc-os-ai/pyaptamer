@@ -49,14 +49,16 @@ class MoleculeLoader:
         Returns
         --------
         pd.DataFrame
-            string sequences in self in a pd.DataFrame of str
+            sequences in self in a pd.DataFrame;
             has single column "sequence";
-            rows are primary sequences found in the files in `path`
+            each row contains a list of str representing
+            the primary sequence(s) found in the files in `path`
             sequences are determined from files as follows: [fill in]
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path, "seq") for path in paths]
+        # wrap each returned list so that it's a single DataFrame cell
+        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
 
         if self.columns is None:
             columns = ["sequence"]
@@ -87,7 +89,7 @@ class MoleculeLoader:
 
         Returns
         --------
-        List of str
-            primary sequence extracted from PDB file
+        List[str]
+            primary sequence extracted from the PDB file as a list of strings
         """
         return pdb_to_aaseq(path)
