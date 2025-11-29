@@ -1,5 +1,5 @@
 __author__ = "satvshr"
-__all__ = ["hf_to_dataset"]
+__all__ = ["load_hf_to_dataset"]
 
 import os
 
@@ -27,7 +27,7 @@ def _download_to_cwd(url):
     return local_path
 
 
-def hf_to_dataset(path, download_locally=False, **kwargs):
+def load_hf_to_dataset(path, download_locally=False, **kwargs):
     """
     Load any Hugging Face dataset or file into a `datasets.Dataset`.
 

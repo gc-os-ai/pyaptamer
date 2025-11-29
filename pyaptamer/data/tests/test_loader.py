@@ -6,8 +6,8 @@ from pyaptamer.data.loader import MoleculeLoader
 
 # dataset paths relative to pyaptamer root
 DATA_PATHS = [
+    "datasets/data/pfoa.pdb",
     "datasets/data/1gnh.pdb",
-    "datasets/data/1gnh_no_seqres.pdb",
 ]
 
 
