@@ -153,6 +153,7 @@ def load_aptacom_x_y(return_X_y=False):
           feature columns and `y` contains the target column.
     """
     aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = aptacom.to_pandas()
     dataset = prepare_x_y(aptacom)
     if return_X_y:
         X = dataset[["aptamer_sequence", "target_sequence"]]
