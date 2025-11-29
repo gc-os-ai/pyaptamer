@@ -1,10 +1,13 @@
 """Molecule data loading module."""
 
+__all__ = ["MoleculeLoader"]
+__author__ = ["fkiraly", "satvshr"]
+
 from pathlib import Path
 
 import pandas as pd
 
-from pyaptamer.utils import aa_str_to_letter
+from pyaptamer.utils import pdb_to_aaseq
 
 
 class MoleculeLoader:
@@ -75,7 +78,7 @@ class MoleculeLoader:
         return loader(path)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the primary sequence.
+        """Load a PDB file and extract the amino-acid sequences.
 
         Parameters
         -----------
@@ -84,16 +87,7 @@ class MoleculeLoader:
 
         Returns
         --------
-        str
+        List of str
             primary sequence extracted from PDB file
         """
-        sequence = []
-        with open(path) as f:
-            for line in f:
-                if line.startswith("SEQRES"):
-                    parts = line.split()
-                    seq_parts = parts[4:]  # Skip the first four columns
-                    sequence.extend(seq_parts)
-        # convert three-letter codes to one-letter codes
-        sequence = [aa_str_to_letter(aa) for aa in sequence]
-        return "".join(sequence)
+        return pdb_to_aaseq(path)
