@@ -3,7 +3,7 @@
 __author__ = "rpgv"
 __all__ = ["load_aptacom_full", "load_aptacom_x_y"]
 
-from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
+from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 
 filter_map = {
     "protein_target": ("target_chemistry", ["Protein", "peptide"]),
@@ -123,7 +123,8 @@ def load_aptacom_full(select_columns=None):
         The loaded dataset, optionally filtered to the selected columns.
 
     """
-    aptacom = load_hf_dataset("AptaCom", store=False)
+    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = aptacom.to_pandas()
     dataset = _filter_columns(aptacom, columns=select_columns)
     return dataset
 
@@ -151,7 +152,7 @@ def load_aptacom_x_y(return_X_y=False):
         - If `return_X_y` is True: a tuple `(X, y)` where `X` contains the two
           feature columns and `y` contains the target column.
     """
-    aptacom = load_hf_dataset("AptaCom", store=False)
+    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
     dataset = prepare_x_y(aptacom)
     if return_X_y:
         X = dataset[["aptamer_sequence", "target_sequence"]]
