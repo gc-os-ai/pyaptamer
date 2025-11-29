@@ -8,12 +8,10 @@ __all__ = [
     "rna2vec",
     "pdb_to_struct",
     "struct_to_aaseq",
-    "hf_to_dataset",
     "pdb_to_seq_uniprot",
     "pdb_to_aaseq",
 ]
 
-from pyaptamer.datasets._loaders._hf_to_dataset_loader import hf_to_dataset
 from pyaptamer.utils._aa_str_to_letter import aa_str_to_letter
 from pyaptamer.utils._pdb_to_aaseq import pdb_to_aaseq
 from pyaptamer.utils._pdb_to_seq_uniprot import pdb_to_seq_uniprot
