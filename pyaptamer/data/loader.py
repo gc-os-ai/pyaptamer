@@ -6,7 +6,6 @@ __author__ = ["fkiraly", "satvshr"]
 from pathlib import Path
 
 import pandas as pd
-from Bio import SeqIO
 
 from pyaptamer.utils import pdb_to_aaseq
 
@@ -69,17 +68,16 @@ class MoleculeLoader:
         Returns
         -------
         pd.DataFrame
-            The sequence column contains:
-
-            - for PDB files: a single amino-acid string,
-              representing the concatenated unique chain sequences;
-            - for SeqIO-readable formats: a list of amino-acid strings
-              (one per sequence record in the file).
-
+            sequences in self in a pd.DataFrame;
+            has single column "sequence";
+            each row contains a list of str representing
+            the primary sequence(s) found in the files in `path`
+            sequences are determined from files as follows: [fill in]
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path) for path in paths]
+        # wrap each returned list so that it's a single DataFrame cell
+        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
 
         if self.columns is None:
             columns = "sequence"
@@ -130,9 +128,7 @@ class MoleculeLoader:
         return self._load_seqio(path, fmt)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract its primary amino-acid sequence.
-
-        Uses :func:`pdb_to_aaseq` internally.
+        """Load a PDB file and extract the amino-acid sequences.
 
         Parameters
         -----------
@@ -141,34 +137,7 @@ class MoleculeLoader:
 
         Returns
         --------
-        str
-            Amino-acid sequences extracted from the PDB file.
+        List[str]
+            primary sequence extracted from the PDB file as a list of strings
         """
-        sequence = pdb_to_aaseq(path)
-        return "".join(sequence)
-
-    def _load_seqio(self, path, format):
-        """Load any file format supported by Biopython SeqIO.
-
-        Parameters
-        ----------
-        path : Path
-            Path to a sequence file readable by SeqIO.
-        format : str
-            Biopython SeqIO format string (e.g. ``"fasta"``, ``"genbank"``).
-
-        Returns
-        -------
-        list of str
-            Amino-acid sequences extracted from the file.
-
-        Raises
-        ------
-        ValueError
-            If no sequences were found.
-        """
-        seqs = [str(rec.seq) for rec in SeqIO.parse(str(path), format)]
-        if not seqs:
-            raise ValueError(f"No sequences found in {path}")
-
-        return seqs
+        return pdb_to_aaseq(path)
