@@ -14,7 +14,7 @@ def test_load_li2014(split):
     """
     Test that load_li2014 returns a tuple (X, y) where:
     - X is a DataFrame
-    - y is a Series
+    - y is a DataFrame
     - they have matching lengths
     - they are non-empty
 
@@ -26,7 +26,7 @@ def test_load_li2014(split):
     X, y = load_li2014(split=split)
 
     assert isinstance(X, pd.DataFrame), "X should be a pandas DataFrame"
-    assert isinstance(y, pd.Series), "y should be a pandas Series"
+    assert isinstance(y, pd.DataFrame), "y should be a pandas DataFrame"
 
     assert len(X) == len(y), "X and y must have the same number of rows"
     assert X.shape[0] > 0, "X should not be empty"
