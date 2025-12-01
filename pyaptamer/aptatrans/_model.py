@@ -260,16 +260,10 @@ class AptaTrans(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def load_pretrained_weights(self, store: bool = True) -> None:
+    def load_pretrained_weights(self) -> None:
         """Load pretrained model weights from hugging face.
 
         If the weights are not found locally, they will be downloaded from hugging face.
-
-        Parameters
-        ----------
-        store : bool, optional, default=True
-            If True, the pretrained weights will be saved locally. If False, the weights
-            will be downloaded but not saved to disk.
         """
         path = os.path.relpath(
             os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
