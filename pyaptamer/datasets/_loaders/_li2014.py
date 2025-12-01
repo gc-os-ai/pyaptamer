@@ -55,12 +55,6 @@ def load_li2014(split=None):
     ----------
     split : {None, "train", "test"}, optional
         Which split to load. ``None`` (default) concatenates train+test.
-
-    Examples
-    --------
-    >>> X_all, y_all = load_li2014()  # train + test concatenated
-    >>> X_train, y_train = load_li2014("train")
-    >>> X_test, y_test = load_li2014("test")
     """
     if split not in (None, "train", "test"):
         raise ValueError("split must be None, 'train', or 'test'")
