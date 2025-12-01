@@ -219,13 +219,16 @@ class TestAptaTransPipeline:
         assert pipeline.model.device.type == device.type
 
         # check word dictionaries
+        assert isinstance(pipeline.apta_words, dict)
         assert isinstance(pipeline.prot_words, dict)
+
+        # check aptamer words contain all possible triplets (should be 125)
+        assert len(pipeline.apta_words) == 125
 
         # check protein words filtering (only above average frequency)
         mean_freq = sum(prot_words.values()) / len(prot_words)
         expected_prot_count = sum(1 for freq in prot_words.values() if freq > mean_freq)
-        pipeline._init_vocabularies()
-        assert len(pipeline.prot_words_) == expected_prot_count
+        assert len(pipeline.prot_words) == expected_prot_count
 
     @pytest.mark.parametrize(
         "device, target",

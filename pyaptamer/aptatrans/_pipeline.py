@@ -3,25 +3,22 @@ AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
-import lightning as L
-import numpy as np
-import pandas as pd
 import torch
-from skbase.base import BaseObject
 from torch import Tensor
-from torch.utils.data import DataLoader
 
-from pyaptamer.aptatrans import AptaTrans, AptaTransLightning
-from pyaptamer.datasets.dataclasses import APIDataset
+from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
+from pyaptamer.utils import (
+    generate_nplets,
+)
 from pyaptamer.utils._base import filter_words
 
 
-class AptaTransPipeline(BaseObject):
+class AptaTransPipeline:
     """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
 
     Algorithm as originally described in Shin et al [1]_.
@@ -40,7 +37,6 @@ class AptaTransPipeline(BaseObject):
         The device on which to run the model.
     model : AptaTrans
         An instance of the AptaTrans() class.
-    # TODO: ask if apta_max_len and prot_max_len depend on it
     prot_words : dict[str, float]
         A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
         Used to encode protein sequences into their numerical representions. The
@@ -50,18 +46,6 @@ class AptaTransPipeline(BaseObject):
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
         The number of iterations for the MCTS algorithm.
-    batch_size : int, default=16
-        Batch size for training and inference.
-    apta_max_len : int, default=275
-        Maximum aptamer sequence length.
-    prot_max_len : int, default=867
-        Maximum protein sequence length.
-    learning_rate : float, default=1e-5
-        Learning rate for training the AptaTrans model.
-    weight_decay : float, default=1e-5
-        Weight decay for training the AptaTrans model.
-    max_epochs : int, default=50
-        Maximum number of epochs for training the AptaTrans model.
 
     Attributes
     ----------
@@ -73,11 +57,11 @@ class AptaTransPipeline(BaseObject):
     References
     ----------
     .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
-       aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
-       (2023): 447.
+    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
+    (2023): 447.
     .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with target
-       proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
-       search approach." PloS one 16.6 (2021): e0253760.
+    proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
+    search approach." PloS one 16.6 (2021): e0253760.
 
     Examples
     --------
@@ -106,146 +90,54 @@ class AptaTransPipeline(BaseObject):
         prot_words: dict[str, float],
         depth: int = 20,
         n_iterations: int = 1000,
-        batch_size: int = 16,
-        apta_max_len: int = 275,
-        prot_max_len: int = 867,
-        learning_rate: float = 1e-5,
-        weight_decay: float = 1e-5,
-        max_epochs: int = 50,
     ) -> None:
         super().__init__()
         self.device = device
         self.model = model.to(device)
         self.depth = depth
-        self.prot_words = prot_words
         self.n_iterations = n_iterations
-        self.batch_size = batch_size
-        self.apta_max_len = apta_max_len
-        self.prot_max_len = prot_max_len
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
-        self.max_epochs = max_epochs
 
-        self.prot_words_ = None
+        self.apta_words, self.prot_words = self._init_words(prot_words)
 
-    def _init_vocabularies(self):
-        """Initialize filtered protein words vocabulary."""
-        if self.prot_words_ is None:
-            self.prot_words_ = filter_words(self.prot_words)
+    def _init_words(
+        self,
+        prot_words: dict[str, float],
+    ) -> tuple[dict[str, int], dict[str, int]]:
+        """Initialize aptamer and protein word vocabularies.
+
+        For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
+        integer indices. For proteins, load protein words mapped to their frequency,
+        filter out those with below-average frequency, and assign unique integer IDs.
+
+        Parameters
+        ----------
+        prot_words : dict[str, float]
+            A dictionary containing protein 3-mer subsequences and their frequencies.
+
+        Returns
+        -------
+        tuple[dict[str, int], dict[str, int]]
+            A tuple of dictionaries mapping aptamer 3-mer subsequences to unique
+            indices and protein words to their frequencies, respectively.
+        """
+        # generate all possible RNA triplets (5^3 -> 125 total)
+        apta_words = generate_nplets(letters=["A", "C", "G", "U", "N"], repeat=3)
+
+        # filter out protein words with below average frequency and assign unique
+        # integer IDs
+        prot_words = filter_words(prot_words)
+
+        return (apta_words, prot_words)
 
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer recommendation experiment."""
-        self._init_vocabularies()
         experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,
-            prot_words=self.prot_words_,
+            prot_words=self.prot_words,
         )
         return experiment
-
-    def _preprocess_data(self, dataset) -> DataLoader:
-        """Convert numpy arrays or pandas DataFrames into a PyTorch DataLoader."""
-        self._init_vocabularies()
-
-        dataset = APIDataset(
-            x_apta=dataset["aptamer"].to_numpy(),
-            x_prot=dataset["protein"].to_numpy(),
-            y=dataset["label"].to_numpy(),
-            apta_max_len=self.apta_max_len,
-            prot_max_len=self.prot_max_len,
-            prot_words=self.prot_words_,
-        )
-
-        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-        return dataloader
-
-    def fit(self, X, y):
-        """Train the AptaTrans model using PyTorch Lightning.
-
-        This method preprocesses the training dataset, converts it into a PyTorch
-        DataLoader, and trains the AptaTrans model using the AptaTransLightning
-        wrapper with the PyTorch Lightning Trainer.
-
-        Parameters
-        ----------
-        X : pandas.DataFrame or numpy.ndarray
-            Traning data that must include the following columns:
-
-                - ``aptamer`` : str
-                    The aptamer nucleotide sequences.
-                - ``protein`` : str
-                    The target protein sequences.
-
-        y : array-like
-            The ground truth interaction scores or binary labels.
-
-        Returns
-        -------
-        AptaTransPipeline
-            The fitted AptaTransPipeline instance with an updated and trained model.
-        """
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=["aptamer", "protein"])
-
-        X["label"] = y
-
-        dataloader = self._preprocess_data(X)
-
-        model_lightning = AptaTransLightning(
-            model=self.model,
-            lr=self.learning_rate,
-            weight_decay=self.weight_decay,
-        )
-
-        trainer = L.Trainer(
-            max_epochs=self.max_epochs,
-            log_every_n_steps=10,
-        )
-
-        trainer.fit(model_lightning, dataloader)
-
-        # Keep trained model
-        self.model = model_lightning.model.to(self.device)
-
-        return self
-
-    def predict(self, X):
-        """Predict aptamer-protein interaction (API) score for aptamer–protein pairs.
-
-        This method initializes a new aptamer experiment for each aptamer–protein pair
-        and predicts their interaction score using the AptaTrans deep neural network.
-
-        Parameters
-        ----------
-        X : pandas.DataFrame or numpy.ndarray, shape (n_samples, 2)
-            Input data containing aptamer–protein pairs. Must include:
-
-                - ``aptamer`` : str
-                - ``protein`` : str
-
-        Returns
-        -------
-        np.ndarray, shape (n_samples,)
-            Predicted interaction scores.
-        """
-        # Convert to list of pairs if given as numpy array or DataFrame
-        if isinstance(X, pd.DataFrame):
-            aptamers = X["aptamer"].to_numpy()
-            proteins = X["protein"].to_numpy()
-        elif isinstance(X, np.ndarray):
-            aptamers = X[:, 0]
-            proteins = X[:, 1]
-        else:
-            raise TypeError("X must be a pandas DataFrame or numpy.ndarray.")
-
-        scores = []
-        for aptamer, protein in zip(aptamers, proteins, strict=False):
-            experiment = self._init_aptamer_experiment(protein)
-            score = experiment.evaluate(aptamer)
-            scores.append(score)
-
-        return np.array(scores)
 
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to
@@ -270,6 +162,28 @@ class AptaTransPipeline(BaseObject):
         """
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate, return_interaction_map=True)
+
+    def predict(self, candidate: str, target: str) -> Tensor:
+        """Predict aptamer-protein interaction (API) score for a given target protein.
+
+        This methods initializes a new aptamer experiment for the given aptamer
+        candidate and target protein. Finally, it predict the interaction score using
+        the AptaTrans' deep neural network.
+
+        Parameters
+        ----------
+        candidate : str
+            The candidate aptamer sequence.
+        target : str
+            The target protein sequence.
+
+        Returns
+        -------
+        Tensor
+            A tensor containing the predicted interaction score.
+        """
+        experiment = self._init_aptamer_experiment(target)
+        return experiment.evaluate(candidate)
 
     @torch.no_grad()
     def recommend(
