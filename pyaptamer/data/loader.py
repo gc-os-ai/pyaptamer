@@ -6,6 +6,7 @@ __author__ = ["fkiraly", "satvshr"]
 from pathlib import Path
 
 import pandas as pd
+from Bio import SeqIO
 
 from pyaptamer.utils import pdb_to_aaseq
 
@@ -141,3 +142,29 @@ class MoleculeLoader:
             primary sequence extracted from the PDB file as a list of strings
         """
         return pdb_to_aaseq(path)
+
+    def _load_seqio(self, path, format):
+        """Load any file format supported by Biopython SeqIO.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a sequence file readable by SeqIO.
+        format : str
+            Biopython SeqIO format string (e.g. ``"fasta"``, ``"genbank"``).
+
+        Returns
+        -------
+        list of str
+            Amino-acid sequences extracted from the file.
+
+        Raises
+        ------
+        ValueError
+            If no sequences were found.
+        """
+        seqs = [str(rec.seq) for rec in SeqIO.parse(str(path), format)]
+        if not seqs:
+            raise ValueError(f"No sequences found in {path}")
+
+        return seqs
