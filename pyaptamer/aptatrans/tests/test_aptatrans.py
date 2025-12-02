@@ -2,6 +2,8 @@
 
 __author__ = ["nennomp"]
 
+import numpy as np
+import pandas as pd
 import pytest
 import torch
 import torch.nn as nn
@@ -241,12 +243,10 @@ class TestAptaTransPipeline:
     )
     def test_init_aptamer_experiment(self, device, target, monkeypatch):
         """Check _init_aptamer_experiment() initializes Aptamer experiment correctly."""
-        # setup
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
         pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
-        # mock Aptamer class to capture initialization arguments
         captured_args = {}
 
         class MockAptamer:
@@ -257,63 +257,107 @@ class TestAptaTransPipeline:
             "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", MockAptamer
         )
 
-        # test experiment initialization
         experiment = pipeline._init_aptamer_experiment(target)
 
-        # check that Aptamer was initialized with correct arguments
         assert isinstance(experiment, MockAptamer)
         assert captured_args["target"] == target
         assert captured_args["model"] is model
         assert captured_args["device"] == device
 
     @pytest.mark.parametrize(
-        "device, candidate, target",
+        "device, X_train, y_train, X_test",
         [
-            (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
+            (
+                torch.device("cpu"),
+                pd.DataFrame(
+                    {"aptamer": ["AUGCA", "GCUAG"], "protein": ["GCUAGCUA", "AUGCAUGC"]}
+                ),
+                np.array([1.0, 0.0]),
+                pd.DataFrame({"aptamer": ["AUGCA"], "protein": ["GCUAGCUA"]}),
+            ),
             (
                 torch.device("cuda")
                 if torch.cuda.is_available()
                 else torch.device("cpu"),
-                "GCUAG",
-                "AUGCAUGC",
+                pd.DataFrame(
+                    {
+                        "aptamer": ["GCUAG", "AUGCA", "CUAGC"],
+                        "protein": ["AUGCAUGC", "GCUAGCUA", "UGCAUGCA"],
+                    }
+                ),
+                np.array([0.0, 1.0, 0.5]),
+                pd.DataFrame(
+                    {"aptamer": ["GCUAG", "CUAGC"], "protein": ["AUGCAUGC", "UGCAUGCA"]}
+                ),
+            ),
+            (
+                torch.device("cpu"),
+                pd.DataFrame(
+                    {"aptamer": ["AUGCA", "GCUAG"], "protein": ["GCUAGCUA", "AUGCAUGC"]}
+                ),
+                np.array([1.0, 0.0]),
+                np.array(
+                    [
+                        ["AUGCA", "GCUAGCUA"],
+                    ]
+                ),
+            ),
+            (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu"),
+                pd.DataFrame(
+                    {
+                        "aptamer": ["GCUAG", "AUGCA", "CUAGC"],
+                        "protein": ["AUGCAUGC", "GCUAGCUA", "UGCAUGCA"],
+                    }
+                ),
+                np.array([0.0, 1.0, 0.5]),
+                np.array([["GCUAG", "AUGCAUGC"], ["CUAGC", "UGCAUGCA"]]),
             ),
         ],
     )
-    def test_predict(self, device, candidate, target, monkeypatch):
-        """Check predict returns interaction scores correctly."""
-        # setup
+    def test_fit_and_predict(self, device, X_train, y_train, X_test, monkeypatch):
+        """Check fit trains model and predict returns interaction scores correctly."""
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
         pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
-        # expected score
-        expected_score = torch.tensor(0.85, device=device)
+        class MockTrainer:
+            def __init__(self, max_epochs, log_every_n_steps):
+                pass
 
-        # mock Aptamer experiment with evaluate method
-        class MockExperiment:
-            def evaluate(self, cand):
-                assert cand == candidate  # verify correct candidate is passed
-                return expected_score
+            def fit(self, model, dataloader):
+                # skip training
+                pass
 
-        def mock_aptamer(**kwargs):
-            return MockExperiment()
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.L.Trainer", MockTrainer)
 
-        monkeypatch.setattr(
-            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
-        )
+        # test fit
+        result = pipeline.fit(X_train, y_train)
 
-        # test prediction - note the typo fix: self.experiment -> experiment
-        monkeypatch.setattr(
-            pipeline, "_init_aptamer_experiment", lambda target: MockExperiment()
-        )
+        assert result is pipeline
 
         # test predict
-        score = pipeline.predict(candidate=candidate, target=target)
+        scores = pipeline.predict(X_test)
 
-        # check output
-        assert isinstance(score, torch.Tensor)
-        assert torch.equal(score, expected_score)
-        assert score.device.type == device.type
+        assert isinstance(scores, np.ndarray)
+        assert len(scores) == len(X_test)
+        assert scores.shape == (len(X_test),)
+
+    def test_predict_raises_type_error_for_invalid_input(self):
+        """Check predict raises TypeError for invalid input types."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        invalid_input = [["AUGCA", "GCUAGCUA"], ["GCUAG", "AUGCAUGC"]]
+
+        with pytest.raises(
+            TypeError, match="X must be a pandas DataFrame or numpy.ndarray"
+        ):
+            pipeline.predict(invalid_input)
 
     @pytest.mark.parametrize(
         "device, target, n_candidates, depth",

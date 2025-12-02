@@ -136,13 +136,12 @@ class AptaTransPipeline(BaseObject):
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer recommendation experiment."""
         self._init_vocabularies()
-        experiment = AptamerEvalAptaTrans(
+        return AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,
             prot_words=self.prot_words_,
         )
-        return experiment
 
     def _preprocess_data(self, dataset) -> DataLoader:
         """Convert numpy arrays or pandas DataFrames into a PyTorch DataLoader."""
@@ -157,8 +156,9 @@ class AptaTransPipeline(BaseObject):
             prot_words=self.prot_words_,
         )
 
-        dataloader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-        return dataloader
+        return DataLoader(
+            dataset, batch_size=self.batch_size, shuffle=True, num_workers=4
+        )
 
     def fit(self, X, y):
         """Train the AptaTrans model using PyTorch Lightning.
