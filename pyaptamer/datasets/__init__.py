@@ -16,7 +16,7 @@ from pyaptamer.datasets._loaders._pfoa import load_pfoa, load_pfoa_structure
 
 __all__ = [
     "load_aptacom_full",
-    "load_aptacom_xy",
+    "load_aptacom_x_y",
     "load_csv_dataset",
     "load_hf_dataset",
     "load_pfoa",
@@ -24,6 +24,7 @@ __all__ = [
     "load_1gnh",
     "load_1gnh_structure",
     "load_from_rcsb",
+    "load_csv_dataset",
     "load_aptadb",
     "load_encoders",
 ]
