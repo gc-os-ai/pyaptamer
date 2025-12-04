@@ -10,11 +10,13 @@ from pyaptamer.utils._pdb_to_struct import pdb_to_struct
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 
-def pdb_to_aaseq(pdb_file_path, return_type="list"):
+def pdb_to_aaseq(pdb_file_path, return_type="list", remove_duplicates=False):
     """
-    Extract amino-acid sequences from a PDB file. Tries SEQRES records first
-    (full deposited sequence). Falls back to using the package's
-    pdb -> Structure -> sequences converters if SEQRES records are not present.
+    Extract amino-acid sequences from a PDB file.
+
+    Tries SEQRES records first (full deposited sequence). Falls back to using
+    the package's pdb -> Structure -> sequences converters if SEQRES records
+    are not present.
 
     Parameters
     ----------
@@ -24,15 +26,17 @@ def pdb_to_aaseq(pdb_file_path, return_type="list"):
         Format of returned value:
           - ``'list'`` : Python list of amino-acid strings (one per chain / polypeptide)
           - ``'pd.df'`` : pandas.DataFrame with columns ``'chain'`` and ``'sequence'``
-            (one row per chain/polypeptide). If chain ids are not available they may
-            be ``None``.
+            (one row per chain/polypeptide). Chain IDs may be ``None`` if unavailable.
+    remove_duplicates : bool, optional, default=False
+        If True, removes duplicate sequences (keeping the first occurrence).
+        Duplicates are identified by comparing the ``'sequence'`` column only.
 
     Returns
     -------
     list of str or pandas.DataFrame
-        Depending on ``return_type``. If ``'list'``, returns a Python list of
-        sequence strings (one element per chain / polypeptide). If ``'pd.df'``,
-        returns a DataFrame with columns ``'chain'`` and ``'sequence'``.
+        Depending on ``return_type``:
+          - If ``'list'``: Python list of sequence strings (one per chain/polypeptide)
+          - If ``'pd.df'``: DataFrame with columns ``['chain', 'sequence']``
 
     Raises
     ------
@@ -62,7 +66,10 @@ def pdb_to_aaseq(pdb_file_path, return_type="list"):
         raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
 
     # Remove duplicate sequences
-    df = df.drop_duplicates(subset=["sequence"], keep="first").reset_index(drop=True)
+    if remove_duplicates:
+        df = df.drop_duplicates(subset=["sequence"], keep="first").reset_index(
+            drop=True
+        )
 
     if return_type == "list":
         return df["sequence"].tolist()

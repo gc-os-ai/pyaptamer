@@ -30,10 +30,11 @@ class MoleculeLoader:
         column names for the structure; if None, defaults to ["sequence"]
     """
 
-    def __init__(self, path, index=None, columns=None):
+    def __init__(self, path, index=None, columns=None, remove_duplicates=False):
         self.path = path
         self.index = index
         self.columns = columns
+        self.remove_duplicates = remove_duplicates
 
         if isinstance(path, str):
             path = [Path(path)]
@@ -92,4 +93,4 @@ class MoleculeLoader:
         List[str]
             primary sequence extracted from the PDB file as a list of strings
         """
-        return pdb_to_aaseq(path)
+        return pdb_to_aaseq(path, remove_duplicates=self.remove_duplicates)
