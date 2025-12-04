@@ -8,6 +8,7 @@ from PyBioMed.PyDNA.PyDNAnac import *
 from PyBioMed.PyDNA.PyDNApsenac import *
 from PyBioMed.PyDNA.PyDNApsenac import GetPseDNC
 from PyBioMed.PyDNA.PyDNAutil import *
+import os.path
 
 AMINOACIDS = [
     "GLY",
@@ -31,12 +32,8 @@ AMINOACIDS = [
     "ASN",
     "GLN",
 ]
-FEATURES = {
-    "aptamer": _aptamer_feature_extraction,
-    "target": _target_feature_extraction,
-    "ss": _secondary_structure_analysis,
-    "pdb_id": _protein_sasa_extraction,
-}
+
+AA_SINGLE = "GAVLITSMCPFYWHKRDENQ"
 
 
 ############# PyBioMed Feature Extraction #######################
@@ -64,22 +61,6 @@ def _protein_pybiomed(prot):
     return resprot
 
 
-def _template_feature():
-    # The resulting dicts from the GetAll_Pair function doesn't match that of a DFrame;
-    # To convert it I'll create the following DICT pair - with reference random DNA/Protein set;
-    ex_apt = "AGTCGATGG"
-    ex_trg = "MWLGRRALL"
-    DNA_Frame = _dna_pybiomed(ex_apt)
-    PROT_Frame = _protein_pybiomed(ex_trg)
-    dna_f = {}
-    prot_f = {}
-    for p in DNA_Frame.keys():
-        dna_f[f"apt_{p}"] = []
-    for p in PROT_Frame.keys():
-        prot_f[f"trgt_{p}"] = []
-    return dna_f, prot_f
-
-
 def _validate_sequence(apt_seq, ref):
     check = [i for i in apt_seq.upper() if i not in ref]
     if check != []:
@@ -88,41 +69,13 @@ def _validate_sequence(apt_seq, ref):
         return True
 
 
-def _clean_sequence(sequence):
+def _clean_aptamer_sequence(sequence):
     ref_table = str.maketrans({"5": "", "3": "", "-": "", ".": "", "U": "T"})
     return str(sequence).translate(ref_table)
 
-
-def _build_dna_df(df):
-    dna_frame, _ = _template_feature()
-    dna_frame["Aptamer Sequence"] = []
-    for n in range(len(df)):
-        apt = _clean_sequence(df["Aptamer Sequence"].iloc[n])
-        if _validate_sequence(apt, ref="AUGCT"):
-            pass
-        else:
-            apt = "AAAAAAAAAAA"
-        pdna = _dna_pybiomed(apt)
-        dna_frame["Aptamer Sequence"].append(apt)
-        for k, v in pdna.items():
-            dna_frame[f"apt_{k}"].append(v)
-    dna_df = pd.DataFrame.from_dict(dna_frame)
-    return dna_df
-
-
-def _build_protein_df(df):
-    _, prot_frame = _template_feature()
-    prot_frame["Target Sequence"] = []
-    for n in range(len(df)):
-        trgt = str(df["Target Sequence"].iloc[n])
-        pdb = str(df["PDB_ID"].iloc[n])
-        prot_frame["Target Sequence"].append(trgt)
-        prot_frame["PDB_ID"].append(pdb)
-        pprot = _protein_pybiomed(trgt)
-        for k, v in pprot.items():
-            prot_frame[f"trgt_{k}"].append(v)
-    prot_df = pd.DataFrame.from_dict(prot_frame)
-    return prot_df
+def _clean_target_sequence(sequence):
+    ref_table = str.maketrans({"-": "A", ".": "A"})
+    return str(sequence).translate(ref_table)
 
 
 def _validate_shape(dna_df, prot_df):
@@ -134,42 +87,39 @@ def _validate_shape(dna_df, prot_df):
         return False
 
 
-def _concat_df(dna_df, prot_df):
-    if _validate_shape(dna_df, prot_df):
-        dna_df.reset_index(inplace=True, drop=True)
-        prot_df.reset_index(inplace=True, drop=True)
-        df = pd.concat([dna_df, prot_df], axis=1)
-    else:
-        raise ValueError(
-            "Aptamer and Target feature dataframe expected to be of equal shape"
-        )
-        quit()  # Temporary
-
-
 #################################################################
 
 
 ############ Protein SASA Extraction ############################
-def _residue_exposure_map(pdb_file_path):
-    sasa = rsp.calculate_sasa_at_residue_level(pdb_file_path)
-    sasa_per_restype = {f"sasa_{i}": 0 for i in AMINOACIDS}
+def _clean_pdb(pdb):
+    new_pdb = []
+    for i in pdb.split("\n")[:-1]:
+        if 'ATOM' in i and len([j for j in i if j in AMINOACIDS]) >= 1:
+            new_pdb.append(i)
+    return new_pdb
+
+def _save_new_pdb(x,new_pdb):
+    new_path = x.replace(".pdb","_clean_.pdb")
+    with open(new_path, "w") as op:
+        for i in new_pdb:
+            op.write(f"{i}\n")
+    return new_path
+
+
+def _verify_file(x):
+    if os.path.isfile(x):
+        with open(x, "r") as op:
+            pdb = op.read()
+        return _save_new_pdb(x,_clean_pdb(pdb))
+    else: 
+        raise ValueError(f'''File not found on path: {x} ''')
+
+def _residue_exposure(x):
+    sasa = rsp.calculate_sasa_at_residue_level(x)
+    sasa_per_restype = []
     for i in sasa:
-        restype = str(f"sasa_{i[0].split('_')[1]}")
-        sasa_per_restype[restype] += float(i[1])
+        sasa_per_restype.append(float(i[1]))
     return sasa_per_restype
-
-
-def _build_df(dataframe: pd.DataFrame):
-    sasa_df = {f"sasa_{i}": [] for i in AMINOACIDS}
-    cdir = os.path.dirname(os.path.abspath(__file__))
-    for i in list(dataframe["PDB_ID"]):
-        file_path = os.path.join(cdir, "../datasets/data/", i)
-        sasa_per_restype = _residue_exposure_map(
-            file_path
-        )  # Here pdb sub-dir path can be modified
-        for j in list(sasa_per_restype.keys()):
-            sasa_df[j].append(sasa_per_restype[j])
-    return pd.DataFrame().from_dict(sasa_df)
 
 
 #################################################################
@@ -178,25 +128,20 @@ def _build_df(dataframe: pd.DataFrame):
 ############ Aptamer SS Extraction ##############################
 
 
-def _analyse_ss(df):  # Still have to mod it for apt seqs of len <= 8
-    ss_table = {"Aptamer Sequence": df["Aptamer Sequence"], "SS": df["SS"]}
-    for n in range(4):
-        ss_table[f"S{n}_."] = []
-        ss_table[f"S{n}_("] = []
-        ss_table[f"S{n}_)"] = []
-    for ss in ss_table["SS"]:
-        ss_table["S0_."].append(ss.count("."))
-        ss_table["S0_("].append(ss.count("("))
-        ss_table["S0_)"].append(ss.count(")"))
-        l = len(ss)
-        d = len(ss) // 4
-        for s, i in zip(["S1", "S2", "S3", "S4"], range(0, l - d, d - 1), strict=False):
-            ss_table[f"{s}_."].append(ss[i : i + d].count("."))
-            ss_table[f"{s}_("].append(ss[i : i + d].count("("))
-            ss_table[f"{s}_)"].append(ss[i : i + d].count(")"))
+def _analyse_ss(x):  # Still have to mod it for apt seqs of len <= 8
+    ss_features = []
+    ss_features.append(x.count("."))
+    ss_features.append(x.count("("))
+    ss_features.append(x.count(")"))
+    l = len(x)
+    d = len(x) // 4
+    for i in range(0, l - d, d - 1): # And add an option to discard this section
+        ss_features.append(x[i : i + d].count("."))
+        ss_features.append(x[i : i + d].count("("))
+        ss_features.append(x[i : i + d].count(")"))
 
-    ndf = pd.DataFrame().from_dict(ss_table)
-    return ndf
+    ss_stack = np.hstack(ss_features)
+    return ss_stack
 
 
 #################################################################
@@ -218,20 +163,47 @@ def _validate_features(features):
 
 
 def _aptamer_feature_extraction(x):
-    pass
+    # Add some sort of caveat for apt sequences equal or smaller than 8 units
+    seq = _clean_aptamer_sequence(x)
+    if _validate_sequence(seq,'AGCT'):
+        apt_features = _dna_pybiomed(seq)
+        return apt_features
+    else: 
+        raise ValueError('''Aptamer Sequence is not DNA or has formatting
+        'issues (i.e. "-", "5", ".")''')
+    
 
 
 def _target_feature_extraction(x):
-    pass
-
+    seq = _clean_target_sequence(x)
+    if _validate_sequence(seq,AA_SINGLE):
+        trg_features = _protein_pybiomed(seq)
+        return trg_features
+    else: 
+        raise ValueError('''Target Sequence might have missing
+        or incorrect resiudes''')
+    
 
 def _secondary_structure_analysis(x):
-    pass
-
+    if _validate_sequence(x,"(.)"):
+        ss_features = _analyse_ss(x)
+        return ss_features
+    else:
+        raise ValueError('''Secondary Structure must be in dot bracket format  
+        [ i.e. ....(...).... ] and aptamer length must be >= 8 nucleotides''')
+    
 
 def _protein_sasa_extraction(x):
-    pass
+    pdb_file = _verify_file(x)
+    sasa_per_residues = _residue_exposure(pdb_file)
 
+
+FEATURES = {
+    "aptamer": _aptamer_feature_extraction,
+    "target": _target_feature_extraction,
+    "ss": _secondary_structure_analysis,
+    "pdb_id": _protein_sasa_extraction,
+}
 
 def _feature_router(x, f):
     # Takes as input a feature and a feature name
@@ -243,4 +215,15 @@ def pairs_to_features(X, features):
     # validate if len(X) == len(features)
     # validates if apt and target sequence are present
     # runs feature extraction for each
-    features = []
+    row = []
+    feats = []
+    if _validate_feature_format(X, features):
+        for x, f in zip(X, features):
+            row.append(_feature_router(x,f))
+        feats.append(np.hstack(row))
+    else:
+        raise ValueError('''Input should be formated as follows:
+                         X: ["AGCT", "MLKP","...(.).","/home/Desktop/file.pdb"]
+                         features:["aptamer", "target","ss","pdb_id"]
+''')
+    return feats
