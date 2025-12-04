@@ -28,6 +28,9 @@ class MoleculeLoader:
 
     columns : list, optional
         column names for the structure; if None, defaults to ["sequence"]
+
+    remove_duplicates : bool, optional, default=False
+        if True, removes duplicate sequences (keeping the first occurrence).
     """
 
     def __init__(self, path, index=None, columns=None, remove_duplicates=False):
