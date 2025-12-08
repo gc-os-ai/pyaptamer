@@ -57,6 +57,8 @@ class AptaTransPipeline:
         Weight decay for training the AptaTrans model.
     max_epochs : int, default=100
         Maximum number of epochs for training the AptaTrans model.
+    batch_size : int, default=32
+        Batch size for training the AptaTrans model.
     depth : int, optional, default=20
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
@@ -165,7 +167,9 @@ class AptaTransPipeline:
 
         return (apta_words, prot_words)
 
-    def _init_dataloader(self, X, y, shuffle: bool = True) -> DataLoader:
+    def _init_dataloader(
+        self, X, y=None, split: str = "train", shuffle: bool = True
+    ) -> DataLoader:
         """
         Initialize a PyTorch dataloader for the given dataset.
 
@@ -174,8 +178,10 @@ class AptaTransPipeline:
         X : pd.DataFrame | np.ndarray
             A pandas dataframe containing the dataset with columns 'aptamer',
             'protein', and 'label'.
-        y : array-like
-            The ground truth labels.
+        y : array-like, optional, default=None
+            The ground truth labels. If None, ground-truth labels are not provided.
+        split : str, optional, default="train"
+            The dataset split, either 'train' or 'test'.
         shuffle : bool, optional, default=True
             Whether to shuffle the data in the DataLoader.
 
@@ -185,17 +191,20 @@ class AptaTransPipeline:
             A PyTorch DataLoader containing the given dataset.
         """
         if not isinstance(X, pd.DataFrame):
-            dataset = pd.DataFrame(X, columns=["aptamer", "protein"])
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
 
-        dataset["label"] = y
+        aptamers = X["aptamer"].to_numpy()
+        proteins = X["protein"].to_numpy()
+        labels = y.to_numpy() if y is not None else None
 
         dataset = APIDataset(
-            x_apta=dataset["aptamer"].to_numpy(),
-            x_prot=dataset["protein"].to_numpy(),
-            y=dataset["label"].to_numpy(),
+            x_apta=aptamers,
+            x_prot=proteins,
+            y=labels,
             apta_max_len=self.apta_max_len,
             prot_max_len=self.prot_max_len,
             prot_words=self.prot_words,
+            split=split,
         )
 
         return DataLoader(
@@ -338,7 +347,7 @@ class AptaTransPipeline:
         AptaTransPipeline
             The fitted AptaTransPipeline instance with an updated and trained model.
         """
-        train_dataloader = self._init_dataloader(X, y)
+        dataloader = self._init_dataloader(X, y)
 
         model_lightning = AptaTransLightning(
             model=self.model,
@@ -346,11 +355,8 @@ class AptaTransPipeline:
             weight_decay=self.weight_decay,
         )
 
-        trainer = L.Trainer(
-            max_epochs=self.max_epochs,
-            log_every_n_steps=10,
-        )
-        trainer.fit(model_lightning, train_dataloader)
+        trainer = L.Trainer(max_epochs=self.max_epochs)
+        trainer.fit(model_lightning, dataloader)
 
         self.trainer = trainer
         self.model_lightning = model_lightning.to(self.device)
@@ -373,12 +379,10 @@ class AptaTransPipeline:
         np.ndarray, shape (n_samples,)
             Predicted labels.
         """
-        """if self.trainer is None:
+        if self.trainer is None:
             raise ValueError(
                 "The model has not been trained yet. Please call `fit()` first."
             )
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=["aptamer", "protein"])
 
-        test_dataloader = self._init_dataloader(X, shuffle=False)
-        self.trainer.test(self.model_lightning, test_dataloader)"""
+        dataloader = self._init_dataloader(X, split="test", shuffle=False)
+        return self.trainer.predict(self.model_lightning, dataloader)

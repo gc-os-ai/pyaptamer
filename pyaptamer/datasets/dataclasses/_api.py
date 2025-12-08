@@ -18,9 +18,6 @@ class APIDataset(Dataset):
         A numpy array containing aptamer sequences.
     x_prot : np.ndarray
         A numpy array containing protein sequences.
-    y : np.ndarray
-        A numpy array containing labels for the interactions, where 'positive' indicates
-        a positive interaction and 'negative' indicates a negative interaction.
     apta_max_len : int
         The maximum length for aptamer sequences after padding or truncation.
     prot_max_len : int
@@ -28,6 +25,10 @@ class APIDataset(Dataset):
     prot_words : dict[str, int]
         A dictionary mapping protein 3-mers to unique indices for encoding protein
         sequences.
+    y : np.ndarray, optional, default=None
+        A numpy array containing labels for the interactions, where 'positive' indicates
+        a positive interaction and 'negative' indicates a negative interaction. If
+        None, ground-truth labels are not provided.
     split : str, optional, default="train"
         If "train", the dataset will augment aptamer sequences by adding their
         reverse complements. If "test", the dataset will not augment the aptamer
@@ -39,10 +40,10 @@ class APIDataset(Dataset):
         self,
         x_apta: np.ndarray,
         x_prot: np.ndarray,
-        y: np.ndarray,
         apta_max_len: int,
         prot_max_len: int,
         prot_words: dict[str, int],
+        y: np.ndarray | None = None,
         split: str = "train",
     ) -> None:
         super().__init__()
@@ -77,10 +78,15 @@ class APIDataset(Dataset):
         x_prot : np.ndarray
             Protein sequences.
         y : np.ndarray
-            Laabels for the interactions.
+            Laabels for the interactions. If None, ground-truth labels are not provided.
         split : bool
             If True, the dataset will augment aptamer sequences by adding their reverse
             complements.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray]
+            Transformed aptamer sequences, protein sequences, and labels.
         """
         if split == "train":
             x_apta = augment_reverse(x_apta)[0]
@@ -99,7 +105,9 @@ class APIDataset(Dataset):
             words=self.prot_words,
             max_len=self.prot_max_len,
         )
-        y = torch.tensor((y == "positive").astype(int))
+
+        if y is not None:
+            y = torch.tensor((y == "positive").astype(int))
 
         return (x_apta, x_prot, y)
 
@@ -107,4 +115,7 @@ class APIDataset(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        return (self.x_apta[index], self.x_prot[index], self.y[index])
+        if self.y is not None:
+            return (self.x_apta[index], self.x_prot[index], self.y[index])
+        else:
+            return (self.x_apta[index], self.x_prot[index])
