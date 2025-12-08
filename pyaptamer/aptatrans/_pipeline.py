@@ -114,6 +114,7 @@ class AptaTransPipeline:
         learning_rate: float = 1e-5,
         weight_decay: float = 1e-5,
         max_epochs: int = 100,
+        batch_size: int = 32,
         depth: int = 20,
         n_iterations: int = 1000,
     ) -> None:
@@ -125,6 +126,7 @@ class AptaTransPipeline:
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.max_epochs = max_epochs
+        self.batch_size = batch_size
         self.depth = depth
         self.n_iterations = n_iterations
 
@@ -163,33 +165,37 @@ class AptaTransPipeline:
 
         return (apta_words, prot_words)
 
-    def _init_dataloader(
-        self, dataset: pd.DataFrame, shuffle: bool = True
-    ) -> DataLoader:
+    def _init_dataloader(self, X, y, shuffle: bool = True) -> DataLoader:
         """
-        Initialize training/test data, converting a pandas dataframe to a PyTorch
-        dataloader.
+        Initialize a PyTorch dataloader for the given dataset.
 
         Parameters
         ----------
-        dataset : pd.DataFrame
+        X : pd.DataFrame | np.ndarray
             A pandas dataframe containing the dataset with columns 'aptamer',
             'protein', and 'label'.
+        y : array-like
+            The ground truth labels.
         shuffle : bool, optional, default=True
             Whether to shuffle the data in the DataLoader.
 
         Returns
         -------
         DataLoader
-            A PyTorch DataLoader for the dataset.
+            A PyTorch DataLoader containing the given dataset.
         """
+        if not isinstance(X, pd.DataFrame):
+            dataset = pd.DataFrame(X, columns=["aptamer", "protein"])
+
+        dataset["label"] = y
+
         dataset = APIDataset(
             x_apta=dataset["aptamer"].to_numpy(),
             x_prot=dataset["protein"].to_numpy(),
             y=dataset["label"].to_numpy(),
             apta_max_len=self.apta_max_len,
             prot_max_len=self.prot_max_len,
-            prot_words=self.self.prot_words,
+            prot_words=self.prot_words,
         )
 
         return DataLoader(
@@ -306,17 +312,17 @@ class AptaTransPipeline:
                 )
 
         return candidates
-    
-    def fit(self, X, y):
-        """Train the AptaTrans model using PyTorch Lightning.
 
-        This method preprocesses the training dataset, converts it into a PyTorch
-        DataLoader, and trains the AptaTrans model using the AptaTransLightning
-        wrapper with the PyTorch Lightning Trainer.
+    def fit(self, X, y) -> "AptaTransPipeline":
+        """Fit the AptaTrans model using PyTorch Lightning.
+
+        This method preprocesses the training set, converts it into a PyTorch
+        dataloader, and trains the AptaTrans model to classify whether aptamer-protein
+        pairs bind or not (i.e., a binary classification task).
 
         Parameters
         ----------
-        X : pandas.DataFrame or numpy.ndarray
+        X : pandas.DataFrame | numpy.ndarray
             Traning data that must include the following columns:
 
                 - ``aptamer`` : str
@@ -325,14 +331,14 @@ class AptaTransPipeline:
                     The target protein sequences.
 
         y : array-like
-            The ground truth interaction scores or binary labels.
+            The ground truth labels.
 
         Returns
         -------
         AptaTransPipeline
             The fitted AptaTransPipeline instance with an updated and trained model.
         """
-        train_dataloader = self._init_dataloader(X)
+        train_dataloader = self._init_dataloader(X, y)
 
         model_lightning = AptaTransLightning(
             model=self.model,
@@ -345,22 +351,34 @@ class AptaTransPipeline:
             log_every_n_steps=10,
         )
         trainer.fit(model_lightning, train_dataloader)
-        
+
         self.trainer = trainer
         self.model_lightning = model_lightning.to(self.device)
 
         return self
 
-    def predict(self, X) -> None:
-        if self.trainer is None:
-            raise ValueError(
-                "The model has not been trained yet. Please call fit() first."
-            )
+    def predict(self, X) -> np.ndarray:
+        """Run inference on the given test set, leveraging the fitted model.
 
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray, shape (n_samples, 2)
+            Input data containing aptamer–protein pairs. Must include:
+
+                - ``aptamer`` : str
+                - ``protein`` : str
+
+        Returns
+        -------
+        np.ndarray, shape (n_samples,)
+            Predicted labels.
+        """
+        """if self.trainer is None:
+            raise ValueError(
+                "The model has not been trained yet. Please call `fit()` first."
+            )
         if not isinstance(X, pd.DataFrame):
             X = pd.DataFrame(X, columns=["aptamer", "protein"])
 
-        X["label"] = y
-
         test_dataloader = self._init_dataloader(X, shuffle=False)
-        self.trainer.test(self.model_lightning, test_dataloader)
+        self.trainer.test(self.model_lightning, test_dataloader)"""
