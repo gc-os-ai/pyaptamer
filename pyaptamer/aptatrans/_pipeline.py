@@ -246,7 +246,7 @@ class AptaTransPipeline:
 
     def evaluate(self, candidate: str, target: str) -> Tensor:
         """
-        Evaluate an aptamer-protein interaction for a given aptamer candidtae and
+        Evaluate an aptamer-protein interaction for a given aptamer candidate and
         target protein.
 
         This methods initializes a new aptamer experiment for the given aptamer
@@ -377,7 +377,8 @@ class AptaTransPipeline:
         Returns
         -------
         np.ndarray, shape (n_samples,)
-            Predicted labels.
+            Predicted classification labels, with (1) indicating binding and (0)
+            non-binding aptamer-protein pairs.
         """
         if self.trainer is None:
             raise ValueError(
