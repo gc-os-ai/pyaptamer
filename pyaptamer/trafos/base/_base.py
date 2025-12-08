@@ -62,8 +62,7 @@ class BaseTransform(BaseEstimator):
             Returns self.
         """
         raise ValueError(
-            "abstract method _fit called, "
-            "this should be implemented in the subclass"
+            "abstract method _fit called, this should be implemented in the subclass"
         )
 
     def transform(self, X):
