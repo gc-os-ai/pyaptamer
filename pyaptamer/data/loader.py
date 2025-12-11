@@ -1,36 +1,57 @@
 """Molecule data loading module."""
 
+__all__ = ["MoleculeLoader"]
+__author__ = ["fkiraly", "satvshr"]
+
 from pathlib import Path
 
 import pandas as pd
+from Bio import SeqIO
 
-from pyaptamer.utils import aa_str_to_letter
+from pyaptamer.utils import pdb_to_aaseq
 
 
 class MoleculeLoader:
     """Molecule data connector.
 
+    This loader extracts primary amino-acid sequences from molecule files.
+
+    Supported file types
+    --------------------
+    The loader determines the type from the file extension by default, but a
+    format override can be provided to force a specific loader:
+
+    - ``fmt="pdb"`` -> handled by :func:`pdb_to_aaseq` (PDB SEQRES extraction)
+    - any other format string (e.g. ``"fasta"``, ``"genbank"``) -> passed to
+      :mod:`Bio.SeqIO` for parsing
+
+    Thus, all formats supported by :func:`Bio.SeqIO.parse` are accepted,
+    including FASTA, GenBank, EMBL, FASTQ, and many more.
+
+    For the full list of supported formats, see:
+
+    - https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
+    - https://biopython.org/wiki/SeqIO
+
     Parameters
-    ------------
-    path : str, Path, or list thereof
-        file location or list of file locations with molecule files
-        str can be any of the following... [fill in]
-
-        the following formats are currently supported:
-
-        * ``pdb`` format
-
+    ----------
+    path : str, Path, or list
+        File location(s) of molecule files. One row is returned per file.
     index : list, or pandas.Index coercible, optional
-        row index for the structure; if None, integer RangeIndex is assumed
-
+        Row index for the resulting DataFrame; if None, integer RangeIndex is used.
     columns : list, optional
-        column names for the structure; if None, defaults to ["sequence"]
+        Column names for the resulting DataFrame; if None, defaults to ``["sequence"]``.
+    fmt : str, optional
+        Optional format override. If provided, this format will be used instead
+        of inferring the format from the file extension. Examples: ``"pdb"``,
+        ``"fasta"``, ``"genbank"``.
     """
 
-    def __init__(self, path, index=None, columns=None):
+    def __init__(self, path, index=None, columns=None, fmt=None):
         self.path = path
         self.index = index
         self.columns = columns
+        self.fmt = fmt
 
         if isinstance(path, str):
             path = [Path(path)]
@@ -41,41 +62,74 @@ class MoleculeLoader:
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
     def to_df_seq(self):
-        """Return a pd.DataFrame of sequences.
+        """Return a DataFrame of amino-acid sequences.
+
+        Each file in ``path`` yields one row in the output DataFrame.
 
         Returns
-        --------
+        -------
         pd.DataFrame
-            string sequences in self in a pd.DataFrame of str
+            sequences in self in a pd.DataFrame;
             has single column "sequence";
-            rows are primary sequences found in the files in `path`
+            each row contains a list of str representing
+            the primary sequence(s) found in the files in `path`
             sequences are determined from files as follows: [fill in]
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path, "seq") for path in paths]
+        # wrap each returned list so that it's a single DataFrame cell
+        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
 
         if self.columns is None:
-            columns = ["sequence"]
+            columns = "sequence"
         else:
             columns = self.columns
 
-        return pd.DataFrame(seq_list, columns=columns, index=self.index)
+        return pd.DataFrame({columns: seq_list}, index=self.index)
 
     def _determine_type(self, path):
+        """Return file type inferred from suffix or from the instance `fmt` override.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a file (used only when no fmt override is provided).
+
+        Returns
+        -------
+        str
+            Format string such as "pdb", "fasta", "genbank", etc.
+        """
+        # If user provided a format override, use it
+        if self.fmt:
+            return self.fmt
+
+        # Fallback to suffix-based inference
         suffix = path.suffix.lower()
         if suffix == ".pdb":
             return "pdb"
-        else:
-            raise ValueError(f"Unsupported file type: {suffix}")
 
-    def _load_dispatch(self, path, mode="seq"):
-        ptype = self._determine_type(path)
-        loader = getattr(self, f"_load_{ptype}_{mode}")
-        return loader(path)
+        # strip leading dot; if no suffix, return None to indicate unknown
+        return suffix.lstrip(".") if suffix else None
+
+    def _load_dispatch(self, path):
+        """Dispatch loader based on file type."""
+        fmt = self._determine_type(path)
+
+        if fmt == "pdb":
+            return self._load_pdb_seq(path)
+
+        if fmt is None:
+            # no suffix and no format override -> error
+            raise ValueError(
+                f"Could not determine file format for '{path}'."
+                "Provide a 'fmt' argument."
+            )
+
+        return self._load_seqio(path, fmt)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the primary sequence.
+        """Load a PDB file and extract the amino-acid sequences.
 
         Parameters
         -----------
@@ -84,16 +138,33 @@ class MoleculeLoader:
 
         Returns
         --------
-        str
-            primary sequence extracted from PDB file
+        List[str]
+            primary sequence extracted from the PDB file as a list of strings
         """
-        sequence = []
-        with open(path) as f:
-            for line in f:
-                if line.startswith("SEQRES"):
-                    parts = line.split()
-                    seq_parts = parts[4:]  # Skip the first four columns
-                    sequence.extend(seq_parts)
-        # convert three-letter codes to one-letter codes
-        sequence = [aa_str_to_letter(aa) for aa in sequence]
-        return "".join(sequence)
+        return pdb_to_aaseq(path)
+
+    def _load_seqio(self, path, format):
+        """Load any file format supported by Biopython SeqIO.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a sequence file readable by SeqIO.
+        format : str
+            Biopython SeqIO format string (e.g. ``"fasta"``, ``"genbank"``).
+
+        Returns
+        -------
+        list of str
+            Amino-acid sequences extracted from the file.
+
+        Raises
+        ------
+        ValueError
+            If no sequences were found.
+        """
+        seqs = [str(rec.seq) for rec in SeqIO.parse(str(path), format)]
+        if not seqs:
+            raise ValueError(f"No sequences found in {path}")
+
+        return seqs
