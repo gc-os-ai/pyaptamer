@@ -143,7 +143,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         ndarray of shape (n_samples, n_classes)
             Probability estimates for each class.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, attributes=["pipeline_"])
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
         return self.pipeline_.predict_proba(X)
 
@@ -161,7 +161,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         y_pred : ndarray of shape (n_samples,)
             Predicted class labels.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, attributes=["pipeline_"])
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
         y = self.pipeline_.predict(X).astype(int, copy=False)
         return self.classes_[y]
@@ -325,7 +325,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         y_pred : ndarray of shape (n_samples,)
             Predicted continuous values.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, attributes=["pipeline_"])
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
         return self.pipeline_.predict(X).reshape(-1)
 
