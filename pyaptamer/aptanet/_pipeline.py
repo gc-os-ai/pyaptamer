@@ -3,7 +3,7 @@ __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.9,<3.13"]
 
 from skbase.base import BaseObject
-from sklearn.base import clone
+from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
@@ -12,7 +12,7 @@ from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 
-class AptaNetPipeline(BaseObject):
+class AptaNetPipeline(BaseObject, BaseEstimator):
     """
     AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
