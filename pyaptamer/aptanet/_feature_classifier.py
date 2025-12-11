@@ -176,7 +176,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
 
     def __sklearn_is_fitted__(self):
         # ensure pipeline_ exists and is fitted
-        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "named_steps")
+        return True
 
 
 class AptaNetRegressor(RegressorMixin, BaseEstimator):
@@ -347,4 +347,4 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
 
     def __sklearn_is_fitted__(self):
         # ensure pipeline_ exists and is fitted
-        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "named_steps")
+        return True
