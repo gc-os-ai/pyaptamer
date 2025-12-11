@@ -171,11 +171,12 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         tags.classifier_tags.multi_class = False
         tags.classifier_tags.poor_score = True
         tags.non_deterministic = True
+        tags.requires_fit = True
         return tags
 
     def __sklearn_is_fitted__(self):
         # ensure pipeline_ exists and is fitted
-        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "steps")
+        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "named_steps")
 
 
 class AptaNetRegressor(RegressorMixin, BaseEstimator):
@@ -341,8 +342,9 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
         tags.regressor_tags.poor_score = True
+        tags.requires_fit = True
         return tags
 
     def __sklearn_is_fitted__(self):
         # ensure pipeline_ exists and is fitted
-        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "steps")
+        return hasattr(self, "pipeline_") and hasattr(self.pipeline_, "named_steps")
