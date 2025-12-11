@@ -72,6 +72,7 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
             func=pairs_to_features,
             kw_args={"k": self.k},
             validate=False,
+            feature_names_out="one-to-one",
         )
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])

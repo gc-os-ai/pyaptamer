@@ -173,6 +173,9 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         tags.non_deterministic = True
         return tags
 
+    def _more_tags(self):
+        return {"requires_fit": True}
+
 
 class AptaNetRegressor(RegressorMixin, BaseEstimator):
     """
@@ -338,3 +341,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         tags = super().__sklearn_tags__()
         tags.regressor_tags.poor_score = True
         return tags
+
+    def _more_tags(self):
+        return {"requires_fit": True}
