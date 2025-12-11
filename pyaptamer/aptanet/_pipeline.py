@@ -72,7 +72,6 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
             func=pairs_to_features,
             kw_args={"k": self.k},
             validate=False,
-            feature_names_out="one-to-one",
         )
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
@@ -80,7 +79,6 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
-        return self
 
     def predict_proba(self, X):
         check_is_fitted(self)

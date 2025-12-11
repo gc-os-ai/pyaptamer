@@ -22,7 +22,7 @@ dependencies = [
     "scikit-base",
     "torch>=2.5.1",
     "scikit-learn>=1.3.0",
-    "skorch>=1.3.0",
+    "skorch",
     "imblearn",
     "datasets",
 ]
