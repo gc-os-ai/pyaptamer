@@ -213,12 +213,13 @@ class AptaTransPipeline:
 
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer recommendation experiment."""
-        return AptamerEvalAptaTrans(
+        experiment = AptamerEvalAptaTrans(
             target=target,
             model=self.model,
             device=self.device,
             prot_words=self.prot_words,
         )
+        return experiment
 
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to
