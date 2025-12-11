@@ -144,7 +144,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         ndarray of shape (n_samples, n_classes)
             Probability estimates for each class.
         """
-        check_is_fitted(self, attributes=["pipeline_", "is_fitted_"])
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
         return self.pipeline_.predict_proba(X)
 
@@ -162,31 +162,10 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         y_pred : ndarray of shape (n_samples,)
             Predicted class labels.
         """
-        check_is_fitted(self, attributes=["pipeline_", "is_fitted_"])
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
         y = self.pipeline_.predict(X).astype(int, copy=False)
         return self.classes_[y]
-
-    def get_params(self, deep=True):
-        return {
-            "input_dim": self.input_dim,
-            "hidden_dim": self.hidden_dim,
-            "n_hidden": self.n_hidden,
-            "dropout": self.dropout,
-            "max_epochs": self.max_epochs,
-            "lr": self.lr,
-            "alpha": self.alpha,
-            "eps": self.eps,
-            "estimator": self.estimator,
-            "random_state": self.random_state,
-            "threshold": self.threshold,
-            "verbose": self.verbose,
-        }
-
-    def set_params(self, **params):
-        for k, v in params.items():
-            setattr(self, k, v)
-        return self
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
@@ -195,10 +174,6 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         tags.non_deterministic = True
         tags.requires_fit = True
         return tags
-
-    def __sklearn_is_fitted__(self):
-        # ensure pipeline_ exists and is fitted
-        return hasattr(self, "is_fitted_")
 
 
 class AptaNetRegressor(RegressorMixin, BaseEstimator):
@@ -337,7 +312,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
             X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
         )
 
-        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -354,7 +328,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         y_pred : ndarray of shape (n_samples,)
             Predicted continuous values.
         """
-        check_is_fitted(self, attributes=["pipeline_", "is_fitted_"])
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
 
         return self.pipeline_.predict(X).reshape(-1)
@@ -364,33 +338,8 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
 
         return r2_score(y, self.predict(X))
 
-    def get_params(self, deep=True):
-        return {
-            "input_dim": self.input_dim,
-            "hidden_dim": self.hidden_dim,
-            "n_hidden": self.n_hidden,
-            "dropout": self.dropout,
-            "max_epochs": self.max_epochs,
-            "lr": self.lr,
-            "alpha": self.alpha,
-            "eps": self.eps,
-            "estimator": self.estimator,
-            "random_state": self.random_state,
-            "threshold": self.threshold,
-            "verbose": self.verbose,
-        }
-
-    def set_params(self, **params):
-        for k, v in params.items():
-            setattr(self, k, v)
-        return self
-
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
         tags.regressor_tags.poor_score = True
         tags.requires_fit = True
         return tags
-
-    def __sklearn_is_fitted__(self):
-        # ensure pipeline_ exists and is fitted
-        return hasattr(self, "is_fitted_")
