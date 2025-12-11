@@ -127,7 +127,6 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         self.pipeline_.fit(
             X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
         )
-        self.is_fitted_ = True
         return self
 
     def predict_proba(self, X):
@@ -172,7 +171,6 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         tags.classifier_tags.multi_class = False
         tags.classifier_tags.poor_score = True
         tags.non_deterministic = True
-        tags.requires_fit = True
         return tags
 
 
@@ -311,7 +309,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         self.pipeline_.fit(
             X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
         )
-
         return self
 
     def predict(self, X):
@@ -330,7 +327,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
-
         return self.pipeline_.predict(X).reshape(-1)
 
     def score(self, X, y):
@@ -341,5 +337,4 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
         tags.regressor_tags.poor_score = True
-        tags.requires_fit = True
         return tags
