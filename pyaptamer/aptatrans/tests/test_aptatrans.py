@@ -282,8 +282,8 @@ class TestAptaTransPipeline:
             ),
         ],
     )
-    def test_predict(self, device, candidate, target, monkeypatch):
-        """Check predict returns interaction scores correctly."""
+    def test_evaluate(self, device, candidate, target, monkeypatch):
+        """Check evaluate returns interaction scores correctly."""
         # setup
         model = MockAptaTransNeuralNet(device)
         prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
@@ -310,8 +310,8 @@ class TestAptaTransPipeline:
             pipeline, "_init_aptamer_experiment", lambda target: MockExperiment()
         )
 
-        # test predict
-        score = pipeline.predict(candidate=candidate, target=target)
+        # test evaluate
+        score = pipeline.evaluate(candidate=candidate, target=target)
 
         # check output
         assert isinstance(score, torch.Tensor)
@@ -413,3 +413,128 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    @pytest.mark.parametrize(
+        "device, n_samples, max_epochs",
+        [
+            (torch.device("cpu"), 10, 2),
+            (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu"),
+                20,
+                3,
+            ),
+        ],
+    )
+    def test_fit(self, device, n_samples, max_epochs, monkeypatch):
+        """Check AptaTransPipeline.fit() trains the model correctly."""
+        import pandas as pd
+
+        # setup
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(
+            device=device, model=model, prot_words=prot_words, max_epochs=max_epochs
+        )
+
+        # create mock training data
+        X = pd.DataFrame(
+            {
+                "aptamer": [f"AUGCA{i}" for i in range(n_samples)],
+                "protein": [f"GCUAG{i}" for i in range(n_samples)],
+            }
+        )
+        y = pd.Series([0, 1] * (n_samples // 2))
+
+        # mock Lightning Trainer
+        class MockTrainer:
+            def __init__(self, max_epochs):
+                self.max_epochs = max_epochs
+
+            def fit(self, model, dataloader):
+                pass
+
+        # mock AptaTransLightning
+        class MockAptaTransLightning:
+            def __init__(self, model, lr, weight_decay):
+                self.model = model
+                self.lr = lr
+                self.weight_decay = weight_decay
+
+            def to(self, device):
+                return self
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.L.Trainer", MockTrainer)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptaTransLightning",
+            MockAptaTransLightning,
+        )
+
+        # test fit
+        result = pipeline.fit(X, y)
+
+        # check that fit returns self
+        assert result is pipeline
+
+        # check that trainer and model_lightning are initialized
+        assert pipeline.trainer is not None
+        assert pipeline.model_lightning is not None
+        assert pipeline.trainer.max_epochs == max_epochs
+
+    @pytest.mark.parametrize(
+        "device, n_samples",
+        [
+            (torch.device("cpu"), 5),
+            (
+                torch.device("cuda")
+                if torch.cuda.is_available()
+                else torch.device("cpu"),
+                10,
+            ),
+        ],
+    )
+    def test_predict(self, device, n_samples, monkeypatch):
+        """Check AptaTransPipeline.predict() runs inference correctly."""
+        import numpy as np
+        import pandas as pd
+
+        # setup
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        # create mock test data
+        X = pd.DataFrame(
+            {
+                "aptamer": [f"AUGCA{i}" for i in range(n_samples)],
+                "protein": [f"GCUAG{i}" for i in range(n_samples)],
+            }
+        )
+
+        # mock predictions
+        mock_predictions = np.array([0, 1] * (n_samples // 2) + [0] * (n_samples % 2))
+
+        # mock Lightning Trainer
+        class MockTrainer:
+            def predict(self, model, dataloader):
+                return mock_predictions
+
+        # test predict without fitting first (should raise error)
+        with pytest.raises(
+            ValueError,
+            match="The model has not been trained yet. Please call `fit\\(\\)` first.",
+        ):
+            pipeline.predict(X)
+
+        # set trainer to enable prediction
+        pipeline.trainer = MockTrainer()
+        pipeline.model_lightning = model
+
+        # test predict
+        predictions = pipeline.predict(X)
+
+        # check output
+        assert isinstance(predictions, np.ndarray)
+        assert len(predictions) == n_samples
+        assert np.array_equal(predictions, mock_predictions)
