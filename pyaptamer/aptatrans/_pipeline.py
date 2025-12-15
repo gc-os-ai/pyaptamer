@@ -3,13 +3,18 @@ AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaTransPipeline"]
 
+import lightning as L
+import numpy as np
+import pandas as pd
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader
 
-from pyaptamer.aptatrans import AptaTrans
+from pyaptamer.aptatrans import AptaTrans, AptaTransLightning
+from pyaptamer.datasets.dataclasses import APIDataset
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.utils import (
@@ -42,6 +47,18 @@ class AptaTransPipeline:
         Used to encode protein sequences into their numerical representions. The
         subsequences and their frequency should come from the same dataset used for
         pretraining the protein encoder.
+    apta_max_len : int, default=275
+        Maximum aptamer sequence length.
+    prot_max_len : int, default=867
+        Maximum protein sequence length.
+    learning_rate : float, default=1e-5
+        Learning rate for training the AptaTrans model.
+    weight_decay : float, default=1e-5
+        Weight decay for training the AptaTrans model.
+    max_epochs : int, default=100
+        Maximum number of epochs for training the AptaTrans model.
+    batch_size : int, default=32
+        Batch size for training the AptaTrans model.
     depth : int, optional, default=20
         The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
     n_iterations : int, optional, default=1000
@@ -53,6 +70,12 @@ class AptaTransPipeline:
         A dictionary mapping aptamer 3-mer subsequences to unique indices, and protein
         words to their frequency. In particular, `prot_words` now contains only protein
         words with above-average frequency, mapped to unique integer IDs
+    model_lightning : AptaTransLightning | None
+        The PyTorch Lightning wrapper for the AptaTrans model. None if the model has
+        not been trained yet.
+    trainer : L.Trainer | None
+        The PyTorch Lightning Trainer used for training the AptaTrans model. None if
+        the model has not been trained yet.
 
     References
     ----------
@@ -88,16 +111,31 @@ class AptaTransPipeline:
         device: torch.device,
         model: AptaTrans,
         prot_words: dict[str, float],
+        apta_max_len: int = 275,
+        prot_max_len: int = 867,
+        learning_rate: float = 1e-5,
+        weight_decay: float = 1e-5,
+        max_epochs: int = 100,
+        batch_size: int = 32,
         depth: int = 20,
         n_iterations: int = 1000,
     ) -> None:
         super().__init__()
         self.device = device
         self.model = model.to(device)
+        self.apta_max_len = apta_max_len
+        self.prot_max_len = prot_max_len
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.max_epochs = max_epochs
+        self.batch_size = batch_size
         self.depth = depth
         self.n_iterations = n_iterations
 
         self.apta_words, self.prot_words = self._init_words(prot_words)
+
+        self.model_lightning = None
+        self.trainer = None
 
     def _init_words(
         self,
@@ -128,6 +166,50 @@ class AptaTransPipeline:
         prot_words = filter_words(prot_words)
 
         return (apta_words, prot_words)
+
+    def _init_dataloader(
+        self, X, y=None, split: str = "train", shuffle: bool = True
+    ) -> DataLoader:
+        """
+        Initialize a PyTorch dataloader for the given dataset.
+
+        Parameters
+        ----------
+        X : pd.DataFrame | np.ndarray
+            A pandas dataframe containing the dataset with columns 'aptamer',
+            'protein', and 'label'.
+        y : array-like, optional, default=None
+            The ground truth labels. If None, ground-truth labels are not provided.
+        split : str, optional, default="train"
+            The dataset split, either 'train' or 'test'.
+        shuffle : bool, optional, default=True
+            Whether to shuffle the data in the DataLoader.
+
+        Returns
+        -------
+        DataLoader
+            A PyTorch DataLoader containing the given dataset.
+        """
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
+
+        aptamers = X["aptamer"].to_numpy()
+        proteins = X["protein"].to_numpy()
+        labels = y.to_numpy() if y is not None else None
+
+        dataset = APIDataset(
+            x_apta=aptamers,
+            x_prot=proteins,
+            y=labels,
+            apta_max_len=self.apta_max_len,
+            prot_max_len=self.prot_max_len,
+            prot_words=self.prot_words,
+            split=split,
+        )
+
+        return DataLoader(
+            dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=4
+        )
 
     def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
         """Initialize the aptamer recommendation experiment."""
@@ -163,8 +245,10 @@ class AptaTransPipeline:
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate, return_interaction_map=True)
 
-    def predict(self, candidate: str, target: str) -> Tensor:
-        """Predict aptamer-protein interaction (API) score for a given target protein.
+    def evaluate(self, candidate: str, target: str) -> Tensor:
+        """
+        Evaluate an aptamer-protein interaction for a given aptamer candidate and
+        target protein.
 
         This methods initializes a new aptamer experiment for the given aptamer
         candidate and target protein. Finally, it predict the interaction score using
@@ -238,3 +322,69 @@ class AptaTransPipeline:
                 )
 
         return candidates
+
+    def fit(self, X, y) -> "AptaTransPipeline":
+        """Fit the AptaTrans model using PyTorch Lightning.
+
+        This method preprocesses the training set, converts it into a PyTorch
+        dataloader, and trains the AptaTrans model to classify whether aptamer-protein
+        pairs bind or not (i.e., a binary classification task).
+
+        Parameters
+        ----------
+        X : pandas.DataFrame | numpy.ndarray
+            Traning data that must include the following columns:
+
+                - ``aptamer`` : str
+                    The aptamer nucleotide sequences.
+                - ``protein`` : str
+                    The target protein sequences.
+
+        y : array-like
+            The ground truth labels.
+
+        Returns
+        -------
+        AptaTransPipeline
+            The fitted AptaTransPipeline instance with an updated and trained model.
+        """
+        dataloader = self._init_dataloader(X, y)
+
+        model_lightning = AptaTransLightning(
+            model=self.model,
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+
+        trainer = L.Trainer(max_epochs=self.max_epochs)
+        trainer.fit(model_lightning, dataloader)
+
+        self.trainer = trainer
+        self.model_lightning = model_lightning.to(self.device)
+
+        return self
+
+    def predict(self, X) -> np.ndarray:
+        """Run inference on the given test set, leveraging the fitted model.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray, shape (n_samples, 2)
+            Input data containing aptamer–protein pairs. Must include:
+
+                - ``aptamer`` : str
+                - ``protein`` : str
+
+        Returns
+        -------
+        np.ndarray, shape (n_samples,)
+            Predicted classification labels, with (1) indicating binding and (0)
+            non-binding aptamer-protein pairs.
+        """
+        if self.trainer is None:
+            raise ValueError(
+                "The model has not been trained yet. Please call `fit()` first."
+            )
+
+        dataloader = self._init_dataloader(X, split="test", shuffle=False)
+        return self.trainer.predict(self.model_lightning, dataloader)
