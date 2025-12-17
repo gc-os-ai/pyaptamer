@@ -22,24 +22,24 @@ class MCTS(BaseObject):
 
     Parameters
     ----------
-    states : list[str]
+    states : list[str], optional, default=None
         Possible values for the nodes. Underscores indicate whether the values are
         supposed to be prepended or appended to the sequence.
-    depth : int, optional
+    depth : int, optional, default=20
         Maximum depth of the search tree, also the length of the generated sequences.
-    n_iterations : int, optional
+    n_iterations : int, optional, default=1000
         Number of iterations per round for the MCTS algorithm.
     experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
     Attributes
     ----------
+    root : TreeNode
+        Root node of the MCTS tree.
     base : str
         Best sequence found so far.
     candidate : str
         Final candidate sequence.
-    root : TreeNode
-        Root node of the MCTS tree.
 
     References
     ----------
@@ -74,19 +74,6 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        experiment : Aptamer
-            An instance of the Aptamer() class specifying the goal function.
-        states : list[str], optional
-            A list containing possible values for the nodes. Underscores indicate
-            whether the values are supposed to be prepended or appended to the sequence.
-        depth : int, optional
-            Maximum depth of the search tree.
-        n_iterations : int, optional
-            Number of iterations per round for the MCTS algorithm.
-        """
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
@@ -273,7 +260,7 @@ class MCTS(BaseObject):
 
         Parameters
         ----------
-        verbose : bool
+        verbose : bool, optional, default=True
             Whether to print progress information.
 
         Returns
@@ -337,24 +324,24 @@ class TreeNode:
 
     Parameters
     ----------
-    val : str, optional
+    val : str, optional, default=""
         Value for this node.
-    parent : TreeNode, optional
+    parent : TreeNode, optional, default=None
         Reference to the parent node.
-    depth : int, optional
+    depth : int, optional, default=0
         Depth of the node in the tree.
-    states : int, optional
+    states : int, optional, default=8
         Number of possible children states.
-    is_root : bool, optional
+    is_root : bool, optional, default=True
         Whether this node is the root of the tree.
-    is_terminal : bool, optional
+    is_terminal : bool, optional, default=False
         Whether this node is the last one in the path.
-    exploitation_score : float, optional
+    exploitation_score : float, optional, default=0.0
         Accumulated exploitation score from simulations.
 
     Attributes
     ----------
-    visits : int
+    n_visits : int
         Counter tracking the umber of visits to this node.
     children : dict[str, TreeNode]
         Dictionary of child nodes indexed by value.
@@ -381,24 +368,6 @@ class TreeNode:
         is_terminal: bool = False,
         exploitation_score: float = 0.0,
     ) -> None:
-        """
-        Parameters
-        ----------
-        val : str, optional
-            Value for this node.
-        parent : TreeNode, optional
-            Reference to the parent node.
-        depth : int, optional
-            Depth of the node in the tree.
-        n_states : int, optional
-            Number of possible children states.
-        is_root : bool, optional
-            Whether this node is the root of the tree.
-        is_terminal : bool, optional
-            Whether this node is the last one in the path.
-        exploitation_score : float, optional
-            Accumulated exploitation score from simulations.
-        """
         self.val = val
         self.parent = parent
         self.depth = depth
@@ -450,7 +419,7 @@ class TreeNode:
 
         Parameters
         ----------
-        val : str, optional
+        val : str
             Value used to find the child node.
 
         Returns
@@ -500,7 +469,7 @@ class TreeNode:
         ----------
         val : str
             Value to assign to the newly created node.
-        is_terminal : bool, optional
+        is_terminal : bool, optional, default=False
             Whether this child node is the last one in the path.
 
         Returns
