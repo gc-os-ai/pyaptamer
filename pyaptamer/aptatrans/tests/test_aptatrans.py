@@ -230,6 +230,20 @@ class TestAptaTransPipeline:
         expected_prot_count = sum(1 for freq in prot_words.values() if freq > mean_freq)
         assert len(pipeline.prot_words) == expected_prot_count
 
+    @pytest.mark.parametrize("depth", [-1, 0, 1, 2])
+    def test_initialization_with_small_depth(self, depth):
+        """Check ValueError is raised at initialization when depth is less than 3."""
+        model = MockAptaTransNeuralNet(torch.device("cpu"))
+        prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.8}
+
+        with pytest.raises(ValueError):
+            AptaTransPipeline(
+                device=torch.device("cpu"),
+                model=model,
+                prot_words=prot_words,
+                depth=depth,
+            )
+
     @pytest.mark.parametrize(
         "device, target",
         [
