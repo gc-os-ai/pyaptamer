@@ -1,10 +1,13 @@
 """Molecule data loading module."""
 
+__all__ = ["MoleculeLoader"]
+__author__ = ["fkiraly", "satvshr"]
+
 from pathlib import Path
 
 import pandas as pd
 
-from pyaptamer.utils import aa_str_to_letter
+from pyaptamer.utils import pdb_to_aaseq
 
 
 class MoleculeLoader:
@@ -25,12 +28,16 @@ class MoleculeLoader:
 
     columns : list, optional
         column names for the structure; if None, defaults to ["sequence"]
+
+    remove_duplicates : bool, optional, default=False
+        if True, removes duplicate sequences (keeping the first occurrence).
     """
 
-    def __init__(self, path, index=None, columns=None):
+    def __init__(self, path, index=None, columns=None, remove_duplicates=False):
         self.path = path
         self.index = index
         self.columns = columns
+        self.remove_duplicates = remove_duplicates
 
         if isinstance(path, str):
             path = [Path(path)]
@@ -46,14 +53,16 @@ class MoleculeLoader:
         Returns
         --------
         pd.DataFrame
-            string sequences in self in a pd.DataFrame of str
+            sequences in self in a pd.DataFrame;
             has single column "sequence";
-            rows are primary sequences found in the files in `path`
+            each row contains a list of str representing
+            the primary sequence(s) found in the files in `path`
             sequences are determined from files as follows: [fill in]
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path, "seq") for path in paths]
+        # wrap each returned list so that it's a single DataFrame cell
+        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
 
         if self.columns is None:
             columns = ["sequence"]
@@ -75,7 +84,7 @@ class MoleculeLoader:
         return loader(path)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the primary sequence.
+        """Load a PDB file and extract the amino-acid sequences.
 
         Parameters
         -----------
@@ -84,16 +93,7 @@ class MoleculeLoader:
 
         Returns
         --------
-        str
-            primary sequence extracted from PDB file
+        List[str]
+            primary sequence extracted from the PDB file as a list of strings
         """
-        sequence = []
-        with open(path) as f:
-            for line in f:
-                if line.startswith("SEQRES"):
-                    parts = line.split()
-                    seq_parts = parts[4:]  # Skip the first four columns
-                    sequence.extend(seq_parts)
-        # convert three-letter codes to one-letter codes
-        sequence = [aa_str_to_letter(aa) for aa in sequence]
-        return "".join(sequence)
+        return pdb_to_aaseq(path, remove_duplicates=self.remove_duplicates)
