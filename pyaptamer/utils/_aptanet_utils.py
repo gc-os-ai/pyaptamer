@@ -4,6 +4,7 @@ __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 from itertools import product
 
 import numpy as np
+import pandas as pd
 
 from pyaptamer.pseaac import AptaNetPSeAAC
 
@@ -59,20 +60,18 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
 def pairs_to_features(X, k=4):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
+    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
 
     This function generates feature vectors for each (aptamer, protein) pair using:
-
 
     - k-mer representation of the aptamer sequence
     - Pseudo amino acid composition (PSeAAC) representation of the protein sequence
 
-
     Parameters
     ----------
-    X : list of tuple of str
-        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`.
-        `aptamer_sequence` should be a string of nucleotides, and `protein_sequence`
-        should be a string of amino acids.
+    X : list of tuple of str or pandas.DataFrame
+        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
+        or a DataFrame containing 'aptamer' and 'protein' columns.
 
     k : int, optional
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
@@ -85,9 +84,14 @@ def pairs_to_features(X, k=4):
         for a given (aptamer, protein) pair.
     """
     pseaac = AptaNetPSeAAC()
-
     feats = []
-    for aptamer_seq, protein_seq in X:
+
+    if isinstance(X, pd.DataFrame):
+        pairs = zip(X["aptamer"], X["protein"], strict=False)
+    else:
+        pairs = X
+
+    for aptamer_seq, protein_seq in pairs:
         kmer = generate_kmer_vecs(aptamer_seq, k=k)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
         feats.append(np.concatenate([kmer, pseaac_vec]))
