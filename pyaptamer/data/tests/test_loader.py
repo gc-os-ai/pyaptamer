@@ -6,8 +6,8 @@ from pyaptamer.data.loader import MoleculeLoader
 
 # dataset paths relative to pyaptamer root
 DATA_PATHS = [
-    "datasets/data/pfoa.pdb",
     "datasets/data/1gnh.pdb",
+    "datasets/data/1gnh_no_seqres.pdb",
 ]
 
 
@@ -24,7 +24,7 @@ def test_string_path():
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
     one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str.startswith("QTDMSRK")
+    assert one_gnh_str[0].startswith("QTDMSRK")
 
 
 def test_pathlib_path():
@@ -40,4 +40,4 @@ def test_pathlib_path():
     assert pd_df.shape == (len(DATA_PATHS), 1)
 
     one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str.startswith("QTDMSRK")
+    assert one_gnh_str[0].startswith("QTDMSRK")
