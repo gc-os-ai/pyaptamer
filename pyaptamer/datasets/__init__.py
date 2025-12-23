@@ -9,6 +9,7 @@ from pyaptamer.datasets._loaders import (
     load_csv_dataset,
     load_from_rcsb,
     load_hf_dataset,
+    load_pfoa,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "load_1brq",
     "load_5nu7",
     "load_1gnh",
+    "load_pfoa",
 ]
