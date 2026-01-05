@@ -10,7 +10,7 @@ from pyaptamer.utils._pdb_to_struct import pdb_to_struct
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 
-def pdb_to_aaseq(pdb_file_path, return_type="list", remove_duplicates=False):
+def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
     """
     Extract amino-acid sequences from a PDB file.
 
@@ -27,7 +27,7 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", remove_duplicates=False):
           - ``'list'`` : Python list of amino-acid strings (one per chain / polypeptide)
           - ``'pd.df'`` : pandas.DataFrame with columns ``'chain'`` and ``'sequence'``
             (one row per chain/polypeptide). Chain IDs may be ``None`` if unavailable.
-    remove_duplicates : bool, optional, default=False
+    ignore_duplicates : bool, optional, default=False
         If True, removes duplicate sequences (keeping the first occurrence).
         Duplicates are identified by comparing the ``'sequence'`` column only.
 
@@ -66,7 +66,7 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", remove_duplicates=False):
         raise ValueError(f"No sequences could be extracted from PDB file: {pdb_path}")
 
     # Remove duplicate sequences
-    if remove_duplicates:
+    if ignore_duplicates:
         df = df.drop_duplicates(subset=["sequence"], keep="first").reset_index(
             drop=True
         )

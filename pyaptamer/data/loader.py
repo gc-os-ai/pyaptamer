@@ -29,16 +29,15 @@ class MoleculeLoader:
     columns : list, optional
         column names for the structure; if None, defaults to ["sequence"]
 
-    remove_duplicates : bool, optional, default=False
+    ignore_duplicates : bool, optional, default=False
         if True, removes duplicate sequences (keeping the first occurrence).
     """
 
-    def __init__(self, path, index=None, columns=None, remove_duplicates=False):
+    def __init__(self, path, index=None, columns=None, ignore_duplicates=False):
         self.path = path
         self.index = index
         self.columns = columns
-        self.remove_duplicates = remove_duplicates
-
+        self.ignore_duplicates = ignore_duplicates
         if isinstance(path, str):
             path = [Path(path)]
             self._path = path
@@ -61,15 +60,18 @@ class MoleculeLoader:
         """
         paths = self._path
 
-        # wrap each returned list so that it's a single DataFrame cell
-        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
+        rows = []
+        for path in paths:
+            seqs = self._load_dispatch(path, "seq")
+            for seq in seqs:
+                rows.append(seq)
 
         if self.columns is None:
             columns = ["sequence"]
         else:
             columns = self.columns
 
-        return pd.DataFrame(seq_list, columns=columns, index=self.index)
+        return pd.DataFrame(rows, columns=columns, index=self.index)
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()
@@ -96,4 +98,4 @@ class MoleculeLoader:
         List[str]
             primary sequence extracted from the PDB file as a list of strings
         """
-        return pdb_to_aaseq(path, remove_duplicates=self.remove_duplicates)
+        return pdb_to_aaseq(path, ignore_duplicates=self.ignore_duplicates)
