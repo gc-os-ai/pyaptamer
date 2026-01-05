@@ -47,31 +47,32 @@ class MoleculeLoader:
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
     def to_df_seq(self):
-        """Return a pd.DataFrame of sequences.
+        """Return a pd.DataFrame of sequences with MultiIndex (path, seq_id).
 
         Returns
         --------
         pd.DataFrame
             sequences in self in a pd.DataFrame;
+            index is a MultiIndex (path, seq_id);
             has single column "sequence";
-            each row contains a list of str representing
-            the primary sequence(s) found in the files in `path`
-            sequences are determined from files as follows: [fill in]
+            each row contains one primary amino-acid sequence
         """
         paths = self._path
 
-        rows = []
+        index_tuples = []
+        sequences = []
+
         for path in paths:
             seqs = self._load_dispatch(path, "seq")
-            for seq in seqs:
-                rows.append(seq)
+            for i, seq in enumerate(seqs):
+                index_tuples.append((path, i))
+                sequences.append(seq)
 
-        if self.columns is None:
-            columns = ["sequence"]
-        else:
-            columns = self.columns
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "seq_id"])
 
-        return pd.DataFrame(rows, columns=columns, index=self.index)
+        columns = ["sequence"] if self.columns is None else self.columns
+
+        return pd.DataFrame(sequences, index=index, columns=columns)
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()

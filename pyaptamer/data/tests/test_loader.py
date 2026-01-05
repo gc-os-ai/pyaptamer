@@ -12,42 +12,37 @@ DATA_PATHS = [
 
 
 def test_string_path():
-    """Test loading with string path."""
+    """Test that MoleculeLoader works with string paths."""
     root_path = Path(__file__).parent.parent.parent
     full_paths = [str(root_path / p) for p in DATA_PATHS]
 
     loader = MoleculeLoader(full_paths)
-    assert isinstance(loader, MoleculeLoader)
+    df = loader.to_df_seq()
 
-    pd_df = loader.to_df_seq()
+    # column contract unchanged
+    assert list(df.columns) == ["sequence"]
 
-    # one column, many rows (flattened sequences)
-    assert pd_df.shape[1] == 1
-    assert pd_df.shape[0] >= len(DATA_PATHS)
+    # MultiIndex contract
+    assert df.index.nlevels == 2
+    assert df.index.names == ["path", "seq_id"]
 
-    # ensure sequences are strings, not lists
-    assert isinstance(pd_df.iloc[0, 0], str)
+    # all sequences are strings
+    assert df["sequence"].map(type).eq(str).all()
 
-    # check expected sequence content exists
-    assert any(seq.startswith("QTDMSRK") for seq in pd_df["sequence"])
+    # at least one known sequence exists
+    assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
 
 
 def test_pathlib_path():
-    """Test loading with pathlib Path."""
+    """Test that MoleculeLoader works with pathlib.Path paths."""
     root_path = Path(__file__).parent.parent.parent
     full_paths = [root_path / p for p in DATA_PATHS]
 
     loader = MoleculeLoader(full_paths)
-    assert isinstance(loader, MoleculeLoader)
+    df = loader.to_df_seq()
 
-    pd_df = loader.to_df_seq()
-
-    # one column, many rows (flattened sequences)
-    assert pd_df.shape[1] == 1
-    assert pd_df.shape[0] >= len(DATA_PATHS)
-
-    # ensure sequences are strings
-    assert isinstance(pd_df.iloc[0, 0], str)
-
-    # check expected sequence content exists
-    assert any(seq.startswith("QTDMSRK") for seq in pd_df["sequence"])
+    assert list(df.columns) == ["sequence"]
+    assert df.index.nlevels == 2
+    assert df.index.names == ["path", "seq_id"]
+    assert df["sequence"].map(type).eq(str).all()
+    assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
