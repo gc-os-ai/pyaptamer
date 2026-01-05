@@ -6,38 +6,43 @@ from pyaptamer.data.loader import MoleculeLoader
 
 # dataset paths relative to pyaptamer root
 DATA_PATHS = [
-    "datasets/data/pfoa.pdb",
+    "datasets/data/1gnh_no_seqres.pdb",
     "datasets/data/1gnh.pdb",
 ]
 
 
 def test_string_path():
-    """Test loading with string path."""
-    # get full paths first
+    """Test that MoleculeLoader works with string paths."""
     root_path = Path(__file__).parent.parent.parent
     full_paths = [str(root_path / p) for p in DATA_PATHS]
 
     loader = MoleculeLoader(full_paths)
-    assert isinstance(loader, MoleculeLoader)
+    df = loader.to_df_seq()
 
-    pd_df = loader.to_df_seq()
-    assert pd_df.shape == (len(DATA_PATHS), 1)
+    # column contract unchanged
+    assert list(df.columns) == ["sequence"]
 
-    one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str.startswith("QTDMSRK")
+    # MultiIndex contract
+    assert df.index.nlevels == 2
+    assert df.index.names == ["path", "seq_id"]
+
+    # all sequences are strings
+    assert df["sequence"].map(type).eq(str).all()
+
+    # at least one known sequence exists
+    assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
 
 
 def test_pathlib_path():
-    """Test loading with pathlib Path."""
-    # get full paths first
+    """Test that MoleculeLoader works with pathlib.Path paths."""
     root_path = Path(__file__).parent.parent.parent
     full_paths = [root_path / p for p in DATA_PATHS]
 
     loader = MoleculeLoader(full_paths)
-    assert isinstance(loader, MoleculeLoader)
+    df = loader.to_df_seq()
 
-    pd_df = loader.to_df_seq()
-    assert pd_df.shape == (len(DATA_PATHS), 1)
-
-    one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str.startswith("QTDMSRK")
+    assert list(df.columns) == ["sequence"]
+    assert df.index.nlevels == 2
+    assert df.index.names == ["path", "seq_id"]
+    assert df["sequence"].map(type).eq(str).all()
+    assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])

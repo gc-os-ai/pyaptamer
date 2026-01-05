@@ -1,10 +1,13 @@
 """Molecule data loading module."""
 
+__all__ = ["MoleculeLoader"]
+__author__ = ["fkiraly", "satvshr"]
+
 from pathlib import Path
 
 import pandas as pd
 
-from pyaptamer.utils import aa_str_to_letter
+from pyaptamer.utils import pdb_to_aaseq
 
 
 class MoleculeLoader:
@@ -25,13 +28,16 @@ class MoleculeLoader:
 
     columns : list, optional
         column names for the structure; if None, defaults to ["sequence"]
+
+    ignore_duplicates : bool, optional, default=False
+        if True, removes duplicate sequences (keeping the first occurrence).
     """
 
-    def __init__(self, path, index=None, columns=None):
+    def __init__(self, path, index=None, columns=None, ignore_duplicates=False):
         self.path = path
         self.index = index
         self.columns = columns
-
+        self.ignore_duplicates = ignore_duplicates
         if isinstance(path, str):
             path = [Path(path)]
             self._path = path
@@ -41,26 +47,32 @@ class MoleculeLoader:
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
     def to_df_seq(self):
-        """Return a pd.DataFrame of sequences.
+        """Return a pd.DataFrame of sequences with MultiIndex (path, seq_id).
 
         Returns
         --------
         pd.DataFrame
-            string sequences in self in a pd.DataFrame of str
+            sequences in self in a pd.DataFrame;
+            index is a MultiIndex (path, seq_id);
             has single column "sequence";
-            rows are primary sequences found in the files in `path`
-            sequences are determined from files as follows: [fill in]
+            each row contains one primary amino-acid sequence
         """
         paths = self._path
 
-        seq_list = [self._load_dispatch(path, "seq") for path in paths]
+        index_tuples = []
+        sequences = []
 
-        if self.columns is None:
-            columns = ["sequence"]
-        else:
-            columns = self.columns
+        for path in paths:
+            seqs = self._load_dispatch(path, "seq")
+            for i, seq in enumerate(seqs):
+                index_tuples.append((path, i))
+                sequences.append(seq)
 
-        return pd.DataFrame(seq_list, columns=columns, index=self.index)
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "seq_id"])
+
+        columns = ["sequence"] if self.columns is None else self.columns
+
+        return pd.DataFrame(sequences, index=index, columns=columns)
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()
@@ -75,7 +87,7 @@ class MoleculeLoader:
         return loader(path)
 
     def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the primary sequence.
+        """Load a PDB file and extract the amino-acid sequences.
 
         Parameters
         -----------
@@ -84,16 +96,7 @@ class MoleculeLoader:
 
         Returns
         --------
-        str
-            primary sequence extracted from PDB file
+        List[str]
+            primary sequence extracted from the PDB file as a list of strings
         """
-        sequence = []
-        with open(path) as f:
-            for line in f:
-                if line.startswith("SEQRES"):
-                    parts = line.split()
-                    seq_parts = parts[4:]  # Skip the first four columns
-                    sequence.extend(seq_parts)
-        # convert three-letter codes to one-letter codes
-        sequence = [aa_str_to_letter(aa) for aa in sequence]
-        return "".join(sequence)
+        return pdb_to_aaseq(path, ignore_duplicates=self.ignore_duplicates)
