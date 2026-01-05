@@ -12,5 +12,5 @@ def test_loaders_mol():
     gnh = load_1gnh()
     assert isinstance(gnh, MoleculeLoader)
 
-    gnh_seq = gnh.to_df_seq().iloc[0, 0]
-    assert gnh_seq[0].startswith("QTDMSRK")
+    df = gnh.to_df_seq()
+    assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
