@@ -15,7 +15,7 @@ from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
 from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 from pyaptamer.datasets._loaders._li2014 import load_li2014
 from pyaptamer.datasets._loaders._online_databank import load_from_rcsb
-from pyaptamer.datasets._loaders._pfoa import load_pfoa_structure
+from pyaptamer.datasets._loaders._pfoa import load_pfoa, load_pfoa_structure
 
 __all__ = [
     "load_aptacom_full",
@@ -30,4 +30,5 @@ __all__ = [
     "load_li2014",
     "load_1brq",
     "load_5nu7",
+    "load_pfoa",
 ]
