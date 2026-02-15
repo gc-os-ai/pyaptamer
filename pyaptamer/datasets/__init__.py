@@ -9,6 +9,7 @@ from pyaptamer.datasets._loaders import (
     load_csv_dataset,
     load_from_rcsb,
     load_hf_dataset,
+    load_pfoa,
 )
 from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 from pyaptamer.datasets._loaders._li2014 import load_li2014
@@ -24,6 +25,7 @@ __all__ = [
     "load_1brq",
     "load_5nu7",
     "load_1gnh",
+    "load_pfoa",
     "load_1gnh_structure",
     "load_from_rcsb",
     "load_li2014",
