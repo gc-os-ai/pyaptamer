@@ -9,8 +9,9 @@ from pyaptamer.datasets._loaders._aptacom_loader import (
 )
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
 from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
+from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
+from pyaptamer.datasets._loaders._li2014 import load_li2014
 from pyaptamer.datasets._loaders._online_databank import load_from_rcsb
-from pyaptamer.datasets._loaders._pfoa import load_pfoa
 
 __all__ = [
     "load_aptacom_full",
@@ -18,8 +19,9 @@ __all__ = [
     "load_csv_dataset",
     "load_from_rcsb",
     "load_hf_dataset",
+    "load_hf_to_dataset",
     "load_1gnh",
+    "load_li2014",
     "load_1brq",
     "load_5nu7",
-    "load_pfoa",
 ]
