@@ -306,8 +306,35 @@ class TestMCTS:
     def test_simulation(self, mcts):
         """Check simulation step runs without errors."""
         node = mcts.root.create_child(val="A_")
-        _ = mcts._simulation(node=node)
-        assert True
+        score = mcts._simulation(node=node)
+        assert isinstance(score, float)
+
+    def test_simulation_uses_reconstructed_sequence(self):
+        """Check simulation evaluates underscore-free candidates with target length."""
+
+        class RecordingExperiment:
+            def __init__(self):
+                self.last_sequence = None
+
+            def evaluate(self, aptamer_candidate):
+                self.last_sequence = aptamer_candidate
+                return np.float64(len(aptamer_candidate))
+
+        experiment = RecordingExperiment()
+        mcts = MCTS(
+            experiment=experiment,
+            states=NUCLEOTIDES,
+            depth=5,
+            n_iterations=2,
+        )
+
+        node = mcts.root.create_child(val="A_")
+        score = mcts._simulation(node=node)
+
+        assert score == 5.0
+        assert experiment.last_sequence is not None
+        assert "_" not in experiment.last_sequence
+        assert len(experiment.last_sequence) == 5
 
     def test_find_best_subsequence(self, mcts):
         """Check whether the best subsequence is returned based on UCT scores."""
