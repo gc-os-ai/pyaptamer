@@ -120,11 +120,20 @@ class AptaTransLightning(L.LightningModule):
             The computed loss for the batch.
         """
         loss, accuracy = self._step(batch, batch_idx)
-
         self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         self.log(
             "train_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True
         )
+
+        return loss
+
+    def validation_step(
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
+    ) -> Tensor:
+        """Defines a single (mini-batch) step in the validation loop."""
+        loss, accuracy = self._step(batch, batch_idx)
+        self.log("val_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log("val_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
 
         return loss
 
@@ -144,7 +153,6 @@ class AptaTransLightning(L.LightningModule):
             The computed loss for the batch.
         """
         loss, accuracy = self._step(batch, batch_idx)
-
         self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         self.log("test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
 
@@ -305,6 +313,16 @@ class AptaTransEncoderLightning(AptaTransLightning):
         """
         loss = self._step(batch, batch_idx)
         self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
+        return loss
+
+    def validation_step(
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
+    ) -> Tensor:
+        """Defines a single (mini-batch) step in the validation loop."""
+        loss = self._step(batch, batch_idx)
+        self.log("val_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
         return loss
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
@@ -324,6 +342,7 @@ class AptaTransEncoderLightning(AptaTransLightning):
         """
         loss = self._step(batch, batch_idx)
         self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
