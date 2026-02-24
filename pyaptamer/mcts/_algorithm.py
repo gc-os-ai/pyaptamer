@@ -141,6 +141,22 @@ class MCTS(BaseObject):
 
         return result
 
+    @staticmethod
+    def _to_scalar_score(score) -> float:
+        """Convert model output to a scalar float used for backpropagation."""
+        if hasattr(score, "item"):
+            return float(score.item())
+        return float(score)
+
+    @staticmethod
+    def _token_count(encoded_sequence: str) -> int:
+        """Return the number of encoded tokens in an underscore-form sequence."""
+        if len(encoded_sequence) % 2 != 0:
+            raise ValueError(
+                f"Encoded sequence must have even length, got {len(encoded_sequence)}."
+            )
+        return len(encoded_sequence) // 2
+
     def _selection(self, node: "TreeNode") -> "TreeNode":
         """Select a node for expansion.
 
@@ -224,12 +240,13 @@ class MCTS(BaseObject):
         sequence = self.base + sequence
 
         # fill the rest of the sequence with random possible values
-        remaining_length = (self.depth * 2) - len(sequence)
-        for _ in range(remaining_length):
+        remaining_tokens = self.depth - self._token_count(sequence)
+        for _ in range(max(0, remaining_tokens)):
             sequence += random.choice(self.states)
 
-        # evaluate the candidate sequence with the goal function
-        return self.experiment.evaluate(sequence)
+        # evaluate the reconstructed candidate sequence with the goal function
+        reconstructed_sequence = self._reconstruct(sequence)
+        return self._to_scalar_score(self.experiment.evaluate(reconstructed_sequence))
 
     def _find_best_subsequence(self) -> str:
         """Retrieve the best sequence found so far, according to the UCT scores.
@@ -243,7 +260,7 @@ class MCTS(BaseObject):
         subsequence = self.base
 
         # traverse the tree
-        max_steps = (self.depth * 2) - len(self.base)
+        max_steps = self.depth - self._token_count(self.base)
         for _ in range(max_steps):
             if not curr.children:
                 break
@@ -271,9 +288,9 @@ class MCTS(BaseObject):
         """
         self._reset()
 
-        # continue until we reach the target sequence length (i.e, depth * 2)
+        # continue until we reach the target sequence length
         round_count = 0
-        while len(self.base) < self.depth * 2:
+        while self._token_count(self.base) < self.depth:
             if verbose:
                 print(f"\n ----- Round: {round_count + 1} -----")
 
@@ -296,13 +313,15 @@ class MCTS(BaseObject):
             if verbose:
                 print("#" * 50)
                 print(f"Best subsequence: {self.base}")
-                print(f"Depth: {len(self.base) // 2}")
+                print(f"Depth: {self._token_count(self.base)}")
                 print("#" * 50)
 
             # reset for next iteration
             self.root = TreeNode(
                 n_states=len(self.states),
-                depth=len(self.base) // 2,  # adjust depth based on current base
+                depth=self._token_count(
+                    self.base
+                ),  # adjust depth based on current base
             )
 
             round_count += 1
