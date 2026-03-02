@@ -96,6 +96,13 @@ class BaseTransform(BaseEstimator):
             Transformed data.
         """
         if self.get_tag("property:elementwise", False):
+            if isinstance(X, str):
+                return self._transform_element(X)
+            if isinstance(X, list):
+                return [self._transform_element(x) for x in X]
+            if isinstance(X, pd.DataFrame):
+                seqs = X["sequence"] if "sequence" in X.columns else X.iloc[:, 0]
+                return [self._transform_element(seq) for seq in seqs]
             return X.map(self._transform_element)
 
         raise ValueError(
@@ -149,6 +156,10 @@ class BaseTransform(BaseEstimator):
         """
         if isinstance(X, MoleculeLoader):
             X = X.to_df_seq()
+
+        if self.get_tag("property:elementwise", False) and isinstance(X, (str, list)):
+            return X, y
+
         if not isinstance(X, pd.DataFrame):
             raise TypeError(
                 "X must be a MoleculeLoader instance"

@@ -5,12 +5,12 @@ from collections import Counter
 
 import numpy as np
 
-from pyaptamer.data import MoleculeLoader
 from pyaptamer.pseaac._props import aa_props
+from pyaptamer.trafos.base import BaseTransform
 from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
-class AptaNetPSeAAC:
+class AptaNetPSeAAC(BaseTransform):
     """
     Compute Pseudo Amino Acid Composition (PseAAC) features for a protein sequence.
 
@@ -97,6 +97,13 @@ class AptaNetPSeAAC:
     [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
     """
 
+    _tags = {
+        "output_type": "numeric",
+        "property:fit_is_empty": True,
+        "capability:multivariate": False,
+        "property:elementwise": True,
+    }
+
     def __init__(self, lambda_val=30, weight=0.05):
         self.lambda_val = lambda_val
         self.weight = weight
@@ -113,6 +120,8 @@ class AptaNetPSeAAC:
             (15, 16, 17),
             (18, 19, 20),
         ]
+
+        super().__init__()
 
     def _normalized_aa(self, seq):
         """
@@ -163,26 +172,7 @@ class AptaNetPSeAAC:
         diffs = rj - ri
         return np.mean(diffs**2)
 
-    def transform(self, protein_sequence):
-        """Get PseAAC features for protein sequence or MoleculeLoader.
-
-        Parameters
-        ----------
-        protein_sequence : str or MoleculeLoader
-            Sequence string, or a MoleculeLoader.
-
-        Returns
-        -------
-        np.ndarray or list of np.ndarray
-            If input is a str: 1D array of PseAAC features.
-            If input is a MoleculeLoader: list of 1D arrays, one per sequence.
-        """
-        if isinstance(protein_sequence, MoleculeLoader):
-            seqs = protein_sequence.to_df_seq()["sequence"]
-            return [self._transform(seq) for seq in seqs]
-        return self._transform(protein_sequence)
-
-    def _transform(self, protein_sequence):
+    def _transform_element(self, protein_sequence):
         """
         Generate the PseAAC feature vector for the given protein sequence.
 
