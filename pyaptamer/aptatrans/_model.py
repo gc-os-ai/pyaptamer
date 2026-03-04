@@ -168,6 +168,9 @@ class AptaTrans(nn.Module):
         )
 
         if pretrained:
+            # if ``pretrained`` is True we rely on the default path logic of
+            # :meth:`load_pretrained_weights`.  This will download the file if
+            # it is missing on disk.
             self.load_pretrained_weights()
 
     def _make_encoder(
@@ -260,14 +263,21 @@ class AptaTrans(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def load_pretrained_weights(self) -> None:
-        """Load pretrained model weights from hugging face.
+    def load_pretrained_weights(self, path: str | None = None) -> None:
+        """Load pretrained model weights from hugging face or local file.
 
-        If the weights are not found locally, they will be downloaded from hugging face.
+        Parameters
+        ----------
+        path : str or None
+            Optional path to a local checkpoint file. If ``None`` the default
+            location inside ``pyaptamer/aptatrans/weights/pretrained.pt`` is
+            used. When the file does not exist locally the method will attempt
+            to download the weights from the public Hugging Face repository.
         """
-        path = os.path.relpath(
-            os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
-        )
+        if path is None:
+            path = os.path.relpath(
+                os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
+            )
 
         if os.path.exists(path):
             print(f"Loading pretrained weights from {path}...")
@@ -285,6 +295,27 @@ class AptaTrans(nn.Module):
             )
 
         self.load_state_dict(state_dict, strict=True)
+
+    # ---------------------------------------------------------------------
+    # convenience helpers for training/saving
+    # ---------------------------------------------------------------------
+    def save_pretrained(self, path: str | None = None) -> None:
+        """Save the current model weights to disk.
+
+        Parameters
+        ----------
+        path : str or None
+            Destination path to write the checkpoint. If ``None`` the default
+            weights directory inside the package will be used (same location
+            as ``load_pretrained_weights``).
+        """
+        if path is None:
+            path = os.path.relpath(
+                os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
+            )
+        # ensure the directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        torch.save(self.state_dict(), path)
 
     def forward_encoder(
         self, x: tuple[Tensor, Tensor], encoder_type: str

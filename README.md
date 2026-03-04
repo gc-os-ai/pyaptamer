@@ -26,9 +26,46 @@ NOTE: the package is in early development and not 100% feature complete - contri
 
 ## 🛠️ Usage
 
-```python
+Below is a minimal example showing how to instantiate, train and save
+pretrained weights for the AptaTrans model.  This is the same procedure you
+would follow when re-training the network from scratch before uploading the
+resulting checkpoint to the GC.OS HuggingFace repository.
 
-to be completed
+```python
+import torch
+from torch.utils.data import DataLoader
+
+from pyaptamer.aptatrans import (
+    AptaTrans,
+    AptaTransLightning,
+    EncoderPredictorConfig,
+)
+
+# --- build a very small model for demonstration ---
+apta_embedding = EncoderPredictorConfig(num_embeddings=4, target_dim=2, max_len=8)
+prot_embedding = EncoderPredictorConfig(num_embeddings=4, target_dim=2, max_len=8)
+model = AptaTrans(apta_embedding, prot_embedding, in_dim=4, n_encoder_layers=1, n_heads=1, conv_layers=[1,1,1])
+
+# wrap in Lightning for training convenience
+lightning_model = AptaTransLightning(model)
+
+# dummy dataset (replace with real aptamer/protein sequences)
+x_apta = torch.randint(0, 4, (16, 8))
+x_prot = torch.randint(0, 4, (16, 8))
+y = torch.randint(0, 2, (16, 1)).float()
+loader = DataLoader(list(zip(x_apta, x_prot, y)), batch_size=4, shuffle=True)
+
+trainer = torch.manual_seed(42)  # deterministic initialization for example
+from lightning import Trainer
+trainer = Trainer(max_epochs=1)
+trainer.fit(lightning_model, loader)
+
+# after training you can save a checkpoint to disk
+model.save_pretrained("./weights/pretrained.pt")
+
+# later you (or others) can load the weights again
+new_model = AptaTrans(apta_embedding, prot_embedding, in_dim=4, n_encoder_layers=1, n_heads=1, conv_layers=[1,1,1])
+new_model.load_pretrained_weights("./weights/pretrained.pt")
 ```
 
 ---

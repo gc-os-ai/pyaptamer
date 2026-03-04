@@ -28,7 +28,14 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
 
     mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
     mapping_resp = requests.get(mapping_url)
-    mapping_data = mapping_resp.json()
+    if not mapping_resp.ok:
+        raise requests.HTTPError(
+            f"Failed to fetch UniProt mapping for PDB ID '{pdb_id}': HTTP {mapping_resp.status_code}"
+        )
+    try:
+        mapping_data = mapping_resp.json()
+    except Exception as e:  # pragma: no cover - defensive
+        raise RuntimeError(f"Invalid JSON received from PDBe mapping endpoint: {e}")
 
     uniprot_ids = list(mapping_data.get(pdb_id, {}).get("UniProt", {}).keys())
     if not uniprot_ids:
@@ -38,9 +45,16 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
 
     fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
     fasta_resp = requests.get(fasta_url)
+    if not fasta_resp.ok:
+        raise requests.HTTPError(
+            f"Failed to fetch UniProt FASTA for UniProt ID '{uniprot_id}': HTTP {fasta_resp.status_code}"
+        )
     fasta_data = fasta_resp.text
 
-    record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
+    try:
+        record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
+    except StopIteration:  # pragma: no cover - defensive
+        raise ValueError(f"No FASTA record found for UniProt ID '{uniprot_id}'")
     sequence = str(record.seq)
 
     df = pd.DataFrame({"sequence": [sequence]})
