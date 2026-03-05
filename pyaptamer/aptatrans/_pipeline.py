@@ -43,7 +43,10 @@ class AptaTransPipeline:
         subsequences and their frequency should come from the same dataset used for
         pretraining the protein encoder.
     depth : int, optional, default=20
-        The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm.
+        The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm. Also
+        defines the length of the generated aptamer candidates. Must be equal or
+        greater than 3 since preprocessing uses triplet encoding (3-mers), which
+        requires sequences of at least 3 nucleotides to extract overlapping triplets.
     n_iterations : int, optional, default=1000
         The number of iterations for the MCTS algorithm.
 
@@ -91,7 +94,17 @@ class AptaTransPipeline:
         depth: int = 20,
         n_iterations: int = 1000,
     ) -> None:
-        super().__init__()
+        """
+        Raises
+        ------
+        ValueError
+            If `depth` is less than 3.
+        """
+        if depth < 3:
+            raise ValueError(
+                f"Invalid depth value: {depth}. Must be grater or equal than 3."
+            )
+
         self.device = device
         self.model = model.to(device)
         self.depth = depth
