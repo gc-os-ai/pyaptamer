@@ -6,13 +6,13 @@ from skbase.base import BaseObject
 from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
-from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.utils._aptanet_utils import pairs_to_features
+from pyaptamer.utils._sklearn_delegator import SklearnPipelineDelegator
 
 
-class AptaNetPipeline(BaseObject, BaseEstimator):
+class AptaNetPipeline(SklearnPipelineDelegator, BaseObject, BaseEstimator):
     """
     AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
@@ -77,13 +77,14 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
     def fit(self, X, y):
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(X, y)
+        # reuse delegator's implementation; keep signature for docstring
+        return super().fit(X, y)
 
     def predict_proba(self, X):
-        check_is_fitted(self)
-        return self.pipeline_.predict_proba(X)
+        # ensure fitted before forwarding
+        self._check_fitted()
+        return super().predict_proba(X)
 
     def predict(self, X):
-        check_is_fitted(self)
-        return self.pipeline_.predict(X)
+        self._check_fitted()
+        return super().predict(X)
