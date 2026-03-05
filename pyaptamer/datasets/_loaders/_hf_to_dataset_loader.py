@@ -2,16 +2,31 @@ __author__ = "satvshr"
 __all__ = ["load_hf_to_dataset"]
 
 import os
+import urllib.parse
 
 import requests
 from datasets import load_dataset
+
+# only allow downloads from trusted hosts to avoid SSRF
+_ALLOWED_HF_HOSTS = ("huggingface.co", "hf.co")
 
 # File formats not natively supported by `datasets.load_dataset`
 FILE_FORMATS = ["fasta", "pdb"]
 
 
+def _validate_hf_url(url: str) -> None:
+    """Raise ValueError if URL is not allowed (SSRF protection)."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL scheme {parsed.scheme!r} not allowed")
+    host = parsed.hostname or ""
+    if not any(host.endswith(ah) for ah in _ALLOWED_HF_HOSTS):
+        raise ValueError(f"Host {host!r} not permitted for download")
+
+
 def _download_to_cwd(url):
     """Download URL into ./hf_datasets/ preserving the filename."""
+    _validate_hf_url(url)
     os.makedirs("hf_datasets", exist_ok=True)
 
     filename = os.path.basename(url)
@@ -59,8 +74,9 @@ def load_hf_to_dataset(path, download_locally=False, **kwargs):
     """
     original_path = path
 
-    # Download external file when requested
+    # Download external file when requested (only from allowed hosts)
     if download_locally and str(path).startswith(("http://", "https://")):
+        _validate_hf_url(path)
         path = _download_to_cwd(path)
 
     # File extension

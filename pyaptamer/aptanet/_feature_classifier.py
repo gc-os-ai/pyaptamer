@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
+from pyaptamer.utils._sklearn_delegator import SklearnPipelineDelegator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
@@ -15,7 +16,7 @@ from torch import optim
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
 
 
-class AptaNetClassifier(ClassifierMixin, BaseEstimator):
+class AptaNetClassifier(SklearnPipelineDelegator, ClassifierMixin, BaseEstimator):
     """
     AptaNet-style binary classifier for aptamer–protein interaction prediction.
 
@@ -96,8 +97,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         return Pipeline([("select", selector), ("net", net)])
 
     def fit(self, X, y):
-        """
-        Fit the classifier on training data.
+        """Fit the classifier on training data.
 
         Parameters
         ----------
@@ -123,47 +123,23 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
             torch.manual_seed(self.random_state)
 
         self.classes_, y = np.unique(y, return_inverse=True)
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+        # delegate pipeline creation and fitting to base class
+        return super().fit(
+            X.astype(np.float32, copy=False),
+            y.astype(np.float32, copy=False),
         )
-        return self
 
     def predict_proba(self, X):
-        """
-        Predict class probabilities for samples in `X`.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Input features.
-
-        Returns
-        -------
-        ndarray of shape (n_samples, n_classes)
-            Probability estimates for each class.
-        """
-        check_is_fitted(self)
+        """Predict class probabilities for samples in `X`."""
+        self._check_fitted()
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
-        return self.pipeline_.predict_proba(X)
+        return super().predict_proba(X)
 
     def predict(self, X):
-        """
-        Predict binary class labels for samples in `X`.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Input features.
-
-        Returns
-        -------
-        y_pred : ndarray of shape (n_samples,)
-            Predicted class labels.
-        """
-        check_is_fitted(self)
+        """Predict binary class labels for samples in `X`."""
+        self._check_fitted()
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
-        y = self.pipeline_.predict(X).astype(int, copy=False)
+        y = super().predict(X).astype(int, copy=False)
         return self.classes_[y]
 
     def __sklearn_tags__(self):
@@ -174,7 +150,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         return tags
 
 
-class AptaNetRegressor(RegressorMixin, BaseEstimator):
+class AptaNetRegressor(SklearnPipelineDelegator, RegressorMixin, BaseEstimator):
     """
     AptaNet-style regressor for aptamer–protein interaction prediction.
 
@@ -283,21 +259,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         return Pipeline([("select", selector), ("net", net)])
 
     def fit(self, X, y):
-        """
-        Fit the regressor on training data.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training features.
-        y : array-like of shape (n_samples,)
-            Continuous regression targets.
-
-        Returns
-        -------
-        self : object
-            Fitted estimator.
-        """
+        """Fit the regressor on training data."""
         X, y = validate_data(self, X, y)
         y = y.reshape(-1, 1)
 
@@ -305,29 +267,16 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+        return super().fit(
+            X.astype(np.float32, copy=False),
+            y.astype(np.float32, copy=False),
         )
-        return self
 
     def predict(self, X):
-        """
-        Predict continuous values for samples in `X`.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Input features.
-
-        Returns
-        -------
-        y_pred : ndarray of shape (n_samples,)
-            Predicted continuous values.
-        """
-        check_is_fitted(self)
+        """Predict continuous values for samples in `X`."""
+        self._check_fitted()
         X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
-        return self.pipeline_.predict(X).reshape(-1)
+        return super().predict(X).reshape(-1)
 
     def score(self, X, y):
         from sklearn.metrics import r2_score
