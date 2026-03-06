@@ -1,4 +1,5 @@
 import io
+import re
 
 import pandas as pd
 import requests
@@ -25,6 +26,9 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
         Depending on ``return_type``.
     """
     pdb_id = pdb_id.lower()
+
+    if not re.fullmatch(r"[0-9][A-Za-z0-9]{3}", pdb_id):
+        raise ValueError(f"Invalid PDB ID '{pdb_id}'")
 
     mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
     mapping_resp = requests.get(mapping_url)

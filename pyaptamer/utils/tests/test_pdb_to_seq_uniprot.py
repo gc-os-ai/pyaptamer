@@ -1,3 +1,4 @@
+import pytest
 import pandas as pd
 
 from pyaptamer.utils import pdb_to_seq_uniprot
@@ -16,3 +17,20 @@ def test_pdb_to_seq_uniprot():
     assert isinstance(lst, list)
     assert len(lst) == 1
     assert len(lst[0]) > 0
+
+
+def test_invalid_pdb_raises():
+    with pytest.raises(ValueError):
+        pdb_to_seq_uniprot("bad!")
+
+
+def test_nonexistent_pdb_raises(monkeypatch):
+    def fake_get(url):
+        class R:
+            def json(self):
+                return {}
+        return R()
+
+    monkeypatch.setattr("requests.get", fake_get)
+    with pytest.raises(ValueError):
+        pdb_to_seq_uniprot("1abc")
