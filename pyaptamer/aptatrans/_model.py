@@ -70,8 +70,9 @@ class AptaTrans(nn.Module):
     avgpool : nn.AdaptiveAvgPool2d
         Adaptive average pooling layer applied before the fully-connected head.
     fc : nn.Sequential
-        A sequential container of linear layers and activations for outputting the
-        final predictions.
+        A sequential container of linear layers for outputting the final logits.
+        Note: The model outputs raw logits for AMP-compatible training. Use
+        ``predict_proba()`` to get probabilities in [0, 1].
 
     References
     ----------
@@ -155,6 +156,8 @@ class AptaTrans(nn.Module):
         )
 
         # fully-connected head
+        # NOTE: We output raw logits (no sigmoid) to enable AMP-compatible
+        # training with binary_cross_entropy_with_logits.
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Sequential(
             OrderedDict(
@@ -162,7 +165,6 @@ class AptaTrans(nn.Module):
                     ("linear1", nn.Linear(self.inplanes, self.inplanes // 2)),
                     ("activation1", nn.GELU()),
                     ("linear2", nn.Linear(self.inplanes // 2, 1)),
-                    ("activation2", nn.Sigmoid()),
                 ]
             )
         )
@@ -380,3 +382,22 @@ class AptaTrans(nn.Module):
         out = self.fc(out)
 
         return out
+
+    def predict_proba(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
+        """Compute interaction probabilities.
+
+        This method applies sigmoid to the raw logits from ``forward()`` to
+        return probabilities in the range [0, 1].
+
+        Parameters
+        ----------
+        x_apta, x_prot : Tensor
+            Input tensors for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1)) and (batch_size, seq_len (s2)), respectively.
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch_size, 1) containing probabilities.
+        """
+        return torch.sigmoid(self.forward(x_apta, x_prot))
