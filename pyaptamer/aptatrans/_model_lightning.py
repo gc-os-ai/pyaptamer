@@ -76,7 +76,13 @@ class AptaTransLightning(L.LightningModule):
         self.weight_decay = weight_decay
         self.betas = betas
 
-    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+    def _log_metric(self, name: str, value: Tensor) -> None:
+        """Log metric at epoch level with progress bar display."""
+        self.log(name, value, on_epoch=True, on_step=False, prog_bar=True)
+
+    def _step(
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int, stage: str
+    ) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
         Parameters
@@ -85,6 +91,8 @@ class AptaTransLightning(L.LightningModule):
             A batch of data containing aptamer sequences, protein sequences, and labels.
         batch_idx: int
             Index of the batch.
+        stage: str
+            The stage of the step, either "train" or "test".
 
         Returns
         -------
@@ -100,55 +108,20 @@ class AptaTransLightning(L.LightningModule):
         y_pred = (y_hat > 0.5).float()
         accuracy = (y_pred == y.float()).float().mean()
 
-        return loss, accuracy
+        self._log_metric(f"{stage}_loss", loss)
+        self._log_metric(f"{stage}_accuracy", accuracy)
+
+        return loss
 
     def training_step(
         self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
     ) -> Tensor:
-        """Defines a single (mini-batch) step in the training loop.
-
-        Parameters
-        ----------
-        batch: tuple[Tensor, Tensor, Tensor]
-            A batch of data containing aptamer sequences, protein sequences, and labels.
-        batch_idx: int
-            Index of the batch.
-
-        Returns
-        -------
-        Tensor
-            The computed loss for the batch.
-        """
-        loss, accuracy = self._step(batch, batch_idx)
-
-        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
-        self.log(
-            "train_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True
-        )
-
-        return loss
+        """Defines a single (mini-batch) step in the training loop."""
+        return self._step(batch, batch_idx, "train")
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
-        """Defines a single (mini-batch) step in the test loop.
-
-        Parameters
-        ----------
-        batch: tuple[Tensor, Tensor, Tensor]
-            A batch of data containing aptamer sequences, protein sequences, and labels.
-        batch_idx: int
-            Index of the batch.
-
-        Returns
-        -------
-        Tensor
-            The computed loss for the batch.
-        """
-        loss, accuracy = self._step(batch, batch_idx)
-
-        self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
-        self.log("test_accuracy", accuracy, on_epoch=True, on_step=False, prog_bar=True)
-
-        return loss
+        """Defines a single (mini-batch) step in the test loop."""
+        return self._step(batch, batch_idx, "test")
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Defines the optimizer to be used during training."""
@@ -256,7 +229,9 @@ class AptaTransEncoderLightning(AptaTransLightning):
         self.weight_mlm = weight_mlm
         self.weight_ssp = weight_ssp
 
-    def _step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
+    def _step(
+        self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int, stage: str
+    ) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
         The loss function is a weighted sum of the masked language modeling (MLM)
@@ -264,10 +239,13 @@ class AptaTransEncoderLightning(AptaTransLightning):
 
         Parameters
         ----------
-        batch: tuple[Tensor, Tensor, Tensor]
-            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch: tuple[Tensor, Tensor, Tensor, Tensor]
+            A batch of data containing masked input, secondary structure input,
+            MLM targets, and SSP targets.
         batch_idx: int
             Index of the batch.
+        stage: str
+            The stage of the step, either "train" or "test".
 
         Returns
         -------
@@ -284,46 +262,8 @@ class AptaTransEncoderLightning(AptaTransLightning):
         loss_ssp = F.cross_entropy(y_ssp_hat.transpose(1, 2), y_ssp.long())
         loss = self.weight_mlm * loss_mlm + self.weight_ssp * loss_ssp
 
-        return loss
+        self._log_metric(f"{stage}_loss", loss)
 
-    def training_step(
-        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
-    ) -> Tensor:
-        """Defines a single (mini-batch) step in the training loop.
-
-        Parameters
-        ----------
-        batch: tuple[Tensor, Tensor, Tensor]
-            A batch of data containing aptamer sequences, protein sequences, and labels.
-        batch_idx: int
-            Index of the batch.
-
-        Returns
-        -------
-        Tensor
-            The computed loss for the batch.
-        """
-        loss = self._step(batch, batch_idx)
-        self.log("train_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
-        return loss
-
-    def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
-        """Defines a single (mini-batch) step in the test loop.
-
-        Parameters
-        ----------
-        batch: tuple[Tensor, Tensor, Tensor]
-            A batch of data containing aptamer sequences, protein sequences, and labels.
-        batch_idx: int
-            Index of the batch.
-
-        Returns
-        -------
-        Tensor
-            The computed loss for the batch.
-        """
-        loss = self._step(batch, batch_idx)
-        self.log("test_loss", loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
