@@ -1,12 +1,27 @@
 __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
+from collections import Counter
 from itertools import product
 
 import numpy as np
 import pandas as pd
 
 from pyaptamer.pseaac import AptaNetPSeAAC
+
+# Cache k-mer vocabularies by k; rebuilt per k only once
+_KMER_VOCAB_CACHE = {}
+
+
+def _get_kmer_vocab(k):
+    """Return ordered list of all k-mers (length 1..k) over ACGT."""
+    if k not in _KMER_VOCAB_CACHE:
+        _KMER_VOCAB_CACHE[k] = [
+            "".join(p)
+            for i in range(1, k + 1)
+            for p in product("ACGT", repeat=i)
+        ]
+    return _KMER_VOCAB_CACHE[k]
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
@@ -29,32 +44,16 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
     """
-    DNA_BASES = list("ACGT")
-
-    # Generate all possible k-mers from 1 to k
-    all_kmers = []
-    for i in range(1, k + 1):
-        all_kmers.extend(["".join(p) for p in product(DNA_BASES, repeat=i)])
-
-    # Count occurrences of each k-mer in the aptamer_sequence
-    kmer_counts = dict.fromkeys(all_kmers, 0)
-    for i in range(len(aptamer_sequence)):
-        for j in range(1, k + 1):
-            if i + j <= len(aptamer_sequence):
-                kmer = aptamer_sequence[i : i + j]
-                if kmer in kmer_counts:
-                    kmer_counts[kmer] += 1
-
-    # Normalize counts to frequencies
-    total_kmers = sum(kmer_counts.values())
-    kmer_freq = np.array(
-        [
-            kmer_counts[kmer] / total_kmers if total_kmers > 0 else 0
-            for kmer in all_kmers
-        ]
+    all_kmers = _get_kmer_vocab(k)
+    counts = Counter(
+        aptamer_sequence[i : i + j]
+        for j in range(1, k + 1)
+        for i in range(len(aptamer_sequence) - j + 1)
     )
-
-    return kmer_freq
+    total = sum(counts.get(m, 0) for m in all_kmers)
+    if total == 0:
+        return np.zeros(len(all_kmers), dtype=np.float64)
+    return np.array([counts.get(m, 0) / total for m in all_kmers], dtype=np.float64)
 
 
 def pairs_to_features(X, k=4):

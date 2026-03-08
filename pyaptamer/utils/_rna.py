@@ -30,12 +30,8 @@ def dna2rna(sequence: str) -> str:
     str
         The converted RNA sequence.
     """
-    # replace nucleotides 'T' with 'U'
-    result = sequence.translate(str.maketrans("T", "U"))
-    for char in result:
-        if char not in "ACGU":
-            result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
-    return result
+    result = sequence.translate(str.maketrans("Tt", "Uu"))
+    return "".join(c if c in "ACGU" else "N" for c in result)
 
 
 def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str, int]:
@@ -70,6 +66,11 @@ def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str
             idx += 1
 
     return nplets
+
+
+# Cached triplet vocabularies for rna2vec (constant per sequence_type)
+_RNA_TRIPLETS = None
+_SS_TRIPLETS = None
 
 
 def rna2vec(
@@ -130,14 +131,19 @@ def rna2vec(
     if sequence_type not in ["rna", "ss"]:
         raise ValueError("`sequence_type` must be either 'rna' or 'ss'.")
 
+    global _RNA_TRIPLETS, _SS_TRIPLETS
     if sequence_type == "rna":
-        # generate all rna triplets, 'N' marks unknown nucleotides
-        letters = ["A", "C", "G", "U", "N"]
-    else:  # sequence_type == "ss"
-        # generate all ss triplets
-        letters = ["S", "H", "M", "I", "B", "X", "E"]
-
-    triplets = generate_nplets(letters=letters, repeat=3)
+        if _RNA_TRIPLETS is None:
+            _RNA_TRIPLETS = generate_nplets(
+                letters=["A", "C", "G", "U", "N"], repeat=3
+            )
+        triplets = _RNA_TRIPLETS
+    else:
+        if _SS_TRIPLETS is None:
+            _SS_TRIPLETS = generate_nplets(
+                letters=["S", "H", "M", "I", "B", "X", "E"], repeat=3
+            )
+        triplets = _SS_TRIPLETS
 
     result = []
     for sequence in sequence_list:

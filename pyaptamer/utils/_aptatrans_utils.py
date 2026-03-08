@@ -7,6 +7,11 @@ import numpy as np
 
 from pyaptamer.utils import generate_nplets
 
+# Secondary-structure n-plet vocabulary; constant across all seq2vec calls
+_WORDS_SS = generate_nplets(
+    letters=["H", "B", "E", "G", "I", "T", "S", "-"], repeat=range(1, 4)
+)
+
 
 def seq2vec(
     sequence_list: tuple[list[str], list[str]],
@@ -16,9 +21,6 @@ def seq2vec(
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Convert sequences to vector representations using word dictionaries.
-
-    TODO: see if this can be merged in a more generic version of `_rna.rna2vec(...)`.
-    TODO: look into ways to speed it up.
 
     Tokenizes input sequences by matching substrings of varying lengths against
     provided vocabularies, then converts matches to indices and pads to uniform length.
@@ -54,10 +56,6 @@ def seq2vec(
     >>> seq2vec(sequences, words, seq_max_len=4)
     (array([[1., 2., 0., 0.]]), array([[9., 0., 0., 0.]]))
     """
-    words_ss = generate_nplets(
-        letters=["H", "B", "E", "G", "I", "T", "S", "-"], repeat=range(1, 4)
-    )
-
     outputs = []
     outputs_ss = []
 
@@ -81,7 +79,7 @@ def seq2vec(
                         matched = True
                         output.append(word_idx)
                         # 0 marks unknown secondary structure tokens
-                        output_ss.append(words_ss.get(substring_ss, 0))
+                        output_ss.append(_WORDS_SS.get(substring_ss, 0))
 
                         # if at `seq_max_len`, store and reset
                         if len(output) == seq_max_len:
