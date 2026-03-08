@@ -1,1 +1,1 @@
-"""Transformations."""
+"""Transformations module."""
