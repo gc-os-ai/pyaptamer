@@ -148,3 +148,16 @@ class GreedyEncoder(BaseTransform):
             "word_max_len": 2,
         }
         return [param0, param1]
+
+    def get_torch_transform(self):
+        """Return torch-compatible version of this encoder."""
+        from pyaptamer.trafos.torch import GreedyEncode
+
+        if self.max_len is None:
+            raise ValueError("max_len must be set for torch transform")
+
+        return GreedyEncode(
+            vocab=self.words,
+            max_len=self.max_len,
+            token_max_len=self.word_max_len,
+        )
