@@ -87,11 +87,9 @@ def prepare_x_y(df):
         ["aptamer_sequence", "target_sequence", "new_affinity"],
         and with rows containing no missing values in those columns.
     """
-    df.dropna(
-        subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
-    )
-    df = df[["aptamer_sequence", "target_sequence", "new_affinity"]]
-    return df
+    subset = ["aptamer_sequence", "target_sequence", "new_affinity"]
+    columns = ["aptamer_sequence", "target_sequence", "new_affinity"]
+    return df[columns].dropna(subset=subset)
 
 
 def load_aptacom_full(select_columns=None):

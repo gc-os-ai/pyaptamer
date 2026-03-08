@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from datasets import load_dataset
 
-from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
+from pyaptamer.datasets._loaders._csv_loader import _validate_dataset_name, load_csv_dataset
 
 
 def load_hf_dataset(name: str, store: bool = True) -> pd.DataFrame:
@@ -28,6 +28,7 @@ def load_hf_dataset(name: str, store: bool = True) -> pd.DataFrame:
     pandas.DataFrame
         A DataFrame containing the downloaded/loaded dataset.
     """
+    _validate_dataset_name(name)
     path = os.path.relpath(
         os.path.join(os.path.dirname(__file__), "..", "data", f"{name}.csv")
     )
@@ -41,10 +42,11 @@ def load_hf_dataset(name: str, store: bool = True) -> pd.DataFrame:
     try:
         dataset = load_dataset(f"gcos/pyaptamer-{name}")
         dataset = dataset["train"].to_pandas()
+    except FileNotFoundError:
+        raise
     except Exception as e:
-        raise FileNotFoundError(
-            f"Dataset {name} not found on Hugging Face. "
-            "Please check the dataset name or ensure it is available."
+        raise RuntimeError(
+            f"Failed to load dataset '{name}' from Hugging Face: {e}"
         ) from e
 
     if store:

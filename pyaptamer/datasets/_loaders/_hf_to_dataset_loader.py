@@ -17,9 +17,10 @@ def _download_to_cwd(url):
     filename = os.path.basename(url)
     local_path = os.path.join("hf_datasets", filename)
 
+    REQUEST_TIMEOUT_SEC = 60
     # Download only if file doesn't already exist
     if not os.path.exists(local_path):
-        r = requests.get(url)
+        r = requests.get(url, timeout=REQUEST_TIMEOUT_SEC)
         r.raise_for_status()
         with open(local_path, "wb") as f:
             f.write(r.content)

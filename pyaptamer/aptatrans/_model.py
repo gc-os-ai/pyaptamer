@@ -271,7 +271,7 @@ class AptaTrans(nn.Module):
 
         if os.path.exists(path):
             print(f"Loading pretrained weights from {path}...")
-            state_dict = torch.load(path, map_location=torch.device("cpu"))
+            state_dict = torch.load(path, map_location=torch.device("cpu"), weights_only=True)
         else:
             print("Downloading best weights from hugging face...")
             url = (

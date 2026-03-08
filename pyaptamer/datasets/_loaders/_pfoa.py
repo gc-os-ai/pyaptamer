@@ -36,7 +36,8 @@ def load_pfoa_structure(pdb_path=None):
     """
     from Bio.PDB import PDBParser
 
-    pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "pfoa.pdb")
+    if pdb_path is None:
+        pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "pfoa.pdb")
 
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("PFOA", pdb_path)

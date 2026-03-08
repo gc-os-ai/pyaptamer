@@ -28,6 +28,8 @@ class MoleculeLoader:
     """
 
     def __init__(self, path, index=None, columns=None):
+        if path is None:
+            raise ValueError("path cannot be None")
         self.path = path
         self.index = index
         self.columns = columns
@@ -39,6 +41,10 @@ class MoleculeLoader:
             self._path = [path]
         elif isinstance(path, list):
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
+        else:
+            raise TypeError(
+                f"path must be str, Path, or list thereof; got {type(path).__name__}"
+            )
 
     def to_df_seq(self):
         """Return a pd.DataFrame of sequences.

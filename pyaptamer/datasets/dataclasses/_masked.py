@@ -157,7 +157,7 @@ class MaskedDataset(Dataset):
         seq_len = torch.sum(x_masked > 0)
         # positions to mask
         valid_positions = self.box[x_masked > 0].tolist()
-        n_to_mask = int(seq_len * self.masked_rate)
+        n_to_mask = min(int(seq_len * self.masked_rate), len(valid_positions))
 
         # randomly sample positions to mask
         mask_positions = random.sample(valid_positions, n_to_mask)

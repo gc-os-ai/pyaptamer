@@ -32,11 +32,12 @@ def load_1gnh_structure(pdb_path=None):
     Returns
     -------
     structure : Bio.PDB.Structure.Structure
-        A Biopython Structure object representing the PFOA molecule.
+        A Biopython Structure object representing the 1gnh molecule.
     """
     from Bio.PDB import PDBParser
 
-    pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
+    if pdb_path is None:
+        pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
 
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("1gnh", pdb_path)
