@@ -224,7 +224,7 @@ class MCTS(BaseObject):
         sequence = self.base + sequence
 
         # fill the rest of the sequence with random possible values
-        remaining_length = (self.depth * 2) - len(sequence)
+        remaining_length = self.depth - (len(sequence)//2)
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
 
@@ -243,7 +243,7 @@ class MCTS(BaseObject):
         subsequence = self.base
 
         # traverse the tree
-        max_steps = (self.depth * 2) - len(self.base)
+        max_steps = self.depth - (len(self.base) // 2)
         for _ in range(max_steps):
             if not curr.children:
                 break
