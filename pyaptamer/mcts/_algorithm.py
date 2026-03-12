@@ -224,7 +224,7 @@ class MCTS(BaseObject):
         sequence = self.base + sequence
 
         # fill the rest of the sequence with random possible values
-        remaining_length = self.depth - (len(sequence)//2)
+        remaining_length = self.depth - (len(sequence) // 2)
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
 
