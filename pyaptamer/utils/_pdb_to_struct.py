@@ -1,6 +1,8 @@
 __author__ = "satvshr"
 __all__ = ["pdb_to_struct"]
 
+import os
+
 from Bio.PDB import PDBParser
 
 
@@ -19,6 +21,6 @@ def pdb_to_struct(pdb_file_path):
         Parsed Biopython structure object.
     """
     parser = PDBParser(QUIET=True)
-    structure_id = pdb_file_path.split("/")[-1].split("\\")[-1]
+    structure_id = os.path.basename(pdb_file_path)
     structure = parser.get_structure(structure_id, pdb_file_path)
     return structure
