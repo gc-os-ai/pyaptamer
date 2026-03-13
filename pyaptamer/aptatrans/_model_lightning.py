@@ -93,11 +93,13 @@ class AptaTransLightning(L.LightningModule):
         """
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
-        y_hat = torch.flatten(self.model(x_apta, x_prot))
-        loss = F.binary_cross_entropy(y_hat, y.float())
+        logits = torch.flatten(self.model(x_apta, x_prot))
+        # Use binary_cross_entropy_with_logits for AMP compatibility.
+        # See: https://github.com/gc-os-ai/pyaptamer/issues/230
+        loss = F.binary_cross_entropy_with_logits(logits, y.float())
 
-        # compute accuracy
-        y_pred = (y_hat > 0.5).float()
+        # compute accuracy (logits > 0 means probability > 0.5 after sigmoid)
+        y_pred = (logits > 0).float()
         accuracy = (y_pred == y.float()).float().mean()
 
         return loss, accuracy
