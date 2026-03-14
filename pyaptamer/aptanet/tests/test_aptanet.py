@@ -3,6 +3,7 @@ __author__ = ["nennomp", "satvshr"]
 
 import numpy as np
 import pytest
+from sklearn.linear_model import LinearRegression
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
@@ -13,6 +14,17 @@ params = [
         "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
     )
 ]
+
+
+def _expected_failed_checks_for_non_deterministic_estimators(estimator):
+    """
+    Mark pipeline consistency check is expected to fail only for non-deterministic
+    estimators.
+    """
+    sklearn_tags = estimator.__sklearn_tags__()
+    if sklearn_tags.non_deterministic:
+        return {"check_pipeline_consistency": "estimator is non-deterministic"}
+    return {}
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
@@ -72,23 +84,31 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
-    # TODO: for some reason, despite including `check_pipeline_consistency` in the
-    # checks that are supposed to fail (via `expected_failed_checks` parameter), the
-    # check is still run and obviously fails. Currently, the if block is the only
-    # workaround that works, and skips the check completely. Note that,
-    # `check_pipeline_consistency` will never pass for non-deterministic estimators as
-    # in our case. If anyone has a better working solution, please suggest.
-    # expected_failed_checks={
-    #    "check_pipeline_consistency": "estimator is non-deterministic"
-    # },
+    expected_failed_checks=_expected_failed_checks_for_non_deterministic_estimators,
 )
 def test_sklearn_compatible_estimator(estimator, check):
     """
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
-    expected_failed_checks = ["check_pipeline_consistency"]
-    if check.func.__name__ not in expected_failed_checks:
-        try:
-            check(estimator)
-        except Exception as e:
-            pytest.fail(f"Estimator check failed: {e}")
+    check(estimator)
+
+
+def test_expected_failed_checks_marks_non_deterministic_estimators_only():
+    """
+    Test if pipeline consistency is marked as xfail only for non-deterministic
+    estimators.
+    """
+    expected_failure = {"check_pipeline_consistency": "estimator is non-deterministic"}
+
+    assert (
+        _expected_failed_checks_for_non_deterministic_estimators(AptaNetClassifier())
+        == expected_failure
+    )
+    assert (
+        _expected_failed_checks_for_non_deterministic_estimators(AptaNetRegressor())
+        == expected_failure
+    )
+    assert (
+        _expected_failed_checks_for_non_deterministic_estimators(LinearRegression())
+        == {}
+    )
