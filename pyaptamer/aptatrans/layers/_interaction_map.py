@@ -32,21 +32,24 @@ class InteractionMap(nn.Module):
         ----------
         x_apta, x_prot : Tensor
             Input tensor for aptamers and proteins, respectively. Shapes are
-            (batch_size, seq_len (s1), n_features) and (batch_size, seq_len (s2),
+            (batch_size, seq_len_1, n_features) and (batch_size, seq_len_2,
             n_features), respectively.
 
         Returns
         ----------
         Tensor
-            Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
+            Interaction map tensor of shape (batch_size, 1, seq_len_1, seq_len_2).
         """
-        assert x_apta.shape[-1] == x_prot.shape[-1], (
-            "The number of features of `x_apta` and `x_prot` must match."
-        )
+        if x_apta.shape[-1] != x_prot.shape[-1]:
+            raise ValueError(
+                f"Feature dimensions must match. Got {x_apta.shape[-1]} and {x_prot.shape[-1]}."
+            )
 
-        # compute interaction matrix using batch matrix multiplication
-        out = torch.matmul(x_apta, x_prot.transpose(-2, -1))  # (batch_size, s1, s2)
-        # add channel dimension for compatibility with nn.Conv2d operations
-        out = out.unsqueeze(1)  # (batch_size, s1, s2) -> (batch_size, 1, s1, s2)
+        # Compute interaction matrix using Einstein summation
+        # b = batch_size, i = seq_len_1, j = seq_len_2, d = n_features
+        out = torch.einsum('bid,bjd->bij', x_apta, x_prot) 
+
+        # Add channel dimension for compatibility with nn.BatchNorm2d
+        out = out.unsqueeze(1)  # (batch_size, 1, s1, s2)
 
         return self.batchnorm(out)
