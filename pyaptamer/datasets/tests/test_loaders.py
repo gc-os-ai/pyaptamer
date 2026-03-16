@@ -11,8 +11,8 @@ from pyaptamer.datasets import (
 )
 
 LOADERS = [
-    load_pfoa_structure,
     load_1gnh_structure,
+    load_pfoa_structure,
 ]
 
 
