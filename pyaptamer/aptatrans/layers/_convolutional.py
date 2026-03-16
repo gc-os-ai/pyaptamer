@@ -2,7 +2,7 @@ __author__ = ["nennomp"]
 __all__ = ["ConvBlock"]
 
 from collections import OrderedDict
-from collections.abc import Callable
+# Removed Callable as we are using nn.Module for instantiated layers
 
 import torch.nn as nn
 from torch import Tensor
@@ -42,8 +42,8 @@ class ConvBlock(nn.Module):
         Number of input channels.
     out_c : int
         Number of output channels.
-    pooling : Optional[Callable[..., nn.Module]], optional, default=None
-        Instance of a (callable) pooling operator.
+    pooling : nn.Module | None, optional, default=None
+        Instance of a pooling operator.
 
     Attributes
     ----------
@@ -55,16 +55,20 @@ class ConvBlock(nn.Module):
         self,
         in_c: int,
         out_c: int,
-        pooling: Callable[..., nn.Module] | None = None,
+        pooling: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.block = self._init_block(in_c, out_c, pooling)
+        
+        # Determine if we can apply a direct residual connection statically
+        # to avoid dynamic shape checking in the forward pass.
+        self.apply_residual = (in_c == out_c) and (pooling is None)
 
     def _init_block(
         self,
         in_c: int,
         out_c: int,
-        pooling: Callable[..., nn.Module],
+        pooling: nn.Module | None,
     ) -> nn.Sequential:
         """Initialize a convolutional block with pooling.
 
@@ -103,14 +107,15 @@ class ConvBlock(nn.Module):
         -------
         Tensor
             Output tensor of shape (batch_size, n_channels (`out_c`), height, width) if
-            no downsamplign occurs, (batch_size, n_channels (`out_c`), height // 2,
+            no downsampling occurs, (batch_size, n_channels (`out_c`), height // 2,
             width // 2) otherwise.
         """
         identity = x
 
         out = self.block(x)
-        # residual connection (if no downsampling has occurred, i.e. no pooling)
-        if out.shape == identity.shape:
+        
+        # safely apply residual connection using static flag
+        if self.apply_residual:
             out += identity
 
         return out
