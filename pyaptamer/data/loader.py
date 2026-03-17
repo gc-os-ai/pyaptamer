@@ -6,8 +6,7 @@ __author__ = ["fkiraly", "satvshr"]
 from pathlib import Path
 
 import pandas as pd
-
-from pyaptamer.utils import pdb_to_aaseq
+from Bio import SeqIO
 
 
 class MoleculeLoader:
@@ -99,4 +98,13 @@ class MoleculeLoader:
         List[str]
             primary sequence extracted from the PDB file as a list of strings
         """
-        return pdb_to_aaseq(path, ignore_duplicates=self.ignore_duplicates)
+        with open(path) as handle:
+            seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
+
+        if seqres_records:
+            records = [
+                {"chain": getattr(record, "id", None), "sequence": str(record.seq)}
+                for record in seqres_records
+            ]
+        df = pd.DataFrame.from_records(records, columns=["chain", "sequence"])
+        return df["sequence"].tolist()
