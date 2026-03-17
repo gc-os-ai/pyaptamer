@@ -1,8 +1,6 @@
 __author__ = ["nennomp", "satvshr"]
 
 
-import sys
-
 import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
@@ -17,9 +15,6 @@ params = [
 ]
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
@@ -38,9 +33,6 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     assert set(preds).issubset({0, 1})
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
@@ -78,9 +70,6 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     assert np.issubdtype(preds.dtype, np.floating)
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
     # TODO: for some reason, despite including `check_pipeline_consistency` in the
