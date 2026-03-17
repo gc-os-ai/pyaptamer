@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import pytest
 from sklearn.metrics import accuracy_score, mean_squared_error
@@ -16,9 +14,6 @@ params = [
 ]
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_benchmarking_with_predefined_split_classification(aptamer_seq, protein_seq):
     """
@@ -47,9 +42,6 @@ def test_benchmarking_with_predefined_split_classification(aptamer_seq, protein_
     assert (clf.__class__.__name__, "accuracy_score") in summary.index
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_benchmarking_with_predefined_split_regression(aptamer_seq, protein_seq):
     """
