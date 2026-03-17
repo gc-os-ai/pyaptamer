@@ -157,7 +157,7 @@ class BaseTransform(BaseEstimator):
         if isinstance(X, MoleculeLoader):
             X = X.to_df_seq()
 
-        if self.get_tag("property:elementwise", False) and isinstance(X, (str, list)):
+        if self.get_tag("property:elementwise", False) and isinstance(X, str | list):
             return X, y
 
         if not isinstance(X, pd.DataFrame):
