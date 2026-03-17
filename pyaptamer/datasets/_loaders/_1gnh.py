@@ -1,5 +1,5 @@
 __author__ = ["satvshr", "fkiraly"]
-__all__ = ["load_1gnh", "load_1gnh_structure"]
+__all__ = ["load_1gnh"]
 
 import os
 
@@ -19,7 +19,8 @@ def load_1gnh():
     return MoleculeLoader(pdb_path)
 
 
-def load_1gnh_structure(pdb_path=None):
+# This function is provided only to test struct_to_aaseq.
+def _load_1gnh_structure(pdb_path=None):
     """
     Load the 1gnh molecule from a PDB file using Biopython.
 
