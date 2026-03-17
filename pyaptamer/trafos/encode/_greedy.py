@@ -89,7 +89,8 @@ class GreedyEncoder(BaseTransform):
         if word_max_len is None:
             word_max_len = max(len(word) for word in words.keys())
 
-        sequences = X.values[:, 0].tolist()
+        raw_sequences = X.values[:, 0].tolist()
+        sequences = ["".join(seq) for seq in raw_sequences]
 
         encoded_seqs = []
         for seq in sequences:
