@@ -95,13 +95,12 @@ class MoleculeLoader:
 
         Returns
         --------
-        List[str]
-            primary sequence extracted from the PDB file as a list of strings
+        pandas.DataFrame
+            DataFrame with columns ``['chain', 'sequence']``
         """
         with open(path) as handle:
             seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
-        if seqres_records:
             records = [
                 {"chain": getattr(record, "id", None), "sequence": str(record.seq)}
                 for record in seqres_records

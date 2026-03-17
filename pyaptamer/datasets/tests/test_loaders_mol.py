@@ -24,6 +24,6 @@ def test_loader_mol_to_df_seq():
     """Test that loader's to_df_seq method works correctly."""
     mol = load_1gnh()
     df = mol.to_df_seq()
-    assert df.shape == (1, 1)
+    assert df.shape == (10, 1)
     seq = df.iloc[0, 0]
     assert seq.startswith("QTDMSRK")
