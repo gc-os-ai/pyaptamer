@@ -102,8 +102,9 @@ class MoleculeLoader:
             seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
         return [
-            (record.id.split(":")[1] if ":" in record.id else record.id, str(record.seq))
+            (
+                record.id.split(":")[1] if ":" in record.id else record.id,
+                str(record.seq),
+            )
             for record in seqres_records
         ]
-
-
