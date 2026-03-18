@@ -24,7 +24,7 @@ def test_string_path():
 
     # MultiIndex contract
     assert df.index.nlevels == 2
-    assert df.index.names == ["path", "seq_id"]
+    assert df.index.names == ["path", "chain_id"]
 
     # all sequences are strings
     assert df["sequence"].map(type).eq(str).all()
@@ -43,6 +43,6 @@ def test_pathlib_path():
 
     assert list(df.columns) == ["sequence"]
     assert df.index.nlevels == 2
-    assert df.index.names == ["path", "seq_id"]
+    assert df.index.names == ["path", "chain_id"]
     assert df["sequence"].map(type).eq(str).all()
     assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
