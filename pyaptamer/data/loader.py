@@ -63,9 +63,9 @@ class MoleculeLoader:
 
         for path in paths:
             seqs = self._load_dispatch(path, "seq")
-            for chain_id, seq in seqs:
-                index_tuples.append((path, chain_id))
-                sequences.append(seq)
+            for _, row in seqs.iterrows():
+                index_tuples.append((path, row["chain_id"]))
+                sequences.append(row["sequence"])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
 
@@ -95,16 +95,17 @@ class MoleculeLoader:
 
         Returns
         --------
-        list of tuple
-            List of ``(chain_id, sequence)`` tuples, one per chain.
+        pandas.DataFrame
+            DataFrame with columns ``["chain_id", "sequence"]``.
         """
         with open(path) as handle:
             seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
-        return [
-            (
-                record.id.split(":")[1] if ":" in record.id else record.id,
-                str(record.seq),
-            )
+        records = [
+            {
+                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
+                "sequence": str(record.seq),
+            }
             for record in seqres_records
         ]
+        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
