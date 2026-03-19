@@ -1,17 +1,12 @@
 """Molecule data loading module."""
 
 __all__ = ["MoleculeLoader"]
-__author__ = ["fkiraly", "satvshr"]
+__author__ = ["fkiraly", "satvshr", "siddharth7113"]
 
 from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
-<<<<<<< HEAD
-
-from pyaptamer.utils import pdb_to_aaseq
-=======
->>>>>>> origin/main
 
 
 class MoleculeLoader:
@@ -49,11 +44,14 @@ class MoleculeLoader:
         if True, removes duplicate sequences (keeping the first occurrence).
     """
 
-    def __init__(self, path, index=None, columns=None, ignore_duplicates=False):
+    def __init__(
+        self, path, index=None, columns=None, ignore_duplicates=False, fmt=None
+    ):
         self.path = path
         self.index = index
         self.columns = columns
         self.ignore_duplicates = ignore_duplicates
+        self.fmt = fmt
         if isinstance(path, str):
             path = [Path(path)]
             self._path = path
@@ -61,6 +59,8 @@ class MoleculeLoader:
             self._path = [path]
         elif isinstance(path, list):
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
+        else:
+            raise TypeError("path must be a str, Path, or list of str/Path")
 
     def to_df_seq(self):
         """Return a pd.DataFrame of sequences with MultiIndex (path, chain_id).
@@ -73,14 +73,14 @@ class MoleculeLoader:
             has single column "sequence";
             each row contains one primary amino-acid sequence
         """
-        paths = self._path
 
         index_tuples = []
         sequences = []
 
-        for path in paths:
-            seqs = self._load_dispatch(path, "seq")
-            for _, row in seqs.iterrows():
+        for path in self._path:
+            seq_df = self._load_dispatch(path)
+
+            for _, row in seq_df.iterrows():
                 index_tuples.append((path, row["chain_id"]))
                 sequences.append(row["sequence"])
 
@@ -104,7 +104,7 @@ class MoleculeLoader:
             Format string such as "pdb", "fasta", "genbank", etc.
         """
         # If user provided a format override, use it
-        if self.fmt:
+        if self.fmt is not None:
             return self.fmt
 
         # Fallback to suffix-based inference
@@ -116,11 +116,14 @@ class MoleculeLoader:
         return suffix.lstrip(".") if suffix else None
 
     def _load_dispatch(self, path):
-        """Dispatch loader based on file type."""
-        fmt = self._determine_type(path)
+        """Dispatch loader based on file type.
 
-        if fmt == "pdb":
-            return self._load_pdb_seq(path)
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns ``["chain_id", "sequence"]``.
+        """
+        fmt = self._determine_type(path)
 
         if fmt is None:
             # no suffix and no format override -> error
@@ -128,6 +131,9 @@ class MoleculeLoader:
                 f"Could not determine file format for '{path}'."
                 "Provide a 'fmt' argument."
             )
+
+        if fmt == "pdb":
+            return self._load_pdb_seq(path)
 
         return self._load_seqio(path, fmt)
 
@@ -154,4 +160,37 @@ class MoleculeLoader:
             }
             for record in seqres_records
         ]
+        if not records:
+            raise ValueError(f"No sequences found in {path}")
+
         return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
+
+    def _load_seqio(self, path, fmt):
+        """Load any non-PDB file format supported by Biopython SeqIO.
+
+        Notes
+        -----
+        For non-PDB formats there is usually no literal chain concept.
+        To preserve the existing abstract datatype, ``record.id`` is stored
+        in the ``chain_id`` column.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns ``["chain_id", "sequence"]``.
+        """
+        with open(path) as handle:
+            records = list(SeqIO.parse(handle, fmt))
+
+        rows = [
+            {
+                "chain_id": record.id,
+                "sequence": str(record.seq),
+            }
+            for record in records
+        ]
+
+        if not rows:
+            raise ValueError(f"No sequences found in {path}")
+
+        return pd.DataFrame.from_records(rows, columns=["chain_id", "sequence"])

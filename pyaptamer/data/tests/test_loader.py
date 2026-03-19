@@ -6,10 +6,7 @@ from pyaptamer.data.loader import MoleculeLoader
 
 # dataset paths relative to pyaptamer root
 DATA_PATHS = [
-<<<<<<< HEAD
-=======
     "datasets/data/1gnh_no_seqres.pdb",
->>>>>>> origin/main
     "datasets/data/1gnh.pdb",
     "datasets/data/1gnh_no_seqres.pdb",
 ]
@@ -26,10 +23,6 @@ def test_string_path():
     # column contract unchanged
     assert list(df.columns) == ["sequence"]
 
-<<<<<<< HEAD
-    one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str[0].startswith("QTDMSRK")
-=======
     # MultiIndex contract
     assert df.index.nlevels == 2
     assert df.index.names == ["path", "chain_id"]
@@ -39,7 +32,6 @@ def test_string_path():
 
     # at least one known sequence exists
     assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
->>>>>>> origin/main
 
 
 def test_pathlib_path():
@@ -50,16 +42,8 @@ def test_pathlib_path():
     loader = MoleculeLoader(full_paths)
     df = loader.to_df_seq()
 
-<<<<<<< HEAD
-    pd_df = loader.to_df_seq()
-    assert pd_df.shape == (len(DATA_PATHS), 1)
-
-    one_gnh_str = pd_df.iloc[1, 0]
-    assert one_gnh_str[0].startswith("QTDMSRK")
-=======
     assert list(df.columns) == ["sequence"]
     assert df.index.nlevels == 2
     assert df.index.names == ["path", "chain_id"]
     assert df["sequence"].map(type).eq(str).all()
     assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
->>>>>>> origin/main
