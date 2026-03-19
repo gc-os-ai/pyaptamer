@@ -202,3 +202,6 @@ pyaptamer/datasets/data/proteins-shin2023.csv
 
 # Model weights files
 pyaptamer/aptatrans/weights/pretrained.pt
+
+# For macOS
+.DS_Store

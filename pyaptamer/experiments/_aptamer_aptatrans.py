@@ -36,8 +36,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     >>> from pyaptamer.experiments import AptamerEvalAptaTrans
     >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
     >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
-    >>> model = AptaTrans(apta_embedding, prot_embedding)
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
     >>> target = "DHRNE"
     >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)

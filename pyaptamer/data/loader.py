@@ -7,8 +7,11 @@ from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
+<<<<<<< HEAD
 
 from pyaptamer.utils import pdb_to_aaseq
+=======
+>>>>>>> origin/main
 
 
 class MoleculeLoader:
@@ -40,19 +43,17 @@ class MoleculeLoader:
     index : list, or pandas.Index coercible, optional
         Row index for the resulting DataFrame; if None, integer RangeIndex is used.
     columns : list, optional
-        Column names for the resulting DataFrame; if None, defaults to ``["sequence"]``.
-    fmt : str, optional
-        Optional format override. If provided, this format will be used instead
-        of inferring the format from the file extension. Examples: ``"pdb"``,
-        ``"fasta"``, ``"genbank"``.
+        column names for the structure; if None, defaults to ["sequence"]
+
+    ignore_duplicates : bool, optional, default=False
+        if True, removes duplicate sequences (keeping the first occurrence).
     """
 
-    def __init__(self, path, index=None, columns=None, fmt=None):
+    def __init__(self, path, index=None, columns=None, ignore_duplicates=False):
         self.path = path
         self.index = index
         self.columns = columns
-        self.fmt = fmt
-
+        self.ignore_duplicates = ignore_duplicates
         if isinstance(path, str):
             path = [Path(path)]
             self._path = path
@@ -62,30 +63,32 @@ class MoleculeLoader:
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
     def to_df_seq(self):
-        """Return a DataFrame of amino-acid sequences.
-
-        Each file in ``path`` yields one row in the output DataFrame.
+        """Return a pd.DataFrame of sequences with MultiIndex (path, chain_id).
 
         Returns
         -------
         pd.DataFrame
             sequences in self in a pd.DataFrame;
+            index is a MultiIndex (path, chain_id);
             has single column "sequence";
-            each row contains a list of str representing
-            the primary sequence(s) found in the files in `path`
-            sequences are determined from files as follows: [fill in]
+            each row contains one primary amino-acid sequence
         """
         paths = self._path
 
-        # wrap each returned list so that it's a single DataFrame cell
-        seq_list = [[self._load_dispatch(path, "seq")] for path in paths]
+        index_tuples = []
+        sequences = []
 
-        if self.columns is None:
-            columns = "sequence"
-        else:
-            columns = self.columns
+        for path in paths:
+            seqs = self._load_dispatch(path, "seq")
+            for _, row in seqs.iterrows():
+                index_tuples.append((path, row["chain_id"]))
+                sequences.append(row["sequence"])
 
-        return pd.DataFrame({columns: seq_list}, index=self.index)
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
+
+        columns = ["sequence"] if self.columns is None else self.columns
+
+        return pd.DataFrame(sequences, index=index, columns=columns)
 
     def _determine_type(self, path):
         """Return file type inferred from suffix or from the instance `fmt` override.
@@ -138,33 +141,17 @@ class MoleculeLoader:
 
         Returns
         --------
-        List[str]
-            primary sequence extracted from the PDB file as a list of strings
+        pandas.DataFrame
+            DataFrame with columns ``["chain_id", "sequence"]``.
         """
-        return pdb_to_aaseq(path)
+        with open(path) as handle:
+            seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
-    def _load_seqio(self, path, format):
-        """Load any file format supported by Biopython SeqIO.
-
-        Parameters
-        ----------
-        path : Path
-            Path to a sequence file readable by SeqIO.
-        format : str
-            Biopython SeqIO format string (e.g. ``"fasta"``, ``"genbank"``).
-
-        Returns
-        -------
-        list of str
-            Amino-acid sequences extracted from the file.
-
-        Raises
-        ------
-        ValueError
-            If no sequences were found.
-        """
-        seqs = [str(rec.seq) for rec in SeqIO.parse(str(path), format)]
-        if not seqs:
-            raise ValueError(f"No sequences found in {path}")
-
-        return seqs
+        records = [
+            {
+                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
+                "sequence": str(record.seq),
+            }
+            for record in seqres_records
+        ]
+        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
