@@ -46,13 +46,13 @@ class MoleculeLoader:
             self._path = [Path(p) if isinstance(p, str) else p for p in path]
 
     def to_df_seq(self):
-        """Return a pd.DataFrame of sequences with MultiIndex (path, seq_id).
+        """Return a pd.DataFrame of sequences with MultiIndex (path, chain_id).
 
         Returns
         --------
         pd.DataFrame
             sequences in self in a pd.DataFrame;
-            index is a MultiIndex (path, seq_id);
+            index is a MultiIndex (path, chain_id);
             has single column "sequence";
             each row contains one primary amino-acid sequence
         """
@@ -63,11 +63,11 @@ class MoleculeLoader:
 
         for path in paths:
             seqs = self._load_dispatch(path, "seq")
-            for i, seq in enumerate(seqs):
-                index_tuples.append((path, i))
-                sequences.append(seq)
+            for _, row in seqs.iterrows():
+                index_tuples.append((path, row["chain_id"]))
+                sequences.append(row["sequence"])
 
-        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "seq_id"])
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
 
         columns = ["sequence"] if self.columns is None else self.columns
 
@@ -96,14 +96,16 @@ class MoleculeLoader:
         Returns
         --------
         pandas.DataFrame
-            DataFrame with columns ``['chain', 'sequence']``
+            DataFrame with columns ``["chain_id", "sequence"]``.
         """
         with open(path) as handle:
             seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
 
-            records = [
-                {"chain": getattr(record, "id", None), "sequence": str(record.seq)}
-                for record in seqres_records
-            ]
-        df = pd.DataFrame.from_records(records, columns=["chain", "sequence"])
-        return df["sequence"].tolist()
+        records = [
+            {
+                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
+                "sequence": str(record.seq),
+            }
+            for record in seqres_records
+        ]
+        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
