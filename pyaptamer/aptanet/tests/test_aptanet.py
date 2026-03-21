@@ -3,7 +3,6 @@ __author__ = ["nennomp", "satvshr"]
 
 import numpy as np
 import pytest
-from sklearn.linear_model import LinearRegression
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
@@ -86,12 +85,10 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
     expected_failed_checks={
         "check_pipeline_consistency": "estimator is non-deterministic"
-        },
+    },
 )
 def test_sklearn_compatible_estimator(estimator, check):
     """
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
-
-
