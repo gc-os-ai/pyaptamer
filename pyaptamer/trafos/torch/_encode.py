@@ -10,6 +10,25 @@ class GreedyEncode(BaseTorchTransform):
     """Greedy tokenization of sequence to tensor.
 
     Matches longest possible token at each position. Unknown chars map to 0.
+    
+    Parameters
+    ----------
+    vocab : dict[str, int]
+        Token to integer ID mapping.
+    max_len : int
+        Maximum padded sequence length.
+    token_max_len : int, optional
+        Maximum token length to match. Defaults to longest vocab key.
+    
+    Usage
+    -----
+    >>> vocab = {"A": 1, "T": 2, "C": 3, "G": 4, "AT": 5}
+    >>> encoder = GreedyEncode(vocab=vocab, max_len=16)
+    >>> encoded = encoder("ATGC")
+    >>> encoded.shape
+    torch.Size([16])
+    >>> encoded.dtype
+    torch.int64
     """
 
     def __init__(self, vocab: dict[str, int], max_len: int, token_max_len: int = None):
