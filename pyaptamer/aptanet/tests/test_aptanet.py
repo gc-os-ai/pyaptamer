@@ -84,7 +84,9 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
-    expected_failed_checks=_expected_failed_checks_for_non_deterministic_estimators,
+    expected_failed_checks={
+        "check_pipeline_consistency": "estimator is non-deterministic"
+        },
 )
 def test_sklearn_compatible_estimator(estimator, check):
     """
@@ -93,22 +95,3 @@ def test_sklearn_compatible_estimator(estimator, check):
     check(estimator)
 
 
-def test_expected_failed_checks_marks_non_deterministic_estimators_only():
-    """
-    Test if pipeline consistency is marked as xfail only for non-deterministic
-    estimators.
-    """
-    expected_failure = {"check_pipeline_consistency": "estimator is non-deterministic"}
-
-    assert (
-        _expected_failed_checks_for_non_deterministic_estimators(AptaNetClassifier())
-        == expected_failure
-    )
-    assert (
-        _expected_failed_checks_for_non_deterministic_estimators(AptaNetRegressor())
-        == expected_failure
-    )
-    assert (
-        _expected_failed_checks_for_non_deterministic_estimators(LinearRegression())
-        == {}
-    )
