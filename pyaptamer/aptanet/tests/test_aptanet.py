@@ -15,17 +15,6 @@ params = [
 ]
 
 
-def _expected_failed_checks_for_non_deterministic_estimators(estimator):
-    """
-    Mark pipeline consistency check is expected to fail only for non-deterministic
-    estimators.
-    """
-    sklearn_tags = estimator.__sklearn_tags__()
-    if sklearn_tags.non_deterministic:
-        return {"check_pipeline_consistency": "estimator is non-deterministic"}
-    return {}
-
-
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
