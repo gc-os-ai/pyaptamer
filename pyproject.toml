@@ -25,6 +25,9 @@ dependencies = [
     "imblearn",
     "datasets",
     "requests",
+    "xgboost",
+    "rust_sasa_python",
+    "PyBioMed",
 ]
 
 [project.optional-dependencies]
