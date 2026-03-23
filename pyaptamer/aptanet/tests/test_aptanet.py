@@ -1,8 +1,6 @@
 __author__ = ["nennomp", "satvshr"]
 
 
-import sys
-
 import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
@@ -17,9 +15,6 @@ params = [
 ]
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
@@ -38,9 +33,6 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     assert set(preds).issubset({0, 1})
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
@@ -78,28 +70,14 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     assert np.issubdtype(preds.dtype, np.floating)
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="skorch does not support Python 3.13"
-)
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
-    # TODO: for some reason, despite including `check_pipeline_consistency` in the
-    # checks that are supposed to fail (via `expected_failed_checks` parameter), the
-    # check is still run and obviously fails. Currently, the if block is the only
-    # workaround that works, and skips the check completely. Note that,
-    # `check_pipeline_consistency` will never pass for non-deterministic estimators as
-    # in our case. If anyone has a better working solution, please suggest.
-    # expected_failed_checks={
-    #    "check_pipeline_consistency": "estimator is non-deterministic"
-    # },
+    expected_failed_checks={
+        "check_pipeline_consistency": "estimator is non-deterministic"
+    },
 )
 def test_sklearn_compatible_estimator(estimator, check):
     """
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
-    expected_failed_checks = ["check_pipeline_consistency"]
-    if check.func.__name__ not in expected_failed_checks:
-        try:
-            check(estimator)
-        except Exception as e:
-            pytest.fail(f"Estimator check failed: {e}")
+    check(estimator)

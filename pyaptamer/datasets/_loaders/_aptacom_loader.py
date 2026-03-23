@@ -1,7 +1,9 @@
-__author__ = "rpgv"
-__all__ = ["load_aptacom_full", "load_aptacom_xy"]
+# file: aptacom_loader.py
 
-from pyaptamer.datasets._loaders._hf_loader import load_hf_dataset
+__author__ = "rpgv"
+__all__ = ["load_aptacom_full", "load_aptacom_x_y"]
+
+from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 
 filter_map = {
     "protein_target": ("target_chemistry", ["Protein", "peptide"]),
@@ -40,97 +42,119 @@ filter_map = {
 }
 
 
-def filter_columns(ds, columns=None):
-    """ " Selects columns to keep on dataset
-    Parameters:
-    -----------
-        ds: pd dataframe, required
-        Pandas dataframe to filter
-        columns: list, optional, default=None
-        If empty returns entire AptaCom dataset, otherwise
-        returns only the selected columns from the
-        AptaCom dataset
-    Returns:
-    --------
-        object: pandas dataframe object with
-        the selected columns
+def _filter_columns(df, columns=None):
     """
+    Select a subset of columns from a pandas DataFrame.
 
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input DataFrame to filter.
+    columns : list[str] or None, optional
+        Column names to keep. If None, returns the input DataFrame unchanged.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing only the requested columns (or the original
+        DataFrame if `columns` is None).
+
+    """
     if columns is not None:
-        ds = ds[columns]
-    return ds
+        df = df[columns]
+    return df
 
 
-def prepare_xy(ds):
-    """ " Prepares dataset for usage as training data
-    Parameters:
-    -----------
-    ds: pandas dataframe, required
-
-    Returns:
-    --------
-    Pandas dataframe object processed for training
-    with columns "aptamer_sequence", "target_sequence",
-    "new_affinity" and a total of 709 rows
+def prepare_x_y(df):
     """
-    ds.dropna(
+    Prepare dataset by selecting required columns and dropping rows with missing values.
+
+    This function:
+    - Drops rows with missing values in the columns
+      "aptamer_sequence", "target_sequence", and "new_affinity".
+    - Keeps only those three columns.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input DataFrame containing at least the columns
+        "aptamer_sequence", "target_sequence", and "new_affinity".
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame with exactly the columns:
+        ["aptamer_sequence", "target_sequence", "new_affinity"],
+        and with rows containing no missing values in those columns.
+    """
+    df.dropna(
         subset=["aptamer_sequence", "target_sequence", "new_affinity"], inplace=True
     )
-    ds = ds[["aptamer_sequence", "target_sequence", "new_affinity"]]
-    return ds
+    df = df[["aptamer_sequence", "target_sequence", "new_affinity"]]
+    return df
 
 
 def load_aptacom_full(select_columns=None):
-    """Loads a AptaCom dataset from hugging face
-    with customizable options.
-
-    Parameters:
-    -----------
-    select_columns: list, optional, default=None
-        A list used to filter the columns dataset features.
-        Defaults to empty, which returns the complete dataset.
-        Column names:
-        ['reference',
-        'aptamer_chemistry',
-        'aptamer_name',
-        'target_name',
-        'aptamer_sequence',
-        'origin',
-        'target_chemistry',
-        'external_id',
-        'target_sequence',
-        'new_affinity']
-
-    Returns:
-    --------
-        object: A pandas dataframe with 5556 rows in total.
-        The returned object contains the dataset, possibly
-        filtered with different columns.
     """
-    aptacom = load_hf_dataset("AptaCom", store=False)
-    dataset = filter_columns(aptacom, columns=select_columns)
+    Load the AptaCom dataset from Hugging Face, with optional column selection.
 
+    Parameters
+    ----------
+    select_columns : list[str] or None, optional
+        List of column names to retain. If None, returns the full dataset.
+
+        Available columns include (subject to upstream changes):
+        [
+            'reference',
+            'aptamer_chemistry',
+            'aptamer_name',
+            'target_name',
+            'aptamer_sequence',
+            'origin',
+            'target_chemistry',
+            'external_id',
+            'target_sequence',
+            'new_affinity'
+        ]
+
+    Returns
+    -------
+    pandas.DataFrame
+        The loaded dataset, optionally filtered to the selected columns.
+
+    """
+    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = aptacom.to_pandas()
+    dataset = _filter_columns(aptacom, columns=select_columns)
     return dataset
 
 
-def load_aptacom_xy(return_X_y=False):
-    """Loads Aptacom dataset for training
-
-    Parameters:
-    ----------
-    return_X_y: bool, optional, default = False
-        If true returns X (aptamer and target sequence)
-        and y (new_affinity) otherwise returns a
-        pandas dataframe containing the three columns
-
-    Returns:
-    --------
-    Either a pandas dataframe with three columns
-    or two pandas dataframe objects with two and one
-    columns respectively.
+def load_aptacom_x_y(return_X_y=False):
     """
-    aptacom = load_hf_dataset("AptaCom", store=False)
-    dataset = prepare_xy(aptacom)
+    Load the AptaCom dataset prepared for model training.
+
+    Depending on `return_X_y`, returns either a single DataFrame containing
+    the features and target, or a tuple of (X, y) DataFrames.
+
+    Parameters
+    ----------
+    return_X_y : bool, optional
+        If True, return a tuple `(X, y)` where:
+          - `X` has columns ["aptamer_sequence", "target_sequence"]
+          - `y` has column ["new_affinity"]
+        If False (default), return a single DataFrame with all three columns.
+
+    Returns
+    -------
+    pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+        - If `return_X_y` is False: a DataFrame with columns
+          ["aptamer_sequence", "target_sequence", "new_affinity"].
+        - If `return_X_y` is True: a tuple `(X, y)` where `X` contains the two
+          feature columns and `y` contains the target column.
+    """
+    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = aptacom.to_pandas()
+    dataset = prepare_x_y(aptacom)
     if return_X_y:
         X = dataset[["aptamer_sequence", "target_sequence"]]
         y = dataset[["new_affinity"]]
