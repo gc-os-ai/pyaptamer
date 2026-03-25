@@ -256,7 +256,7 @@ class AptaTransEncoderLightning(AptaTransLightning):
         self.weight_ssp = weight_ssp
 
     def _step(
-        self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int, stage: str
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int, stage: str
     ) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
@@ -265,9 +265,8 @@ class AptaTransEncoderLightning(AptaTransLightning):
 
         Parameters
         ----------
-        batch: tuple[Tensor, Tensor, Tensor, Tensor]
-            A batch of data containing masked input, secondary structure input,
-            MLM targets, and SSP targets.
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
         batch_idx: int
             Index of the batch.
         stage: str
