@@ -109,9 +109,6 @@ class MoleculeLoader:
 
         # Fallback to suffix-based inference
         suffix = path.suffix.lower()
-        if suffix == ".pdb":
-            return "pdb"
-
         # strip leading dot; if no suffix, return None to indicate unknown
         return suffix.lstrip(".") if suffix else None
 
