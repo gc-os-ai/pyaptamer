@@ -40,12 +40,40 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
 
     Raises
     ------
+    TypeError
+        If ``pdb_file_path`` is None or not a valid path type.
     FileNotFoundError
         If the given ``pdb_file_path`` does not exist.
     ValueError
         If ``return_type`` is invalid or no sequences could be extracted.
     """
-    pdb_path = os.fspath(pdb_file_path)
+    # Validate return_type early
+    if return_type not in ["list", "pd.df"]:
+        raise ValueError("`return_type` must be either 'list' or 'pd.df'")
+
+    # Validate ignore_duplicates
+    if not isinstance(ignore_duplicates, bool):
+        raise TypeError(
+            f"`ignore_duplicates` must be a boolean, "
+            f"got {type(ignore_duplicates).__name__}"
+        )
+
+    # Validate pdb_file_path is not None
+    if pdb_file_path is None:
+        raise TypeError("`pdb_file_path` cannot be None")
+
+    # Convert to path and validate
+    try:
+        pdb_path = os.fspath(pdb_file_path)
+    except TypeError as err:
+        raise TypeError(
+            f"`pdb_file_path` must be a string or os.PathLike, "
+            f"got {type(pdb_file_path).__name__}"
+        ) from err
+
+    # Check file existence before attempting to open
+    if not os.path.exists(pdb_path):
+        raise FileNotFoundError(f"PDB file not found: {pdb_path}")
 
     # Try SEQRES records first
     with open(pdb_path) as handle:
@@ -73,7 +101,5 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
 
     if return_type == "list":
         return df["sequence"].tolist()
-    elif return_type == "pd.df":
+    else:  # return_type == "pd.df"
         return df.reset_index(drop=True)[["chain", "sequence"]]
-    else:
-        raise ValueError("`return_type` must be either 'list' or 'pd.df'")

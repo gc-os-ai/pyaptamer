@@ -72,3 +72,49 @@ def test_pdb_to_aaseq_atom_fallback(pdb_path_1gnh_no_seqres):
         "DataFrame should have columns ['chain','sequence']"
     )
     assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"])
+
+
+def test_pdb_to_aaseq_validation():
+    """Check input validation for pdb_to_aaseq."""
+    # None path should raise TypeError
+    with pytest.raises(TypeError, match="cannot be None"):
+        pdb_to_aaseq(None)
+
+    # Invalid path type should raise TypeError
+    with pytest.raises(TypeError, match="must be a string or os.PathLike"):
+        pdb_to_aaseq(123)
+
+    with pytest.raises(TypeError, match="must be a string or os.PathLike"):
+        pdb_to_aaseq(["path.pdb"])
+
+    # Non-existent file should raise FileNotFoundError
+    with pytest.raises(FileNotFoundError, match="PDB file not found"):
+        pdb_to_aaseq("nonexistent_file.pdb")
+
+    # Invalid return_type should raise ValueError
+    with pytest.raises(ValueError, match="must be either 'list' or 'pd.df'"):
+        pdb_to_aaseq("dummy.pdb", return_type="invalid")
+
+    # Invalid ignore_duplicates type should raise TypeError
+    with pytest.raises(TypeError, match="must be a boolean"):
+        pdb_to_aaseq("dummy.pdb", ignore_duplicates="yes")
+
+    with pytest.raises(TypeError, match="must be a boolean"):
+        pdb_to_aaseq("dummy.pdb", ignore_duplicates=1)
+
+
+def test_pdb_to_aaseq_pathlib_path(tmp_path):
+    """Test that pdb_to_aaseq works with pathlib.Path objects."""
+
+    # Create a minimal valid PDB file
+    pdb_content = """REMARK   TEST PDB FILE
+SEQRES    1 A    5  ALA GLY SER VAL LEU
+END
+"""
+    pdb_file = tmp_path / "test.pdb"
+    pdb_file.write_text(pdb_content)
+
+    # Should work with Path object
+    result = pdb_to_aaseq(pdb_file)
+    assert isinstance(result, list)
+    assert len(result) > 0
