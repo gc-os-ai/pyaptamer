@@ -29,11 +29,29 @@ def test_dna2rna(dna, expected_rna):
 
 def test_dna2rna_edge_cases():
     """Check edge cases of DNA to RNA conversion."""
-    # empty sequence
-    assert dna2rna("") == ""
     # mixed lowercase/uppercase
     assert dna2rna("aAtT") == "NANU"
     assert dna2rna("AcGt") == "ANGN"
+
+
+def test_dna2rna_validation():
+    """Check input validation for dna2rna."""
+    # empty sequence should raise ValueError
+    with pytest.raises(ValueError, match="sequence cannot be empty"):
+        dna2rna("")
+
+    # non-string input should raise TypeError
+    with pytest.raises(TypeError, match="sequence must be a string"):
+        dna2rna(None)
+
+    with pytest.raises(TypeError, match="sequence must be a string"):
+        dna2rna(123)
+
+    with pytest.raises(TypeError, match="sequence must be a string"):
+        dna2rna(["ACGT"])
+
+    with pytest.raises(TypeError, match="sequence must be a string"):
+        dna2rna({"sequence": "ACGT"})
 
 
 @pytest.mark.parametrize("repeat", [2, 3, 4])

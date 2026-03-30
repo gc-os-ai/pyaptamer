@@ -29,7 +29,20 @@ def dna2rna(sequence: str) -> str:
     -------
     str
         The converted RNA sequence.
+
+    Raises
+    ------
+    TypeError
+        If ``sequence`` is not a string.
+    ValueError
+        If ``sequence`` is empty.
     """
+    if not isinstance(sequence, str):
+        raise TypeError(f"sequence must be a string, got {type(sequence).__name__}")
+
+    if len(sequence) == 0:
+        raise ValueError("sequence cannot be empty")
+
     # replace nucleotides 'T' with 'U'
     result = sequence.translate(str.maketrans("T", "U"))
     for char in result:
@@ -141,6 +154,10 @@ def rna2vec(
 
     result = []
     for sequence in sequence_list:
+        # skip empty sequences
+        if not sequence:
+            continue
+
         # convert DNA to RNA only for RNA sequences
         if sequence_type == "rna":
             sequence = dna2rna(sequence)
