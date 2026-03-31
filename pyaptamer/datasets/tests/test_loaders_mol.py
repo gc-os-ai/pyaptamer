@@ -31,19 +31,27 @@ def test_loader_mol_to_df_seq():
     assert seq.startswith("QTDMSRK")
 
 
-def test_loader_seqio_fasta_to_df_seq(tmp_path):
-    """Test that SeqIO-backed formats are loaded into the same dataframe shape."""
-    fasta_path = tmp_path / "toy.fasta"
-    fasta_path.write_text(">seqA\nMKTAYIAKQRQISFVKSHFSRQ\n>seqB\nGILGYTEHQVVSSDFNSD\n")
+def test_loader_seqio_fasta_to_df_seq_multiindex(tmp_path):
+    """Test multiindex DataFrame from multiple fasta files."""
+    fasta_a = tmp_path / "a.fasta"
+    fasta_a.write_text(">seqA\nMKTAYIAKQRQISFVKSHFSRQ\n>seqB\nGILGYTEHQVVSSDFNSD\n")
 
-    mol = MoleculeLoader(fasta_path)
+    fasta_b = tmp_path / "b.fasta"
+    fasta_b.write_text(">seqC\nMVLSPADKTNVKAAWGKVGA\n")
+
+    mol = MoleculeLoader([fasta_a, fasta_b])
     df = mol.to_df_seq()
 
-    assert df.shape == (2, 1)
+    # shape: 3 sequences across 2 files, 1 column
+    assert df.shape == (3, 1)
     assert df.index.names == ["path", "chain_id"]
+    assert df.columns.tolist() == ["sequence"]
 
-    assert (Path(fasta_path), "seqA") in df.index
-    assert (Path(fasta_path), "seqB") in df.index
+    # both paths appear in the first index level
+    paths = df.index.get_level_values("path")
+    assert set(paths) == {Path(fasta_a), Path(fasta_b)}
 
-    assert df.loc[(Path(fasta_path), "seqA"), "sequence"] == "MKTAYIAKQRQISFVKSHFSRQ"
-    assert df.loc[(Path(fasta_path), "seqB"), "sequence"] == "GILGYTEHQVVSSDFNSD"
+    # sequences are correctly assigned
+    assert df.loc[(Path(fasta_a), "seqA"), "sequence"] == "MKTAYIAKQRQISFVKSHFSRQ"
+    assert df.loc[(Path(fasta_a), "seqB"), "sequence"] == "GILGYTEHQVVSSDFNSD"
+    assert df.loc[(Path(fasta_b), "seqC"), "sequence"] == "MVLSPADKTNVKAAWGKVGA"
