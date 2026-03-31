@@ -155,9 +155,10 @@ class TestAptaTransModel:
         output = aptatrans(x_apta, x_prot)
 
         assert output.shape == (batch_size, 1)
-        # output should be in [0, 1] (sigmoid activation)
-        assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
-        assert not torch.allclose(output[0], output[1], atol=1e-5)
+        # probabilities (after sigmoid) should be in [0, 1]
+        probs = torch.sigmoid(output)
+        assert torch.all(probs >= 0.0) and torch.all(probs <= 1.0)
+        assert not torch.allclose(probs[0], probs[1], atol=1e-5)
 
 
 class MockAptaTransNeuralNet(nn.Module):
