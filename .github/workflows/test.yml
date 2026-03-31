@@ -27,19 +27,18 @@ jobs:
     steps:
       - name: repository checkout step
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: python environment step
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
 
       - name: install pre-commit
         run: python3 -m pip install pre-commit
-
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
@@ -104,6 +103,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
 
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
@@ -146,6 +147,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
 
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
