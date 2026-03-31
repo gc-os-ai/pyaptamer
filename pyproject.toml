@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyaptamer"
-version = "0.0.1.dev0"
+version = "0.1.0a1"
 description = "Python library for aptamer simulation"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,7 +23,6 @@ dependencies = [
     "scikit-learn>=1.3.0,<1.8.0",
     "skorch",
     "imblearn",
-    "datasets",
     "requests",
 ]
 
@@ -50,6 +49,7 @@ docstring-code-format = true
 
 [tool.setuptools.packages.find]
 include = ["pyaptamer*"]
+exclude = ["pyaptamer.tests*", "pyaptamer.*.tests*"]
 
 [tool.setuptools]
 include-package-data = true
