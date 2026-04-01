@@ -2,6 +2,9 @@
 
 __author__ = ["nennomp"]
 
+import os
+import tempfile
+
 import pytest
 import torch
 import torch.nn as nn
@@ -40,6 +43,56 @@ class TestAptaTransModel:
                 in_dim=128,
                 n_heads=3,
             )
+
+    def test_load_pretrained_weights_from_local_file(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check load_pretrained_weights() loads weights from a local file."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+            conv_layers=[1, 1, 1],
+        )
+
+        # save the model's own state_dict as a stand-in for pretrained weights
+        state_dict = model.state_dict()
+
+        weights_dir = os.path.join(
+            os.path.dirname(
+                os.path.abspath(
+                    __import__("pyaptamer.aptatrans._model", fromlist=["_model"]).__file__
+                )
+            ),
+            "weights",
+        )
+        os.makedirs(weights_dir, exist_ok=True)
+        weights_path = os.path.join(weights_dir, "pretrained.pt")
+
+        with tempfile.NamedTemporaryFile(
+            dir=weights_dir, suffix=".pt", delete=False
+        ) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            torch.save(state_dict, tmp_path)
+            os.replace(tmp_path, weights_path)
+
+            # load weights from the local file
+            model.load_pretrained_weights()
+
+            # verify weights are identical after loading
+            loaded_state_dict = model.state_dict()
+            for key in state_dict:
+                assert torch.equal(
+                    state_dict[key], loaded_state_dict[key]
+                ), f"Mismatch in parameter: {key}"
+        finally:
+            if os.path.exists(weights_path):
+                os.remove(weights_path)
 
     @pytest.mark.parametrize(
         "batch_size, seq_len_apta, seq_len_prot, in_dim",
