@@ -1,5 +1,5 @@
 <!--
-Welcome to pytorch-forecasting, and thanks for contributing!
+Welcome to pyaptamer, and thanks for contributing!
 Please have a look at our contribution guide:
 https://www.sktime.net/en/latest/get_involved/contributing.html
 -->
