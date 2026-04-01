@@ -31,7 +31,7 @@ A clear and concise description of what you have implemented.
 #### Any other comments?
 <!--
 We value all user contributions, no matter how small or complex they are. If you have any questions, feel free to post
-in the dev-chat channel on the sktime discord https://discord.gg/7uKdHfdcJG. If we are slow to review (>7 working days), likewise feel free to ping us on discord. Thank you for your understanding during the review process.
+in the dev-chat channel on the pyaptamer discord channel in gc-os server https://discord.gg/7uKdHfdcJG. If we are slow to review (>7 working days), likewise feel free to ping us on discord. Thank you for your understanding during the review process.
 -->
 
 #### PR checklist
