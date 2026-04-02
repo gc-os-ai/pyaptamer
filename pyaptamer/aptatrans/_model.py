@@ -162,7 +162,6 @@ class AptaTrans(nn.Module):
                     ("linear1", nn.Linear(self.inplanes, self.inplanes // 2)),
                     ("activation1", nn.GELU()),
                     ("linear2", nn.Linear(self.inplanes // 2, 1)),
-                    ("activation2", nn.Sigmoid()),
                 ]
             )
         )
@@ -378,5 +377,27 @@ class AptaTrans(nn.Module):
         out = self.avgpool(out)
         out = torch.flatten(out, 1)
         out = self.fc(out)
+
+        return out
+
+    def predict_proba(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
+        """Predict interaction probabilities.
+
+        This method applies a sigmoid activation to the raw logits produced by
+        the forward pass to return probabilities in the range [0, 1].
+
+        Parameters
+        ----------
+        x_apta, x_prot : Tensor
+            Input tensors for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1)) and (batch_size, seq_len (s2)), respectively.
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch_size, 1) containing interaction probabilities.
+        """
+        out = self.forward(x_apta=x_apta, x_prot=x_prot)
+        out = torch.sigmoid(out)
 
         return out

@@ -128,7 +128,7 @@ class TestAptaTransModel:
         in_dim: int,
         seq_len: int,
     ) -> None:
-        """Check forward pass on specified device."""
+        """Check forward pass outputs raw logits on specified device."""
         aptatrans = AptaTrans(
             apta_embedding=embeddings[0],
             prot_embedding=embeddings[1],
@@ -153,6 +153,60 @@ class TestAptaTransModel:
 
         # forward pass
         output = aptatrans(x_apta, x_prot)
+
+        # output should be raw logits
+        assert output.shape == (batch_size, 1)
+        assert not torch.allclose(output[0], output[1], atol=1e-5)
+
+    @pytest.mark.parametrize(
+        "device, batch_size, in_dim, seq_len",
+        [
+            (torch.device("cpu"), 4, 32, 10),
+            pytest.param(
+                torch.device("cuda"),
+                4,
+                32,
+                10,
+                marks=pytest.mark.skipif(
+                    not torch.cuda.is_available(), reason="CUDA not available"
+                ),
+            ),
+        ],
+    )
+    @torch.no_grad()
+    def test_predict_proba(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        device: torch.device,
+        batch_size: int,
+        in_dim: int,
+        seq_len: int,
+    ) -> None:
+        """Check predict_proba returns probabilities in [0, 1] on specified device."""
+        aptatrans = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=in_dim,
+            n_encoder_layers=2,
+            n_heads=4,
+            conv_layers=[2, 2, 2],
+            dropout=0.1,
+        ).to(device)
+
+        # dummy input tensors
+        x_apta = torch.randint(
+            high=embeddings[0].num_embeddings,
+            size=(batch_size, seq_len),
+            dtype=torch.long,
+        ).to(device)
+        x_prot = torch.randint(
+            high=embeddings[1].num_embeddings,
+            size=(batch_size, seq_len),
+            dtype=torch.long,
+        ).to(device)
+
+        # forward pass
+        output = aptatrans.predict_proba(x_apta, x_prot)
 
         assert output.shape == (batch_size, 1)
         # output should be in [0, 1] (sigmoid activation)
