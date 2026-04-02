@@ -1,4 +1,3 @@
-import io
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -31,9 +30,7 @@ def _make_mock_response(json_data=None, text=None, status_code=200):
     if text is not None:
         mock.text = text
     if status_code >= 400:
-        mock.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            response=mock
-        )
+        mock.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock)
     else:
         mock.raise_for_status.return_value = None
     return mock
