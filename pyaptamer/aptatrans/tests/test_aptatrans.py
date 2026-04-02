@@ -64,7 +64,9 @@ class TestAptaTransModel:
         weights_dir = os.path.join(
             os.path.dirname(
                 os.path.abspath(
-                    __import__("pyaptamer.aptatrans._model", fromlist=["_model"]).__file__
+                    __import__(
+                        "pyaptamer.aptatrans._model", fromlist=["_model"]
+                    ).__file__
                 )
             ),
             "weights",
@@ -87,9 +89,9 @@ class TestAptaTransModel:
             # verify weights are identical after loading
             loaded_state_dict = model.state_dict()
             for key in state_dict:
-                assert torch.equal(
-                    state_dict[key], loaded_state_dict[key]
-                ), f"Mismatch in parameter: {key}"
+                assert torch.equal(state_dict[key], loaded_state_dict[key]), (
+                    f"Mismatch in parameter: {key}"
+                )
         finally:
             if os.path.exists(weights_path):
                 os.remove(weights_path)
