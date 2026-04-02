@@ -20,30 +20,26 @@ The python library for easy aptamer design.
 - 🛠️ Easily extendable with plugins
 - 📦 Minimal dependencies
 
-NOTE: the package is in early development and not 100% feature complete - contributions appreciated!
+NOTE: the package is in early development, API is unstable and not 100% features are complete - contributions appreciated!
 
 ---
 
 ## 🛠️ Usage
 
-```python
-
-to be completed
-```
+Checkout [examples/](examples) to see how to use the current API.
 
 ---
 
 ## ⚡ Installation
 
-### Stable version from pip
-
-NOTE: the package is not released yet on pypi - install from repo instead (unstable version)
+### PyPI prerelease
 
 ```bash
-pip install pyaptamer
+pip install pyaptamer==0.1.0a1
 ```
+NOTE: pyaptamer is in early development. The API is unstable and may change between releases.
 
-### Latest unstable version
+### Development install
 
 ```bash
 # Clone the repository
@@ -65,6 +61,8 @@ How to start: [find a good first issue](https://github.com/gc-os-ai/pyaptamer/is
 
 and/or join the [discord](https://discord.gg/7uKdHfdcJG) and ping the developers,
 you can also ask for longer projects here.
+
+Please open an issue before making a PR about bug/feature.
 
 Contributions and participation are subject to the GC.OS Code of Conduct.
 
