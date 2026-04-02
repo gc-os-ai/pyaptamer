@@ -32,15 +32,14 @@ Checkout [examples/](examples) to see how to use the current API.
 
 ## ⚡ Installation
 
-### Stable version from pip
-
-NOTE: the package is not released yet on pypi - install from repo instead (unstable version)
+### PyPI prerelease
 
 ```bash
-pip install pyaptamer
+pip install pyaptamer==0.1.0a1
 ```
+NOTE: pyaptamer is in early development. The API is unstable and may change between releases.
 
-### Latest unstable version
+### Development install
 
 ```bash
 # Clone the repository
