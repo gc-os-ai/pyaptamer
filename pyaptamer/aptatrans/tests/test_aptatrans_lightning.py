@@ -8,6 +8,14 @@ import torch.nn as nn
 
 from pyaptamer.aptatrans import AptaTransEncoderLightning, AptaTransLightning
 
+# Check if CUDA is available for AMP testing
+try:
+    from torch.cuda.amp import autocast
+
+    AMP_AVAILABLE = torch.cuda.is_available()
+except ImportError:
+    AMP_AVAILABLE = False
+
 
 @pytest.fixture
 def mock_model():
@@ -97,6 +105,36 @@ class TestAptaTransLightning:
         assert optimizer.defaults["lr"] == lightning_model.lr
         assert optimizer.defaults["weight_decay"] == lightning_model.weight_decay
         assert optimizer.defaults["betas"] == lightning_model.betas
+
+    @pytest.mark.skipif(not AMP_AVAILABLE, reason="CUDA not available for AMP test")
+    @pytest.mark.parametrize(
+        "batch_size, seq_len",
+        [(4, 50), (8, 100)],
+    )
+    def test_step_with_amp(self, lightning_model, batch_size, seq_len):
+        """Check that training_step works with AMP (autocast) without raising errors."""
+        # create dummy batch
+        x_apta = torch.randint(0, 4, (batch_size, seq_len))
+        x_prot = torch.randint(0, 20, (batch_size, seq_len))
+        y = torch.randint(0, 2, (batch_size,)).float()
+        batch = (x_apta, x_prot, y)
+
+        # Move to GPU if available (AMP requires CUDA)
+        if torch.cuda.is_available():
+            lightning_model = lightning_model.cuda()
+            x_apta = x_apta.cuda()
+            x_prot = x_prot.cuda()
+            y = y.cuda()
+            batch = (x_apta, x_prot, y)
+
+        # Run under autocast to ensure binary_cross_entropy works safely
+        with autocast(enabled=True):
+            loss = lightning_model.training_step(batch, batch_idx=0)
+
+        # check that loss is a scalar tensor
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0  # scalar
+        assert loss.item() >= 0  # bce loss should be non-negative
 
 
 class TestAptaTransEncoderLightning:

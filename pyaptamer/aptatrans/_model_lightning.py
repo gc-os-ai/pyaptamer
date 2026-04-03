@@ -102,7 +102,13 @@ class AptaTransLightning(L.LightningModule):
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
         y_hat = torch.flatten(self.model(x_apta, x_prot))
-        loss = F.binary_cross_entropy(y_hat, y.float())
+        # binary_cross_entropy is unsafe to autocast, so disable autocast for this operation
+        # Use appropriate autocast based on CUDA availability
+        if torch.cuda.is_available():
+            with torch.cuda.amp.autocast(enabled=False):
+                loss = F.binary_cross_entropy(y_hat, y.float())
+        else:
+            loss = F.binary_cross_entropy(y_hat, y.float())
 
         # compute accuracy
         y_pred = (y_hat > 0.5).float()
