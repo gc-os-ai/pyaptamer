@@ -102,7 +102,7 @@ class AptaTransPipeline:
         """
         if depth < 3:
             raise ValueError(
-                f"Invalid depth value: {depth}. Must be grater or equal than 3."
+                f"Invalid depth value: {depth}. Must be greater or equal than 3."
             )
 
         self.device = device
