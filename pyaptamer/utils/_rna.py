@@ -6,10 +6,44 @@ __all__ = [
     "rna2vec",
 ]
 
+import re
 from collections.abc import Iterable
 from itertools import product
 
 import numpy as np
+
+
+def _build_greedy_pattern(
+    words: dict[str, int], word_max_len: int
+) -> re.Pattern[str] | None:
+    """Build longest-first regex pattern for greedy tokenization."""
+    vocab = sorted(
+        [
+            word
+            for word, word_idx in words.items()
+            if word and 0 < len(word) <= word_max_len and word_idx != 0
+        ],
+        key=lambda word: (len(word), word),
+        reverse=True,
+    )
+
+    if not vocab:
+        return None
+
+    return re.compile("|".join(re.escape(word) for word in vocab))
+
+
+def _pad_token_chunks(outputs: list[np.ndarray], seq_max_len: int) -> np.ndarray:
+    """Pad variable-length token chunks to fixed length arrays."""
+    if not outputs:
+        return np.zeros((0, seq_max_len))
+
+    padded_outputs = np.zeros((len(outputs), seq_max_len))
+    for idx, seq_array in enumerate(outputs):
+        seq_len = len(seq_array)
+        padded_outputs[idx, :seq_len] = seq_array
+
+    return padded_outputs
 
 
 def dna2rna(sequence: str) -> str:

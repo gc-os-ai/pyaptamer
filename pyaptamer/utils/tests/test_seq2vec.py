@@ -1,5 +1,7 @@
 import numpy as np
+
 from pyaptamer.utils import generate_nplets, seq2vec
+
 
 def _seq2vec_legacy(
     sequence_list: tuple[list[str], list[str]],
@@ -79,7 +81,7 @@ def test_seq2vec_matches_legacy_behavior():
         seq_max_len=4,
         word_max_len=3,
     )
-    
+
     np.testing.assert_array_equal(new_seq, legacy_seq)
     np.testing.assert_array_equal(new_ss, legacy_ss)
 
@@ -92,7 +94,7 @@ def test_seq2vec_empty_vocab_guard():
         words={},
         seq_max_len=5,
     )
-    
+
     np.testing.assert_array_equal(out_seq, np.zeros((0, 5)))
     np.testing.assert_array_equal(out_ss, np.zeros((0, 5)))
 
@@ -101,14 +103,13 @@ def test_seq2vec_skips_unknown_characters():
     """Unknown sequence regions should be skipped and not create tokens."""
     words = {"AC": 1, "GU": 2}
     sequences = (["XXACYYGUZZ"], ["--HH--TT--"])
-    
+
     out_seq, out_ss = seq2vec(
         sequence_list=sequences,
         words=words,
         seq_max_len=4,
         word_max_len=2,
     )
-    
     np.testing.assert_array_equal(out_seq, np.array([[1.0, 2.0, 0.0, 0.0]]))
     np.testing.assert_array_equal(out_ss, np.array([[9.0, 54.0, 0.0, 0.0]]))
 
@@ -123,7 +124,6 @@ def test_seq2vec_shorter_than_pattern():
         seq_max_len=3,
         word_max_len=2,
     )
-    
     np.testing.assert_array_equal(out_seq, np.zeros((0, 3)))
     np.testing.assert_array_equal(out_ss, np.zeros((0, 3)))
 
@@ -132,7 +132,6 @@ def test_seq2vec_chunking_and_padding():
     """Long outputs should be chunked to seq_max_len and the tail padded."""
     words = {"A": 1}
     sequences = (["AAAAA"], ["HHHHH"])
-    
     out_seq, out_ss = seq2vec(
         sequence_list=sequences,
         words=words,
