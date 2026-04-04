@@ -1,3 +1,5 @@
+pyaptamer/aptatrans/tests/test_aptatrans.py
+
 """Test suite for AptaTrans' deep neural network and pipeline."""
 
 __author__ = ["nennomp"]
@@ -396,6 +398,72 @@ class TestAptaTransPipeline:
         # check output
         assert isinstance(candidates, set)
         assert len(candidates) == n_candidates  # should be exactly n_candidates
+
+    def test_recommend_raises_when_unique_candidates_not_reached(self, monkeypatch):
+        """Check recommend fails fast when only duplicate candidates are generated."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        class MockExperiment:
+            def evaluate(self, candidate):
+                return torch.tensor(0.75)
+
+        def mock_aptamer(**kwargs):
+            return MockExperiment()
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
+        )
+
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                pass
+
+            def run(self, verbose: bool = False):
+                return {
+                    "candidate": "DUPLICATE",
+                    "sequence": "dup_sequence",
+                    "score": torch.tensor(0.2),
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+
+        with pytest.raises(RuntimeError, match="Could not generate the requested"):
+            pipeline.recommend(
+                target="AUGCAUGC", n_candidates=2, max_attempts=3, strict=True
+            )
+
+    def test_recommend_relax_uniqueness(self, monkeypatch):
+        """Verify that strict=False returns partial results and issues a warning."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                pass
+
+            def run(self, verbose: bool = False):
+                return {
+                    "candidate": "DUPLICATE",
+                    "sequence": "dup_sequence",
+                    "score": torch.tensor(0.2),
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+
+        with pytest.warns(
+            RuntimeWarning, match="Could not generate the requested number"
+        ):
+            candidates = pipeline.recommend(
+                target="AUGCAUGC", n_candidates=5, max_attempts=10, strict=False
+            )
+
+        # Should have only 1 unique candidate despite requesting 5
+        assert len(candidates) == 1
 
     @pytest.mark.parametrize(
         "device, candidate, target",
