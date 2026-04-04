@@ -5,12 +5,12 @@ from collections import Counter
 
 import numpy as np
 
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.base import BaseTransform
 from pyaptamer.trafos.pseaac._props import aa_props
 from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
 
 
-class PSeAAC:
+class PSeAAC(BaseTransform):
     """
     Compute Pseudo Amino Acid Composition (PseAAC) features for a protein sequence.
 
@@ -115,6 +115,13 @@ class PSeAAC:
     [0.006 0.006 0.006 0.006 0.006 0.006 0.018 0.018 0.018 0.018]
     """
 
+    _tags = {
+        "output_type": "numeric",
+        "property:fit_is_empty": True,
+        "capability:multivariate": False,
+        "property:elementwise": True,
+    }
+
     def __init__(
         self,
         lambda_val=30,
@@ -156,6 +163,8 @@ class PSeAAC:
                 list(range(i, i + group_props))
                 for i in range(0, self._n_cols, group_props)
             ]
+
+        super().__init__()
 
     def _normalized_aa(self, seq):
         """
@@ -206,26 +215,7 @@ class PSeAAC:
         diffs = rj - ri
         return np.mean(diffs**2)
 
-    def transform(self, protein_sequence):
-        """Get PseAAC features for protein sequence or MoleculeLoader.
-
-        Parameters
-        ----------
-        protein_sequence : str or MoleculeLoader
-            Sequence string, or a MoleculeLoader.
-
-        Returns
-        -------
-        np.ndarray or list of np.ndarray
-            If input is a str: 1D array of PseAAC features.
-            If input is a MoleculeLoader: list of 1D arrays, one per sequence.
-        """
-        if isinstance(protein_sequence, MoleculeLoader):
-            seqs = protein_sequence.to_df_seq()["sequence"]
-            return [self._transform(seq) for seq in seqs]
-        return self._transform(protein_sequence)
-
-    def _transform(self, protein_sequence):
+    def _transform_element(self, protein_sequence):
         """
         Generate the PseAAC feature vector for the given protein sequence.
 
@@ -239,12 +229,6 @@ class PSeAAC:
         protein_sequence : str
             The input protein sequence consisting of valid amino acid characters
             (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
-        lambda_val : int, default=30
-            The maximum distance between residues considered in the sequence-order
-            correlation (θ) calculations.
-        weight : float, default=0.15
-            The weight factor that balances the contribution of sequence-order
-            correlation features relative to amino acid composition features.
 
         Returns
         -------
