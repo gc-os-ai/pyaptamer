@@ -2,6 +2,9 @@
 
 __author__ = ["nennomp"]
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 import torch
 import torch.nn as nn
@@ -201,6 +204,129 @@ class TestAptaTransModel:
             f"Expected ({batch_size}, 1), got {tuple(output.shape)}. "
             f"seq_len_apta={seq_len_apta}, seq_len_prot={seq_len_prot}"
         )
+
+    def test_forward_encoder_invalid_type(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check ValueError is raised when encoder_type is not 'apta' or 'prot'."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_heads=4,
+        )
+        x = torch.randint(0, 16, (2, 8))
+        with pytest.raises(
+            ValueError,
+            match="Unknown encoder_type: invalid. Options are 'apta' or 'prot'.",
+        ):
+            model.forward_encoder(x=(x, x), encoder_type="invalid")
+
+    @pytest.mark.parametrize(
+        "batch_size, seq_len, n_pad",
+        [(4, 10, 3), (2, 8, 0), (4, 12, 6)],
+    )
+    def test_forward_encoder_with_padding(
+        self, batch_size: int, seq_len: int, n_pad: int
+    ):
+        """Check forward_encoder() handles zero-padded input with attention masking."""
+        embedding = EncoderPredictorConfig(
+            num_embeddings=32, target_dim=4, max_len=seq_len
+        )
+        model = AptaTrans(
+            apta_embedding=embedding,
+            prot_embedding=embedding,
+            in_dim=32,
+            n_encoder_layers=1,
+            n_heads=4,
+        )
+
+        x = torch.randint(1, 32, (batch_size, seq_len))
+        if n_pad > 0:
+            x[:, -n_pad:] = 0
+
+        x_mt, x_ss = x.clone(), x.clone()
+        y_mt, y_ss = model.forward_encoder(x=(x_mt, x_ss), encoder_type="apta")
+
+        assert y_mt.shape == (batch_size, seq_len, 32)
+        assert y_ss.shape == (batch_size, seq_len, 4)
+
+    def test_load_pretrained_weights_local(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        tmp_path: Path,
+    ):
+        """Check load_pretrained_weights() loads weights from a local file."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_heads=4,
+        )
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        weights_path = weights_dir / "pretrained.pt"
+        torch.save(model.state_dict(), weights_path)
+
+        with (
+            patch(
+                "pyaptamer.aptatrans._model.os.path.relpath",
+                return_value=str(weights_path),
+            ),
+            patch(
+                "pyaptamer.aptatrans._model.os.path.exists",
+                return_value=True,
+            ),
+            patch(
+                "pyaptamer.aptatrans._model.torch.load",
+                return_value=model.state_dict(),
+            ),
+        ):
+            model.load_pretrained_weights()
+
+    def test_load_pretrained_weights_remote(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check load_pretrained_weights() falls back to remote download."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_heads=4,
+        )
+        fake_state_dict = model.state_dict()
+
+        with (
+            patch(
+                "pyaptamer.aptatrans._model.os.path.exists",
+                return_value=False,
+            ),
+            patch(
+                "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+                return_value=fake_state_dict,
+            ) as mock_download,
+        ):
+            model.load_pretrained_weights()
+            mock_download.assert_called_once()
+            assert "huggingface.co" in mock_download.call_args.kwargs["url"]
+
+
+class MockMCTS:
+    """Mock MCTS returning incrementally numbered aptamer candidates."""
+
+    def __init__(self, **kwargs):
+        self.counter = 0
+
+    def run(self, verbose: bool = False):
+        result = {
+            "candidate": f"APTAMER_{self.counter:03d}",
+            "sequence": f"seq_{self.counter}",
+            "score": torch.tensor(0.75),
+        }
+        self.counter += 1
+        return result
 
 
 class MockAptaTransNeuralNet(nn.Module):
@@ -470,3 +596,26 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    def test_recommend_verbose(self, monkeypatch, capsys):
+        """Check recommend() with verbose=True prints candidate information."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(
+            device=device, model=model, prot_words=prot_words, depth=5
+        )
+        n_candidates = 2
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+        monkeypatch.setattr(pipeline, "_init_aptamer_experiment", lambda t: None)
+
+        candidates = pipeline.recommend(
+            target="AUGCAUGC", n_candidates=n_candidates, verbose=True
+        )
+
+        captured = capsys.readouterr()
+        assert isinstance(candidates, set)
+        assert len(candidates) == n_candidates
+        assert "Candidate:" in captured.out
+        assert "Score:" in captured.out
