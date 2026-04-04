@@ -147,24 +147,36 @@ def test_rna2vec_edge_cases():
     result = rna2vec(["AAACGU"], sequence_type="rna", max_sequence_length=4)
     assert result.shape[1] == 4  # should truncate to 4 triplets
 
-    # empty sequence
+    # empty sequence (should return a zero-padded row, not be dropped)
     result = rna2vec([""], sequence_type="rna")
-    assert len(result) == 0
+    assert result.shape == (1, 275)
+    assert np.all(result[0] == 0)
 
-    # single character sequence (can't form triplet)
+    # single character sequence (can't form triplet, zero-padded row)
     result = rna2vec(["A"], sequence_type="rna")
-    assert len(result) == 0
+    assert result.shape == (1, 275)
+    assert np.all(result[0] == 0)
 
-    # double character sequence (can't form triplet)
+    # double character sequence (can't form triplet, zero-padded row)
     result = rna2vec(["AA"], sequence_type="rna")
-    assert len(result) == 0
+    assert result.shape == (1, 275)
+    assert np.all(result[0] == 0)
 
     # test with secondary structure sequences - edge cases
     result = rna2vec(["S"], sequence_type="ss")
-    assert len(result) == 0
+    assert result.shape == (1, 275)
+    assert np.all(result[0] == 0)
 
     result = rna2vec(["SS"], sequence_type="ss")
-    assert len(result) == 0
+    assert result.shape == (1, 275)
+    assert np.all(result[0] == 0)
+
+
+def test_rna2vec_preserves_row_count():
+    """Check that rna2vec always returns one row per input sequence."""
+    sequences = ["AAAA", "AC", "", "GGGN", "A"]
+    result = rna2vec(sequences, sequence_type="rna", max_sequence_length=10)
+    assert result.shape == (len(sequences), 10)
 
 
 def test_rna2vec_default_parameters():
