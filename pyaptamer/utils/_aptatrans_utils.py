@@ -3,9 +3,30 @@
 __author__ = ["nennomp"]
 __all__ = ["seq2vec"]
 
+import re
 import numpy as np
+from pyaptamer.utils._rna import generate_nplets
 
-from pyaptamer.utils import generate_nplets
+WORDS_SS = generate_nplets(
+    letters=["H", "B", "E", "G", "I", "T", "S", "-"], repeat=range(1, 4)
+)
+
+def _build_pattern(words: dict[str, int], word_max_len: int) -> re.Pattern[str] | None:
+    """Build a greedy longest-match regex pattern from the provided vocabulary."""
+    vocab = sorted(
+        [
+            word
+            for word, word_idx in words.items()
+            if word and 0 < len(word) <= word_max_len and word_idx != 0
+        ],
+        key=lambda word: (len(word), word),
+        reverse=True,
+    )
+    
+    if not vocab:
+        return None
+    
+    return re.compile("|".join(re.escape(word) for word in vocab))
 
 
 def seq2vec(
@@ -54,49 +75,31 @@ def seq2vec(
     >>> seq2vec(sequences, words, seq_max_len=4)
     (array([[1., 2., 0., 0.]]), array([[9., 0., 0., 0.]]))
     """
-    words_ss = generate_nplets(
-        letters=["H", "B", "E", "G", "I", "T", "S", "-"], repeat=range(1, 4)
-    )
-
+    pattern = _build_pattern(words=words, word_max_len=word_max_len)
+    if pattern is None:
+        return np.zeros((0, seq_max_len)), np.zeros((0, seq_max_len))
+    
     outputs = []
     outputs_ss = []
-
+    
     for seq, ss in zip(*sequence_list, strict=False):
         output = []
         output_ss = []
-        i = 0
-
-        while i < len(seq):
-            matched = False
-
-            # try to match longest possible substring first
-            for j in range(word_max_len, 0, -1):
-                if i + j <= len(seq):
-                    substring = seq[i : i + j]
-                    substring_ss = ss[i : i + j]
-
-                    # check if substring exists in vocabulary (0 is unknown token)
-                    word_idx = words.get(substring, 0)
-                    if word_idx != 0:
-                        matched = True
-                        output.append(word_idx)
-                        # 0 marks unknown secondary structure tokens
-                        output_ss.append(words_ss.get(substring_ss, 0))
-
-                        # if at `seq_max_len`, store and reset
-                        if len(output) == seq_max_len:
-                            outputs.append(np.array(output))
-                            outputs_ss.append(np.array(output_ss))
-                            output = []
-                            output_ss = []
-
-                        i += j
-                        break
-
-            # skip character if no match found
-            if not matched:
-                i += 1
-
+        
+        for match in pattern.finditer(seq):
+            start, end = match.span()
+            word = match.group()
+            
+            output.append(words[word])
+            output_ss.append(WORDS_SS.get(ss[start:end], 0))
+            
+            # if at `seq_max_len`, store and reset
+            if len(output) == seq_max_len:
+                outputs.append(np.array(output))
+                outputs_ss.append(np.array(output_ss))
+                output = []
+                output_ss = []
+                
         # add remaining output if not empty
         if len(output) > 0:
             outputs.append(np.array(output))
