@@ -1,5 +1,3 @@
-pyaptamer/aptatrans/tests/test_aptatrans.py
-
 """Test suite for AptaTrans' deep neural network and pipeline."""
 
 __author__ = ["nennomp"]
