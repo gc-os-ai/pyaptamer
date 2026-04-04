@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from pyaptamer.aptatrans import AptaTransEncoderLightning, AptaTransLightning
+from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
 
 
 @pytest.fixture
@@ -29,8 +30,9 @@ def mock_model():
             )
 
         def forward(self, x_apta, x_prot):
+            """Return raw logits (not probabilities), matching the real AptaTrans model."""
             batch_size = x_apta.shape[0]
-            return torch.rand(batch_size, 1)
+            return torch.randn(batch_size, 1)  # raw logits
 
     return MockAptaTrans()
 
@@ -97,6 +99,28 @@ class TestAptaTransLightning:
         assert optimizer.defaults["lr"] == lightning_model.lr
         assert optimizer.defaults["weight_decay"] == lightning_model.weight_decay
         assert optimizer.defaults["betas"] == lightning_model.betas
+
+    @pytest.mark.parametrize("batch_size, seq_len", [(4, 50), (8, 100)])
+    def test_step_amp_safe(self, lightning_model, batch_size, seq_len):
+        """Check training_step does not crash under autocast (AMP).
+
+        Regression test for issue #230: AptaTrans finetuning crashed with AMP
+        because F.binary_cross_entropy is unsafe to autocast. The fix replaces
+        it with F.binary_cross_entropy_with_logits which is AMP-safe.
+        """
+        x_apta = torch.randint(0, 4, (batch_size, seq_len))
+        x_prot = torch.randint(0, 20, (batch_size, seq_len))
+        y = torch.randint(0, 2, (batch_size,)).float()
+        batch = (x_apta, x_prot, y)
+
+        device_type = "cuda" if torch.cuda.is_available() else "cpu"
+        # torch.autocast simulates AMP; BCEWithLogitsLoss must not raise here
+        with torch.autocast(device_type=device_type):
+            loss = lightning_model.training_step(batch, batch_idx=0)
+
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
 
 
 class TestAptaTransEncoderLightning:

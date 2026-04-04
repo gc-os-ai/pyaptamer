@@ -162,7 +162,6 @@ class AptaTrans(nn.Module):
                     ("linear1", nn.Linear(self.inplanes, self.inplanes // 2)),
                     ("activation1", nn.GELU()),
                     ("linear2", nn.Linear(self.inplanes // 2, 1)),
-                    ("activation2", nn.Sigmoid()),
                 ]
             )
         )
@@ -351,10 +350,14 @@ class AptaTrans(nn.Module):
         return self.imap(x_apta, x_prot)
 
     def forward(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
-        """Forward pass.
+        """Forward pass returning raw logits.
 
         This methods performs a forward pass through the entire neural network, minus
-        the token predictors, to perform inference and/or fine-tuning.
+        the token predictors. Returns raw logits (before sigmoid) to enable use of
+        ``F.binary_cross_entropy_with_logits``, which is numerically stable and
+        safe to use with Automatic Mixed Precision (AMP/fp16).
+
+        Use :meth:`predict` to obtain probability predictions during inference.
 
         Parameters
         ----------
@@ -365,7 +368,7 @@ class AptaTrans(nn.Module):
         Returns
         -------
         Tensor
-            Output tensor of shape (batch__size, 1) containing the model's predictions.
+            Output tensor of shape (batch_size, 1) containing raw logits.
         """
         out = self.forward_imap(x_apta, x_prot)
 
@@ -380,3 +383,23 @@ class AptaTrans(nn.Module):
         out = self.fc(out)
 
         return out
+
+    def predict(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:
+        """Forward pass returning probability predictions.
+
+        Applies a sigmoid activation to the raw logits returned by :meth:`forward`
+        to produce probability predictions in the range [0, 1]. Use this method
+        during inference.
+
+        Parameters
+        ----------
+        x_apta, x_prot : Tensor
+            Input tensors for aptamers and proteins, respectively. Shapes are
+            (batch_size, seq_len (s1)) and (batch_size, seq_len (s2)), respectively.
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch_size, 1) with probabilities in [0, 1].
+        """
+        return torch.sigmoid(self.forward(x_apta, x_prot))

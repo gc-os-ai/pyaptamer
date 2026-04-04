@@ -1,4 +1,4 @@
-"""AptaTrans' deep neural network wrapper fro Lightning."""
+"""AptaTrans' deep neural network wrapper for Lightning."""
 
 __author__ = ["nennomp"]
 __all__ = ["AptaTransLightning", "AptaTransEncoderLightning"]
@@ -85,6 +85,10 @@ class AptaTransLightning(L.LightningModule):
     ) -> Tensor:
         """Defines a single (mini-batch) step in the training/test loop.
 
+        Uses ``F.binary_cross_entropy_with_logits`` which:
+        - is safe with Automatic Mixed Precision (AMP/fp16) training
+        - is numerically more stable than applying sigmoid followed by BCE
+
         Parameters
         ----------
         batch: tuple[Tensor, Tensor, Tensor]
@@ -101,11 +105,12 @@ class AptaTransLightning(L.LightningModule):
         """
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
-        y_hat = torch.flatten(self.model(x_apta, x_prot))
-        loss = F.binary_cross_entropy(y_hat, y.float())
+        # model returns raw logits (no sigmoid); BCEWithLogitsLoss is AMP-safe
+        y_logits = torch.flatten(self.model(x_apta, x_prot))
+        loss = F.binary_cross_entropy_with_logits(y_logits, y.float())
 
-        # compute accuracy
-        y_pred = (y_hat > 0.5).float()
+        # compute accuracy: apply sigmoid to logits before thresholding
+        y_pred = (torch.sigmoid(y_logits) > 0.5).float()
         accuracy = (y_pred == y.float()).float().mean()
 
         self._log_metric(f"{stage}_loss", loss)
