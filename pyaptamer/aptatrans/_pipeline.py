@@ -6,6 +6,7 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -152,13 +153,10 @@ class AptaTransPipeline:
         )
         return experiment
 
-    def get_interaction_map(self, candidate: str, target: str) -> Tensor:
-        # TODO: to make the interaction map ready for plotting (at least if we were to
-        # follow the original paper), there are additional steps. Need to decide if put
-        # it here or elsewhere (e.g., in plotting code). For now, TBD.
-        # Personally, I would leave this as is, to provide an "untouched" interaction
-        # map.
+    def get_interaction_map(self, candidate: str, target: str) -> np.ndarray:
         """Generate the aptamer-protein interaction map.
+
+        You can use `pyaptamer.utils.plot_interaction_map` to visualize this map.
 
         Parameters
         ----------
@@ -169,8 +167,8 @@ class AptaTransPipeline:
 
         Returns
         -------
-        Tensor
-            A tensor containing the interaction map, of shape (batch_size, 1,
+        np.ndarray
+            An array containing the interaction map, of shape (batch_size, 1,
             seq_len_apta, seq_len_prot).
         """
         experiment = self._init_aptamer_experiment(target)
