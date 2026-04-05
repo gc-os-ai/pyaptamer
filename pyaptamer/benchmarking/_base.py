@@ -95,6 +95,30 @@ class Benchmarking:
             scorers[name] = make_scorer(metric)
         return scorers
 
+    def _get_estimator_names(self):
+        """Return stable display names for estimators.
+
+        If multiple estimators share the same class, append a 1-based index to keep
+        their result rows distinct.
+        """
+        class_names = [estimator.__class__.__name__ for estimator in self.estimators]
+        class_counts = {
+            class_name: class_names.count(class_name) for class_name in set(class_names)
+        }
+        class_positions = {class_name: 0 for class_name in class_counts}
+
+        names = []
+        for estimator in self.estimators:
+            class_name = estimator.__class__.__name__
+            if class_counts[class_name] == 1:
+                names.append(class_name)
+                continue
+
+            class_positions[class_name] += 1
+            names.append(f"{class_name}[{class_positions[class_name]}]")
+
+        return names
+
     def _to_df(self, results):
         """Convert nested results to a unified DataFrame."""
         records = []
@@ -127,10 +151,11 @@ class Benchmarking:
         """
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
+        estimator_names = self._get_estimator_names()
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
-
+        for estimator, est_name in zip(
+            self.estimators, estimator_names, strict=False
+        ):
             cv_results = cross_validate(
                 estimator,
                 self.X,
