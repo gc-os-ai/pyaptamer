@@ -1,6 +1,8 @@
 __author__ = "satvshr"
 __all__ = ["Benchmarking"]
 
+from collections import Counter
+
 import numpy as np
 import pandas as pd
 from sklearn.metrics import make_scorer
@@ -102,9 +104,7 @@ class Benchmarking:
         their result rows distinct.
         """
         class_names = [estimator.__class__.__name__ for estimator in self.estimators]
-        class_counts = {
-            class_name: class_names.count(class_name) for class_name in set(class_names)
-        }
+        class_counts = Counter(class_names)
         class_positions = {class_name: 0 for class_name in class_counts}
 
         names = []
@@ -153,9 +153,7 @@ class Benchmarking:
         results = {}
         estimator_names = self._get_estimator_names()
 
-        for estimator, est_name in zip(
-            self.estimators, estimator_names, strict=False
-        ):
+        for estimator, est_name in zip(self.estimators, estimator_names, strict=True):
             cv_results = cross_validate(
                 estimator,
                 self.X,
