@@ -151,7 +151,7 @@ class MaskedDataset(Dataset):
         y = torch.tensor(self.y[index], dtype=torch.int64)
 
         x_masked = x.clone().detach()
-        y_masked = x.clone().detach()
+        y_masked = y.clone().detach()
 
         # non-padding positions (0 is padding)
         seq_len = torch.sum(x_masked > 0)
