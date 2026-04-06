@@ -285,7 +285,7 @@ class AptaTransPipeline:
             else:
                 import warnings
 
-                warnings.warn(msg, RuntimeWarning)
+                warnings.warn(msg, RuntimeWarning, stacklevel=2)
 
         candidates = {
             (cand, seq, score) for (cand, seq), score in candidate_map.items()
