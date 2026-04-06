@@ -155,8 +155,7 @@ class TestAptaTransModel:
         output = aptatrans(x_apta, x_prot)
 
         assert output.shape == (batch_size, 1)
-        # output should be in [0, 1] (sigmoid activation)
-        assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
+        # output is raw logits (unbounded), verify non-trivial outputs
         assert not torch.allclose(output[0], output[1], atol=1e-5)
 
 

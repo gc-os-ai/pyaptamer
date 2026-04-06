@@ -111,9 +111,8 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
                 .numpy()
             )
         else:
-            return np.float64(
-                self.model(
-                    aptamer_candidate.to(self.device),
-                    self.target_encoded,
-                ).item()
+            logits = self.model(
+                aptamer_candidate.to(self.device),
+                self.target_encoded,
             )
+            return np.float64(torch.sigmoid(logits).item())

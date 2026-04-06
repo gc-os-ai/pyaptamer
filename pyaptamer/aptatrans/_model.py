@@ -162,7 +162,6 @@ class AptaTrans(nn.Module):
                     ("linear1", nn.Linear(self.inplanes, self.inplanes // 2)),
                     ("activation1", nn.GELU()),
                     ("linear2", nn.Linear(self.inplanes // 2, 1)),
-                    ("activation2", nn.Sigmoid()),
                 ]
             )
         )
