@@ -49,9 +49,9 @@ def plot_interaction_map(
     target : str
         The target protein sequence.
     prot_words : dict[str, int | float], optional, default=None
-        The dictionary mapping protein n-mer subsequences to unique IDs. 
-        Highly recommended to pass `pipeline.prot_words`. If provided, it is 
-        used to accurately project the tokenizer's output back to single 
+        The dictionary mapping protein n-mer subsequences to unique IDs.
+        Highly recommended to pass `pipeline.prot_words`. If provided, it is
+        used to accurately project the tokenizer's output back to single
         amino-acid resolution as described in the AptaTrans paper.
     title : str, optional, default="Aptamer-Protein Interaction Map"
         The title of the plot.
@@ -83,14 +83,17 @@ def plot_interaction_map(
 
     # Calculate the number of unpadded tokens
     n_apta_tokens = max(1, len(candidate) - 2)
-    
+
     if prot_words is not None:
         prot_token_lengths = _get_protein_token_lengths(target, prot_words)
         n_prot_tokens = len(prot_token_lengths)
     else:
         import warnings
+
         warnings.warn(
-            "prot_words not provided. Reconstructing single amino-acid mapping may be inaccurate."
+            "prot_words not provided. Reconstructing single amino-acid mapping "
+            "may be inaccurate.",
+            stacklevel=2,
         )
         prot_token_lengths = [1] * len(target)
         n_prot_tokens = len(target)
@@ -104,15 +107,15 @@ def plot_interaction_map(
     # AptaTrans Mapping 1: Aptamer nucleotide score is average of overlapping 3-mers
     reconstructed_apta = []
     dim_prot = imap_valid.shape[1]
-    
+
     for j in range(len(candidate)):
-        valid_i = [i for i in range(max(0, j - 2), min(n_apta_tokens, j + 1))]
+        valid_i = list(range(max(0, j - 2), min(n_apta_tokens, j + 1)))
         if valid_i:
             avg_score = np.mean(imap_valid[valid_i, :], axis=0)
         else:
             avg_score = np.zeros(dim_prot)
         reconstructed_apta.append(avg_score)
-        
+
     imap_mapped = np.vstack(reconstructed_apta)
 
     # AptaTrans Mapping 2: Protein word score broadcasts to its containing amino acids
@@ -127,17 +130,22 @@ def plot_interaction_map(
 
     r_len = len(candidate)
     c_len = len(target)
-    
+
     # Ensure dimensions match before plotting
     if imap_mapped.shape != (r_len, c_len):
-        import warnings
-        warnings.warn(f"Mapped imap shape {imap_mapped.shape} does not match sequences ({r_len}, {c_len}).")
-        
+        warnings.warn(
+            f"Mapped imap shape {imap_mapped.shape} does not match "
+            f"sequences ({r_len}, {c_len}).",
+            stacklevel=2,
+        )
+
     imap = imap_mapped
 
     # Initialize plot with a clean style
     with sns.axes_style("white"):
-        fig_width = max(6.0, min(20.0, c_len * 0.4 + 2.0)) # Add some padding for the colorbar
+        fig_width = max(
+            6.0, min(20.0, c_len * 0.4 + 2.0)
+        )  # Add some padding for the colorbar
         fig_height = max(5.0, min(16.0, r_len * 0.4 + 1.5))
         fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
@@ -145,15 +153,15 @@ def plot_interaction_map(
         sns.heatmap(
             imap,
             cmap=cmap,
-            square=True,              # Perfect square cells
-            linewidths=0.5,           # Subtle grid lines
+            square=True,  # Perfect square cells
+            linewidths=0.5,  # Subtle grid lines
             linecolor="lightgray",
             xticklabels=list(target) if imap.shape[1] == c_len else "auto",
             yticklabels=list(candidate) if imap.shape[0] == r_len else "auto",
             cbar_kws={
                 "label": "Interaction Intensity",
-                "shrink": 0.8,        # Slightly smaller colorbar
-                "aspect": 30          # Thinner colorbar
+                "shrink": 0.8,  # Slightly smaller colorbar
+                "aspect": 30,  # Thinner colorbar
             },
             ax=ax,
             **kwargs,
@@ -161,13 +169,15 @@ def plot_interaction_map(
 
         # Better typography for labels and titles
         ax.set_xlabel("Protein residues", fontsize=12, fontweight="medium", labelpad=10)
-        ax.set_ylabel("Aptamer nucleotides", fontsize=12, fontweight="medium", labelpad=10)
+        ax.set_ylabel(
+            "Aptamer nucleotides", fontsize=12, fontweight="medium", labelpad=10
+        )
         ax.set_title(title, fontsize=14, fontweight="bold", pad=20)
 
         # Improve layout and clean up ticks
         ax.tick_params(axis="x", rotation=0, labelsize=10, bottom=False)
         ax.tick_params(axis="y", rotation=0, labelsize=10, left=False)
-        
+
         plt.tight_layout()
 
     if show:
