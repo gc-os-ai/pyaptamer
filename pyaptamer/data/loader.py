@@ -68,10 +68,15 @@ class MoleculeLoader:
                 sequences.append(row["sequence"])
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
+        df = pd.DataFrame(sequences, index=index, columns=["sequence"])
 
-        columns = ["sequence"] if self.columns is None else self.columns
+        if self.ignore_duplicates:
+            df = df.loc[~df["sequence"].duplicated(keep="first")]
 
-        return pd.DataFrame(sequences, index=index, columns=columns)
+        if self.columns is not None:
+            df.columns = self.columns
+
+        return df
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()
