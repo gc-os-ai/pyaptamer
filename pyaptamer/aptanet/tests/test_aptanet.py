@@ -2,6 +2,7 @@ __author__ = ["nennomp", "satvshr"]
 
 
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
@@ -68,6 +69,32 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert np.issubdtype(preds.dtype, np.floating)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_and_predict_with_aptacom_dataframe(aptamer_seq, protein_seq):
+    """AptaNetPipeline should accept the AptaCom X schema directly."""
+    estimator = AptaNetClassifier(
+        hidden_dim=8,
+        n_hidden=1,
+        max_epochs=1,
+        random_state=0,
+    )
+    pipe = AptaNetPipeline(estimator=estimator)
+
+    X_raw = pd.DataFrame(
+        {
+            "aptamer_sequence": [aptamer_seq for _ in range(10)],
+            "target_sequence": [protein_seq for _ in range(10)],
+        }
+    )
+    y = np.array([0] * 5 + [1] * 5, dtype=np.float32)
+
+    pipe.fit(X_raw, y)
+    preds = pipe.predict(X_raw)
+
+    assert preds.shape == (10,)
+    assert set(preds).issubset({0, 1})
 
 
 @parametrize_with_checks(

@@ -8,6 +8,11 @@ import pandas as pd
 
 from pyaptamer.pseaac import AptaNetPSeAAC
 
+_DATAFRAME_COLUMN_PAIRS = (
+    ("aptamer", "protein"),
+    ("aptamer_sequence", "target_sequence"),
+)
+
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
     """
@@ -57,10 +62,25 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     return kmer_freq
 
 
+def _resolve_pair_columns(X: pd.DataFrame) -> tuple[str, str]:
+    """Resolve supported column names for DataFrame pair inputs."""
+    for aptamer_col, protein_col in _DATAFRAME_COLUMN_PAIRS:
+        if {aptamer_col, protein_col}.issubset(X.columns):
+            return aptamer_col, protein_col
+
+    supported = " or ".join(
+        f"{list(column_pair)!r}" for column_pair in _DATAFRAME_COLUMN_PAIRS
+    )
+    raise ValueError(
+        f"DataFrame input must contain {supported} columns. Got {list(X.columns)!r}."
+    )
+
+
 def pairs_to_features(X, k=4):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
-    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
+    Also supports pandas DataFrames with either ['aptamer', 'protein'] or
+    ['aptamer_sequence', 'target_sequence'] columns.
 
     This function generates feature vectors for each (aptamer, protein) pair using:
 
@@ -87,7 +107,8 @@ def pairs_to_features(X, k=4):
     feats = []
 
     if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
+        aptamer_col, protein_col = _resolve_pair_columns(X)
+        pairs = zip(X[aptamer_col], X[protein_col], strict=False)
     else:
         pairs = X
 
