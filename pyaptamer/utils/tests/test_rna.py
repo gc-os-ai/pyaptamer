@@ -9,6 +9,12 @@ import pytest
 import torch
 
 from pyaptamer.utils import dna2rna, encode_rna, generate_nplets, rna2vec
+from pyaptamer.utils._rna import (
+    _build_greedy_pattern,
+    _chunk_tokens,
+    _greedy_tokenize,
+    _greedy_tokenize_to_chunks,
+)
 
 
 @pytest.mark.parametrize(
@@ -242,3 +248,71 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+def test_greedy_tokenize_append_zero_policy():
+    """Unknown characters should append zero tokens under append_zero policy."""
+    words = {"AC": 1, "G": 2}
+
+    tokens, spans = _greedy_tokenize(
+        sequence="ACXG",
+        words=words,
+        word_max_len=2,
+        unknown_policy="append_zero",
+        return_spans=True,
+    )
+
+    assert tokens == [1, 0, 2]
+    assert spans == [(0, 2), (2, 3), (3, 4)]
+
+
+def test_greedy_tokenize_skip_policy():
+    """Unknown regions should be skipped under skip policy."""
+    words = {"AC": 1, "G": 2}
+    pattern = _build_greedy_pattern(words=words, word_max_len=2)
+
+    tokens, spans = _greedy_tokenize(
+        sequence="ACXG",
+        words=words,
+        word_max_len=2,
+        unknown_policy="skip",
+        return_spans=True,
+        pattern=pattern,
+    )
+
+    assert tokens == [1, 2]
+    assert spans == [(0, 2), (3, 4)]
+
+
+def test_chunk_tokens_with_spans():
+    """Token and span chunking should remain aligned."""
+    tokens = [1, 2, 3, 4, 5]
+    spans = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]
+
+    token_chunks, span_chunks = _chunk_tokens(tokens=tokens, chunk_size=2, spans=spans)
+
+    assert token_chunks == [[1, 2], [3, 4], [5]]
+    assert span_chunks == [[(0, 1), (1, 2)], [(2, 3), (3, 4)], [(4, 5)]]
+
+
+def test_chunk_tokens_invalid_size():
+    """Non-positive chunk sizes should be rejected."""
+    with pytest.raises(ValueError, match="`chunk_size` must be greater than 0"):
+        _chunk_tokens(tokens=[1, 2], chunk_size=0)
+
+
+def test_greedy_tokenize_to_chunks_output():
+    """Combined tokenization+chunking helper should preserve order and spans."""
+    words = {"A": 1, "C": 2}
+
+    token_chunks, span_chunks = _greedy_tokenize_to_chunks(
+        sequence="AACX",
+        words=words,
+        word_max_len=1,
+        chunk_size=2,
+        unknown_policy="append_zero",
+        return_spans=True,
+    )
+
+    assert token_chunks == [[1, 1], [2, 0]]
+    assert span_chunks == [[(0, 1), (1, 2)], [(2, 3), (3, 4)]]

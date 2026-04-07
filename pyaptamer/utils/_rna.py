@@ -9,6 +9,7 @@ __all__ = [
 import re
 from collections.abc import Iterable
 from itertools import product
+from typing import Literal
 
 import numpy as np
 
@@ -44,6 +45,118 @@ def _pad_token_chunks(outputs: list[np.ndarray], seq_max_len: int) -> np.ndarray
         padded_outputs[idx, :seq_len] = seq_array
 
     return padded_outputs
+
+
+def _greedy_tokenize(
+    sequence: str,
+    words: dict[str, int],
+    word_max_len: int,
+    *,
+    unknown_policy: Literal["append_zero", "skip"] = "append_zero",
+    return_spans: bool = False,
+    pattern: re.Pattern[str] | None = None,
+    max_tokens: int | None = None,
+) -> tuple[list[int], list[tuple[int, int]] | None]:
+    """Tokenize a sequence using a configurable greedy longest-first strategy."""
+    if unknown_policy not in {"append_zero", "skip"}:
+        raise ValueError("`unknown_policy` must be either 'append_zero' or 'skip'.")
+
+    if max_tokens is not None and max_tokens <= 0:
+        return [], [] if return_spans else None
+
+    tokens: list[int] = []
+    spans: list[tuple[int, int]] | None = [] if return_spans else None
+
+    if unknown_policy == "skip":
+        compiled_pattern = pattern or _build_greedy_pattern(words, word_max_len)
+        if compiled_pattern is None:
+            return tokens, spans
+
+        for match in compiled_pattern.finditer(sequence):
+            tokens.append(words[match.group()])
+            if spans is not None:
+                spans.append(match.span())
+
+            if max_tokens is not None and len(tokens) >= max_tokens:
+                break
+
+        return tokens, spans
+
+    index = 0
+    while index < len(sequence):
+        matched = False
+        for pattern_len in range(min(word_max_len, len(sequence) - index), 0, -1):
+            candidate = sequence[index : index + pattern_len]
+            if candidate in words:
+                tokens.append(words[candidate])
+                if spans is not None:
+                    spans.append((index, index + pattern_len))
+                index += pattern_len
+                matched = True
+                break
+
+        if not matched:
+            tokens.append(0)
+            if spans is not None:
+                spans.append((index, index + 1))
+            index += 1
+
+        if max_tokens is not None and len(tokens) >= max_tokens:
+            break
+
+    return tokens, spans
+
+
+def _chunk_tokens(
+    tokens: list[int],
+    chunk_size: int | None,
+    spans: list[tuple[int, int]] | None = None,
+) -> tuple[list[list[int]], list[list[tuple[int, int]]] | None]:
+    """Split token (and optional span) streams into fixed-size chunks."""
+    if chunk_size is None:
+        token_chunks = [tokens] if tokens else []
+        if spans is None:
+            return token_chunks, None
+        span_chunks = [spans] if spans else []
+        return token_chunks, span_chunks
+
+    if chunk_size <= 0:
+        raise ValueError("`chunk_size` must be greater than 0 when provided.")
+
+    token_chunks = [
+        tokens[idx : idx + chunk_size] for idx in range(0, len(tokens), chunk_size)
+    ]
+    if spans is None:
+        return token_chunks, None
+
+    span_chunks = [
+        spans[idx : idx + chunk_size] for idx in range(0, len(spans), chunk_size)
+    ]
+    return token_chunks, span_chunks
+
+
+def _greedy_tokenize_to_chunks(
+    sequence: str,
+    words: dict[str, int],
+    word_max_len: int,
+    *,
+    chunk_size: int | None,
+    unknown_policy: Literal["append_zero", "skip"] = "append_zero",
+    return_spans: bool = False,
+    pattern: re.Pattern[str] | None = None,
+    max_tokens: int | None = None,
+) -> tuple[list[list[int]], list[list[tuple[int, int]]] | None]:
+    """Tokenize greedily and optionally chunk the output for downstream encoders."""
+    tokens, spans = _greedy_tokenize(
+        sequence=sequence,
+        words=words,
+        word_max_len=word_max_len,
+        unknown_policy=unknown_policy,
+        return_spans=return_spans,
+        pattern=pattern,
+        max_tokens=max_tokens,
+    )
+    return _chunk_tokens(tokens=tokens, chunk_size=chunk_size, spans=spans)
 
 
 def dna2rna(sequence: str) -> str:
@@ -255,29 +368,18 @@ def encode_rna(
 
     encoded_sequences = []
     for seq in sequences:
-        tokens = []
-        i = 0
-
-        while i < len(seq):
-            # try to match the longest possible pattern first
-            matched = False
-            for pattern_len in range(min(word_max_len, len(seq) - i), 0, -1):
-                pattern = seq[i : i + pattern_len]
-                if pattern in words:
-                    tokens.append(words[pattern])
-                    i += pattern_len
-                    matched = True
-                    break
-
-            # if no pattern matched, use unknown token (0) and advance by 1
-            if not matched:
-                tokens.append(0)
-                i += 1
-
-            # stop if we've reached max_len tokens
-            if len(tokens) >= max_len:
-                tokens = tokens[:max_len]
-                break
+        tokens, _ = _greedy_tokenize(
+            sequence=seq,
+            words=words,
+            word_max_len=word_max_len,
+            unknown_policy="append_zero",
+            return_spans=False,
+            max_tokens=max_len,
+        )
+        if max_len > 0:
+            tokens = tokens[:max_len]
+        else:
+            tokens = []
 
         # pad sequence to max_len
         padded_tokens = tokens + [0] * (max_len - len(tokens))
