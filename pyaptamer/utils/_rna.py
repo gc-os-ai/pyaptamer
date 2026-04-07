@@ -145,6 +145,11 @@ def rna2vec(
         if sequence_type == "rna":
             sequence = dna2rna(sequence)
 
+        if len(sequence) < 3:
+            raise ValueError(
+                f"Sequence '{sequence}' is too short. Minimum length is 3."
+            )
+
         # extract all overlapping triplets from the sequence
         # e.g., 'ACGUA' -> ['ACG', 'CGU', 'GUA']
         converted = [
