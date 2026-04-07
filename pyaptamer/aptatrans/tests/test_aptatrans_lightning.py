@@ -5,6 +5,7 @@ __author__ = ["nennomp"]
 import pytest
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from pyaptamer.aptatrans import AptaTransEncoderLightning, AptaTransLightning
 
@@ -97,6 +98,36 @@ class TestAptaTransLightning:
         assert optimizer.defaults["lr"] == lightning_model.lr
         assert optimizer.defaults["weight_decay"] == lightning_model.weight_decay
         assert optimizer.defaults["betas"] == lightning_model.betas
+
+    def test_step_disables_autocast_for_bce_loss(self, lightning_model, monkeypatch):
+        """Check BCE loss runs outside autocast for AMP compatibility."""
+        observed = {}
+        original_bce = F.binary_cross_entropy
+
+        def wrapped_binary_cross_entropy(input, target, *args, **kwargs):
+            observed["autocast_enabled"] = torch.is_autocast_enabled(
+                input.device.type
+            )
+            observed["input_dtype"] = input.dtype
+            observed["target_dtype"] = target.dtype
+            return original_bce(input, target, *args, **kwargs)
+
+        monkeypatch.setattr(F, "binary_cross_entropy", wrapped_binary_cross_entropy)
+
+        batch_size, seq_len = 4, 50
+        x_apta = torch.randint(0, 4, (batch_size, seq_len))
+        x_prot = torch.randint(0, 20, (batch_size, seq_len))
+        y = torch.randint(0, 2, (batch_size,)).float()
+        batch = (x_apta, x_prot, y)
+
+        with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+            loss = lightning_model.training_step(batch, batch_idx=0)
+
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+        assert observed["autocast_enabled"] is False
+        assert observed["input_dtype"] == torch.float32
+        assert observed["target_dtype"] == torch.float32
 
 
 class TestAptaTransEncoderLightning:
