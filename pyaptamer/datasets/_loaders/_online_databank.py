@@ -27,6 +27,8 @@ def load_from_rcsb(pdb_id, overwrite=False):
     pdb_file_path = pdbl.retrieve_pdb_file(
         pdb_id, file_format="pdb", overwrite=overwrite
     )
+    if pdb_file_path is None:
+        raise FileNotFoundError(f"Failed to download PDB structure '{pdb_id}'.")
 
     structure = pdb_to_struct(pdb_file_path)
 
