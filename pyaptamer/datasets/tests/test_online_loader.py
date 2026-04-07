@@ -26,5 +26,7 @@ def test_download_structure_raises_when_download_fails(monkeypatch):
         lambda self, pdb_id, file_format="pdb", overwrite=False: None,
     )
 
-    with pytest.raises(FileNotFoundError, match="Failed to download PDB structure 'XXXX'"):
+    with pytest.raises(
+        FileNotFoundError, match="Failed to download PDB structure 'XXXX'"
+    ):
         load_from_rcsb("XXXX")
