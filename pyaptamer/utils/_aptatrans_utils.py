@@ -7,6 +7,7 @@ import numpy as np
 
 from pyaptamer.utils._rna import (
     _build_greedy_pattern,
+    _greedy_tokenize_to_chunks,
     _pad_token_chunks,
     generate_nplets,
 )
@@ -64,26 +65,28 @@ def seq2vec(
     pattern = _build_greedy_pattern(words=words, word_max_len=word_max_len)
     if pattern is None:
         return np.zeros((0, seq_max_len)), np.zeros((0, seq_max_len))
+
     outputs = []
     outputs_ss = []
     for seq, ss in zip(*sequence_list, strict=False):
-        output = []
-        output_ss = []
-        for match in pattern.finditer(seq):
-            start, end = match.span()
-            word = match.group()
-            output.append(words[word])
-            output_ss.append(WORDS_SS.get(ss[start:end], 0))
-            # if at `seq_max_len`, store and reset
-            if len(output) == seq_max_len:
-                outputs.append(np.array(output))
-                outputs_ss.append(np.array(output_ss))
-                output = []
-                output_ss = []
-        # add remaining output if not empty
-        if len(output) > 0:
-            outputs.append(np.array(output))
-            outputs_ss.append(np.array(output_ss))
+        token_chunks, span_chunks = _greedy_tokenize_to_chunks(
+            sequence=seq,
+            words=words,
+            word_max_len=word_max_len,
+            chunk_size=seq_max_len,
+            unknown_policy="skip",
+            return_spans=True,
+            pattern=pattern,
+        )
+
+        if not token_chunks or span_chunks is None:
+            continue
+
+        for token_chunk, span_chunk in zip(token_chunks, span_chunks, strict=False):
+            outputs.append(np.array(token_chunk))
+            outputs_ss.append(
+                np.array([WORDS_SS.get(ss[start:end], 0) for start, end in span_chunk])
+            )
 
     return _pad_token_chunks(outputs, seq_max_len), _pad_token_chunks(
         outputs_ss, seq_max_len
