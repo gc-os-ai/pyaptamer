@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from pyaptamer.utils._validation import validate_interaction_map_inputs
+
 
 class InteractionMap(nn.Module):
     """Computes the interaction map between aptamers and proteins.
@@ -40,9 +42,7 @@ class InteractionMap(nn.Module):
         Tensor
             Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
         """
-        assert x_apta.shape[-1] == x_prot.shape[-1], (
-            "The number of features of `x_apta` and `x_prot` must match."
-        )
+        validate_interaction_map_inputs(x_apta, x_prot)
 
         # compute interaction matrix using batch matrix multiplication
         out = torch.matmul(x_apta, x_prot.transpose(-2, -1))  # (batch_size, s1, s2)

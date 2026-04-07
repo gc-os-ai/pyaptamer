@@ -3,9 +3,11 @@ __author__ = ["nennomp", "satvshr"]
 
 import numpy as np
 import pytest
+import torch
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
+from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
 
 params = [
     (
@@ -81,3 +83,22 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+def test_aptanet_mlp_forward_raises_on_empty_input():
+    """Check AptaNetMLP rejects empty 2D tensors."""
+    model = AptaNetMLP(input_dim=8, hidden_dim=16, n_hidden=1, use_lazy=False)
+    x = torch.empty((4, 0), dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="non-empty"):
+        model(x)
+
+
+def test_aptanet_mlp_forward_raises_on_non_finite_input():
+    """Check AptaNetMLP rejects NaN/Inf values."""
+    model = AptaNetMLP(input_dim=8, hidden_dim=16, n_hidden=1, use_lazy=False)
+    x = torch.randn(4, 8)
+    x[0, 0] = torch.inf
+
+    with pytest.raises(ValueError, match="NaN or Inf"):
+        model(x)

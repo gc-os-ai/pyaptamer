@@ -3,6 +3,8 @@ __all__ = ["AptaNetMLP"]
 
 import torch.nn as nn
 
+from pyaptamer.utils._validation import validate_aptanet_mlp_input
+
 
 def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
     """
@@ -112,4 +114,5 @@ class AptaNetMLP(nn.Module):
         torch.Tensor
             Output tensor of shape (batch_size, output_dim), containing logits.
         """
+        validate_aptanet_mlp_input(x)
         return self.model(x)

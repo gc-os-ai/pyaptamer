@@ -159,6 +159,46 @@ class TestAptaTransModel:
         assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
         assert not torch.allclose(output[0], output[1], atol=1e-5)
 
+    def test_forward_raises_on_empty_inputs(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ) -> None:
+        """Check that empty tensors are rejected at the model boundary."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=1,
+            n_heads=4,
+            conv_layers=[1, 1, 1],
+        )
+
+        x_apta = torch.empty((1, 0), dtype=torch.long)
+        x_prot = torch.randint(high=embeddings[1].num_embeddings, size=(1, 8))
+
+        with pytest.raises(ValueError, match="x_apta"):
+            model(x_apta, x_prot)
+
+    def test_forward_raises_on_batch_mismatch(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ) -> None:
+        """Check that mismatched batch sizes are rejected with clear error."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=1,
+            n_heads=4,
+            conv_layers=[1, 1, 1],
+        )
+
+        x_apta = torch.randint(high=embeddings[0].num_embeddings, size=(2, 8))
+        x_prot = torch.randint(high=embeddings[1].num_embeddings, size=(1, 8))
+
+        with pytest.raises(ValueError, match="same batch size"):
+            model.forward_imap(x_apta, x_prot)
+
 
 class MockAptaTransNeuralNet(nn.Module):
     """Mock AptaTrans model for testing pipeline."""

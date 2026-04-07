@@ -202,9 +202,32 @@ def test_interaction_map_mismatch_input_features(x_apta, x_prot):
     """Check InteractionMap() raises error for mismatched feature dimensions."""
     interaction_map = InteractionMap()
 
-    # should raise assertion error due to mismatched features
+    # should raise value error due to mismatched features
     with pytest.raises(
-        AssertionError,
+        ValueError,
         match="The number of features of `x_apta` and `x_prot` must match",
     ):
+        interaction_map(x_apta, x_prot)
+
+
+def test_interaction_map_raises_on_empty_input():
+    """Check InteractionMap() rejects empty sequence lengths."""
+    interaction_map = InteractionMap()
+
+    x_apta = torch.empty((2, 0, 32))
+    x_prot = torch.randn(2, 10, 32)
+
+    with pytest.raises(ValueError, match="x_apta"):
+        interaction_map(x_apta, x_prot)
+
+
+def test_interaction_map_raises_on_non_finite_input():
+    """Check InteractionMap() rejects NaN/Inf values in encoded tensors."""
+    interaction_map = InteractionMap()
+
+    x_apta = torch.randn(2, 10, 32)
+    x_prot = torch.randn(2, 10, 32)
+    x_prot[0, 0, 0] = torch.nan
+
+    with pytest.raises(ValueError, match="NaN or Inf"):
         interaction_map(x_apta, x_prot)
