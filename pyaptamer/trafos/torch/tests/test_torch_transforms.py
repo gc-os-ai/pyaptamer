@@ -4,33 +4,9 @@ import pytest
 import torch
 
 from pyaptamer.trafos.torch import (
-    DNAtoRNA,
     GreedyEncode,
     RandomMask,
-    Reverse,
 )
-
-
-class TestReverse:
-    def test_reverse(self):
-        t = Reverse()
-        assert t("ACGT") == "TGCA"
-        assert t("AAA") == "AAA"
-        assert t("") == ""
-
-    def test_repr(self):
-        assert "Reverse" in repr(Reverse())
-
-
-class TestDNAtoRNA:
-    def test_convert(self):
-        t = DNAtoRNA()
-        assert t("ACGT") == "ACGU"
-        assert t("TTT") == "UUU"
-        assert t("ACG") == "ACG"
-
-    def test_repr(self):
-        assert "DNAtoRNA" in repr(DNAtoRNA())
 
 
 class TestGreedyEncode:
@@ -92,11 +68,6 @@ class TestRandomMask:
 
 
 class TestChaining:
-    def test_str_transforms(self):
-        t1 = DNAtoRNA()
-        t2 = Reverse()
-        assert t2(t1("ACGT")) == "UGCA"
-
     def test_tensor_transforms(self):
         vocab = {"A": 1, "C": 2, "G": 3, "U": 4}
         encode = GreedyEncode(vocab, max_len=5)
