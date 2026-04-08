@@ -36,7 +36,8 @@ class MoleculeLoader:
     path : str, Path, or list
         File location(s) of molecule files. One row is returned per file.
     index : list, or pandas.Index coercible, optional
-        Row index for the resulting DataFrame; if None, integer RangeIndex is used.
+        Row index for the resulting DataFrame; if None, a MultiIndex of
+        (path, chain_id) is used.
     columns : list, optional
         column names for the structure; if None, defaults to ["sequence"]
 
@@ -79,16 +80,26 @@ class MoleculeLoader:
 
         for path in self._path:
             seq_df = self._load_dispatch(path)
+            seen = set()
 
             for _, row in seq_df.iterrows():
+                seq = row["sequence"]
+                if self.ignore_duplicates and seq in seen:
+                    continue
+                seen.add(seq)
                 index_tuples.append((path, row["chain_id"]))
-                sequences.append(row["sequence"])
+                sequences.append(seq)
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
 
         columns = ["sequence"] if self.columns is None else self.columns
 
-        return pd.DataFrame(sequences, index=index, columns=columns)
+        df = pd.DataFrame(sequences, index=index, columns=columns)
+
+        if self.index is not None:
+            df.index = self.index
+
+        return df
 
     def _determine_type(self, path):
         """Return file type inferred from suffix or from the instance `fmt` override.
