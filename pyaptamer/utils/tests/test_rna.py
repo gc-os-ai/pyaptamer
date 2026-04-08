@@ -36,6 +36,11 @@ def test_dna2rna_edge_cases():
     assert dna2rna("AcGt") == "ANGN"
 
 
+def test_dna2rna_handles_repeated_unknown_nucleotides():
+    """Check repeated unknown nucleotides are converted in a single pass."""
+    assert dna2rna("AXT" * 1000) == "ANU" * 1000
+
+
 @pytest.mark.parametrize("repeat", [2, 3, 4])
 def test_generate_nplets(repeat):
     """Check generation of all possible n-plets."""
