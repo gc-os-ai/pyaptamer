@@ -128,3 +128,16 @@ class TestAptaTransEncoderLightning:
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert loss.item() >= 0
+
+    @pytest.mark.parametrize("encoder_type", ["apta", "prot"])
+    def test_init_valid_encoder_types(self, mock_model, encoder_type):
+        """Check that valid encoder_type values are accepted without error."""
+        model = AptaTransEncoderLightning(mock_model, encoder_type=encoder_type)
+        assert model.encoder_type == encoder_type
+
+
+    def test_init_invalid_encoder_type_raises(self, mock_model):
+        """Regression test for #338: invalid encoder_type must raise ValueError
+        at construction time, not as UnboundLocalError in configure_optimizers."""
+        with pytest.raises(ValueError, match="Invalid encoder_type 'invalid'"):
+            AptaTransEncoderLightning(mock_model, encoder_type="invalid")

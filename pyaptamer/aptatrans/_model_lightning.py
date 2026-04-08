@@ -269,6 +269,12 @@ class AptaTransEncoderLightning(AptaTransLightning):
         weight_mlm: float = 2.0,
         weight_ssp: float = 1.0,
     ) -> None:
+        _valid_encoder_types = ("apta", "prot")
+        if encoder_type not in _valid_encoder_types:
+            raise ValueError(
+                f"Invalid encoder_type '{encoder_type}'. "
+                f"Must be one of {_valid_encoder_types}."
+            )
         super().__init__(model, lr, weight_decay, betas)
         self.encoder_type = encoder_type
         self.weight_mlm = weight_mlm
