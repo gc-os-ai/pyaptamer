@@ -128,3 +128,71 @@ class TestAptaTransEncoderLightning:
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert loss.item() >= 0
+
+    @pytest.mark.parametrize(
+        "batch_size, seq_len",
+        [(4, 50), (8, 100), (2, 75)],
+    )
+    def test_test_step(self, lightning_model, batch_size, seq_len):
+        """Check test_step computes loss correctly for encoder pretraining."""
+        x_mlm = torch.randint(0, 125, (batch_size, seq_len))
+        x_ssp = torch.randint(0, 125, (batch_size, seq_len))
+        y_mlm = torch.randint(0, 125, (batch_size, seq_len))
+        y_ssp = torch.randint(0, 8, (batch_size, seq_len))
+
+        batch = (x_mlm, x_ssp, y_mlm, y_ssp)
+
+        loss = lightning_model.test_step(batch, batch_idx=0)
+
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+        assert loss.item() >= 0
+
+    @pytest.mark.parametrize("encoder_type", ["apta", "prot"])
+    def test_training_step_both_encoder_types(self, mock_model, encoder_type):
+        """Check training_step works for both aptamer and protein encoder types."""
+        model = AptaTransEncoderLightning(mock_model, encoder_type=encoder_type)
+
+        x_mlm = torch.randint(0, 125, (4, 50))
+        x_ssp = torch.randint(0, 125, (4, 50))
+        y_mlm = torch.randint(0, 125, (4, 50))
+        y_ssp = torch.randint(0, 8, (4, 50))
+
+        batch = (x_mlm, x_ssp, y_mlm, y_ssp)
+
+        loss = model.training_step(batch, batch_idx=0)
+
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
+        assert loss.item() >= 0
+
+    @pytest.mark.parametrize("encoder_type", ["apta", "prot"])
+    def test_configure_optimizers(self, encoder_type):
+        """Check optimizer is configured with the correct encoder parameters."""
+
+        class MockAptaTransWithEncoders(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.encoder_apta = nn.Linear(10, 10)
+                self.encoder_prot = nn.Linear(10, 10)
+                self.token_predictor_apta = nn.Linear(10, 10)
+                self.token_predictor_prot = nn.Linear(10, 10)
+
+        mock = MockAptaTransWithEncoders()
+        model = AptaTransEncoderLightning(mock, encoder_type=encoder_type)
+        optimizer = model.configure_optimizers()
+
+        assert isinstance(optimizer, torch.optim.Adam)
+        assert optimizer.defaults["lr"] == model.lr
+
+    def test_init_custom_weights(self, mock_model):
+        """Check custom MLM and SSP loss weights are stored correctly."""
+        model = AptaTransEncoderLightning(
+            mock_model,
+            encoder_type="apta",
+            weight_mlm=3.0,
+            weight_ssp=0.5,
+        )
+
+        assert model.weight_mlm == 3.0
+        assert model.weight_ssp == 0.5
