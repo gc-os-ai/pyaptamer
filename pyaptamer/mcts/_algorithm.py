@@ -228,6 +228,9 @@ class MCTS(BaseObject):
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
 
+        # reconstruct the encoded sequence (e.g., "A__C" -> "CA") before evaluation
+        sequence = self._reconstruct(sequence)
+
         # evaluate the candidate sequence with the goal function
         return self.experiment.evaluate(sequence)
 
