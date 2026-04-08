@@ -79,9 +79,16 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
+        return self
 
     def predict_proba(self, X):
         check_is_fitted(self)
+        estimator = self.pipeline_.named_steps["clf"]
+        if not hasattr(estimator, "predict_proba"):
+            raise AttributeError(
+                f"{type(estimator).__name__} does not support predict_proba(). "
+                "Switch to a classifier estimator."
+            )   
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):

@@ -81,3 +81,36 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_returns_self(aptamer_seq, protein_seq):
+    """
+    Regression test for #333: fit() must return self to enable sklearn-style
+    method chaining.
+    """
+    pipe = AptaNetPipeline()
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+
+    fit_result = pipe.fit(X_raw, y)
+
+    assert fit_result is pipe
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_predict_proba_raises_on_regressor(aptamer_seq, protein_seq):
+    """
+    Regression test for #333: predict_proba() must raise a clear AttributeError
+    when the pipeline is backed by a regressor, not a raw sklearn internal error.
+    """
+    from sklearn.linear_model import Ridge
+
+    pipe = AptaNetPipeline(estimator=Ridge())
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    y = np.linspace(0, 1, 40).astype(np.float32)
+
+    pipe.fit(X_raw, y)
+
+    with pytest.raises(AttributeError, match="does not support predict_proba"):
+        pipe.predict_proba(X_raw)
