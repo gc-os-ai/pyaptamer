@@ -1,4 +1,4 @@
-"Generic utilities."
+"""Generic utilities."""
 
 __author__ = ["nennomp"]
 __all__ = ["seq2vec"]
@@ -14,11 +14,11 @@ def seq2vec(
     seq_max_len: int,
     word_max_len: int = 3,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # TODO: see if this can be merged in a more generic version of `_rna.rna2vec(...)`.
+    # TODO: look into ways to speed it up.
+
     """
     Convert sequences to vector representations using word dictionaries.
-
-    TODO: see if this can be merged in a more generic version of `_rna.rna2vec(...)`.
-    TODO: look into ways to speed it up.
 
     Tokenizes input sequences by matching substrings of varying lengths against
     provided vocabularies, then converts matches to indices and pads to uniform length.
@@ -42,9 +42,8 @@ def seq2vec(
     -------
     tuple[np.ndarray, np.ndarray]
         A tuple of numpy arrays, containing the padded primary sequence indices array
-        and the padded secondary structure indices array, respectively. The former has
-        sequence length (n_sequences, seq_max_len), the latter (n_sequences, len
-        (`words_ss`) = 584).
+        and the padded secondary structure indices array, respectively. Both arrays
+        have the shape (n_sequences, seq_max_len).
 
     Examples
     --------

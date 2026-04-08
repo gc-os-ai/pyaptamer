@@ -1,8 +1,9 @@
 __author__ = "satvshr"
 
 import os
-
 import pytest
+import pandas as pd
+from unittest.mock import patch, MagicMock, mock_open
 
 from pyaptamer.utils import pdb_to_aaseq
 
@@ -72,3 +73,29 @@ def test_pdb_to_aaseq_atom_fallback(pdb_path_1gnh_no_seqres):
         "DataFrame should have columns ['chain','sequence']"
     )
     assert all(isinstance(s, str) and len(s) > 0 for s in df["sequence"])
+
+
+def test_pdb_to_aaseq_invalid_type():
+    with patch("builtins.open", mock_open(read_data="")):
+        with patch("pyaptamer.utils._pdb_to_aaseq.SeqIO.parse") as mock_parse:
+            mock_parse.return_value = [MagicMock(id="A", seq="AAA")]
+            with pytest.raises(ValueError):
+                pdb_to_aaseq("dummy.pdb", return_type="wrong")
+
+def test_pdb_to_aaseq_ignore_duplicates():
+    with patch("builtins.open", mock_open(read_data="")):
+        with patch("pyaptamer.utils._pdb_to_aaseq.SeqIO.parse") as mock_parse:
+            rec = MagicMock(id="A", seq="AAA")
+            mock_parse.return_value = [rec, rec]
+            res = pdb_to_aaseq("dummy.pdb", ignore_duplicates=True)
+            assert len(res) == 1
+
+def test_pdb_to_aaseq_empty_error():
+    with patch("builtins.open", mock_open(read_data="")):
+        with patch("pyaptamer.utils._pdb_to_aaseq.SeqIO.parse") as mock_parse:
+            mock_parse.return_value = []
+            with patch("pyaptamer.utils._pdb_to_aaseq.pdb_to_struct") as mock_struct:
+                with patch("pyaptamer.utils._pdb_to_aaseq.struct_to_aaseq") as mock_conv:
+                    mock_conv.return_value = pd.DataFrame(columns=["chain", "sequence"])
+                    with pytest.raises(ValueError):
+                        pdb_to_aaseq("dummy.pdb")

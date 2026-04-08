@@ -2,6 +2,7 @@ __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
 from itertools import product
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -9,7 +10,7 @@ import pandas as pd
 from pyaptamer.pseaac import AptaNetPSeAAC
 
 
-def generate_kmer_vecs(aptamer_sequence, k=4):
+def generate_kmer_vecs(aptamer_sequence: str, k: int = 4) -> np.ndarray:
     """
     Generate normalized k-mer frequency vectors for the aptamer sequence.
 
@@ -28,6 +29,13 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     np.ndarray
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
+
+    Examples
+    --------
+    >>> from pyaptamer.utils import generate_kmer_vecs
+    >>> vec = generate_kmer_vecs("ACGT", k=2)
+    >>> print(vec.shape)
+    (20,)
     """
     DNA_BASES = list("ACGT")
 
@@ -57,7 +65,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     return kmer_freq
 
 
-def pairs_to_features(X, k=4):
+def pairs_to_features(X: Union[list[tuple[str, str]], pd.DataFrame], k: int = 4) -> np.ndarray:
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
     Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
@@ -69,10 +77,9 @@ def pairs_to_features(X, k=4):
 
     Parameters
     ----------
-    X : list of tuple of str or pandas.DataFrame
+    X : list[tuple[str, str]] or pandas.DataFrame
         A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
         or a DataFrame containing 'aptamer' and 'protein' columns.
-
     k : int, optional
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
         Default is 4.
@@ -82,6 +89,15 @@ def pairs_to_features(X, k=4):
     np.ndarray
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> from pyaptamer.utils import pairs_to_features
+    >>> data = [("ACGT", "ACDEFGH")]
+    >>> feats = pairs_to_features(data, k=2)
+    >>> print(feats.shape)
+    (1, 40)
     """
     pseaac = AptaNetPSeAAC()
     feats = []

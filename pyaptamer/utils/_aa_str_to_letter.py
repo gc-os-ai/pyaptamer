@@ -26,18 +26,26 @@ three_to_one = {
     # Add more mappings if necessary
 }
 
-
-def aa_str_to_letter(aa_str):
-    """Convert a string of amino acid three-letter codes to one-letter codes.
+def aa_str_to_letter(aa_str: str) -> str:
+    """Convert a single three-letter amino acid code to its one-letter code.
 
     Parameters
     ----------
     aa_str : str
-        A three-letter amino acid code string.
+        A single three-letter amino acid code (e.g., 'ALA').
 
     Returns
     -------
     str
-        The corresponding one-letter amino acid code.
+        The corresponding one-letter amino acid code. Returns 'X' if the
+        input code is not found in the mapping.
+
+    Examples
+    --------
+    >>> from pyaptamer.utils import aa_str_to_letter
+    >>> print(aa_str_to_letter("ALA"))
+    A
+    >>> print(aa_str_to_letter("XYZ"))
+    X
     """
-    return three_to_one.get(aa_str.upper(), "X")  # Return 'X' for unknown codes
+    return three_to_one.get(aa_str.upper(), "X")

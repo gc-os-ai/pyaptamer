@@ -10,6 +10,12 @@ __all__ = [
     "struct_to_aaseq",
     "pdb_to_seq_uniprot",
     "pdb_to_aaseq",
+    "generate_kmer_vecs",
+    "pairs_to_features",
+    "augment_reverse",
+    "filter_words",
+    "clean_protein_seq",
+    "seq2vec",
 ]
 
 from pyaptamer.utils._aa_str_to_letter import aa_str_to_letter
@@ -23,3 +29,11 @@ from pyaptamer.utils._rna import (
     rna2vec,
 )
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
+from pyaptamer.utils._aptanet_utils import (
+    generate_kmer_vecs,
+    pairs_to_features,
+)
+from pyaptamer.utils._augment import augment_reverse
+from pyaptamer.utils._base import filter_words
+from pyaptamer.utils._pseaac_utils import clean_protein_seq
+from pyaptamer.utils._aptatrans_utils import seq2vec

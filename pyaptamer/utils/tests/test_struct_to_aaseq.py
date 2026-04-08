@@ -1,6 +1,9 @@
 __author__ = "satvshr"
 
+from unittest.mock import MagicMock
+
 import pandas as pd
+import pytest
 
 from pyaptamer.datasets._loaders._1gnh import _load_1gnh_structure
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
@@ -43,3 +46,10 @@ def test_struct_to_aaseq():
     assert seq_list == df["sequence"].tolist(), (
         "List sequences must match DataFrame 'sequence' column"
     )
+
+
+def test_struct_to_aaseq_invalid_type():
+    mock_struct = MagicMock()
+    mock_struct.get_chains.return_value = []
+    with pytest.raises(ValueError):
+        struct_to_aaseq(mock_struct, return_type="dict")

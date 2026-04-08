@@ -143,8 +143,9 @@ def test_rna2vec_edge_cases():
     ):
         rna2vec(["ACGU"], sequence_type="invalid")
 
-    # `max_sequence_length` is smaller than the number of triplets
-    result = rna2vec(["AAACGU"], sequence_type="rna", max_sequence_length=4)
+    # `max_sequence_length` is smaller than the number of triplets (truncation)
+    # Using 'AAACGUA' gives 5 triplets: 'AAA', 'AAC', 'ACG', 'CGU', 'GUA'
+    result = rna2vec(["AAACGUA"], sequence_type="rna", max_sequence_length=4)
     assert result.shape[1] == 4  # should truncate to 4 triplets
 
     # empty sequence
@@ -242,3 +243,33 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+def test_rna2vec_errors():
+    with pytest.raises(ValueError):
+        rna2vec(["ACGU"], max_sequence_length=0)
+    with pytest.raises(ValueError):
+        rna2vec(["ACGU"], sequence_type="dna")
+
+
+def test_encode_rna_tensor():
+    words = {"A": 1, "C": 2}
+    res = encode_rna(["AC"], words, max_len=5, return_type="tensor")
+    assert isinstance(res, torch.Tensor)
+    assert res.shape == (1, 5)
+
+
+def test_rna2vec_no_max_len():
+    """Check rna2vec without padding (max_sequence_length=None)."""
+    sequences = ["ACGU"]
+    # 'ACGU' -> triplets: 'ACG', 'CGU' (length 2)
+    result = rna2vec(sequences, max_sequence_length=None)
+    assert result.shape == (1, 2)
+
+
+def test_encode_rna_numpy():
+    """Check that encode_rna can return a numpy array."""
+    words = {"A": 1, "C": 2}
+    res = encode_rna(["AC"], words, max_len=5, return_type="numpy")
+    assert isinstance(res, np.ndarray)
+    assert res.shape == (1, 5)

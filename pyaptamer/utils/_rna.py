@@ -22,13 +22,21 @@ def dna2rna(sequence: str) -> str:
 
     Parameters
     ----------
-    seq : str
+    sequence : str
         The DNA sequence to be converted.
 
     Returns
     -------
     str
         The converted RNA sequence.
+
+    Examples
+    --------
+    >>> from pyaptamer.utils import dna2rna
+    >>> print(dna2rna("ACGT"))
+    ACGU
+    >>> print(dna2rna("ACGTX"))
+    ACGUN
     """
     # replace nucleotides 'T' with 'U'
     result = sequence.translate(str.maketrans("T", "U"))
@@ -58,6 +66,14 @@ def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str
     -------
     dict[str, int]
         A dictionary mapping each n-plet to a unique integer ID (1-indexed).
+
+    Examples
+    --------
+    >>> from pyaptamer.utils import generate_nplets
+    >>> print(generate_nplets(["A", "C"], repeat=2))
+    {'AA': 1, 'AC': 2, 'CA': 3, 'CC': 4}
+    >>> print(generate_nplets(["A", "C"], repeat=[1, 2]))
+    {'A': 1, 'C': 2, 'AA': 3, 'AC': 4, 'CA': 5, 'CC': 6}
     """
     if isinstance(repeat, int):
         repeat = [repeat]
@@ -76,13 +92,13 @@ def rna2vec(
     sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
 ) -> np.ndarray:
     """
-    Convert a list of RNA sequence or RNA secondary structures into a numerical
+    Convert a list of RNA sequences or RNA secondary structures into a numerical
     representation.
 
     For RNA sequences, if not already in RNA format, the sequences are converted from
     DNA to RNA. For both RNA and secondary structure sequences, all overlapping
     triplets (3-nucleotide/character combinations) are extracted from each sequence and
-    mapped to unique indices. Finally, the sequences are zero padded to length
+    mapped to unique indices. Finally, the sequences are zero-padded to length
     `max_sequence_length`. The result is a numpy array where each row corresponds to a
     sequence, and each column corresponds to an integer representing the triplet's
     index in the dictionary.
@@ -124,7 +140,8 @@ def rna2vec(
     >>> print(ss)
     [[2 9 0 0]]
     """
-    if max_sequence_length <= 0:
+    # Fix: ensure it handles None correctly before comparison
+    if max_sequence_length is not None and max_sequence_length <= 0:
         raise ValueError("`max_sequence_length` must be greater than 0.")
 
     if sequence_type not in ["rna", "ss"]:
@@ -182,21 +199,21 @@ def encode_rna(
 ):
     """Encode RNA sequences into their numerical representations.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    This function tokenizes RNA sequences using a greedy longest-match approach,
+    where longer nucleotide patterns are preferred over shorter ones. Sequences are
+    either truncated or zero-padded to `max_len` tokens.
 
     Parameters
     ----------
     sequences : list[str]
         List of RNA sequences to be encoded.
     words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
+        A dictionary mapping RNA 3-mers to unique indices.
     max_len : int
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
     word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
+        Maximum length of nucleotide patterns to consider during tokenization.
     return_type : str, optional, default="tensor"
         The type of the returned encoded sequences.
 
@@ -205,15 +222,16 @@ def encode_rna(
 
     Returns
     -------
-    Tensor
+    Tensor or ndarray
         Encoded sequences with shape (n_sequences, `max_len`).
 
     Examples
     --------
     >>> from pyaptamer.utils import encode_rna
     >>> words = {"A": 1, "C": 2, "D": 3, "AC": 4}
-    >>> print(encode_rna("ACD", words, max_len=5))
-    tensor([[4, 3, 0, 0, 0]])
+    >>> print(encode_rna(["ACD", "C"], words, max_len=5))
+    tensor([[4, 3, 0, 0, 0],
+            [2, 0, 0, 0, 0]])
     """
     # handle single protein input
     if isinstance(sequences, str):

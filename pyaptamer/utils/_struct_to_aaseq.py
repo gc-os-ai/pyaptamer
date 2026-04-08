@@ -2,17 +2,19 @@ __author__ = "satvshr"
 __all__ = ["struct_to_aaseq"]
 
 import pandas as pd
+from typing import Union
 from Bio.PDB.Polypeptide import PPBuilder
+from Bio.PDB.Structure import Structure
 
 
-def struct_to_aaseq(structure, return_type="list"):
+def struct_to_aaseq(structure: Structure, return_type: str = "list") -> Union[pd.DataFrame, list[str]]:
     """
     Extract amino-acid sequences from a Biopython Structure.
 
     Parameters
     ----------
-    structure :
-        Bio.PDB.Structure.Structure object (e.g. produced by PDBParser).
+    structure : Bio.PDB.Structure.Structure
+        Object produced by PDBParser containing the molecular structure.
     return_type : {'pd.df', 'list'}, optional, default='list'
         - ``'pd.df'`` : return a pandas.DataFrame with exactly two columns
           (in this order): ``'chain'`` and ``'sequence'``. Each row corresponds
@@ -27,14 +29,23 @@ def struct_to_aaseq(structure, return_type="list"):
 
     Returns
     -------
-    pandas.DataFrame or list
+    pandas.DataFrame or list[str]
         DataFrame with columns ``'chain'`` and ``'sequence'``
         if ``return_type=='pd.df'``, otherwise a list of sequence strings.
 
     Raises
     ------
     ValueError
-        If ``return_type`` is not one of ``{'pd.df','list'}``.
+        If ``return_type`` is not one of ``{'pd.df', 'list'}``.
+
+    Examples
+    --------
+    >>> from Bio.PDB import PDBParser
+    >>> from pyaptamer.utils import struct_to_aaseq
+    >>> parser = PDBParser(QUIET=True)
+    >>> structure = parser.get_structure("Example", "example.pdb")
+    >>> print(struct_to_aaseq(structure, return_type="list"))
+    ['DIQMTQSPSSLSASVGDRVTITCKASQDI...']
     """
     ppb = PPBuilder()
     records = []

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from pyaptamer.utils import pdb_to_seq_uniprot
 
@@ -59,3 +60,17 @@ def test_pdb_to_seq_uniprot_returns_dataframe(mock_get):
     assert isinstance(df, pd.DataFrame)
     assert "sequence" in df.columns
     assert len(df.iloc[0]["sequence"]) > 0
+
+
+def test_pdb_to_seq_uniprot_no_mapping():
+    with patch("requests.get") as mock_get:
+        mock_get.return_value.json.return_value = {"1abc": {}}
+        with pytest.raises(ValueError):
+            pdb_to_seq_uniprot("1abc")
+
+def test_pdb_to_seq_uniprot_invalid_return():
+    with patch("requests.get") as mock_get:
+        mock_get.return_value.json.return_value = {"1a3n": {"UniProt": {"P12345": {}}}}
+        mock_get.return_value.text = ">test\nVLSP"
+        with pytest.raises(ValueError):
+            pdb_to_seq_uniprot("1a3n", return_type="json")

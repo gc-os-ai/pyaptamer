@@ -2,6 +2,7 @@ __author__ = "satvshr"
 __all__ = ["pdb_to_aaseq"]
 
 import os
+from typing import Union
 
 import pandas as pd
 from Bio import SeqIO
@@ -10,7 +11,11 @@ from pyaptamer.utils._pdb_to_struct import pdb_to_struct
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
 
 
-def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
+def pdb_to_aaseq(
+    pdb_file_path: Union[str, os.PathLike],
+    return_type: str = "list",
+    ignore_duplicates: bool = False,
+) -> Union[list[str], pd.DataFrame]:
     """
     Extract amino-acid sequences from a PDB file.
 
@@ -33,7 +38,7 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
 
     Returns
     -------
-    list of str or pandas.DataFrame
+    list[str] or pandas.DataFrame
         Depending on ``return_type``:
           - If ``'list'``: Python list of sequence strings (one per chain/polypeptide)
           - If ``'pd.df'``: DataFrame with columns ``['chain', 'sequence']``
@@ -44,6 +49,14 @@ def pdb_to_aaseq(pdb_file_path, return_type="list", ignore_duplicates=False):
         If the given ``pdb_file_path`` does not exist.
     ValueError
         If ``return_type`` is invalid or no sequences could be extracted.
+
+    Examples
+    --------
+    >>> from pyaptamer.utils import pdb_to_aaseq
+    >>> # Assuming 'protein.pdb' is a valid PDB file in the current directory
+    >>> seqs = pdb_to_aaseq("protein.pdb", return_type="list")
+    >>> print(seqs[0][:10])  # Print first 10 amino acids
+    DIQMTQSPSS
     """
     pdb_path = os.fspath(pdb_file_path)
 
