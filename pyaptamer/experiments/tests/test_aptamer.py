@@ -42,6 +42,13 @@ class MockAptaNetPipeline:
         Mock predict method that returns fixed scores for binary classification (no
         binding, binding).
         """
+        for seq, _ in X:
+            if len(seq) < 3:
+                raise ValueError(
+                    "Sequence '' is too short to produce valid triplets. "
+                    "Minimum length is 3."
+                )
+
         # return probability scores as a list
         return numpy.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
 
@@ -127,8 +134,11 @@ class TestAptamerEvalConcrete:
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_empty_sequence(self, experiment):
         """Check evaluation with empty sequence."""
-        score = experiment.evaluate("")
-        assert isinstance(score, numpy.float64)
+        with pytest.raises(
+            ValueError,
+            match="is too short to produce valid triplets. Minimum length is 3",
+        ):
+            experiment.evaluate("")
 
     @pytest.mark.parametrize("experiment", ["aptatrans", "aptanet"], indirect=True)
     def test_evaluate_with_underscores(self, experiment):

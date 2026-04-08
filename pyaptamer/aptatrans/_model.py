@@ -18,7 +18,6 @@ from pyaptamer.aptatrans.layers._encoder import (
     TokenPredictor,
 )
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
-from pyaptamer.utils._validation import validate_paired_tensors
 
 
 class AptaTrans(nn.Module):
@@ -348,7 +347,12 @@ class AptaTrans(nn.Module):
         Tensor
             Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
         """
-        validate_paired_tensors(x_apta, x_prot)
+        if x_apta.size(1) == 0 or x_prot.size(1) == 0:
+            raise ValueError(
+                f"Empty sequence dimension in inputs: x_apta shape={x_apta.shape}, "
+                f"x_prot shape={x_prot.shape}."
+            )
+
         x_apta, x_prot = self.encoder_apta(x_apta), self.encoder_prot(x_prot)
         return self.imap(x_apta, x_prot)
 

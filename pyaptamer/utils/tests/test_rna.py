@@ -148,23 +148,33 @@ def test_rna2vec_edge_cases():
     assert result.shape[1] == 4  # should truncate to 4 triplets
 
     # empty sequence
-    result = rna2vec([""], sequence_type="rna")
-    assert len(result) == 0
+    with pytest.raises(
+        ValueError, match="is too short to produce valid triplets. Minimum length is 3"
+    ):
+        rna2vec([""], sequence_type="rna")
 
     # single character sequence (can't form triplet)
-    result = rna2vec(["A"], sequence_type="rna")
-    assert len(result) == 0
+    with pytest.raises(
+        ValueError, match="is too short to produce valid triplets. Minimum length is 3"
+    ):
+        rna2vec(["A"], sequence_type="rna")
 
     # double character sequence (can't form triplet)
-    result = rna2vec(["AA"], sequence_type="rna")
-    assert len(result) == 0
+    with pytest.raises(
+        ValueError, match="is too short to produce valid triplets. Minimum length is 3"
+    ):
+        rna2vec(["AA"], sequence_type="rna")
 
     # test with secondary structure sequences - edge cases
-    result = rna2vec(["S"], sequence_type="ss")
-    assert len(result) == 0
+    with pytest.raises(
+        ValueError, match="is too short to produce valid triplets. Minimum length is 3"
+    ):
+        rna2vec(["S"], sequence_type="ss")
 
-    result = rna2vec(["SS"], sequence_type="ss")
-    assert len(result) == 0
+    with pytest.raises(
+        ValueError, match="is too short to produce valid triplets. Minimum length is 3"
+    ):
+        rna2vec(["SS"], sequence_type="ss")
 
 
 def test_rna2vec_default_parameters():
