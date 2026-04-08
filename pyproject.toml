@@ -24,6 +24,7 @@ dependencies = [
     "skorch",
     "imblearn",
     "requests",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
