@@ -18,10 +18,11 @@ def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
         A tuple of arrays, each containing sequences with their reverse complements
         added.
     """
+    trans = str.maketrans("ACGTUacgtu", "TGCAAtgcaa")
     results = []
     for sequences in sequence_arrays:
         # create array of reversed sequences
-        reversed_sequences = np.array([seq[::-1] for seq in sequences])
+        reversed_sequences = np.array([seq.translate(trans)[::-1] for seq in sequences])
         # concatenate original and reversed sequences
         result = np.concatenate([sequences, reversed_sequences])
         results.append(result)

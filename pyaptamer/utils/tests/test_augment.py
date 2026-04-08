@@ -11,7 +11,7 @@ def test_augment_reverse_single_array():
     sequences = np.array(["AAC", "BBB", "ATCG"])
     result = augment_reverse(sequences)
 
-    expected = (np.array(["AAC", "BBB", "ATCG", "CAA", "BBB", "GCTA"]),)
+    expected = (np.array(["AAC", "BBB", "ATCG", "GTT", "BBB", "CGAT"]),)
     assert len(result) == 1
     assert len(result[0]) == 6
     np.testing.assert_array_equal(result[0], expected[0])
@@ -25,7 +25,7 @@ def test_augment_reverse_multiple_arrays():
     result = augment_reverse(seq1, seq2, seq3)
 
     expected = (
-        np.array(["ABC", "DEF", "CBA", "FED"]),
+        np.array(["ABC", "DEF", "GBT", "FED"]),
         np.array(["XYZ", "ZYX"]),
         np.array(["123", "456", "789", "321", "654", "987"]),
     )
