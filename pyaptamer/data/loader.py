@@ -98,14 +98,7 @@ class MoleculeLoader:
         pandas.DataFrame
             DataFrame with columns ``["chain_id", "sequence"]``.
         """
-        with open(path) as handle:
-            seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
+        from pyaptamer.utils._pdb_to_aaseq import pdb_to_aaseq
 
-        records = [
-            {
-                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
-                "sequence": str(record.seq),
-            }
-            for record in seqres_records
-        ]
-        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
+        df = pdb_to_aaseq(path, return_type="pd.df", ignore_duplicates=self.ignore_duplicates)
+        return df.rename(columns={"chain": "chain_id"})
