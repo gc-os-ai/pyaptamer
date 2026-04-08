@@ -30,12 +30,9 @@ def dna2rna(sequence: str) -> str:
     str
         The converted RNA sequence.
     """
-    # replace nucleotides 'T' with 'U'
-    result = sequence.translate(str.maketrans("T", "U"))
-    for char in result:
-        if char not in "ACGU":
-            result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
-    return result
+    _VALID = frozenset("ACGU")
+    # replace 'T' with 'U' and any unknown nucleotides with 'N' in a single pass
+    return "".join("U" if c == "T" else (c if c in _VALID else "N") for c in sequence)
 
 
 def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str, int]:

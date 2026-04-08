@@ -36,6 +36,18 @@ def test_dna2rna_edge_cases():
     assert dna2rna("AcGt") == "ANGN"
 
 
+def test_dna2rna_repeated_unknowns():
+    """Check that repeated unknown characters are all replaced with 'N'."""
+    # all unknown characters should each become 'N'
+    assert dna2rna("XYZXYZ") == "NNNNNN"
+    # mix of valid and repeated unknowns
+    assert dna2rna("AXXGTT") == "ANNGUU"
+    # large sequence with many unknowns runs in linear time
+    large_unknown = "X" * 10_000
+    result = dna2rna(large_unknown)
+    assert result == "N" * 10_000
+
+
 @pytest.mark.parametrize("repeat", [2, 3, 4])
 def test_generate_nplets(repeat):
     """Check generation of all possible n-plets."""
