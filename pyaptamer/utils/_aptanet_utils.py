@@ -14,7 +14,8 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     Generate normalized k-mer frequency vectors for the aptamer sequence.
 
     For all possible k-mers from length 1 to k, count their occurrences in the sequence
-    and normalize to form a frequency vector.
+    and normalize to form a frequency vector. RNA bases are mapped to the AptaNet DNA
+    convention by normalizing 'U' to 'T' before k-mer counting.
 
     Parameters
     ----------
@@ -30,6 +31,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         length 1 to k.
     """
     DNA_BASES = list("ACGT")
+    aptamer_sequence = aptamer_sequence.replace("U", "T")
 
     # Generate all possible k-mers from 1 to k
     all_kmers = []
