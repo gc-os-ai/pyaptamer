@@ -46,3 +46,27 @@ def test_pathlib_path():
     assert df.index.names == ["path", "chain_id"]
     assert df["sequence"].map(type).eq(str).all()
     assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
+
+
+def test_to_df_seq_keeps_duplicates_by_default():
+    """Test that duplicate sequences are preserved by default."""
+    root_path = Path(__file__).parent.parent.parent
+    pdb_path = root_path / "datasets/data/1gnh.pdb"
+
+    loader = MoleculeLoader([pdb_path, pdb_path])
+    df = loader.to_df_seq()
+
+    assert df["sequence"].duplicated().any()
+
+
+def test_to_df_seq_ignores_duplicates_when_requested():
+    """Test that duplicate sequences are removed when requested."""
+    root_path = Path(__file__).parent.parent.parent
+    pdb_path = root_path / "datasets/data/1gnh.pdb"
+
+    loader = MoleculeLoader([pdb_path, pdb_path], ignore_duplicates=True)
+    df = loader.to_df_seq()
+
+    assert df.index.nlevels == 2
+    assert df.index.names == ["path", "chain_id"]
+    assert not df["sequence"].duplicated().any()
