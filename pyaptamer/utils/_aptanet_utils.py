@@ -28,8 +28,20 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     np.ndarray
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
+
+    Raises
+    ------
+    ValueError
+        If the sequence contains non-DNA characters (e.g., 'U' from RNA).
     """
     DNA_BASES = list("ACGT")
+
+    invalid_chars = set(aptamer_sequence.upper()) - set(DNA_BASES)
+    if invalid_chars:
+        raise ValueError(
+            f"Sequence contains non-DNA characters: {invalid_chars}. "
+            "This function only supports DNA sequences (A, C, G, T)."
+        )
 
     # Generate all possible k-mers from 1 to k
     all_kmers = []
