@@ -10,6 +10,14 @@ from pyaptamer.pseaac import AptaNetPSeAAC
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
+    import warnings
+
+    warnings.warn(
+        "generate_kmer_vecs is deprecated and will be removed in a future version. "
+        "Use pyaptamer.trafos.encode.KMerEncoder instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     """
     Generate normalized k-mer frequency vectors for the aptamer sequence.
 
@@ -58,6 +66,14 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
 
 
 def pairs_to_features(X, k=4):
+    import warnings
+
+    warnings.warn(
+        "pairs_to_features is deprecated and will be removed in a future version. "
+        "Use pyaptamer.trafos.encode.PairsToFeaturesTransformer instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
     Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
