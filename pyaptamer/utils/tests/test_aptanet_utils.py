@@ -57,3 +57,8 @@ class TestGenerateKmerVecs:
         """Check that sequences with invalid characters raise a ValueError."""
         with pytest.raises(ValueError, match="non-DNA characters"):
             generate_kmer_vecs("ACGXACGT", k=2)
+
+    def test_lowercase_dna_raises_error(self):
+        """Check that lowercase DNA sequences raise a ValueError."""
+        with pytest.raises(ValueError, match="non-DNA characters"):
+            generate_kmer_vecs("acgtacgt", k=2)

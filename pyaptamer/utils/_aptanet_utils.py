@@ -36,10 +36,10 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     """
     DNA_BASES = list("ACGT")
 
-    invalid_chars = set(aptamer_sequence.upper()) - set(DNA_BASES)
+    invalid_chars = sorted(set(aptamer_sequence) - set(DNA_BASES))
     if invalid_chars:
         raise ValueError(
-            f"Sequence contains non-DNA characters: {invalid_chars}. "
+            f"Sequence contains non-DNA characters: {', '.join(invalid_chars)}. "
             "This function only supports DNA sequences (A, C, G, T)."
         )
 
