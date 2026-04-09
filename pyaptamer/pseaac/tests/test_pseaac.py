@@ -1,5 +1,7 @@
 __author__ = "satvshr"
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -125,3 +127,18 @@ def test_pseaac_configurations(
     assert len(vec) == expected_len, (
         f"Expected vector length {expected_len}, but got {len(vec)}"
     )
+
+
+@pytest.mark.parametrize("PCLASS", [PSeAAC, AptaNetPSeAAC])
+def test_pseaac_is_case_insensitive(PCLASS):
+    seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQ"
+    encoder = PCLASS()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        lower = encoder.transform(seq.lower())
+
+    upper = encoder.transform(seq)
+
+    assert np.array_equal(lower, upper)
+    assert caught == []
