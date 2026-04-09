@@ -269,7 +269,8 @@ class MCTS(BaseObject):
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
+            Dictionary containing the reconstructed candidate sequence
+            (`candidate`), the raw encoded sequence (`sequence`), and its
             score (`score`).
         """
         self._reset()
