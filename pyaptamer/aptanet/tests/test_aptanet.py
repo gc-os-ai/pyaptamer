@@ -3,9 +3,11 @@ __author__ = ["nennomp", "satvshr"]
 
 import numpy as np
 import pytest
+import torch.nn as nn
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
+from pyaptamer.aptanet._aptanet_nn import aptanet_layer
 
 params = [
     (
@@ -81,3 +83,11 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+def test_aptanet_layer_uses_standard_dropout():
+    """Layers with ReLU should use Dropout, not AlphaDropout."""
+    layer = aptanet_layer(input_dim=64, output_dim=32, dropout=0.3)
+    dropout_layers = [m for m in layer if isinstance(m, nn.Dropout | nn.AlphaDropout)]
+    assert len(dropout_layers) == 1
+    assert isinstance(dropout_layers[0], nn.Dropout)
