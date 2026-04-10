@@ -269,6 +269,11 @@ class TestMCTS:
         # mixed prepend/append
         assert mcts._reconstruct("A_C__GU_") == "UCAG"
 
+    def test_reconstruct_odd_length_raises(self, mcts):
+        """Check that _reconstruct raises ValueError for odd-length encoded input."""
+        with pytest.raises(ValueError, match="even length"):
+            mcts._reconstruct("A_C")
+
     def test_selection_not_fully_expanded(self, mcts):
         """Check selection step when the node is not fully expanded."""
         # from root with no childrem, should return the root itself
