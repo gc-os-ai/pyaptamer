@@ -23,8 +23,8 @@ def test_benchmarking_keeps_duplicate_estimator_classes_distinct():
 
     summary = bench.run()
 
-    assert ("DummyClassifier[1]", "accuracy_score") in summary.index
-    assert ("DummyClassifier[2]", "accuracy_score") in summary.index
+    assert ("DummyClassifier_1", "accuracy_score") in summary.index
+    assert ("DummyClassifier_2", "accuracy_score") in summary.index
     assert len(summary) == 2
 
 

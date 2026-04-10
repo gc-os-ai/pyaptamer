@@ -100,8 +100,8 @@ class Benchmarking:
     def _get_estimator_names(self):
         """Return stable display names for estimators.
 
-        If multiple estimators share the same class, append a 1-based index to keep
-        their result rows distinct.
+        If multiple estimators share the same class, append a deterministic 1-based
+        suffix (e.g., ``DummyClassifier_1``) to keep their result rows distinct.
         """
         class_names = [estimator.__class__.__name__ for estimator in self.estimators]
         class_counts = Counter(class_names)
@@ -115,7 +115,7 @@ class Benchmarking:
                 continue
 
             class_positions[class_name] += 1
-            names.append(f"{class_name}[{class_positions[class_name]}]")
+            names.append(f"{class_name}_{class_positions[class_name]}")
 
         return names
 
