@@ -1,5 +1,7 @@
 __author__ = "satvshr"
 
+import os
+
 import pandas as pd
 
 from pyaptamer.datasets._loaders._1gnh import _load_1gnh_structure
@@ -43,3 +45,18 @@ def test_struct_to_aaseq():
     assert seq_list == df["sequence"].tolist(), (
         "List sequences must match DataFrame 'sequence' column"
     )
+
+
+def test_load_1gnh_structure_respects_custom_pdb_path():
+    """Check that _load_1gnh_structure uses pdb_path when provided."""
+    default_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        "datasets",
+        "data",
+        "1gnh.pdb",
+    )
+    structure = _load_1gnh_structure(pdb_path=default_path)
+    assert structure is not None
+    assert structure.id == "1gnh"
