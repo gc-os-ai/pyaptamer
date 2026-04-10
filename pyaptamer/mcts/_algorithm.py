@@ -74,6 +74,9 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
+        if n_iterations < 1:
+            raise ValueError(f"`n_iterations` must be >= 1, got {n_iterations}.")
+
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
