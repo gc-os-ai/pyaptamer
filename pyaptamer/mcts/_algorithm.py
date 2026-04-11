@@ -11,8 +11,8 @@ from skbase.base import BaseObject
 
 class MCTS(BaseObject):
     """
-    MCTS algorithm implementation for string optimization, specifically for aptamr
-    generation as described in aptamer generation as described in [1]_, originally
+    MCTS algorithm implementation for string optimization, specifically for aptamer
+    generation as described in [1]_, originally
     introduced in [2]_.
 
     Adapted from:
