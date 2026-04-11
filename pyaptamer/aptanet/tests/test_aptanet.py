@@ -81,3 +81,26 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+def test_validate_data_importable():
+    """Regression test for issue #365.
+
+    ``validate_data`` was added as a standalone function only in scikit-learn
+    1.6. On older versions the module must fall back to ``sklearn_compat``.
+    If the compatibility shim is removed this import will raise ImportError
+    on sklearn < 1.6.
+    """
+    import importlib
+
+    import pyaptamer.aptanet._feature_classifier as mod
+
+    try:
+        importlib.reload(mod)
+    except ImportError as exc:
+        pytest.fail(
+            f"_feature_classifier failed to import (issue #365 regression): {exc}"
+        )
+
+    assert hasattr(mod, "AptaNetClassifier")
+    assert hasattr(mod, "AptaNetRegressor")

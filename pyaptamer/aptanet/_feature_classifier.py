@@ -9,7 +9,11 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
 from sklearn.utils.multiclass import type_of_target
-from sklearn.utils.validation import check_is_fitted, validate_data
+from sklearn.utils.validation import check_is_fitted
+try:
+    from sklearn.utils.validation import validate_data
+except ImportError:
+    from sklearn_compat.utils.validation import validate_data
 from torch import optim
 
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
