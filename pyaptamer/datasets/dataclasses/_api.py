@@ -68,7 +68,7 @@ class APIDataset(Dataset):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepare the data by augmenting aptamer sequences with their reverse complements
-        and transforming them to vector numericla representations.
+        and transforming them to vector numerical representations.
 
         Parameters
         ----------
@@ -77,9 +77,9 @@ class APIDataset(Dataset):
         x_prot : np.ndarray
             Protein sequences.
         y : np.ndarray
-            Laabels for the interactions.
-        split : bool
-            If True, the dataset will augment aptamer sequences by adding their reverse
+            Labels for the interactions.
+        split : str
+            If "train", the dataset will augment aptamer sequences by adding their reverse
             complements.
         """
         if split == "train":
