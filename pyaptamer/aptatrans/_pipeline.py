@@ -238,11 +238,16 @@ class AptaTransPipeline:
 
         # generate aptamer candidates
         candidates = {}
-        while len(candidates) < n_candidates:
+        max_attempts = 100
+        attempts = 0
+        while len(candidates) < n_candidates and attempts < max_attempts:
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
             if candidate not in candidates:
                 candidates[candidate] = (candidate, sequence, score.item())
+            attempts += 1
+        if len(candidates) < n_candidates:
+            raise ValueError("Could not generate enough unique candidates")
 
         if verbose:
             for candidate, sequence, score in candidates.values():
