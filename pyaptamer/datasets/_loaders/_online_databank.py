@@ -1,14 +1,16 @@
 __author__ = "satvshr"
 __all__ = ["load_from_rcsb"]
 
+from pathlib import Path
+
 from Bio.PDB import PDBList
 
-from pyaptamer.utils import pdb_to_struct
+from pyaptamer.data.loader import MoleculeLoader
 
 
 def load_from_rcsb(pdb_id, overwrite=False):
     """
-    Download a PDB file from the RCSB Protein Data Bank and parse it into a `Structure`.
+    Download a PDB file from the RCSB Protein Data Bank and load it as a MoleculeLoader.
     Files are created in the current working directory.
 
     Parameters
@@ -20,14 +22,19 @@ def load_from_rcsb(pdb_id, overwrite=False):
         If True, overwrite existing files. Default is False.
     Returns
     -------
-    structure : Bio.PDB.Structure.Structure
-        A Biopython Structure object.
+    loader : MoleculeLoader
+        A MoleculeLoader object representing the downloaded molecule.
     """
     pdbl = PDBList()
-    pdb_file_path = pdbl.retrieve_pdb_file(
-        pdb_id, file_format="pdb", overwrite=overwrite
+    pdb_file_path = Path(
+        pdbl.retrieve_pdb_file(pdb_id, file_format="pdb", overwrite=overwrite)
     )
 
-    structure = pdb_to_struct(pdb_file_path)
+    # BioPython saves PDB files with .ent extension; rename to .pdb
+    # so MoleculeLoader can recognize the file type
+    if pdb_file_path.suffix == ".ent":
+        pdb_path = pdb_file_path.with_suffix(".pdb")
+        pdb_file_path.replace(pdb_path)
+        pdb_file_path = pdb_path
 
-    return structure
+    return MoleculeLoader(pdb_file_path)
