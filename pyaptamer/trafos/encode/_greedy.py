@@ -60,7 +60,7 @@ class GreedyEncoder(BaseTransform):
     def __init__(
         self,
         words: dict[str, int],
-        max_len: int,
+        max_len: int | None = None,
         word_max_len: int = None,
     ):
         self.words = words
