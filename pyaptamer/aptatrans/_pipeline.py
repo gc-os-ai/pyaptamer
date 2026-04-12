@@ -203,6 +203,7 @@ class AptaTransPipeline:
         self,
         target: str,
         n_candidates: int = 10,
+        max_attempts: int = 1000,
         verbose: bool = True,
     ) -> set[tuple[str, str, float]]:
         """Recommend aptamer candidates for a given target protein.
@@ -218,6 +219,10 @@ class AptaTransPipeline:
             The target protein sequence.
         n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
+        max_attempts : int, optional, default=1000
+            Maximum number of MCTS iterations before raising an error.
+            Prevents infinite loops when the search space is too small
+            or the model keeps returning duplicate candidates.
         verbose : bool, optional, default=True
             If True, enables print statements for debugging and progress tracking.
 
@@ -226,6 +231,12 @@ class AptaTransPipeline:
         set[tuple[str, str, float]]
             A set of tuples containing reconstructed and unrecontructed candidate
             aptamer sequence, and the corresponding score.
+
+        Raises
+        ------
+        RuntimeError
+            If `max_attempts` is exceeded before finding `n_candidates`
+            unique candidates.
         """
         experiment = self._init_aptamer_experiment(target)
 
@@ -238,11 +249,19 @@ class AptaTransPipeline:
 
         # generate aptamer candidates
         candidates = {}
+        attempts = 0
         while len(candidates) < n_candidates:
+            if attempts >= max_attempts:
+                raise RuntimeError(
+                    f"Could not find {n_candidates} unique candidates after "
+                    f"{max_attempts} attempts (found {len(candidates)}). "
+                    "Try increasing max_attempts or reducing n_candidates."
+                )
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
             if candidate not in candidates:
                 candidates[candidate] = (candidate, sequence, score.item())
+            attempts += 1
 
         if verbose:
             for candidate, sequence, score in candidates.values():
