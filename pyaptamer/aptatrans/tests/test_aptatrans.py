@@ -397,6 +397,79 @@ class TestAptaTransPipeline:
         assert isinstance(candidates, set)
         assert len(candidates) == n_candidates  # should be exactly n_candidates
 
+    def test_recommend_warns_on_duplicate_candidates(self, monkeypatch):
+        """recommend() should warn and return partial results when max_attempts is
+        exhausted due to duplicate candidates, instead of looping forever."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: type(
+                "MockExp", (), {"evaluate": lambda self, c: torch.tensor(0.5)}
+            )(),
+        )
+
+        class MockMCTSDuplicates:
+            def __init__(self, **kwargs):
+                pass
+
+            def run(self, verbose=False):
+                return {
+                    "candidate": "AAAA",
+                    "sequence": "seq_aaaa",
+                    "score": torch.tensor(0.1),
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTSDuplicates)
+
+        with pytest.warns(UserWarning, match="max_attempts=5"):
+            result = pipeline.recommend(
+                target="AUGCAUGC", n_candidates=3, max_attempts=5
+            )
+
+        # only 1 unique candidate despite requesting 3
+        assert isinstance(result, set)
+        assert len(result) == 1
+
+    def test_recommend_max_attempts_default_scales_with_n_candidates(self, monkeypatch):
+        """Default max_attempts should be max(100, 10 * n_candidates)."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: type(
+                "MockExp", (), {"evaluate": lambda self, c: torch.tensor(0.5)}
+            )(),
+        )
+
+        call_count = {"n": 0}
+
+        class MockMCTSCounting:
+            def __init__(self, **kwargs):
+                pass
+
+            def run(self, verbose=False):
+                call_count["n"] += 1
+                return {
+                    "candidate": "AAAA",
+                    "sequence": "seq_aaaa",
+                    "score": torch.tensor(0.1),
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTSCounting)
+
+        # n_candidates=5 → default max_attempts = max(100, 50) = 100
+        with pytest.warns(UserWarning):
+            pipeline.recommend(target="AUGCAUGC", n_candidates=5)
+
+        assert call_count["n"] == 100
+
     @pytest.mark.parametrize(
         "device, candidate, target",
         [

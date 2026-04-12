@@ -6,6 +6,8 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+import warnings
+
 import torch
 from torch import Tensor
 
@@ -203,14 +205,16 @@ class AptaTransPipeline:
         self,
         target: str,
         n_candidates: int = 10,
+        max_attempts: int | None = None,
         verbose: bool = True,
     ) -> set[tuple[str, str, float]]:
         """Recommend aptamer candidates for a given target protein.
 
         The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate
         aptamers. Then, AptaTrans' deep neural network is used as a scoring function to
-        evaluate the candidates, inside the Aptamer() experiment. The process stop when
-        `n_candidates` unique candidates are generated.
+        evaluate the candidates, inside the Aptamer() experiment. The process stops when
+        `n_candidates` unique candidates are generated, or `max_attempts` MCTS runs have
+        been exhausted.
 
         Parameters
         ----------
@@ -218,6 +222,13 @@ class AptaTransPipeline:
             The target protein sequence.
         n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
+        max_attempts : int or None, optional, default=None
+            Maximum number of MCTS runs before stopping. Prevents an infinite loop when
+            the search space is degenerate and MCTS keeps returning duplicate candidates.
+            If None, defaults to ``max(100, 10 * n_candidates)``. If the limit is
+            reached before collecting ``n_candidates`` unique candidates, a
+            ``UserWarning`` is issued and the partial results collected so far are
+            returned.
         verbose : bool, optional, default=True
             If True, enables print statements for debugging and progress tracking.
 
@@ -227,6 +238,9 @@ class AptaTransPipeline:
             A set of tuples containing reconstructed and unrecontructed candidate
             aptamer sequence, and the corresponding score.
         """
+        if max_attempts is None:
+            max_attempts = max(100, 10 * n_candidates)
+
         experiment = self._init_aptamer_experiment(target)
 
         # initialize MCTS with the experiment
@@ -238,11 +252,23 @@ class AptaTransPipeline:
 
         # generate aptamer candidates
         candidates = {}
-        while len(candidates) < n_candidates:
+        attempts = 0
+        while len(candidates) < n_candidates and attempts < max_attempts:
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
             if candidate not in candidates:
                 candidates[candidate] = (candidate, sequence, score.item())
+            attempts += 1
+
+        if len(candidates) < n_candidates:
+            warnings.warn(
+                f"recommend() reached max_attempts={max_attempts} before collecting "
+                f"{n_candidates} unique candidates. "
+                f"Returning {len(candidates)} candidate(s). "
+                "Consider increasing max_attempts or n_iterations.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         if verbose:
             for candidate, sequence, score in candidates.values():
