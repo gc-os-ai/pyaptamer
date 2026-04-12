@@ -1,4 +1,4 @@
-"""AptaTrans' deep neural network wrapper fro Lightning."""
+"""AptaTrans' deep neural network wrapper for Lightning."""
 
 __author__ = ["nennomp"]
 __all__ = ["AptaTransLightning", "AptaTransEncoderLightning"]
