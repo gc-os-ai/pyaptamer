@@ -9,7 +9,19 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
 from sklearn.utils.multiclass import type_of_target
-from sklearn.utils.validation import check_is_fitted, validate_data
+from sklearn.utils.validation import check_is_fitted
+import sklearn
+from packaging.version import Version
+
+if Version(sklearn.__version__) >= Version("1.6"):
+    from sklearn.utils.validation import validate_data
+else:
+    from sklearn.utils.validation import check_array, check_X_y
+
+    def validate_data(estimator, X, y=None, **kwargs):
+        if y is not None:
+            return estimator._validate_data(X, y, **kwargs)
+        return estimator._validate_data(X, **kwargs)
 from torch import optim
 
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
