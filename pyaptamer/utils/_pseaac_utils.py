@@ -11,7 +11,7 @@ is used for efficient membership testing.
 Functions
 ---------
 clean_protein_seq(seq)
-    Replaces invalid amino acids with "N" and warn the user.
+    Replaces invalid amino acids with "X" and warn the user.
 """
 
 AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
@@ -19,7 +19,7 @@ AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 def clean_protein_seq(seq):
     """
-    Replace invalid amino acids with "N" and warn the user.
+    Replace invalid amino acids with "X" and warn the user.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def clean_protein_seq(seq):
     -------
     str
         Cleaned protein sequence where all invalid characters have been replaced
-        with "N".
+        with "X".
     """
     import warnings
 
@@ -41,12 +41,12 @@ def clean_protein_seq(seq):
         if aa in AMINO_ACIDS:
             cleaned.append(aa)
         else:
-            cleaned.append("N")
+            cleaned.append("X")
             invalid_found = True
 
     if invalid_found:
         warnings.warn(
-            "Invalid amino acid(s) found in sequence. Replaced with 'N'.",
+            "Invalid amino acid(s) found in sequence. Replaced with 'X'.",
             UserWarning,
             stacklevel=2,
         )
