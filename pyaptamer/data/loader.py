@@ -16,7 +16,10 @@ class MoleculeLoader:
     ------------
     path : str, Path, or list thereof
         file location or list of file locations with molecule files
-        str can be any of the following... [fill in]
+        str can be any of the following:
+            - an absolute path, e.g. "/home/user/data/1gnh.pdb"
+            - a relative path, e.g. "../data/1brq.pdb"
+            - any string convertible to a Path object
 
         the following formats are currently supported:
 
