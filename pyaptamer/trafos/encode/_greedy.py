@@ -140,9 +140,12 @@ class GreedyEncoder(BaseTransform):
         params : dict
             Test parameters for GreedyEncoder.
         """
+       
         param0 = {
             "words": {"A": 1, "C": 2, "G": 3, "U": 4, "AC": 5, "GU": 6},
+            "max_len": 10,
         }
+        
         param1 = {
             "words": {"A": 1, "C": 2, "G": 3, "U": 4},
             "max_len": 10,
