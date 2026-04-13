@@ -8,8 +8,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
+import pandas as pd
 from pyaptamer.aptanet import AptaNetClassifier
-from pyaptamer.utils._aptanet_utils import pairs_to_features
+from pyaptamer.trafos.encode import AptaNetFeatureExtractor
 
 
 class AptaNetPipeline(BaseObject, BaseEstimator):
@@ -68,22 +69,26 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = FunctionTransformer(
-            func=pairs_to_features,
-            kw_args={"k": self.k},
-            validate=False,
-        )
+        transformer = AptaNetFeatureExtractor(k=self.k)
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
+    def _convert_X(self, X):
+        if isinstance(X, list) and len(X) > 0 and isinstance(X[0], tuple):
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
+        return X
+
     def fit(self, X, y):
+        X = self._convert_X(X)
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
 
     def predict_proba(self, X):
         check_is_fitted(self)
+        X = self._convert_X(X)
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
         check_is_fitted(self)
+        X = self._convert_X(X)
         return self.pipeline_.predict(X)
