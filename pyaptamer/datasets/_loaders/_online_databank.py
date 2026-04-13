@@ -8,8 +8,7 @@ from Bio.PDB import PDBList
 
 def load_from_rcsb(pdb_id, overwrite=False):
     """
-    Download a PDB file from the RCSB Protein Data Bank and return it as a
-    `MoleculeLoader` for use with `.to_df_seq()` and other APIs.
+    Download a PDB file from the RCSB Protein Data Bank and parse it into a `MoleculeLoader`.
     Files are created in the current working directory.
 
     Parameters
@@ -21,7 +20,7 @@ def load_from_rcsb(pdb_id, overwrite=False):
         If True, overwrite existing files. Default is False.
     Returns
     -------
-    mol : MoleculeLoader
+    MoleculeLoader
         A `MoleculeLoader` object for the downloaded structure.
     """
     from pyaptamer.data.loader import MoleculeLoader
