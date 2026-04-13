@@ -37,7 +37,8 @@ def _load_1gnh_structure(pdb_path=None):
     """
     from Bio.PDB import PDBParser
 
-    pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
+    if pdb_path is None:
+        pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
 
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("1gnh", pdb_path)
