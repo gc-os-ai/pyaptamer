@@ -220,7 +220,7 @@ class AptaTrans(nn.Module):
 
         encoder_module = nn.ModuleList([embedding, pos_encoding, encoder])
 
-        # pass the the encoder a padding mask to ignore zero-padded tokens
+        # pass the encoder a padding mask to ignore zero-padded tokens
         encoder_module.forward = lambda x: encoder(
             pos_encoding(embedding(x)),
             src_key_padding_mask=(x == 0),  # padding mask
