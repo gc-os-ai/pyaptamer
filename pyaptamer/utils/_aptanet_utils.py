@@ -57,7 +57,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     return kmer_freq
 
 
-def pairs_to_features(X, k=4):
+def pairs_to_features(X, k=4, pseaac=None):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
     Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
@@ -77,13 +77,18 @@ def pairs_to_features(X, k=4):
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
         Default is 4.
 
+    pseaac : class instance, optional
+        An instance of PSeAAC or AptaNetPSeAAC. If None, uses AptaNetPSeAAC()
+        which defaults to 18 properties encoding.
+
     Returns
     -------
     np.ndarray
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
     """
-    pseaac = AptaNetPSeAAC()
+    if pseaac is None:
+        pseaac = AptaNetPSeAAC()
     feats = []
 
     if isinstance(X, pd.DataFrame):

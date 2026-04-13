@@ -18,12 +18,12 @@ class AptaNetPSeAAC:
     selected physicochemical properties and sequence-order correlations as described in
     the PseAAC model by Chou.
 
-    The PSeAAC algorithm uses 21 normalized physiochemical (NP) properties of amino
-    acids, which we load from a predefined matrix using `aa_props`.These 21 properties
-    are grouped into 7 distinct property groups, with each group containing
+    The PSeAAC algorithm uses 18 normalized physiochemical (NP) properties of amino
+    acids, which we load from a predefined matrix using `aa_props`.These 18 properties
+    are grouped into 6 distinct property groups, with each group containing
     3 consecutive properties. Specifically, the groups are arranged in order as follows:
     Group 1 includes properties 1–3, Group 2 includes properties 4–6, and so on, up to
-    Group 7, which includes properties 19–21. The properties in order are:
+    Group 6, which includes properties 16–18. The properties in order are:
 
     1. Hydrophobicity
     2. Hydrophilicity
@@ -43,9 +43,6 @@ class AptaNetPSeAAC:
     16. Isoelectric Point
     17. Compressibility
     18. Chromatographic Index
-    19. Unfolding Entropy Change
-    20. Unfolding Enthalpy Change
-    21. Unfolding Gibbs Free Energy Change
 
     Each feature vector consists of:
 
@@ -53,8 +50,8 @@ class AptaNetPSeAAC:
     amino acid)
     - `self.lambda_val` sequence-order correlation features based on physicochemical
     similarity between residues.
-    These (20 + `self.lambda_val`) features are computed for each of 7 predefined
-    property groups, resulting in a final vector of length (20 + `self.lambda_val`) * 7.
+    These (20 + `self.lambda_val`) features are computed for each of 6 predefined
+    property groups, resulting in a final vector of length (20 + `self.lambda_val`) * 6.
 
     See `transform` method for usage.
 
@@ -71,9 +68,9 @@ class AptaNetPSeAAC:
     ----------
     np_matrix : np.ndarray
         A 20x21 matrix of normalized physicochemical properties for the 20 standard
-        amino acids.
+        amino acids. (Only the first 18 are used by the default groups).
     prop_groups : list of tuple
-        List of 7 tuples, each containing indices of 3 properties that form a property
+        List of 6 tuples, each containing indices of 3 properties that form a property
         group.
 
     Methods
@@ -110,7 +107,6 @@ class AptaNetPSeAAC:
             (9, 10, 11),
             (12, 13, 14),
             (15, 16, 17),
-            (18, 19, 20),
         ]
 
     def _normalized_aa(self, seq):
@@ -181,7 +177,7 @@ class AptaNetPSeAAC:
         -------
         np.ndarray
             A 1D NumPy array of length (20 + `self.lambda_val) * number of normalized
-            physiochemical (NP) property groups of amino acids (7).
+            physiochemical (NP) property groups of amino acids (6).
             Each element consists of:
             - 20 normalized amino acid composition features
             - `self.lambda_val` normalized sequence-order correlation factors (theta

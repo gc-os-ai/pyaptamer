@@ -63,17 +63,20 @@ def test_pseaac_vectorization(seq, expected_vector):
     """
     Test that the AptaNet-specific PSeAAC vectorization produces the expected
     feature vector. This compares against the provided `solution` which matches
-    the AptaNet implementation.
+    the AptaNet implementation. Since we dropped Group G, we only compare the first
+    300 elements (6 groups * 50 features).
     """
     p = AptaNetPSeAAC()
     pv = p.transform(seq)
 
-    assert len(pv) == len(expected_vector), (
-        f"Vector length mismatch: {len(pv)} != {len(expected_vector)}"
+    expected_sliced = expected_vector[:300]
+
+    assert len(pv) == len(expected_sliced), (
+        f"Vector length mismatch: {len(pv)} != {len(expected_sliced)}"
     )
     mismatches = [
         (i, a, b)
-        for i, (a, b) in enumerate(zip(pv, expected_vector, strict=False))
+        for i, (a, b) in enumerate(zip(pv, expected_sliced, strict=False))
         if not np.isclose(a, b, atol=1e-3)
     ]
     assert not mismatches, f"Vector values mismatch at indices: {mismatches}"

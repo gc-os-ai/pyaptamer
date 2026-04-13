@@ -33,6 +33,9 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
+    pseaac : class instance, optional, default=None
+        An instance of PSeAAC or AptaNetPSeAAC. If None, uses default AptaNetPSeAAC().
+
     Attributes
     ----------
     pipeline_ : sklearn.pipeline.Pipeline
@@ -63,14 +66,15 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
-    def __init__(self, k=4, estimator=None):
+    def __init__(self, k=4, estimator=None, pseaac=None):
         self.k = k
         self.estimator = estimator
+        self.pseaac = pseaac
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
             func=pairs_to_features,
-            kw_args={"k": self.k},
+            kw_args={"k": self.k, "pseaac": self.pseaac},
             validate=False,
         )
         self._estimator = self.estimator or AptaNetClassifier()
