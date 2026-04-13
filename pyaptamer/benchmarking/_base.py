@@ -105,7 +105,7 @@ class Benchmarking:
         """
         class_names = [estimator.__class__.__name__ for estimator in self.estimators]
         class_counts = Counter(class_names)
-        class_positions = {class_name: 0 for class_name in class_counts}
+        class_positions = dict.fromkeys(class_counts, 0)
 
         names = []
         for estimator in self.estimators:
