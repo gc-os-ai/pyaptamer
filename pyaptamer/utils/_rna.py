@@ -17,7 +17,12 @@ import numpy as np
 def _build_greedy_pattern(
     words: dict[str, int], word_max_len: int
 ) -> re.Pattern[str] | None:
-    """Build longest-first regex pattern for greedy tokenization."""
+    """Build a longest-first regular expression for greedy tokenization.
+
+    Only non-empty words with positive ids and length up to ``word_max_len`` are
+    included. Tokens are ordered from longest to shortest so regex matching preserves
+    greedy preference.
+    """
     vocab = sorted(
         [
             word
@@ -35,7 +40,21 @@ def _build_greedy_pattern(
 
 
 def _pad_token_chunks(outputs: list[np.ndarray], seq_max_len: int) -> np.ndarray:
-    """Pad variable-length token chunks to fixed length arrays."""
+    """Pad variable-length token chunks to a fixed 2D array.
+
+    Parameters
+    ----------
+    outputs : list[np.ndarray]
+        List of one-dimensional token-id arrays.
+    seq_max_len : int
+        Target width for each output row.
+
+    Returns
+    -------
+    np.ndarray
+        Padded array with shape ``(len(outputs), seq_max_len)``. If ``outputs`` is
+        empty, an empty array with shape ``(0, seq_max_len)`` is returned.
+    """
     if not outputs:
         return np.zeros((0, seq_max_len))
 
@@ -57,7 +76,31 @@ def _greedy_tokenize(
     pattern: re.Pattern[str] | None = None,
     max_tokens: int | None = None,
 ) -> tuple[list[int], list[tuple[int, int]] | None]:
-    """Tokenize a sequence using a configurable greedy longest-first strategy."""
+    """Tokenize a sequence with a greedy longest-first strategy.
+
+    Parameters
+    ----------
+    sequence : str
+        Input sequence to tokenize.
+    words : dict[str, int]
+        Token vocabulary mapping token strings to ids.
+    word_max_len : int
+        Maximum candidate token length checked at each position.
+    unknown_policy : {"append_zero", "skip"}, optional, default="append_zero"
+        Policy for unknown regions. ``append_zero`` emits a zero token and advances by
+        one character. ``skip`` skips unknown regions and returns only matched tokens.
+    return_spans : bool, optional, default=False
+        Whether to also return character spans for each produced token.
+    pattern : re.Pattern[str] or None, optional, default=None
+        Precompiled regex pattern used when ``unknown_policy`` is ``skip``.
+    max_tokens : int or None, optional, default=None
+        Optional cap on number of emitted tokens.
+
+    Returns
+    -------
+    tuple[list[int], list[tuple[int, int]] or None]
+        Token ids and optional token spans.
+    """
     if unknown_policy not in {"append_zero", "skip"}:
         raise ValueError("`unknown_policy` must be either 'append_zero' or 'skip'.")
 
@@ -112,7 +155,27 @@ def _chunk_tokens(
     chunk_size: int | None,
     spans: list[tuple[int, int]] | None = None,
 ) -> tuple[list[list[int]], list[list[tuple[int, int]]] | None]:
-    """Split token (and optional span) streams into fixed-size chunks."""
+    """Split token streams and optional span streams into fixed-size chunks.
+
+    Parameters
+    ----------
+    tokens : list[int]
+        Token-id stream.
+    chunk_size : int or None
+        Chunk size. If ``None``, the full stream is returned as a single chunk.
+    spans : list[tuple[int, int]] or None, optional, default=None
+        Optional token spans aligned with ``tokens``.
+
+    Returns
+    -------
+    tuple[list[list[int]], list[list[tuple[int, int]]] or None]
+        Token chunks and optional aligned span chunks.
+
+    Raises
+    ------
+    ValueError
+        If ``chunk_size`` is provided and is not positive.
+    """
     if chunk_size is None:
         token_chunks = [tokens] if tokens else []
         if spans is None:
@@ -146,7 +209,11 @@ def _greedy_tokenize_to_chunks(
     pattern: re.Pattern[str] | None = None,
     max_tokens: int | None = None,
 ) -> tuple[list[list[int]], list[list[tuple[int, int]]] | None]:
-    """Tokenize greedily and optionally chunk the output for downstream encoders."""
+    """Tokenize with greedy matching and chunk results for downstream encoders.
+
+    This helper combines :func:`_greedy_tokenize` and :func:`_chunk_tokens` in one
+    call.
+    """
     tokens, spans = _greedy_tokenize(
         sequence=sequence,
         words=words,
@@ -163,13 +230,12 @@ def dna2rna(sequence: str) -> str:
     """
     Convert a DNA sequence to an RNA sequence.
 
-    Nucleotides 'T' in the DNA sequence are replaced with 'U' in the RNA sequence.
-    Unknown nucleotides are replaced with 'N'. Other nucleotides ('A', 'C', 'G') remain
-    unchanged.
+    Nucleotides ``T`` are replaced by ``U``. Any character outside ``ACGU`` is
+    normalized to ``N``.
 
     Parameters
     ----------
-    seq : str
+    sequence : str
         The DNA sequence to be converted.
 
     Returns
@@ -189,8 +255,7 @@ def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str
     """
     Generate a dictionary containing all possible n-plets of given characters.
 
-    This method generates all possible n-plets, specified by the `repeat` parameter, of
-    characters contained in `letters`. Each n-plet is mapped to a unique integer ID.
+    Each generated n-plet is assigned a unique 1-indexed integer id in iteration order.
 
     Parameters
     ----------
@@ -204,7 +269,7 @@ def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str
     Returns
     -------
     dict[str, int]
-        A dictionary mapping each n-plet to a unique integer ID (1-indexed).
+        Mapping from each generated n-plet to its integer id.
     """
     if isinstance(repeat, int):
         repeat = [repeat]
@@ -223,36 +288,25 @@ def rna2vec(
     sequence_list: list[str], sequence_type: str = "rna", max_sequence_length: int = 275
 ) -> np.ndarray:
     """
-    Convert a list of RNA sequence or RNA secondary structures into a numerical
-    representation.
+    Convert RNA sequences or RNA secondary-structure strings to fixed-length vectors.
 
-    For RNA sequences, if not already in RNA format, the sequences are converted from
-    DNA to RNA. For both RNA and secondary structure sequences, all overlapping
-    triplets (3-nucleotide/character combinations) are extracted from each sequence and
-    mapped to unique indices. Finally, the sequences are zero padded to length
-    `max_sequence_length`. The result is a numpy array where each row corresponds to a
-    sequence, and each column corresponds to an integer representing the triplet's
-    index in the dictionary.
-
-    If the number of extracted triplets is greater than `max_sequence_length`, the
-    sequence is truncated to fit.
+    RNA inputs are normalized with :func:`dna2rna` first. Then overlapping triplets
+    are mapped to integer ids and padded or truncated to ``max_sequence_length``.
 
     Parameters
     ----------
     sequence_list : list[str]
-        A list containing sequences as strings (RNA sequences or secondary structure
-        sequences).
+        Input sequences as strings.
     sequence_type : str, optional, default="rna"
-        The type of sequence to process. Either "rna" for RNA sequences or "ss" for
-        secondary structure sequences.
+        Sequence domain. Use ``"rna"`` for nucleotide sequences and ``"ss"`` for
+        secondary-structure strings.
     max_sequence_length : int, optional, default=275
-        The maximum length of the output sequences.
+        Maximum output length per encoded sequence.
 
     Returns
     -------
     np.ndarray
-        A numpy array containing the numerical representation of the sequences, of
-        shape (len(sequence_list), `max_sequence_length`).
+        Encoded array of shape ``(n_sequences, max_sequence_length)``.
 
     Raises
     ------
@@ -327,33 +381,31 @@ def encode_rna(
     word_max_len: int = 3,
     return_type: str = "tensor",
 ):
-    """Encode RNA sequences into their numerical representations.
+    """Encode RNA sequences into integer token ids.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    The function performs greedy longest-match tokenization against ``words``, then
+    truncates or zero-pads each sequence to ``max_len``.
 
     Parameters
     ----------
     sequences : list[str]
-        List of RNA sequences to be encoded.
+        RNA sequences to encode.
     words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
+        Mapping from RNA tokens to integer ids.
     max_len : int
-        Maximum length of each encoded sequence. Sequences will be truncated
-        or padded to this length.
+        Maximum length of each encoded sequence.
     word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
+        Maximum token length considered during greedy matching.
     return_type : str, optional, default="tensor"
-        The type of the returned encoded sequences.
+        Output container type.
 
         * "tensor": returns a PyTorch Tensor
         * "numpy": returns a NumPy ndarray
 
     Returns
     -------
-    Tensor
-        Encoded sequences with shape (n_sequences, `max_len`).
+    torch.Tensor or np.ndarray
+        Encoded sequences with shape ``(n_sequences, max_len)``.
 
     Examples
     --------
@@ -362,7 +414,7 @@ def encode_rna(
     >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
-    # handle single protein input
+    # handle single sequence input
     if isinstance(sequences, str):
         sequences = [sequences]
 

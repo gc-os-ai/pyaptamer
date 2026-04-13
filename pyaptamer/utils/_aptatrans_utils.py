@@ -24,35 +24,30 @@ def seq2vec(
     word_max_len: int = 3,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Convert sequences to vector representations using word dictionaries.
+    Convert paired sequence and secondary-structure strings to fixed-length vectors.
 
-    TODO: look into further ways to speed this up.
-
-    Tokenizes input sequences by matching substrings of varying lengths against
-    provided vocabularies, then converts matches to indices and pads to uniform length.
-    The tokenization process uses a greedy approach, attempting to match the longest
-    possible substring first (from word_max_len down to 1). Unknown words are mapped
-    to index 0. Sequences longer than seq_max_len are split into multiple sequences.
+    The function tokenizes each primary sequence with greedy longest-first matching,
+    converts matched tokens to integer ids, and chunks long outputs into windows of
+    size ``seq_max_len``. For each matched token span, the corresponding
+    secondary-structure substring is encoded with the shared secondary-structure
+    vocabulary.
 
     Parameters
     ----------
     sequence_list : tuple[list[str], list[str]]
-        Tuple of lists containing paired sequences (primary sequence, secondary
-        structure).
+        Paired primary-sequence and secondary-structure lists.
     words : dict[str, int]
-        Dictionary mapping primary sequence words to indices.
+        Mapping from primary-sequence tokens to integer ids.
     seq_max_len : int
-        Maximum sequence length for padding.
+        Maximum number of token ids per output chunk.
     word_max_len : int, optional, default=3
-        Maximum word length to consider during tokenization.
+        Maximum token length considered during greedy matching.
 
     Returns
     -------
     tuple[np.ndarray, np.ndarray]
-        A tuple of numpy arrays, containing the padded primary sequence indices array
-        and the padded secondary structure indices array, respectively. The former has
-        sequence length (n_sequences, seq_max_len), the latter (n_sequences, len
-        (`words_ss`) = 584).
+        Two padded arrays containing primary-sequence ids and
+        secondary-structure ids.
 
     Examples
     --------
