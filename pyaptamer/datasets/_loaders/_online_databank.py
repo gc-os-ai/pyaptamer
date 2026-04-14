@@ -8,7 +8,8 @@ from Bio.PDB import PDBList
 
 def load_from_rcsb(pdb_id, overwrite=False):
     """
-    Download a PDB file from the RCSB Protein Data Bank and parse it into a `MoleculeLoader`.
+    Download a PDB file from the RCSB Protein Data Bank
+    and parse it into a `MoleculeLoader`.
     Files are created in the current working directory.
 
     Parameters

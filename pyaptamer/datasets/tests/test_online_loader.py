@@ -1,5 +1,7 @@
 __author__ = "satvshr"
 
+import os
+
 import pytest
 
 from pyaptamer.data.loader import MoleculeLoader
@@ -15,6 +17,11 @@ def test_download_structure(pdb_id):
     loader = load_from_rcsb(pdb_id)
     assert isinstance(loader, MoleculeLoader), (
         f"Expected a MoleculeLoader, got {type(loader)}"
+    )
+
+    # Ensure the pdb file was downloaded to the expected path
+    assert os.path.exists(loader.path), (
+        f"PDB file not found at {loader.path}"
     )
 
     df_seq = loader.to_df_seq()
