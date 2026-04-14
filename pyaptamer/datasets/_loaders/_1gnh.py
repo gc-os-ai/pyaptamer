@@ -4,7 +4,7 @@ __all__ = ["load_1gnh"]
 import os
 
 
-def load_1gnh():
+def load_1gnh() -> "MoleculeLoader":
     """Load the 1GNH molecule as a MoleculeLoader.
 
     Returns
