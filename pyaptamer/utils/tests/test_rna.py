@@ -147,24 +147,23 @@ def test_rna2vec_edge_cases():
     result = rna2vec(["AAACGU"], sequence_type="rna", max_sequence_length=4)
     assert result.shape[1] == 4  # should truncate to 4 triplets
 
-    # empty sequence
-    result = rna2vec([""], sequence_type="rna")
-    assert len(result) == 0
+    # sequences too short to form a triplet must still produce one zero row each,
+    # preserving the shape contract (len(sequence_list), max_sequence_length)
+    for short_seq in ["", "A", "AA"]:
+        result = rna2vec([short_seq], sequence_type="rna", max_sequence_length=275)
+        assert result.shape == (1, 275), f"shape contract broken for {short_seq!r}"
+        assert np.all(result == 0), f"short sequence {short_seq!r} must be all-zero row"
 
-    # single character sequence (can't form triplet)
-    result = rna2vec(["A"], sequence_type="rna")
-    assert len(result) == 0
-
-    # double character sequence (can't form triplet)
-    result = rna2vec(["AA"], sequence_type="rna")
-    assert len(result) == 0
+    # mixed list: one valid, one short — shape must be (2, 275)
+    result = rna2vec(["ACGU", "A"], sequence_type="rna", max_sequence_length=275)
+    assert result.shape == (2, 275)
+    assert np.all(result[1] == 0)  # short sequence is the all-zero row
 
     # test with secondary structure sequences - edge cases
-    result = rna2vec(["S"], sequence_type="ss")
-    assert len(result) == 0
-
-    result = rna2vec(["SS"], sequence_type="ss")
-    assert len(result) == 0
+    for short_seq in ["S", "SS"]:
+        result = rna2vec([short_seq], sequence_type="ss", max_sequence_length=275)
+        assert result.shape == (1, 275), f"shape contract broken for {short_seq!r}"
+        assert np.all(result == 0), f"short sequence {short_seq!r} must be all-zero row"
 
 
 def test_rna2vec_default_parameters():

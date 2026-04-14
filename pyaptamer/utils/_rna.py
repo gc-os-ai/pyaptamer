@@ -151,24 +151,20 @@ def rna2vec(
             triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
-        # skip sequences that convert to an empty list
-        if any(converted):
-            # truncate if too long
-            if max_sequence_length is not None and len(converted) > max_sequence_length:
-                converted = converted[:max_sequence_length]
+        # truncate if too long
+        if len(converted) > max_sequence_length:
+            converted = converted[:max_sequence_length]
 
-            # pad if too short
-            if max_sequence_length is not None:
-                pad_length = max_sequence_length - len(converted)
-                padded_sequence = np.pad(
-                    array=converted,
-                    pad_width=(0, pad_length),
-                    constant_values=0,
-                )
-            else:
-                padded_sequence = np.array(converted)
+        # pad to max_sequence_length (sequences too short to form any triplet
+        # produce an empty converted list and become an all-zero row)
+        pad_length = max_sequence_length - len(converted)
+        padded_sequence = np.pad(
+            array=converted,
+            pad_width=(0, pad_length),
+            constant_values=0,
+        )
 
-            result.append(padded_sequence)
+        result.append(padded_sequence)
 
     return np.array(result)
 
