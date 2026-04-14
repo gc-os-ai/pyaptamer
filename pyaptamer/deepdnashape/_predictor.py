@@ -127,13 +127,12 @@ class Predictor:
 
     Examples
     --------
-    >>> from pyaptamer.trafos.deepdnashape import predictor
-    >>> model = predictor(mode="normal")
+    >>> from pyaptamer.deepdnashape import Predictor
+    >>> model = Predictor()
     >>> model.predict("MGW", "AAGGTAGT", layer=4)
     """
 
-    def __init__(self, mode=None):
-        self.mode = mode
+    def __init__(self):
         self._mono, self._di = _get_bases_mapping()
         with open(_PARAMS_PATH) as f:
             self._params = json.load(f)
