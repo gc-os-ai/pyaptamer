@@ -171,7 +171,7 @@ class DNAModel(nn.Module):
             x = self.dropout(x)
         return self.avg_layer(x)
 
-    def forward(self, x, pairs_prev, pairs_next, kmers):
+    def forward(self, x, pairs_prev, pairs_next):
         # Conv1d (batch, channels, length)
         x = x.unsqueeze(0).permute(0, 2, 1)
         x = self.input_conv(x)
