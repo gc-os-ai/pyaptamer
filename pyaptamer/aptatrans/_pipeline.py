@@ -8,7 +8,7 @@ __all__ = ["AptaTransPipeline"]
 
 import torch
 from torch import Tensor
-
+from sklearn.base import BaseEstimator  #new addition
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
@@ -18,7 +18,7 @@ from pyaptamer.utils import (
 from pyaptamer.utils._base import filter_words
 
 
-class AptaTransPipeline:
+class AptaTransPipeline(BaseEstimator):
     """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
 
     Algorithm as originally described in Shin et al [1]_.
