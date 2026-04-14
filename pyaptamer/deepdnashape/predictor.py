@@ -119,17 +119,17 @@ def _rescale(predictions, params):
     return predictions * params["percentile_range"] + params["median"]
 
 
-class predictor:
+class Predictor:
     """Predict DNA shape features from sequence.
 
     Original implementation: https://github.com/JinsenLi/deepDNAshape
     License: BSD-3-Clause
-    
+
     Examples
     --------
     >>> from pyaptamer.trafos.deepdnashape import predictor
     >>> model = predictor(mode="normal")
-    >>> model.predict("MGW", "AAGGTAGT", layer=4)  
+    >>> model.predict("MGW", "AAGGTAGT", layer=4)
     """
 
     def __init__(self, mode=None):
@@ -168,7 +168,7 @@ class predictor:
         feature : str (DNA shape feature to predict)
         seq : str
         layer : int, optional, default=4 (range 0 to 7)
-        
+
         Returns
         -------
         np.ndarray
@@ -176,8 +176,7 @@ class predictor:
         """
         if feature not in _ALL_FEATURES:
             raise ValueError(
-                f"Unknown feature. "
-                f"Must be one of {sorted(_ALL_FEATURES)}."
+                f"Unknown feature. Must be one of {sorted(_ALL_FEATURES)}."
             )
         if not 0 <= layer <= 7:
             raise ValueError(f"layer must be between 0 and 7, got {layer}.")
@@ -192,9 +191,7 @@ class predictor:
         if feature in _INTERBASE_FEATURES:
 
             def encode(s):
-                return np.array(
-                    [self._di[(s[i], s[i + 1])] for i in range(len(s) - 1)]
-                )
+                return np.array([self._di[(s[i], s[i + 1])] for i in range(len(s) - 1)])
         else:
 
             def encode(s):

@@ -43,19 +43,18 @@ class KerasGRUCell(nn.Module):
     def forward(self, x, h):
         matrix_x = x @ self.kernel + self.bias[0]
         x_z, x_r, x_h = torch.split(matrix_x, self.hidden_size, dim=-1)
-        
+
         matrix_inner = h @ self.rec_kernel + self.bias[1]
         rec_z, rec_r, rec_h = torch.split(matrix_inner, self.hidden_size, dim=-1)
-        
+
         z = torch.sigmoid(x_z + rec_z)
         r = torch.sigmoid(x_r + rec_r)
-        
+
         h_candidate = torch.tanh(x_h + r * rec_h)
         return z * h + (1 - z) * h_candidate
 
 
 class MessagePassingConv(nn.Module):
-
     def __init__(
         self,
         filters: int = 64,
@@ -81,7 +80,7 @@ class MessagePassingConv(nn.Module):
                 nn.init.normal_(self.w_prev_all)
             self.b_all = nn.Parameter(torch.zeros(1, filters))
 
-        #keras defaults eps=1e-3, momentum=0.99 (pytorch momentum = 1 - 0.99 = 0.01)
+        # keras defaults eps=1e-3, momentum=0.99 (pytorch momentum = 1 - 0.99 = 0.01)
         self.bn = nn.BatchNorm1d(filters, eps=1e-3, momentum=0.01) if bn_layer else None
         self.gru = KerasGRUCell(filters, filters) if gru_layer else None
 
@@ -117,7 +116,6 @@ class MessagePassingConv(nn.Module):
 
 
 class AvgFeatures(nn.Module):
-
     def __init__(self, target_features=1, filter_size=64):
         super().__init__()
         self.target_features = target_features if target_features != 0 else 1
@@ -132,7 +130,6 @@ class AvgFeatures(nn.Module):
 
 
 class DNAModel(nn.Module):
-
     def __init__(
         self,
         input_features=4,
