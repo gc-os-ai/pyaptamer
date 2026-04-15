@@ -20,9 +20,7 @@ def test_download_structure(pdb_id):
     )
 
     # Ensure the pdb file was downloaded to the expected path
-    assert os.path.exists(loader.path), (
-        f"PDB file not found at {loader.path}"
-    )
+    assert os.path.exists(loader.path), f"PDB file not found at {loader.path}"
 
     df_seq = loader.to_df_seq()
     assert not df_seq.empty, "Expected to_df_seq() to return a non-empty DataFrame"
