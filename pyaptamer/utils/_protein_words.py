@@ -1,4 +1,3 @@
-
 """Protein word extraction utilities.
 
 Core behavior mirrors the AptaTrans vocabulary pre-processing pattern:
@@ -8,7 +7,9 @@ Core behavior mirrors the AptaTrans vocabulary pre-processing pattern:
 """
 
 from collections import Counter
+
 from pyaptamer.utils._base import filter_words
+
 
 def compute_protein_words(
     protein_sequences,
