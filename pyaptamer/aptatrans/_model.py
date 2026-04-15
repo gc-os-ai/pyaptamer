@@ -265,9 +265,7 @@ class AptaTrans(nn.Module):
 
         If the weights are not found locally, they will be downloaded from hugging face.
         """
-        path = os.path.relpath(
-            os.path.join(os.path.dirname(__file__), ".", "weights", "pretrained.pt")
-        )
+        path = os.path.join(os.path.dirname(__file__), "weights", "pretrained.pt")
 
         if os.path.exists(path):
             print(f"Loading pretrained weights from {path}...")
