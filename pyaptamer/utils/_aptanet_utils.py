@@ -102,7 +102,7 @@ def pairs_to_features(X, k=4):
     if isinstance(X, pd.DataFrame):
         if "aptamer" not in X.columns or "protein" not in X.columns:
             raise ValueError("DataFrame must contain 'aptamer' and 'protein'")
-        pairs = list(zip(X["aptamer"], X["protein"]))
+        pairs = list(zip(X["aptamer"], X["protein"], strict=False))
     else:
         pairs = list(X)
 
@@ -110,7 +110,7 @@ def pairs_to_features(X, k=4):
         raise ValueError("Empty input")
 
     for pair in pairs:
-        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+        if not isinstance(pair, (list | tuple)) or len(pair) != 2:
             raise ValueError("Each element must be (aptamer, protein)")
 
         aptamer_seq, protein_seq = pair
