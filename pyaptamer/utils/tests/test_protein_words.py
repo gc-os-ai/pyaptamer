@@ -3,7 +3,9 @@
 import pytest
 
 from pyaptamer.utils import compute_protein_words
-from pyaptamer.utils._protein_words import compute_protein_words as module_compute_protein_words
+from pyaptamer.utils._protein_words import (
+    compute_protein_words as module_compute_protein_words,
+)
 
 # Run each test against both import surfaces:
 # - public package API (`pyaptamer.utils`)
@@ -69,7 +71,9 @@ def test_frequency_filter_with_all_equal_frequencies_returns_empty(func):
 @pytest.mark.parametrize("func", [compute_protein_words, module_compute_protein_words])
 def test_skips_empty_none_and_whitespace_inputs(func):
     """None and blank entries should be ignored without errors."""
-    result = func([None, "", "   ", " mk "], min_k=1, max_k=1, apply_frequency_filter=False)
+    result = func(
+        [None, "", "   ", " mk "], min_k=1, max_k=1, apply_frequency_filter=False
+    )
 
     assert result == {"M": 1, "K": 1}
 
