@@ -99,6 +99,11 @@ class APIDataset(Dataset):
             words=self.prot_words,
             max_len=self.prot_max_len,
         )
+        if not np.isin(y, ["positive", "negative"]).all():
+            raise ValueError(
+                "Labels `y` must contain only 'positive' or 'negative' strings. "
+                f"Got unique values: {np.unique(y).tolist()}"
+            )
         y = torch.tensor((y == "positive").astype(int))
 
         return (x_apta, x_prot, y)
