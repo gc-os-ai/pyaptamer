@@ -127,7 +127,7 @@ class PSeAAC:
 
         if group_props is not None and custom_groups is not None:
             raise ValueError(
-                "Specify only one of `group_props` or `custom_groups`,not both."
+                "Specify only one of `group_props` or `custom_groups`, not both."
             )
 
         self.np_matrix = aa_props(
@@ -148,7 +148,7 @@ class PSeAAC:
         else:
             if self._n_cols % group_props != 0:
                 raise ValueError(
-                    f"Number of properties ({self._n_cols}) must be divisible by"
+                    f"Number of properties ({self._n_cols}) must be divisible by "
                     f"group_props ({group_props})."
                 )
             self.prop_groups = [
