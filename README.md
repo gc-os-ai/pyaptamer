@@ -1,6 +1,6 @@
 <img src="docs/assets/pyaptamer_icon.png" alt="pyaptamer logo" width="100" align="left" hspace="20"/>
 
-<font size="6"><strong>pyaptamer</strong></font>
+<font size="12"><strong>pyaptamer</strong></font>
 
 *The python library for easy aptamer design.*
 
