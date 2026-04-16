@@ -1,15 +1,10 @@
-<table>
-  <tr>
-    <td width="120" valign="middle">
-      <img src="docs/assets/pyaptamer_icon.png" alt="pyaptamer logo" width="100"/>
-    </td>
-    <td valign="middle">
-      <h3>pyaptamer</h3>
-      The python library for easy aptamer design.<br/>
-      <strong>sponsored by ecoSPECS</strong>
-    </td>
-  </tr>
-</table>
+<img src="docs/assets/pyaptamer_icon.png" alt="pyaptamer logo" width="120"/>
+
+# pyaptamer
+
+> The python library for easy aptamer design.
+
+**sponsored by ecoSPECS**
 
 |  | **[Tutorials](https://github.com/gc-os-ai/pyaptamer/tree/main/examples)** · **[Issue Tracker](https://github.com/gc-os-ai/pyaptamer/issues)** · **[Project Board](https://github.com/orgs/gc-os-ai/projects/1)** |
 |---|---|
