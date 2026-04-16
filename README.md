@@ -1,12 +1,8 @@
-<img src="docs/assets/pyaptamer_icon.png" alt="pyaptamer logo" width="100" align="left" hspace="20"/>
+<img src="docs/assets/pyaptamer_banner.png" alt="pyaptamer logo" width="420"/>
 
-<font size="12"><strong>pyaptamer</strong></font>
+### AI for aptamer discovery
 
-*The python library for easy aptamer design.*
-
-**sponsored by ecoSPECS**
-
-<br clear="all"/>
+*The python library for easy aptamer design.* **Sponsored by ecoSPECS.**
 
 ---
 
