@@ -6,6 +6,12 @@ import pytest
 
 from pyaptamer.datasets.dataclasses import APIDataset
 from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
+from pyaptamer.datasets.dataclasses.tests.conftest import (
+    APTA_A,
+    APTA_B,
+    PROT_A,
+    PROT_B,
+)
 
 
 def test_api_dataset_inherits_base():
@@ -24,8 +30,8 @@ def test_api_dataset_scitype_tag():
 
 
 def test_api_dataset_basic_construction():
-    ds = APIDataset(x_apta=["ACGU", "UGCA"], x_prot=["MKV", "LKR"], y=[1, 0])
-    assert list(ds.load()["aptamer"]) == ["ACGU", "UGCA"]
+    ds = APIDataset(x_apta=[APTA_A, APTA_B], x_prot=[PROT_A, PROT_B], y=[1, 0])
+    assert list(ds.load()["aptamer"]) == [APTA_A, APTA_B]
     assert list(ds.y) == [1, 0]
 
 
@@ -33,41 +39,41 @@ def test_api_dataset_no_old_kwargs():
     """The old constructor kwargs (apta_max_len, prot_max_len, prot_words,
     split) are removed. Passing them must raise TypeError."""
     with pytest.raises(TypeError):
-        APIDataset(x_apta=["A"], x_prot=["M"], y=[1], apta_max_len=100)
+        APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1], apta_max_len=100)
     with pytest.raises(TypeError):
-        APIDataset(x_apta=["A"], x_prot=["M"], y=[1], split="train")
+        APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1], split="train")
 
 
 def test_api_dataset_does_not_encode():
     """Stored data is exactly the input strings, not encoded."""
-    ds = APIDataset(x_apta=["ACGU"], x_prot=["MKV"], y=[1])
+    ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1])
     df = ds.load()
-    assert df["aptamer"].iloc[0] == "ACGU"
-    assert df["protein"].iloc[0] == "MKV"
+    assert df["aptamer"].iloc[0] == APTA_A
+    assert df["protein"].iloc[0] == PROT_A
     assert ds.y[0] == 1
 
 
 def test_from_any_passthrough_for_apidataset():
-    ds = APIDataset(x_apta=["A"], x_prot=["M"], y=[1])
+    ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1])
     assert APIDataset.from_any(ds) is ds
 
 
 def test_from_any_with_dataframe():
-    df = pd.DataFrame({"aptamer": ["A"], "protein": ["M"]})
+    df = pd.DataFrame({"aptamer": [APTA_A], "protein": [PROT_A]})
     ds = APIDataset.from_any(df, y=[1])
-    assert list(ds.load()["aptamer"]) == ["A"]
+    assert list(ds.load()["aptamer"]) == [APTA_A]
     assert list(ds.y) == [1]
 
 
 def test_from_any_with_list_tuples():
-    pairs = [("ACGU", "MKV"), ("UGCA", "LKR")]
+    pairs = [(APTA_A, PROT_A), (APTA_B, PROT_B)]
     ds = APIDataset.from_any(pairs, y=[1, 0])
-    assert list(ds.load()["protein"]) == ["MKV", "LKR"]
+    assert list(ds.load()["protein"]) == [PROT_A, PROT_B]
 
 
 def test_from_any_with_numpy_pair():
-    apta = np.array(["ACGU", "UGCA"])
-    prot = np.array(["MKV", "LKR"])
+    apta = np.array([APTA_A, APTA_B])
+    prot = np.array([PROT_A, PROT_B])
     ds = APIDataset.from_any((apta, prot), y=np.array([1, 0]))
     assert len(ds.load()) == 2
 

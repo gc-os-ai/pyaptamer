@@ -9,6 +9,12 @@ from pyaptamer.datasets.dataclasses._mtype import (
     SUPPORTED_MTYPES,
     convert_to,
 )
+from pyaptamer.datasets.dataclasses.tests.conftest import (
+    APTA_A,
+    APTA_B,
+    PROT_A,
+    PROT_B,
+)
 
 
 def test_supported_mtypes_contains_three_canonical_names():
@@ -24,35 +30,35 @@ def test_input_only_mtypes_contains_molecule_loader_pair():
 
 @pytest.fixture
 def df_two_pairs():
-    return pd.DataFrame({"aptamer": ["ACGU", "UGCA"], "protein": ["MKV", "LKR"]})
+    return pd.DataFrame({"aptamer": [APTA_A, APTA_B], "protein": [PROT_A, PROT_B]})
 
 
 def test_convert_df_to_list_tuples(df_two_pairs):
     result = convert_to(df_two_pairs, to_mtype="list_tuples")
-    assert result == [("ACGU", "MKV"), ("UGCA", "LKR")]
+    assert result == [(APTA_A, PROT_A), (APTA_B, PROT_B)]
 
 
 def test_convert_df_to_numpy_arrays(df_two_pairs):
     apta, prot = convert_to(df_two_pairs, to_mtype="numpy_arrays")
     assert isinstance(apta, np.ndarray) and isinstance(prot, np.ndarray)
-    assert list(apta) == ["ACGU", "UGCA"]
-    assert list(prot) == ["MKV", "LKR"]
+    assert list(apta) == [APTA_A, APTA_B]
+    assert list(prot) == [PROT_A, PROT_B]
 
 
 def test_convert_list_tuples_to_df():
-    pairs = [("ACGU", "MKV"), ("UGCA", "LKR")]
+    pairs = [(APTA_A, PROT_A), (APTA_B, PROT_B)]
     result = convert_to(pairs, to_mtype="pd.DataFrame")
     assert isinstance(result, pd.DataFrame)
     assert list(result.columns) == ["aptamer", "protein"]
-    assert list(result["aptamer"]) == ["ACGU", "UGCA"]
+    assert list(result["aptamer"]) == [APTA_A, APTA_B]
 
 
 def test_convert_numpy_to_df():
-    apta = np.array(["ACGU", "UGCA"])
-    prot = np.array(["MKV", "LKR"])
+    apta = np.array([APTA_A, APTA_B])
+    prot = np.array([PROT_A, PROT_B])
     result = convert_to((apta, prot), to_mtype="pd.DataFrame")
     assert isinstance(result, pd.DataFrame)
-    assert list(result["protein"]) == ["MKV", "LKR"]
+    assert list(result["protein"]) == [PROT_A, PROT_B]
 
 
 def test_convert_to_same_mtype_is_passthrough(df_two_pairs):
