@@ -1,7 +1,4 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pyaptamer_banner_dark.png">
-  <img src="docs/assets/pyaptamer_banner.png" alt="pyaptamer logo" width="420">
-</picture>
+<img src="docs/assets/pyaptamer_banner.png" alt="pyaptamer logo" width="420"/>
 
 ### AI for aptamer discovery
 
