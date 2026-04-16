@@ -35,6 +35,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         If the aptamer sequence contains non-DNA characters.
     """
     DNA_BASES = list("ACGT")
+    aptamer_sequence = aptamer_sequence.upper()
     if set(aptamer_sequence) - set(DNA_BASES):
         raise ValueError("AptaNet k-mer features support DNA bases only: A, C, G, T.")
 
