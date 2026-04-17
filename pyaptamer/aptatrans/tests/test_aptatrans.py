@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
+from pyaptamer.aptatrans._model import _EncoderModule
 
 
 class TestAptaTransModel:
@@ -21,6 +22,27 @@ class TestAptaTransModel:
             max_len=16,
         )
         return (embedding, embedding)
+
+    def test_encoder_is_proper_module(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check encoder_apta and encoder_prot are proper nn.Module instances."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+        )
+        assert isinstance(model.encoder_apta, _EncoderModule)
+        assert isinstance(model.encoder_prot, _EncoderModule)
+        # sub-modules must be registered (visible in named_modules)
+        named = dict(model.named_modules())
+        assert "encoder_apta" in named
+        assert "encoder_apta.embedding" in named
+        assert "encoder_apta.pos_encoding" in named
+        assert "encoder_apta.encoder" in named
 
     def test_init_input_dim_not_divisible_by_heads(
         self,
