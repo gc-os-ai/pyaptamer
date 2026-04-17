@@ -1,5 +1,7 @@
 """Tests for _AptaTransTorchDataset (private model-owned torch Dataset)."""
 
+__author__ = ["siddharth7113"]
+
 import numpy as np
 import torch
 
@@ -21,13 +23,13 @@ def _toy_encoded():
 
 def test_len_matches_input():
     x_apta, x_prot, y = _toy_encoded()
-    ds = _AptaTransTorchDataset(x_apta, x_prot, y, augment=False)
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y)
     assert len(ds) == 4
 
 
 def test_getitem_returns_tensor_triple():
     x_apta, x_prot, y = _toy_encoded()
-    ds = _AptaTransTorchDataset(x_apta, x_prot, y, augment=False)
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y)
     sample = ds[0]
     assert len(sample) == 3
     assert all(isinstance(t, torch.Tensor) for t in sample)
@@ -35,7 +37,7 @@ def test_getitem_returns_tensor_triple():
 
 def test_getitem_y_value_correct():
     x_apta, x_prot, y = _toy_encoded()
-    ds = _AptaTransTorchDataset(x_apta, x_prot, y, augment=False)
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y)
     _, _, y0 = ds[0]
     assert y0.item() == 1
     _, _, y1 = ds[1]
@@ -44,7 +46,7 @@ def test_getitem_y_value_correct():
 
 def test_unlabeled_returns_y_none():
     x_apta, x_prot, _ = _toy_encoded()
-    ds = _AptaTransTorchDataset(x_apta, x_prot, y=None, augment=False)
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y=None)
     sample = ds[0]
     assert len(sample) == 3
     assert sample[2] is None
@@ -55,7 +57,7 @@ def test_dataloader_compatibility():
     from torch.utils.data import DataLoader
 
     x_apta, x_prot, y = _toy_encoded()
-    ds = _AptaTransTorchDataset(x_apta, x_prot, y, augment=False)
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y)
     loader = DataLoader(ds, batch_size=2)
     batches = list(loader)
     assert len(batches) == 2
@@ -63,3 +65,12 @@ def test_dataloader_compatibility():
     assert x_a.shape == (2, 10)
     assert x_p.shape == (2, 8)
     assert y_b.shape == (2,)
+
+
+def test_no_augment_param():
+    """_AptaTransTorchDataset no longer accepts an augment parameter.
+    Augmentation is the caller's responsibility (applied before encoding)."""
+    x_apta, x_prot, y = _toy_encoded()
+    # Should work without augment kwarg
+    ds = _AptaTransTorchDataset(x_apta, x_prot, y)
+    assert len(ds) == 4
