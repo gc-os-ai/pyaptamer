@@ -152,6 +152,52 @@ class AptaTransPipeline:
         )
         return experiment
 
+    def _prepare_dataloader(self, X, y=None, train=False, batch_size=32):
+        """Build a torch DataLoader from any supported input shape.
+
+        This is the seam between the new APIDataset container and AptaTrans's
+        training loop. The future sklearn-style ``fit(X, y)`` PR will call
+        this at the top of ``fit`` and ``predict``.
+
+        Parameters
+        ----------
+        X : APIDataset, pd.DataFrame, list[tuple], (np.ndarray, np.ndarray),
+            or (MoleculeLoader, MoleculeLoader)
+            Paired sequence input in any supported shape. See
+            ``APIDataset.from_any`` for the full list.
+        y : array-like, optional
+            Labels. Ignored if X is already an APIDataset (use ds.y instead).
+        train : bool, default False
+            If True, enables per-sample augmentation and shuffling.
+        batch_size : int, default 32
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+        """
+        from torch.utils.data import DataLoader
+
+        from pyaptamer.aptatrans._torch_dataset import _AptaTransTorchDataset
+        from pyaptamer.datasets.dataclasses import APIDataset
+        from pyaptamer.utils import encode_rna, rna2vec
+
+        ds = APIDataset.from_any(X, y)
+        df = ds.load()
+
+        x_apta_enc = rna2vec(
+            sequence_list=df["aptamer"].tolist(),
+            max_sequence_length=self.model.apta_embedding.max_len,
+            sequence_type="rna",
+        )
+        x_prot_enc = encode_rna(
+            sequences=df["protein"].tolist(),
+            words=self.prot_words,
+            max_len=self.model.prot_embedding.max_len,
+        )
+
+        torch_ds = _AptaTransTorchDataset(x_apta_enc, x_prot_enc, ds.y, augment=train)
+        return DataLoader(torch_ds, batch_size=batch_size, shuffle=train)
+
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to
         # follow the original paper), there are additional steps. Need to decide if put

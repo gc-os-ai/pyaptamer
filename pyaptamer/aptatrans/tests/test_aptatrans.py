@@ -427,3 +427,35 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    def test_prepare_dataloader_accepts_apidataset(self):
+        """_prepare_dataloader handles APIDataset input."""
+        from pyaptamer.datasets.dataclasses import APIDataset
+
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipe = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        ds = APIDataset(
+            x_apta=["ACGUACGUACGUACG", "UGCAUGCAUGCAUGC"],
+            x_prot=["AUGAUGAUGAUGAUG", "GCAGCAGCAGCAGCA"],
+            y=[1, 0],
+        )
+        loader = pipe._prepare_dataloader(ds, ds.y, train=False)
+        batches = list(loader)
+        assert len(batches) >= 1
+
+    def test_prepare_dataloader_accepts_list_tuples(self):
+        """_prepare_dataloader handles list-of-tuples input."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipe = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        pairs = [
+            ("ACGUACGUACGUACG", "AUGAUGAUGAUGAUG"),
+            ("UGCAUGCAUGCAUGC", "GCAGCAGCAGCAGCA"),
+        ]
+        loader = pipe._prepare_dataloader(pairs, [1, 0], train=False)
+        assert sum(1 for _ in loader) >= 1
