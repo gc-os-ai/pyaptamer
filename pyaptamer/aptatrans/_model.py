@@ -20,6 +20,20 @@ from pyaptamer.aptatrans.layers._encoder import (
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
 
 
+class _EncoderModule(nn.Module):
+    def __init__(self, embedding, pos_encoding, encoder):
+        super().__init__()
+        self.embedding = embedding
+        self.pos_encoding = pos_encoding
+        self.encoder = encoder
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.encoder(
+            self.pos_encoding(self.embedding(x)),
+            src_key_padding_mask=(x == 0),
+        )
+
+
 class AptaTrans(nn.Module):
     """AptaTrans deep neural network as described in [1]_.
 
@@ -218,13 +232,7 @@ class AptaTrans(nn.Module):
             d_out_ss=embedding_config.target_dim,
         )
 
-        encoder_module = nn.ModuleList([embedding, pos_encoding, encoder])
-
-        # pass the the encoder a padding mask to ignore zero-padded tokens
-        encoder_module.forward = lambda x: encoder(
-            pos_encoding(embedding(x)),
-            src_key_padding_mask=(x == 0),  # padding mask
-        )
+        encoder_module = _EncoderModule(embedding, pos_encoding, encoder)
 
         return (encoder_module, token_predictor)
 
