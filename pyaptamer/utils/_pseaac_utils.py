@@ -11,15 +11,15 @@ is used for efficient membership testing.
 Functions
 ---------
 clean_protein_seq(seq)
-    Replaces invalid amino acids with "N" and warn the user.
+    Replaces invalid amino acids with "N" and warns the user.
 """
 
 AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 
-def clean_protein_seq(seq):
+def clean_protein_seq(seq: str) -> str:
     """
-    Replace invalid amino acids with "N" and warn the user.
+    Replace invalid amino acids with "N" and warns the user.
 
     Parameters
     ----------

@@ -71,7 +71,12 @@ class MoleculeLoader:
 
         columns = ["sequence"] if self.columns is None else self.columns
 
-        return pd.DataFrame(sequences, index=index, columns=columns)
+        df = pd.DataFrame(sequences, index=index, columns=columns)
+
+        if self.ignore_duplicates:
+            df = df.drop_duplicates(subset=["sequence"], keep="first")
+
+        return df
 
     def _determine_type(self, path):
         suffix = path.suffix.lower()

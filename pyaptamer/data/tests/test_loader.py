@@ -46,3 +46,20 @@ def test_pathlib_path():
     assert df.index.names == ["path", "chain_id"]
     assert df["sequence"].map(type).eq(str).all()
     assert any(seq.startswith("QTDMSRK") for seq in df["sequence"])
+
+
+def test_ignore_duplicates():
+    """Test that ignore_duplicates=True filters identical sequences."""
+    root_path = Path(__file__).parent.parent.parent
+    path = root_path / "datasets/data/1gnh.pdb"  # Known to have 10 identical chains
+
+    # Without deduplication
+    loader_all = MoleculeLoader(path, ignore_duplicates=False)
+    df_all = loader_all.to_df_seq()
+
+    # With deduplication
+    loader_dedup = MoleculeLoader(path, ignore_duplicates=True)
+    df_dedup = loader_dedup.to_df_seq()
+
+    assert len(df_all) == 10
+    assert len(df_dedup) == 1

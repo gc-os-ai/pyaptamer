@@ -64,7 +64,7 @@ class PSeAAC:
 
     For each property group, the above (20 + `lambda_val`) features are computed,
     resulting in a final vector of length (20 + lambda_val) * number of normalized
-            physiochemical (NP) property groups of amino acids (default 7).
+            physicochemical (NP) property groups of amino acids (default 7).
 
     Parameters
     ----------
