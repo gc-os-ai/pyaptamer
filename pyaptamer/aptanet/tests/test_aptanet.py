@@ -1,4 +1,4 @@
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp", "satvshr", "siddharth7113"]
 
 
 import numpy as np
@@ -68,6 +68,66 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert np.issubdtype(preds.dtype, np.floating)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_dataframe(aptamer_seq, protein_seq):
+    """Test that AptaNetPipeline accepts a pd.DataFrame input."""
+    import pandas as pd
+
+    n = 40
+    df = pd.DataFrame({"aptamer": [aptamer_seq] * n, "protein": [protein_seq] * n})
+    y = np.array([0] * (n // 2) + [1] * (n // 2), dtype=np.float32)
+
+    pipe = AptaNetPipeline(k=4)
+    pipe.fit(df, y)
+    assert len(pipe.predict(df)) == n
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_numpy_pair(aptamer_seq, protein_seq):
+    """Test that AptaNetPipeline accepts a (np.ndarray, np.ndarray) tuple input."""
+    n = 40
+    apta = np.array([aptamer_seq] * n)
+    prot = np.array([protein_seq] * n)
+    y = np.array([0] * (n // 2) + [1] * (n // 2), dtype=np.float32)
+
+    pipe = AptaNetPipeline(k=4)
+    pipe.fit((apta, prot), y)
+    assert len(pipe.predict((apta, prot))) == n
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_apidataset(aptamer_seq, protein_seq):
+    """Test that AptaNetPipeline accepts an APIDataset input."""
+    from pyaptamer.datasets.dataclasses import APIDataset
+
+    n = 40
+    pairs = [(aptamer_seq, protein_seq) for _ in range(n)]
+    y = np.array([0] * (n // 2) + [1] * (n // 2), dtype=np.float32)
+
+    ds = APIDataset.from_any(pairs, y)
+    pipe = AptaNetPipeline(k=4)
+    pipe.fit(ds, ds.y)
+    assert len(pipe.predict(ds)) == n
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_dataframe_and_string_labels(aptamer_seq, protein_seq):
+    """Test the real-world flow: DataFrame X + DataFrame y with string labels.
+
+    This mimics `X, y = load_li2014(split="train"); pipeline.fit(X, y)` where
+    y is a single-column DataFrame with "positive"/"negative" string labels.
+    """
+    import pandas as pd
+
+    n = 40
+    df = pd.DataFrame({"aptamer": [aptamer_seq] * n, "protein": [protein_seq] * n})
+    y = pd.DataFrame({"label": ["positive"] * (n // 2) + ["negative"] * (n // 2)})
+
+    pipe = AptaNetPipeline(k=4)
+    pipe.fit(df, y)
+    assert len(pipe.predict(df)) == n
 
 
 @parametrize_with_checks(

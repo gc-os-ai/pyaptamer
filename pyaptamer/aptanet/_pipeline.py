@@ -1,4 +1,4 @@
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp", "satvshr", "siddharth7113"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
@@ -13,8 +13,7 @@ from pyaptamer.utils._aptanet_utils import pairs_to_features
 
 
 class AptaNetPipeline(BaseObject, BaseEstimator):
-    """
-    AptaNet algorithm for aptamer–protein interaction prediction [1]_
+    """AptaNet algorithm for aptamer-protein interaction prediction [1]_.
 
     Implements the AptaNet algorithm, a deep learning method that combines
     sequence-derived features with RandomForest-based feature selection and a
@@ -25,13 +24,23 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     (aptamer k-mer frequencies + protein PSeAAC), applies tree-based feature
     selection, and feeds the result into the estimator.
 
+    ``fit``, ``predict``, and ``predict_proba`` accept any input shape
+    supported by ``APIDataset.from_any``:
+
+    - ``list[tuple[str, str]]`` of (aptamer, protein) pairs
+    - ``pd.DataFrame`` with columns ``["aptamer", "protein"]``
+    - ``tuple[np.ndarray, np.ndarray]`` of (aptamer_array, protein_array)
+    - ``tuple[MoleculeLoader, MoleculeLoader]``
+    - ``APIDataset`` instance
+
     Parameters
     ----------
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
 
     estimator : sklearn-compatible estimator or None, default=None
-        Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
+        Estimator applied after feature selection. If None, uses
+        ``AptaNetClassifier``.
 
     Attributes
     ----------
@@ -41,12 +50,10 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
 
     References
     ----------
-
     .. [1] Emami, N., Ferdousi, R. AptaNet as a deep learning approach for
-        aptamer–protein interaction prediction. *Scientific Reports*, 11, 6074 (2021).
-        https://doi.org/10.1038/s41598-021-85629-0
+        aptamer-protein interaction prediction. *Scientific Reports*, 11,
+        6074 (2021). https://doi.org/10.1038/s41598-021-85629-0
     .. [2] GitHub repository: https://github.com/nedaemami/AptaNet
-    .. [3] PDF version of the article: https://www.nature.com/articles/s41598-021-85629-0.pdf
 
     Examples
     --------
@@ -58,7 +65,7 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(40)]
     >>> y_train = np.array([0] * 20 + [1] * 20, dtype=np.float32)
     >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
-    >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
+    >>> _ = pipe.fit(X_train_pairs, y_train)
     >>> preds = pipe.predict(X_test_pairs)
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
@@ -76,14 +83,28 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
-    def fit(self, X, y):
+    @staticmethod
+    def _to_pairs(X, y=None):
+        """Coerce X to list-of-tuples for the internal sklearn pipeline."""
+        from pyaptamer.datasets.dataclasses import APIDataset
+
+        ds = APIDataset.from_any(X, y)
+        df = ds.load()
+        pairs = list(zip(df["aptamer"].tolist(), df["protein"].tolist(), strict=False))
+        return pairs, ds.y
+
+    def fit(self, X, y=None):
+        pairs, y_out = self._to_pairs(X, y)
         self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(X, y)
+        self.pipeline_.fit(pairs, y_out)
+        return self
 
     def predict_proba(self, X):
         check_is_fitted(self)
-        return self.pipeline_.predict_proba(X)
+        pairs, _ = self._to_pairs(X)
+        return self.pipeline_.predict_proba(pairs)
 
     def predict(self, X):
         check_is_fitted(self)
-        return self.pipeline_.predict(X)
+        pairs, _ = self._to_pairs(X)
+        return self.pipeline_.predict(pairs)
