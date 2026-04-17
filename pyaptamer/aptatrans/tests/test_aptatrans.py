@@ -1,6 +1,6 @@
 """Test suite for AptaTrans' deep neural network and pipeline."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 
 import pytest
 import torch
