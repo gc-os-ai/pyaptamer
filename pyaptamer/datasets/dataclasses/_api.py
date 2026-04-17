@@ -47,7 +47,13 @@ class APIDataset(BaseAptamerDataset):
             self.y = None
             return
         self._X = self._check_inputs(x_apta, x_prot)
-        self.y = np.asarray(y) if y is not None else None
+        # Normalize y to a 1D numpy array (handles DataFrame, Series, 2D column vectors)
+        if y is not None:
+            if isinstance(y, pd.DataFrame):
+                y = y.iloc[:, 0]
+            self.y = np.asarray(y).ravel()
+        else:
+            self.y = None
 
     def load(self) -> pd.DataFrame:
         """Return X as a 2-column pd.DataFrame with columns [aptamer, protein]."""

@@ -92,6 +92,23 @@ def test_init_with_pandas_series():
     assert len(ds.load()) == 2
 
 
+def test_y_coerced_from_single_column_dataframe():
+    """When y is a single-column DataFrame (e.g., from load_li2014),
+    it should be flattened to a 1D numpy array."""
+    y_df = pd.DataFrame({"label": ["positive", "negative"]})
+    ds = APIDataset(x_apta=[APTA_A, APTA_B], x_prot=[PROT_A, PROT_B], y=y_df)
+    assert ds.y.ndim == 1
+    assert list(ds.y) == ["positive", "negative"]
+
+
+def test_y_coerced_from_2d_array():
+    """2D column-vector y should be flattened to 1D."""
+    y_2d = np.array([[1], [0]])
+    ds = APIDataset(x_apta=[APTA_A, APTA_B], x_prot=[PROT_A, PROT_B], y=y_2d)
+    assert ds.y.ndim == 1
+    assert list(ds.y) == [1, 0]
+
+
 def test_init_length_mismatch_raises():
     with pytest.raises(ValueError, match="equal length"):
         APIDataset(x_apta=[APTA_A], x_prot=[PROT_A, PROT_B])
