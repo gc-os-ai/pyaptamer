@@ -1,4 +1,4 @@
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 __all__ = ["MaskedDataset"]
 
 import random
@@ -8,8 +8,10 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
 
-class MaskedDataset(Dataset):
+
+class MaskedDataset(BaseAptamerDataset, Dataset):
     """A PyTorch dataset for masked language modeling on DNA/RNA sequences.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans/blob/master/utils.py
@@ -59,6 +61,14 @@ class MaskedDataset(Dataset):
     2
     """
 
+    _tags = {
+        "scitype": "MaskedSequences",
+        # Descriptive only — no mtype dispatcher registered for this scitype yet.
+        # Add _mtype_masked.py sibling when conversion is needed.
+        "X_inner_mtype": ["numpy_arrays_pair"],
+        "has_y": True,
+    }
+
     def __init__(
         self,
         x: list | np.ndarray,
@@ -68,7 +78,8 @@ class MaskedDataset(Dataset):
         masked_rate: float = 0.15,
         is_rna: bool = False,
     ) -> None:
-        super().__init__()
+        BaseAptamerDataset.__init__(self)
+        Dataset.__init__(self)
 
         if len(x) != len(y):
             raise ValueError(
@@ -84,6 +95,19 @@ class MaskedDataset(Dataset):
 
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
+
+    def load(self) -> tuple[np.ndarray, np.ndarray]:
+        """Return (x, y) — the canonical sequence/target arrays.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            ``(x, y)`` where ``x`` holds the input sequences and ``y`` holds
+            the targets, both as integer arrays. Note: this is the
+            *unmasked* canonical form; per-sample masking happens in
+            ``__getitem__`` for use with a ``DataLoader``.
+        """
+        return self.x, self.y
 
     def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
         """Mask adjacent nucleotides for RNA sequences.

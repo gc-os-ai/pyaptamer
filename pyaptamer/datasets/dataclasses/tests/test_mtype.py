@@ -6,6 +6,7 @@ import pytest
 
 from pyaptamer.datasets.dataclasses._mtype import (
     INPUT_ONLY_MTYPES,
+    SCITYPE,
     SUPPORTED_MTYPES,
     convert_to,
 )
@@ -22,6 +23,10 @@ def test_supported_mtypes_contains_three_canonical_names():
     assert "list_tuples" in SUPPORTED_MTYPES
     assert "numpy_arrays" in SUPPORTED_MTYPES
     assert len(SUPPORTED_MTYPES) == 3
+
+
+def test_scitype_is_apipairs():
+    assert SCITYPE == "APIPairs"
 
 
 def test_input_only_mtypes_contains_molecule_loader_pair():

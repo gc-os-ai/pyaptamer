@@ -1,8 +1,13 @@
-"""Mtype dispatcher for paired aptamer-protein data containers.
+"""Mtype dispatcher for the ``APIPairs`` scitype.
 
-Internal module. Defines the supported mtypes and a `convert_to` function
-that converts between them. Used by `BaseAptamerDataset` for input
-coercion; not part of the public API.
+Internal module. Defines the supported mtypes for paired aptamer-protein
+data and a ``convert_to`` function that converts between them. Used by
+``APIDataset`` for input coercion; not part of the public API.
+
+**Scitype scope:** this module handles the ``APIPairs`` scitype only.
+Other scitypes (``MaskedSequences``, future ones) maintain their own mtype
+vocabularies. When a new scitype needs mtype conversion, add a sibling
+module (e.g. ``_mtype_aptamers.py``) rather than expanding this one.
 
 Supported mtypes (round-trippable):
     - "pd.DataFrame": columns ["aptamer", "protein"]
@@ -13,11 +18,18 @@ Input-only mtypes (coerce to pd.DataFrame, no reverse):
     - "MoleculeLoader_pair": tuple[MoleculeLoader, MoleculeLoader]
 """
 
-__all__ = ["SUPPORTED_MTYPES", "INPUT_ONLY_MTYPES", "convert_to", "coerce_input"]
+__all__ = [
+    "SCITYPE",
+    "SUPPORTED_MTYPES",
+    "INPUT_ONLY_MTYPES",
+    "convert_to",
+    "coerce_input",
+]
 
 import numpy as np
 import pandas as pd
 
+SCITYPE = "APIPairs"
 SUPPORTED_MTYPES = ("pd.DataFrame", "list_tuples", "numpy_arrays")
 INPUT_ONLY_MTYPES = ("MoleculeLoader_pair",)
 

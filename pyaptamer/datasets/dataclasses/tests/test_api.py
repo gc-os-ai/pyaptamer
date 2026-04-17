@@ -29,10 +29,21 @@ def test_api_dataset_scitype_tag():
     assert APIDataset.get_class_tags()["scitype"] == "APIPairs"
 
 
+def test_api_dataset_inner_mtype_tag():
+    expected = ["pd.DataFrame", "list_tuples", "numpy_arrays"]
+    assert APIDataset.get_class_tags()["X_inner_mtype"] == expected
+
+
 def test_api_dataset_basic_construction():
     ds = APIDataset(x_apta=[APTA_A, APTA_B], x_prot=[PROT_A, PROT_B], y=[1, 0])
     assert list(ds.load()["aptamer"]) == [APTA_A, APTA_B]
     assert list(ds.y) == [1, 0]
+
+
+def test_api_dataset_load_returns_dataframe():
+    ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A])
+    assert isinstance(ds.load(), pd.DataFrame)
+    assert list(ds.load().columns) == ["aptamer", "protein"]
 
 
 def test_api_dataset_no_old_kwargs():
@@ -51,6 +62,57 @@ def test_api_dataset_does_not_encode():
     assert df["aptamer"].iloc[0] == APTA_A
     assert df["protein"].iloc[0] == PROT_A
     assert ds.y[0] == 1
+
+
+# -- input-coercion tests (moved from test_base.py) -------------------
+
+
+def test_init_with_numpy_arrays():
+    ds = APIDataset(
+        x_apta=np.array([APTA_A, APTA_B]),
+        x_prot=np.array([PROT_A, PROT_B]),
+        y=np.array([1, 0]),
+    )
+    df = ds.load()
+    assert list(df.columns) == ["aptamer", "protein"]
+    assert list(df["aptamer"]) == [APTA_A, APTA_B]
+
+
+def test_init_with_lists():
+    ds = APIDataset(x_apta=[APTA_A, APTA_B], x_prot=[PROT_A, PROT_B], y=[1, 0])
+    assert list(ds.load()["protein"]) == [PROT_A, PROT_B]
+
+
+def test_init_with_pandas_series():
+    ds = APIDataset(
+        x_apta=pd.Series([APTA_A, APTA_B]),
+        x_prot=pd.Series([PROT_A, PROT_B]),
+    )
+    assert ds.y is None
+    assert len(ds.load()) == 2
+
+
+def test_init_length_mismatch_raises():
+    with pytest.raises(ValueError, match="equal length"):
+        APIDataset(x_apta=[APTA_A], x_prot=[PROT_A, PROT_B])
+
+
+def test_init_unsupported_type_raises():
+    with pytest.raises(TypeError, match="Unsupported type"):
+        APIDataset(x_apta=42, x_prot=[PROT_A])
+
+
+def test_y_is_none_when_unlabeled():
+    ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A])
+    assert ds.y is None
+
+
+def test_y_stored_as_numpy_array():
+    ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1])
+    assert isinstance(ds.y, np.ndarray)
+
+
+# -- from_any tests --------------------------------------------------
 
 
 def test_from_any_passthrough_for_apidataset():
