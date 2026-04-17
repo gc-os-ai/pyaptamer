@@ -369,7 +369,8 @@ class AptaTrans(nn.Module):
         """
         out = self.forward_imap(x_apta, x_prot)
 
-        out = torch.squeeze(out, dim=2)  # remove extra dimension
+        if out.shape[1] == 1:                      #Fix incorrect squeeze dimension (channel dim is 1, not 2)
+            out = out.squeeze(1)
         out = self.gelu1(self.bn1(self.conv1(out)))
         out = self.layer1(out)
         out = self.layer2(out)
