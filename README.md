@@ -1,15 +1,17 @@
-# pyaptamer - AI for aptamer discovery
+<img src="docs/assets/pyaptamer_banner.png" alt="pyaptamer logo" width="420"/>
 
-### sponsored by ecoSPECS
+### AI for aptamer discovery
 
-The python library for easy aptamer design.
+*The python library for easy aptamer design.* **Sponsored by ecoSPECS.**
+
+---
 
 |  | **[Tutorials](https://github.com/gc-os-ai/pyaptamer/tree/main/examples)** · **[Issue Tracker](https://github.com/gc-os-ai/pyaptamer/issues)** · **[Project Board](https://github.com/orgs/gc-os-ai/projects/1)** |
 |---|---|
-| **Open&#160;Source** | [![BSD 3-clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/gc-os-ai/pyaptamer/blob/main/LICENSE) [![GC.OS Sponsored](https://img.shields.io/badge/GC.OS-Sponsored%20Project-orange.svg?style=flat&colorA=0eac92&colorB=2077b4)](https://gc-os-ai.github.io/) | |
-| **Community** | [![!discord](https://img.shields.io/static/v1?logo=discord&label=discord&message=chat&color=lightgreen)](https://discord.gg/7uKdHfdcJG) [![!slack](https://img.shields.io/static/v1?logo=linkedin&label=LinkedIn&message=news&color=lightblue)](https://www.linkedin.com/company/german-center-for-open-source-ai/) |
-| **CI/CD** | [![github-actions](https://img.shields.io/github/actions/workflow/status/gc-os-ai/pyaptamer/release.yml?logo=github)](https://github.com/sktime/pytorch-forecasting/actions/workflows/pypi_release.yml) |
-| **Code** | [![!pypi](https://img.shields.io/pypi/v/pytorch-forecasting?color=orange)](https://pypi.org/project/pyaptamer/) [![!python-versions](https://img.shields.io/pypi/pyversions/pyaptamer)](https://www.python.org/) [![!black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)  |
+| **Open Source** | [![BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/gc-os-ai/pyaptamer/blob/main/LICENSE) [![GC.OS Sponsored](https://img.shields.io/badge/GC.OS-Sponsored%20Project-orange.svg?style=flat&colorA=0eac92&colorB=2077b4)](https://gc-os-ai.github.io/) |
+| **Community** | [![discord](https://img.shields.io/static/v1?logo=discord&label=discord&message=chat&color=lightgreen)](https://discord.gg/7uKdHfdcJG) [![LinkedIn](https://img.shields.io/static/v1?logo=linkedin&label=LinkedIn&message=news&color=lightblue)](https://www.linkedin.com/company/german-center-for-open-source-ai/) |
+| **CI/CD** | [![github-actions](https://img.shields.io/github/actions/workflow/status/gc-os-ai/pyaptamer/release.yml?logo=github)](https://github.com/gc-os-ai/pyaptamer/actions/workflows/release.yml) |
+| **Code** | [![PyPI](https://img.shields.io/pypi/v/pyaptamer?color=orange)](https://pypi.org/project/pyaptamer/) [![Python versions](https://img.shields.io/pypi/pyversions/pyaptamer)](https://www.python.org/) [![code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) |
 
 ## 🌟 Features
 
