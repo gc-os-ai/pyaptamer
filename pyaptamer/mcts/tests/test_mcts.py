@@ -354,7 +354,7 @@ class TestMCTS:
         monkeypatch.setattr(mcts, "_simulation", lambda node: 0.5)
         monkeypatch.setattr(mcts, "_find_best_subsequence", lambda: "A_" * 5)
 
-        caplog.set_level(logging.DEBUG)
+        caplog.set_level(logging.INFO)
         candidate = mcts.run(verbose=True)
 
         assert isinstance(candidate, dict)

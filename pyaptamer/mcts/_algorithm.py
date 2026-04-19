@@ -277,8 +277,8 @@ class MCTS(BaseObject):
         # continue until we reach the target sequence length (i.e, depth * 2)
         round_count = 0
         while len(self.base) < self.depth * 2:
-            if verbose and logger.isEnabledFor(logging.DEBUG):
-                logger.debug("----- Round: %s -----", round_count + 1)
+            if verbose:
+                logger.info("----- Round: %s -----", round_count + 1)
 
             for _ in range(self.n_iterations):
                 # selection
@@ -296,11 +296,11 @@ class MCTS(BaseObject):
 
             self.base = self._find_best_subsequence()
 
-            if verbose and logger.isEnabledFor(logging.DEBUG):
-                logger.debug("%s", "#" * 50)
-                logger.debug("Best subsequence: %s", self.base)
-                logger.debug("Depth: %s", len(self.base) // 2)
-                logger.debug("%s", "#" * 50)
+            if verbose:
+                logger.info("%s", "#" * 50)
+                logger.info("Best subsequence: %s", self.base)
+                logger.info("Depth: %s", len(self.base) // 2)
+                logger.info("%s", "#" * 50)
 
             # reset for next iteration
             self.root = TreeNode(
