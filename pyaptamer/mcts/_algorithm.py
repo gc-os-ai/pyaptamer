@@ -24,8 +24,8 @@ class MCTS(BaseObject):
     ----------
     states : list[str], optional, default=None
         Possible values for the nodes. Underscores indicate whether the values are
-        supposed to be prepended or appended to the sequence. Must be non-empty and
-        contain unique entries.
+        supposed to be prepended or appended to the sequence. If None or empty,
+        defaults to the standard RNA nucleotide states. Must contain unique entries.
     depth : int, optional, default=20
         Maximum depth of the search tree, also the length of the generated
         sequences. Must be >= 1.
@@ -33,6 +33,15 @@ class MCTS(BaseObject):
         Number of iterations per round for the MCTS algorithm. Must be >= 1.
     experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
+
+    Raises
+    ------
+    ValueError
+        If ``depth`` is less than 1.
+    ValueError
+        If ``n_iterations`` is less than 1.
+    ValueError
+        If ``states`` contains duplicate entries.
 
     Attributes
     ----------
@@ -81,10 +90,8 @@ class MCTS(BaseObject):
         if n_iterations < 1:
             raise ValueError(f"`n_iterations` must be >= 1, got {n_iterations}.")
 
-        if states is None:
+        if not states:
             states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
-        elif not states:
-            raise ValueError("`states` must contain at least one entry.")
         elif len(states) != len(set(states)):
             raise ValueError("`states` must contain unique entries.")
 

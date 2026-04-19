@@ -253,10 +253,11 @@ class TestMCTS:
         with pytest.raises(ValueError, match=r"`n_iterations` must be >= 1"):
             MCTS(n_iterations=n_iterations)
 
-    def test_init_empty_states(self):
-        """Check an empty search space is rejected early."""
-        with pytest.raises(ValueError, match=r"`states` must contain at least one"):
-            MCTS(states=[])
+    @pytest.mark.parametrize("states", [None, []])
+    def test_init_empty_or_none_states_defaults(self, states):
+        """Check that None or empty states default to the standard nucleotide set."""
+        mcts = MCTS(states=states)
+        assert mcts.states == ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
 
     def test_init_duplicate_states(self):
         """Check duplicate states are rejected early."""
