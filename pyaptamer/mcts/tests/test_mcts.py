@@ -309,6 +309,40 @@ class TestMCTS:
         _ = mcts._simulation(node=node)
         assert True
 
+    def test_simulation_sequence_length(self, mcts):
+        """Simulation must always evaluate a sequence of exactly `depth` nucleotides."""
+        evaluated = []
+
+        original_evaluate = mcts.experiment.evaluate
+
+        def capturing_evaluate(aptamer_candidate):
+            evaluated.append(len(aptamer_candidate))
+            return original_evaluate(aptamer_candidate)
+
+        mcts.experiment.evaluate = capturing_evaluate
+
+        mcts.base = ""
+        mcts.root = TreeNode(n_states=len(mcts.states), depth=0)
+        node_d1 = mcts.root.create_child(val="A_")
+        mcts._simulation(node_d1)
+
+        n = mcts.root
+        for val in ["A_", "C_", "G_", "_U"]:
+            n = n.create_child(val=val)
+        mcts._simulation(n)
+
+        mcts.base = "A_C_G_"  # 3 nucleotides encoded
+        mcts.root = TreeNode(n_states=len(mcts.states), depth=len(mcts.base) // 2)
+        node_r2 = mcts.root.create_child(val="_U")
+        mcts._simulation(node_r2)
+
+        mcts._simulation(mcts.root)
+
+        assert all(length == mcts.depth for length in evaluated), (
+            f"Simulation evaluated sequences of wrong length: {evaluated} "
+            f"(expected all {mcts.depth})"
+        )
+
     def test_find_best_subsequence(self, mcts):
         """Check whether the best subsequence is returned based on UCT scores."""
         node = mcts.root.create_child(val="A_")

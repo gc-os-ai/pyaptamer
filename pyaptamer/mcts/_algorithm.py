@@ -223,8 +223,10 @@ class MCTS(BaseObject):
         # prepend the `self.base` sequence
         sequence = self.base + sequence
 
-        # fill the rest of the sequence with random possible values
-        remaining_length = self.depth - (len(sequence) // 2)
+        # Each encoded state is a 2-char pair (e.g. "A_", "_C") representing one
+        # nucleotide
+        nucleotides_so_far = len(sequence) // 2
+        remaining_length = self.depth - nucleotides_so_far
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
 
@@ -245,7 +247,8 @@ class MCTS(BaseObject):
         curr = self.root
         subsequence = self.base
 
-        # traverse the tree
+        # Number of tree levels still needed to reach `self.depth` nucleotides total.
+        # len(self.base) // 2 is the nucleotide count already committed to self.base.
         max_steps = self.depth - (len(self.base) // 2)
         for _ in range(max_steps):
             if not curr.children:
