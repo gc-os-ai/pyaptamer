@@ -34,15 +34,6 @@ class MCTS(BaseObject):
     experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
-    Raises
-    ------
-    ValueError
-        If ``depth`` is less than 1.
-    ValueError
-        If ``n_iterations`` is less than 1.
-    ValueError
-        If ``states`` contains duplicate entries.
-
     Attributes
     ----------
     root : TreeNode
@@ -85,6 +76,16 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
+        """
+        Raises
+        ------
+        ValueError
+            If `depth` is less than 1.
+        ValueError
+            If `n_iterations` is less than 1.
+        ValueError
+            If `states` contains duplicate entries.
+        """
         if depth < 1:
             raise ValueError(f"`depth` must be >= 1, got {depth}.")
         if n_iterations < 1:
