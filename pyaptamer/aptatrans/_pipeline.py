@@ -6,15 +6,15 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+import numpy as np
 import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
+from pyaptamer.aptatrans._plotting import _render_interaction_map
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
-    generate_nplets,
-)
+from pyaptamer.utils import encode_rna, generate_nplets, rna2vec
 from pyaptamer.utils._base import filter_words
 
 
@@ -175,6 +175,105 @@ class AptaTransPipeline:
         """
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate, return_interaction_map=True)
+
+    @torch.no_grad()
+    def plot_interaction_map(
+        self,
+        candidate: str,
+        target: str,
+        view: str | None = None,
+        top_k: int = 10,
+        ax=None,
+        figsize: tuple[int, int] = (20, 8),
+    ):
+        """Plot the aptamer-protein interaction map as a heatmap.
+
+        Refactored from the original AptaTrans authors' implementation [1]_.
+        Tokenizes both sequences, trims the raw interaction map to the actual
+        (non-padded) token lengths, applies a softmax view, and renders a heatmap
+        with the top-k most interacting token pairs labelled on the axes.
+
+        Parameters
+        ----------
+        candidate : str
+            The candidate aptamer sequence.
+        target : str
+            The target protein sequence.
+        view : str or None, optional, default=None
+            Which axis to highlight top interactions on. One of:
+
+            * ``"apta"`` / ``"aptamer"`` — softmax over aptamer axis; highlights
+              top-k aptamer tokens with highest cumulative interaction.
+            * ``"prot"`` / ``"protein"`` / ``"target"`` — softmax over protein axis;
+              highlights top-k protein tokens.
+            * ``None`` — combined view; applies both softmaxes and highlights top-k
+              tokens on both axes.
+        top_k : int, optional, default=10
+            Number of top interacting tokens to label on each highlighted axis.
+        ax : matplotlib.axes.Axes or None, optional
+            Axes to plot on. If None, a new figure and axes are created.
+        figsize : tuple[int, int], optional, default=(20, 8)
+            Figure size when creating a new figure (ignored if ``ax`` is given).
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes containing the rendered heatmap.
+
+        References
+        ----------
+        .. [1] Original AptaTrans pipeline:
+               https://github.com/PNUMLB/AptaTrans/blob/master/aptatrans_pipeline.py
+        """
+        # tokenize aptamer: rna2vec produces overlapping 3-mers
+        apta_tokenized = torch.tensor(
+            rna2vec([candidate], max_sequence_length=self.model.apta_embedding.max_len),
+            dtype=torch.int64,
+        )  # shape: (1, max_apta_len)
+
+        # tokenize protein: greedy longest-match against prot_words vocabulary
+        prot_tokenized = encode_rna(
+            sequences=target,
+            words=self.prot_words,
+            max_len=self.model.prot_embedding.max_len,
+        )  # shape: (1, max_prot_len)
+
+        # find actual (non-padded) token counts
+        apta_nonpad = apta_tokenized[0][apta_tokenized[0] != 0]
+        prot_nonpad = prot_tokenized[0][prot_tokenized[0] != 0]
+        n_apta = len(apta_nonpad)
+        n_prot = len(prot_nonpad)
+
+        # decode token indices back to 3-mer strings
+        reversed_apta_words = {v: k for k, v in self.apta_words.items()}
+        reversed_prot_words = {v: k for k, v in self.prot_words.items()}
+        apta_tokens = [reversed_apta_words.get(idx.item(), "?") for idx in apta_nonpad]
+        prot_tokens = [reversed_prot_words.get(idx.item(), "?") for idx in prot_nonpad]
+
+        # get raw interaction map and trim to actual sequence lengths
+        im_raw = self.get_interaction_map(candidate, target)  # numpy (1,1,H,W)
+        im = torch.tensor(im_raw)[0, 0, :n_apta, :n_prot]  # (n_apta, n_prot)
+
+        # apply softmax and compute top-k indices per view
+        top_k = min(top_k, n_apta, n_prot)
+        if view in ("apta", "aptamer"):
+            scores = im.softmax(dim=0).sum(dim=1)
+            apta_indices = torch.argsort(scores)[-top_k:].tolist()
+            prot_indices = list(range(n_prot))
+        elif view in ("prot", "protein", "target"):
+            scores = im.softmax(dim=1).sum(dim=0)
+            prot_indices = torch.argsort(scores)[-top_k:].tolist()
+            apta_indices = list(range(n_apta))
+        else:  # combined: highlight top-k on both axes
+            apta_scores = im.softmax(dim=0).sum(dim=1)
+            prot_scores = im.softmax(dim=1).sum(dim=0)
+            apta_indices = torch.argsort(apta_scores)[-top_k:].tolist()
+            prot_indices = torch.argsort(prot_scores)[-top_k:].tolist()
+
+        im_np = im.cpu().numpy()
+        return _render_interaction_map(
+            im_np, apta_tokens, prot_tokens, apta_indices, prot_indices, ax, figsize
+        )
 
     def predict(self, candidate: str, target: str) -> Tensor:
         """Predict aptamer-protein interaction (API) score for a given target protein.

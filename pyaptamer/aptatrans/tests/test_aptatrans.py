@@ -427,3 +427,67 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    @pytest.mark.parametrize("view", [None, "apta", "prot"])
+    def test_plot_interaction_map_returns_axes(self, view):
+        """plot_interaction_map() should return a matplotlib Axes for all views."""
+        matplotlib = pytest.importorskip("matplotlib")
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.9, "GCA": 0.8, "UGC": 0.7, "CAU": 0.6, "AUC": 0.5}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        candidate = "AUGCAUG"
+        target = "AUGCAUGC"
+
+        ax = pipeline.plot_interaction_map(candidate, target, view=view)
+
+        assert ax is not None
+        assert isinstance(ax, plt.Axes)
+        plt.close("all")
+
+    def test_plot_interaction_map_custom_ax(self):
+        """plot_interaction_map() should draw onto a provided axes."""
+        matplotlib = pytest.importorskip("matplotlib")
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.9, "GCA": 0.8, "UGC": 0.7, "CAU": 0.6, "AUC": 0.5}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        fig, ax = plt.subplots()
+        returned_ax = pipeline.plot_interaction_map(
+            "AUGCAUG", "AUGCAUGC", ax=ax
+        )
+
+        assert returned_ax is ax
+        plt.close("all")
+
+    def test_plot_interaction_map_token_labels_on_axes(self):
+        """plot_interaction_map() axis tick labels should be decoded 3-mer tokens."""
+        matplotlib = pytest.importorskip("matplotlib")
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.9, "GCA": 0.8, "UGC": 0.7, "CAU": 0.6, "AUC": 0.5}
+        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        # view=None (combined): top-k labels on both axes
+        ax = pipeline.plot_interaction_map(
+            "AUGCAUG", "AUGCAUGC", view=None, top_k=2
+        )
+
+        ytick_labels = [t.get_text() for t in ax.get_yticklabels()]
+        xtick_labels = [t.get_text() for t in ax.get_xticklabels()]
+
+        # labels should be 3-mer strings, not raw integers
+        assert all(len(label) > 0 for label in ytick_labels)
+        assert all(len(label) > 0 for label in xtick_labels)
+        plt.close("all")
