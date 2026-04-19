@@ -309,6 +309,29 @@ class TestMCTS:
         _ = mcts._simulation(node=node)
         assert True
 
+    def test_simulation_preserves_depth_invariant(self, mcts, monkeypatch):
+        """Check simulation always evaluates a sequence with the expected length."""
+        mcts.base = "A_C_"
+        node = mcts.root.create_child(val="G_")
+
+        captured = {}
+
+        def mock_evaluate(sequence):
+            captured["sequence"] = sequence
+            return 0.5
+
+        monkeypatch.setattr(mcts.experiment, "evaluate", mock_evaluate)
+        monkeypatch.setattr(
+            "pyaptamer.mcts._algorithm.random.choice", lambda states: "A_"
+        )
+
+        score = mcts._simulation(node=node)
+
+        assert score == 0.5
+        assert captured["sequence"] == "A_C_G_A_A_"
+        assert len(captured["sequence"]) == mcts.depth * 2
+        assert len(captured["sequence"]) // 2 == mcts.depth
+
     def test_find_best_subsequence(self, mcts):
         """Check whether the best subsequence is returned based on UCT scores."""
         node = mcts.root.create_child(val="A_")

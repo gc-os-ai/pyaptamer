@@ -223,8 +223,12 @@ class MCTS(BaseObject):
         # prepend the `self.base` sequence
         sequence = self.base + sequence
 
+        # `sequence` stores encoded nucleotide pairs, so two characters represent
+        # one nucleotide.
+        current_length = len(sequence) // 2
+
         # fill the rest of the sequence with random possible values
-        remaining_length = self.depth - (len(sequence) // 2)
+        remaining_length = self.depth - current_length
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
 
