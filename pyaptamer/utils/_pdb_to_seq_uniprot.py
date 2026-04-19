@@ -23,13 +23,26 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
     -------
     list of str or pandas.DataFrame
         Depending on ``return_type``.
+
+    Raises
+    ------
+    ValueError
+        If no UniProt mapping found for PDB ID or invalid return_type.
+    ConnectionError
+        If network request fails (timeout, connection error, etc.).
     """
     pdb_id = pdb_id.lower()
 
-    mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
-    mapping_resp = requests.get(mapping_url)
-    mapping_resp.raise_for_status()
-    mapping_data = mapping_resp.json()
+    try:
+        mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
+        mapping_resp = requests.get(mapping_url, timeout=30)
+        mapping_resp.raise_for_status()
+        mapping_data = mapping_resp.json()
+    except requests.exceptions.RequestException as e:
+        raise ConnectionError(
+            f"Failed to fetch UniProt mapping for PDB ID '{pdb_id}'. "
+            f"Network error: {type(e).__name__}. Details: {str(e)}"
+        ) from e
 
     uniprot_ids = list(mapping_data.get(pdb_id, {}).get("UniProt", {}).keys())
     if not uniprot_ids:
@@ -37,10 +50,16 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
 
     uniprot_id = uniprot_ids[0]
 
-    fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
-    fasta_resp = requests.get(fasta_url)
-    fasta_resp.raise_for_status()
-    fasta_data = fasta_resp.text
+    try:
+        fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
+        fasta_resp = requests.get(fasta_url, timeout=30)
+        fasta_resp.raise_for_status()
+        fasta_data = fasta_resp.text
+    except requests.exceptions.RequestException as e:
+        raise ConnectionError(
+            f"Failed to fetch FASTA sequence for UniProt ID '{uniprot_id}'. "
+            f"Network error: {type(e).__name__}. Details: {str(e)}"
+        ) from e
 
     record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))
     sequence = str(record.seq)
