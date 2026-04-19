@@ -3,6 +3,8 @@
 __author__ = ["nennomp"]
 
 
+import logging
+
 import numpy as np
 import pytest
 import torch
@@ -337,3 +339,26 @@ class TestMCTS:
         # length of sequence should be 2 * 5 (i.e., 2 * 5) as it still contains
         # the underscores
         assert len(candidate["sequence"]) == 10
+
+    def test_run_verbose_uses_logging(self, mcts, monkeypatch, caplog, capsys):
+        """Check verbose MCTS progress is logged instead of printed."""
+
+        class DummyNode:
+            is_terminal = False
+
+            def backpropagate(self, score):
+                pass
+
+        monkeypatch.setattr(mcts, "_selection", lambda node: DummyNode())
+        monkeypatch.setattr(mcts, "_expansion", lambda node: node)
+        monkeypatch.setattr(mcts, "_simulation", lambda node: 0.5)
+        monkeypatch.setattr(mcts, "_find_best_subsequence", lambda: "A_" * 5)
+
+        caplog.set_level(logging.DEBUG)
+        candidate = mcts.run(verbose=True)
+
+        assert isinstance(candidate, dict)
+        assert candidate["sequence"] == "A_" * 5
+        assert "Round: 1" in caplog.text
+        assert "Best subsequence: A_A_A_A_A_" in caplog.text
+        assert capsys.readouterr().out == ""

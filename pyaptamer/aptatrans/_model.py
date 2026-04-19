@@ -3,6 +3,7 @@
 __author__ = ["nennomp"]
 __all__ = ["AptaTrans"]
 
+import logging
 import os
 from collections import OrderedDict
 from collections.abc import Callable
@@ -18,6 +19,8 @@ from pyaptamer.aptatrans.layers._encoder import (
     TokenPredictor,
 )
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
+
+logger = logging.getLogger(__name__)
 
 
 class AptaTrans(nn.Module):
@@ -270,10 +273,10 @@ class AptaTrans(nn.Module):
         )
 
         if os.path.exists(path):
-            print(f"Loading pretrained weights from {path}...")
+            logger.info("Loading pretrained weights from %s...", path)
             state_dict = torch.load(path, map_location=torch.device("cpu"))
         else:
-            print("Downloading best weights from hugging face...")
+            logger.info("Downloading best weights from hugging face...")
             url = (
                 "https://huggingface.co/gcos/pyaptamer-aptatrans/resolve/main/"
                 "pretrained.pt"

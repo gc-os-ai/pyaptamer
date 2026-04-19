@@ -2,6 +2,8 @@
 
 __author__ = ["nennomp"]
 
+import logging
+
 import pytest
 import torch
 import torch.nn as nn
@@ -103,6 +105,39 @@ class TestAptaTransModel:
 
         assert isinstance(imap, torch.Tensor)
         assert imap.shape == (batch_size, 1, seq_len_apta, seq_len_prot)
+
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_load_pretrained_weights_uses_logging(
+        self, embeddings, monkeypatch, caplog, exists
+    ):
+        """Check pretrained weight loading is reported through logging."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+            conv_layers=[2, 2, 2],
+            dropout=0.1,
+        )
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.os.path.exists", lambda path: exists
+        )
+        monkeypatch.setattr("pyaptamer.aptatrans._model.torch.load", lambda *a, **k: {})
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+            lambda **kwargs: {},
+        )
+        monkeypatch.setattr(model, "load_state_dict", lambda *a, **k: None)
+
+        caplog.set_level(logging.INFO)
+        model.load_pretrained_weights()
+
+        if exists:
+            assert "Loading pretrained weights" in caplog.text
+        else:
+            assert "Downloading best weights from hugging face" in caplog.text
 
     @pytest.mark.parametrize(
         "device, batch_size, in_dim, seq_len",
@@ -396,6 +431,48 @@ class TestAptaTransPipeline:
         # check output
         assert isinstance(candidates, set)
         assert len(candidates) == n_candidates  # should be exactly n_candidates
+
+    def test_recommend_uses_logging(self, monkeypatch, caplog):
+        """Check recommendation summaries are logged instead of printed."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        pipeline = AptaTransPipeline(
+            device=device,
+            model=model,
+            prot_words={"AAA": 0.5, "AAC": 0.3, "AAG": 0.8},
+            depth=5,
+            n_iterations=1,
+        )
+
+        class MockExperiment:
+            def evaluate(self, candidate):
+                return torch.tensor(0.75)
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: MockExperiment(),
+        )
+
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                pass
+
+            def run(self, verbose: bool = False):
+                return {
+                    "candidate": "AAAAA",
+                    "sequence": "A_A_A_A_A_",
+                    "score": torch.tensor(0.75),
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+
+        caplog.set_level(logging.INFO)
+        candidates = pipeline.recommend(target="AUGCAUGC", n_candidates=1, verbose=True)
+
+        assert isinstance(candidates, set)
+        assert "Candidate: AAAAA" in caplog.text
+        assert "Sequence: A_A_A_A_A_" in caplog.text
+        assert "Score: 0.7500" in caplog.text
 
     @pytest.mark.parametrize(
         "device, candidate, target",

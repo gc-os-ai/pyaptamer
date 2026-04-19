@@ -6,6 +6,8 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+import logging
+
 import torch
 from torch import Tensor
 
@@ -16,6 +18,8 @@ from pyaptamer.utils import (
     generate_nplets,
 )
 from pyaptamer.utils._base import filter_words
+
+logger = logging.getLogger(__name__)
 
 
 class AptaTransPipeline:
@@ -219,7 +223,7 @@ class AptaTransPipeline:
         n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
         verbose : bool, optional, default=True
-            If True, enables print statements for debugging and progress tracking.
+            If True, enables logging for debugging and progress tracking.
 
         Returns
         -------
@@ -244,10 +248,11 @@ class AptaTransPipeline:
 
         if verbose:
             for candidate, sequence, score in candidates:
-                print(
-                    f"Candidate: {candidate}, "
-                    f"Sequence: {sequence}, "
-                    f"Score: {score.item():.4f}"
+                logger.info(
+                    "Candidate: %s, Sequence: %s, Score: %.4f",
+                    candidate,
+                    sequence,
+                    score.item(),
                 )
 
         return candidates
