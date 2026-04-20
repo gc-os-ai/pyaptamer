@@ -9,10 +9,11 @@ import os
 
 import numpy as np
 import torch
+from huggingface_hub import hf_hub_download
 
 from ._model import DNAModel
 
-_MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
+_HF_REPO_ID = "parkneurals/deepdnashape"
 _PARAMS_PATH = os.path.join(os.path.dirname(__file__), "_params.json")
 
 _REV_COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"}
@@ -153,7 +154,10 @@ class Predictor:
             bn_layer=True,
             gru_layer=True,
         )
-        weights_path = os.path.join(_MODELS_DIR, f"{feature}.pt")
+        weights_path = hf_hub_download(
+            repo_id=_HF_REPO_ID,
+            filename=f"{feature}.pt",
+        )
         model.load_state_dict(torch.load(weights_path, weights_only=True))
         model.eval()
         self._models[feature] = model
