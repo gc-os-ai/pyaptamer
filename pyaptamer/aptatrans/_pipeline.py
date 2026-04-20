@@ -6,12 +6,15 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+from pathlib import Path
+
 import torch
 from torch import Tensor
 
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
+from pyaptamer.mcts._checkpoint import RecommendCheckpoint
 from pyaptamer.utils import (
     generate_nplets,
 )
@@ -204,6 +207,7 @@ class AptaTransPipeline:
         target: str,
         n_candidates: int = 10,
         verbose: bool = True,
+        checkpoint_path: str | Path | None = None,
     ) -> set[tuple[str, str, float]]:
         """Recommend aptamer candidates for a given target protein.
 
@@ -220,6 +224,10 @@ class AptaTransPipeline:
             The number of candidate aptamers to generate.
         verbose : bool, optional, default=True
             If True, enables print statements for debugging and progress tracking.
+        checkpoint_path : str or Path, optional, default=None
+            If provided, the set of discovered candidates is saved to this path after
+            each new unique candidate is found. An existing checkpoint at this path is
+            loaded on start, enabling resumption after a crash.
 
         Returns
         -------
@@ -227,6 +235,22 @@ class AptaTransPipeline:
             A set of tuples containing reconstructed and unrecontructed candidate
             aptamer sequence, and the corresponding score.
         """
+        checkpoint = None
+        candidates: dict[str, tuple[str, str, float]] = {}
+
+        if checkpoint_path is not None:
+            checkpoint = RecommendCheckpoint(checkpoint_path)
+            saved = checkpoint.load()
+            if saved is not None and self._is_compatible_checkpoint(
+                saved, target, n_candidates
+            ):
+                candidates = {k: tuple(v) for k, v in saved["candidates"].items()}
+                if verbose and candidates:
+                    print(
+                        f"Resuming from checkpoint: "
+                        f"{len(candidates)}/{n_candidates} candidates already found."
+                    )
+
         experiment = self._init_aptamer_experiment(target)
 
         # initialize MCTS with the experiment
@@ -237,12 +261,31 @@ class AptaTransPipeline:
         )
 
         # generate aptamer candidates
-        candidates = {}
         while len(candidates) < n_candidates:
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
             if candidate not in candidates:
                 candidates[candidate] = (candidate, sequence, score.item())
+
+                if checkpoint is not None:
+                    checkpoint.save(
+                        target=target,
+                        n_candidates=n_candidates,
+                        depth=self.depth,
+                        n_iterations=self.n_iterations,
+                        candidates={k: list(v) for k, v in candidates.items()},
+                        completed=False,
+                    )
+
+        if checkpoint is not None:
+            checkpoint.save(
+                target=target,
+                n_candidates=n_candidates,
+                depth=self.depth,
+                n_iterations=self.n_iterations,
+                candidates={k: list(v) for k, v in candidates.items()},
+                completed=True,
+            )
 
         if verbose:
             for candidate, sequence, score in candidates.values():
@@ -251,3 +294,17 @@ class AptaTransPipeline:
                 )
 
         return set(candidates.values())
+
+    def _is_compatible_checkpoint(
+        self,
+        saved: dict,
+        target: str,
+        n_candidates: int,
+    ) -> bool:
+        """Return True if the saved checkpoint matches the current run parameters."""
+        return (
+            saved.get("target") == target
+            and saved.get("n_candidates") == n_candidates
+            and saved.get("depth") == self.depth
+            and saved.get("n_iterations") == self.n_iterations
+        )
