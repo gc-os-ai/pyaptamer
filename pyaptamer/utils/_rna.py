@@ -133,14 +133,28 @@ def rna2vec(
     if sequence_type == "rna":
         # generate all rna triplets, 'N' marks unknown nucleotides
         letters = ["A", "C", "G", "U", "N"]
+        # accept both DNA (T) and RNA (U) input, plus 'N' for unknown nucleotides
+        _valid_chars: frozenset[str] = frozenset("ACGTUN")
     else:  # sequence_type == "ss"
         # generate all ss triplets
         letters = ["S", "H", "M", "I", "B", "X", "E"]
+        _valid_chars = frozenset("SHMBIXE")
 
     triplets = generate_nplets(letters=letters, repeat=3)
 
     result = []
     for sequence in sequence_list:
+        # validate before any conversion so invalid chars surface immediately
+        invalid_chars = sorted({c for c in sequence if c not in _valid_chars})
+        if invalid_chars:
+            invalid_str = ", ".join(f"'{c}'" for c in invalid_chars)
+            allowed_str = ", ".join(sorted(_valid_chars))
+            raise ValueError(
+                f"Invalid character(s) {invalid_str} found in "
+                f"{sequence_type.upper()} sequence {sequence!r}. "
+                f"Allowed characters: {allowed_str}."
+            )
+
         # convert DNA to RNA only for RNA sequences
         if sequence_type == "rna":
             sequence = dna2rna(sequence)

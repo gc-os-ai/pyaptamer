@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 from pyaptamer.utils import encode_rna, rna2vec
 from pyaptamer.utils._augment import augment_reverse
+from pyaptamer.utils._validate import validate_sequence
 
 
 class APIDataset(Dataset):
@@ -82,6 +83,9 @@ class APIDataset(Dataset):
             If True, the dataset will augment aptamer sequences by adding their reverse
             complements.
         """
+        for seq in x_prot:
+            validate_sequence(seq, "protein")
+
         if split == "train":
             x_apta = augment_reverse(x_apta)[0]
             x_prot = np.concatenate([x_prot, x_prot])

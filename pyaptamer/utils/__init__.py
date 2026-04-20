@@ -6,6 +6,7 @@ __all__ = [
     "encode_rna",
     "generate_nplets",
     "rna2vec",
+    "validate_sequence",
     "pdb_to_struct",
     "struct_to_aaseq",
     "pdb_to_seq_uniprot",
@@ -23,3 +24,4 @@ from pyaptamer.utils._rna import (
     rna2vec,
 )
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
+from pyaptamer.utils._validate import validate_sequence
