@@ -18,10 +18,9 @@ class APIDataset(Dataset):
         A numpy array containing aptamer sequences.
     x_prot : np.ndarray
         A numpy array containing protein sequences.
-    y : np.ndarray or None
+    y : np.ndarray
         A numpy array containing labels for the interactions, where 'positive' indicates
         a positive interaction and 'negative' indicates a negative interaction.
-        Pass ``None`` when using the dataset for inference only (no labels available).
     apta_max_len : int
         The maximum length for aptamer sequences after padding or truncation.
     prot_max_len : int
@@ -40,7 +39,7 @@ class APIDataset(Dataset):
         self,
         x_apta: np.ndarray,
         x_prot: np.ndarray,
-        y: np.ndarray | None,
+        y: np.ndarray,
         apta_max_len: int,
         prot_max_len: int,
         prot_words: dict[str, int],
@@ -48,10 +47,8 @@ class APIDataset(Dataset):
     ) -> None:
         super().__init__()
 
-        if split not in ["train", "test", "predict"]:
-            raise ValueError(
-                f"Unknown split: {split}. Options are 'train', 'test', and 'predict'."
-            )
+        if split not in ["train", "test"]:
+            raise ValueError(f"Unknown split: {split}. Options are 'train' and 'test'.")
 
         self.apta_max_len = apta_max_len
         self.prot_max_len = prot_max_len
@@ -66,11 +63,12 @@ class APIDataset(Dataset):
         self,
         x_apta: np.ndarray,
         x_prot: np.ndarray,
-        y: np.ndarray | None,
+        y: np.ndarray,
         split: str,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Prepare data by augmenting sequences and converting to numeric tensors.
+        Prepare the data by augmenting aptamer sequences with their reverse complements
+        and transforming them to vector numericla representations.
 
         Parameters
         ----------
@@ -78,17 +76,16 @@ class APIDataset(Dataset):
             Aptamer sequences.
         x_prot : np.ndarray
             Protein sequences.
-        y : np.ndarray or None
-            Laabels for the interactions. None when used for inference only.
-        split : str
-            Dataset split. ``"train"`` augments aptamer sequences with reverse
-            complements. ``"test"`` and ``"predict"`` do not augment.
+        y : np.ndarray
+            Laabels for the interactions.
+        split : bool
+            If True, the dataset will augment aptamer sequences by adding their reverse
+            complements.
         """
         if split == "train":
             x_apta = augment_reverse(x_apta)[0]
             x_prot = np.concatenate([x_prot, x_prot])
-            if y is not None:
-                y = np.concatenate([y, y])
+            y = np.concatenate([y, y])
 
         x_apta = torch.tensor(
             rna2vec(
@@ -102,8 +99,7 @@ class APIDataset(Dataset):
             words=self.prot_words,
             max_len=self.prot_max_len,
         )
-        if y is not None:
-            y = torch.tensor((y == "positive").astype(int))
+        y = torch.tensor((y == "positive").astype(int))
 
         return (x_apta, x_prot, y)
 
@@ -111,6 +107,4 @@ class APIDataset(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        if self.y is None:
-            return (self.x_apta[index], self.x_prot[index])
         return (self.x_apta[index], self.x_prot[index], self.y[index])
