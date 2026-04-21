@@ -39,7 +39,7 @@ target-version = "py310"
 exclude = ["__pycache__", ".venv", "build", "dist", ".git"]
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "N", "C4"]
+select = ["E", "F", "B", "I", "UP", "N", "C4", "T20"]
 ignore = ["N803", "N806", "N812"]
 
 [tool.ruff.format]
