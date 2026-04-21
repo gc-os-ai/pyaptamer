@@ -67,6 +67,7 @@ class MaskedDataset(Dataset):
         mask_idx: int,
         masked_rate: float = 0.15,
         is_rna: bool = False,
+        vocab_size: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -81,6 +82,7 @@ class MaskedDataset(Dataset):
         self.mask_idx = mask_idx
         self.masked_rate = masked_rate
         self.is_rna = is_rna
+        self.vocab_size = vocab_size
 
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
@@ -123,14 +125,6 @@ class MaskedDataset(Dataset):
         """
         return self.len
 
-    # TODO: For now this method applies masking as originally intended in AptaTrans
-    # code. However, there may some errors:
-    # (1.) 80% of the positions are masked but the remaining 20% are not masked at all.
-    # In BERT, the remaining 20% are replaced with random tokens or 10% replaced with
-    # random tokens and 10% left unchanged.
-    # (2.) The masking has two sample phases, one with `self.masked_rate` and one with
-    # hardcoded `0.8 * self.masked_rate`. This means that the actual masking rate
-    # becomes `0.8 * self.masked_rate` which seems confusing and possibly not intended.
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """
         Get a single masked sequence sample.
@@ -165,11 +159,26 @@ class MaskedDataset(Dataset):
             pos for pos in valid_positions if pos not in mask_positions
         ]
 
-        # apply masking
-        actual_mask_positions = random.sample(
-            mask_positions, int(len(mask_positions) * 0.8)
-        )
+        # apply masking (80% MASK, 10% random token, 10% unchanged)
+        random.shuffle(mask_positions)
+        n_mask = int(len(mask_positions) * 0.8)
+        n_rand = int(len(mask_positions) * 0.1)
+
+        actual_mask_positions = mask_positions[:n_mask]
+        rand_positions = mask_positions[n_mask : n_mask + n_rand]
+
+        # 80% to mask token
         x_masked[actual_mask_positions] = self.mask_idx
+
+        # 10% to random token
+        if len(rand_positions) > 0:
+            v_size = (
+                self.vocab_size if self.vocab_size is not None else (self.mask_idx - 1)
+            )
+            # sample from valid indices (typically 1 to v_size, 0 is padding)
+            x_masked[rand_positions] = torch.randint(
+                1, max(2, v_size + 1), (len(rand_positions),)
+            )
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
