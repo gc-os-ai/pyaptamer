@@ -4,7 +4,7 @@ __all__ = ["load_1brq"]
 import os
 
 
-def load_1brq():
+def load_1brq() -> "MoleculeLoader":
     """Load the 1brq molecule as a MoleculeLoader.
 
     Returns
