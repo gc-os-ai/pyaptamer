@@ -79,6 +79,7 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
+        return self
 
     def predict_proba(self, X):
         check_is_fitted(self)

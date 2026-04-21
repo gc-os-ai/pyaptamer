@@ -34,6 +34,22 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_returns_self(aptamer_seq, protein_seq):
+    """
+    Test that fit returns the estimator instance for sklearn-style chaining.
+    """
+    pipe = AptaNetPipeline()
+
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+
+    result = pipe.fit(X_raw, y)
+
+    assert result is pipe
+    assert result.predict(X_raw).shape == (40,)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
     Test if Pipeline probability estimates predictions returns floats and shape matches
