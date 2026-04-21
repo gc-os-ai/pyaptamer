@@ -14,6 +14,19 @@ class MoleculeLoader:
 
     This loader extracts primary amino-acid sequences from molecule files.
 
+    Parameters
+    ----------
+    path : str, Path, or list
+        File location(s) of molecule files. One row is returned per file.
+    index : list, or pandas.Index coercible, optional
+        Row index for the resulting DataFrame; if None, a MultiIndex of
+        (path, chain_id) is used.
+    columns : list, optional
+        column names for the structure; if None, defaults to ["sequence"]
+
+    ignore_duplicates : bool, optional, default=False
+        if True, removes duplicate sequences (keeping the first occurrence).
+
     Supported file types
     --------------------
     The loader determines the type from the file extension by default, but a
@@ -30,19 +43,6 @@ class MoleculeLoader:
 
     - https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
     - https://biopython.org/wiki/SeqIO
-
-    Parameters
-    ----------
-    path : str, Path, or list
-        File location(s) of molecule files. One row is returned per file.
-    index : list, or pandas.Index coercible, optional
-        Row index for the resulting DataFrame; if None, a MultiIndex of
-        (path, chain_id) is used.
-    columns : list, optional
-        column names for the structure; if None, defaults to ["sequence"]
-
-    ignore_duplicates : bool, optional, default=False
-        if True, removes duplicate sequences (keeping the first occurrence).
     """
 
     def __init__(
@@ -67,7 +67,7 @@ class MoleculeLoader:
         """Return a pd.DataFrame of sequences with MultiIndex (path, chain_id).
 
         Returns
-        -------
+        --------
         pd.DataFrame
             sequences in self in a pd.DataFrame;
             index is a MultiIndex (path, chain_id);

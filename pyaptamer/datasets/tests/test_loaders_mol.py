@@ -82,6 +82,82 @@ def test_custom_index(tmp_path):
     assert df.loc["row1", "sequence"] == "GILGYTEHQVVSSDFNSD"
 
 
+def test_invalid_path_type_raises():
+    """path must be str, Path, or list of those — anything else raises TypeError."""
+    with pytest.raises(TypeError, match="path must be a str, Path, or list"):
+        MoleculeLoader(42)
+
+
+def test_fmt_override_no_suffix(tmp_path):
+    """fmt override lets suffix-less files be parsed."""
+    p = tmp_path / "mysequence"  # no suffix
+    p.write_text(">seqA\nMKTAYIAKQRQISFVKSHFSRQ\n")
+
+    mol = MoleculeLoader(p, fmt="fasta")
+    df = mol.to_df_seq()
+
+    assert df.shape == (1, 1)
+    assert df.iloc[0, 0] == "MKTAYIAKQRQISFVKSHFSRQ"
+
+
+def test_no_suffix_no_fmt_raises(tmp_path):
+    """Suffix-less path with no fmt override raises ValueError."""
+    p = tmp_path / "mysequence"
+    p.write_text(">seqA\nMKTAYIAKQRQISFVKSHFSRQ\n")
+
+    mol = MoleculeLoader(p)
+    with pytest.raises(ValueError, match="Could not determine file format"):
+        mol.to_df_seq()
+
+
+def test_ignore_duplicates_with_custom_index(tmp_path):
+    """Custom index is applied after dedup; its length must match kept rows."""
+    fasta = tmp_path / "a.fasta"
+    fasta.write_text(
+        ">chainA\nAAA\n"
+        ">chainB\nAAA\n"  # duplicate of chainA, removed by dedup
+        ">chainC\nBBB\n"
+    )
+    # post-dedup: 2 rows (AAA, BBB), so index must be length 2
+    mol = MoleculeLoader([fasta], index=["row0", "row1"], ignore_duplicates=True)
+    df = mol.to_df_seq()
+
+    assert list(df.index) == ["row0", "row1"]
+    assert df.iloc[0, 0] == "AAA"
+    assert df.iloc[1, 0] == "BBB"
+
+
+def test_custom_index_multi_file(tmp_path):
+    """Custom index replaces the multiindex even when rows span multiple files."""
+    fasta_a = tmp_path / "a.fasta"
+    fasta_a.write_text(">seqA\nAAA\n>seqB\nBBB\n")
+
+    fasta_b = tmp_path / "b.fasta"
+    fasta_b.write_text(">seqC\nCCC\n")
+
+    mol = MoleculeLoader([fasta_a, fasta_b], index=["r0", "r1", "r2"])
+    df = mol.to_df_seq()
+
+    assert list(df.index) == ["r0", "r1", "r2"]
+    assert df.loc["r0", "sequence"] == "AAA"
+    assert df.loc["r2", "sequence"] == "CCC"
+
+
+def test_custom_columns_multi_file(tmp_path):
+    """Custom columns rename works across multiple files."""
+    fasta_a = tmp_path / "a.fasta"
+    fasta_a.write_text(">seqA\nAAA\n")
+
+    fasta_b = tmp_path / "b.fasta"
+    fasta_b.write_text(">seqB\nBBB\n")
+
+    mol = MoleculeLoader([fasta_a, fasta_b], columns=["seq"])
+    df = mol.to_df_seq()
+
+    assert df.columns.tolist() == ["seq"]
+    assert df.shape == (2, 1)
+
+
 def test_ignore_duplicates(tmp_path):
     """Test that ignore_duplicates removes per-file duplicate sequences."""
     # file with two chains that share the same sequence
