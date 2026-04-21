@@ -6,6 +6,8 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+import logging
+
 import torch
 from torch import Tensor
 
@@ -16,6 +18,8 @@ from pyaptamer.utils import (
     generate_nplets,
 )
 from pyaptamer.utils._base import filter_words
+
+logger = logging.getLogger(__name__)
 
 
 class AptaTransPipeline:
@@ -246,8 +250,11 @@ class AptaTransPipeline:
 
         if verbose:
             for candidate, sequence, score in candidates.values():
-                print(
-                    f"Candidate: {candidate}, Sequence: {sequence}, Score: {score:.4f}"
+                logger.info(
+                    "Candidate: %s, Sequence: %s, Score: %.4f",
+                    candidate,
+                    sequence,
+                    score,
                 )
 
         return set(candidates.values())

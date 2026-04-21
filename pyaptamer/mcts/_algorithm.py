@@ -3,10 +3,13 @@
 __author__ = ["nennomp"]
 __all__ = ["MCTS"]
 
+import logging
 import random
 
 import numpy as np
 from skbase.base import BaseObject
+
+logger = logging.getLogger(__name__)
 
 
 class MCTS(BaseObject):
@@ -296,8 +299,8 @@ class MCTS(BaseObject):
         # continue until we reach the target sequence length (i.e, depth * 2)
         round_count = 0
         while len(self.base) < self.depth * 2:
-            if verbose:
-                print(f"\n ----- Round: {round_count + 1} -----")
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Round: %d", round_count + 1)
 
             for _ in range(self.n_iterations):
                 # selection
@@ -315,11 +318,12 @@ class MCTS(BaseObject):
 
             self.base = self._find_best_subsequence()
 
-            if verbose:
-                print("#" * 50)
-                print(f"Best subsequence: {self.base}")
-                print(f"Depth: {len(self.base) // 2}")
-                print("#" * 50)
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Best subsequence: %s | Depth: %d",
+                    self.base,
+                    len(self.base) // 2,
+                )
 
             # reset for next iteration
             self.root = TreeNode(
