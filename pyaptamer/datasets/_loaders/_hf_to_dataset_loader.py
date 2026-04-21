@@ -1,16 +1,22 @@
+from __future__ import annotations
+
 __author__ = "satvshr"
 __all__ = ["load_hf_to_dataset"]
 
 import os
+from typing import TYPE_CHECKING
 
 import requests
 from datasets import load_dataset
+
+if TYPE_CHECKING:
+    from datasets import Dataset, DatasetDict
 
 # File formats not natively supported by `datasets.load_dataset`
 FILE_FORMATS = ["fasta", "pdb"]
 
 
-def _download_to_cwd(url):
+def _download_to_cwd(url: str) -> str:
     """Download URL into ./hf_datasets/ preserving the filename."""
     os.makedirs("hf_datasets", exist_ok=True)
 
@@ -27,7 +33,9 @@ def _download_to_cwd(url):
     return local_path
 
 
-def load_hf_to_dataset(path, download_locally=False, **kwargs):
+def load_hf_to_dataset(
+    path: str, download_locally: bool = False, **kwargs
+) -> Dataset | DatasetDict:
     """
     Load any Hugging Face dataset or file into a `datasets.Dataset`.
 

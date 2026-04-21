@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __author__ = "satvshr"
 __all__ = ["load_li2014"]
 import os
@@ -5,7 +7,7 @@ import os
 import pandas as pd
 
 
-def load_li2014(split=None):
+def load_li2014(split: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load the Li 2014 aptamer–protein interaction dataset.
 

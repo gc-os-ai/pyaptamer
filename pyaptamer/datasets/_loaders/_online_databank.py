@@ -1,12 +1,19 @@
+from __future__ import annotations
+
 __author__ = "satvshr"
 __all__ = ["load_from_rcsb"]
+
+from typing import TYPE_CHECKING
 
 from Bio.PDB import PDBList
 
 from pyaptamer.utils import pdb_to_struct
 
+if TYPE_CHECKING:
+    from Bio.PDB.Structure import Structure
 
-def load_from_rcsb(pdb_id, overwrite=False):
+
+def load_from_rcsb(pdb_id: str, overwrite: bool = False) -> Structure:
     """
     Download a PDB file from the RCSB Protein Data Bank and parse it into a `Structure`.
     Files are created in the current working directory.

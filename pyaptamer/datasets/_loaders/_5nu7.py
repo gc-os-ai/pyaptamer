@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 __author__ = "satvshr"
 __all__ = ["load_5nu7"]
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyaptamer.data.loader import MoleculeLoader
 
 
-def load_5nu7():
+def load_5nu7() -> MoleculeLoader:
     """Load the 5nu7 molecule as a MoleculeLoader.
 
     Returns

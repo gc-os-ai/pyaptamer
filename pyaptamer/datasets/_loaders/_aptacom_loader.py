@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 # file: aptacom_loader.py
 
 __author__ = "rpgv"
 __all__ = ["load_aptacom_full", "load_aptacom_x_y"]
+
+import pandas as pd
 
 from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 
@@ -42,7 +46,9 @@ filter_map = {
 }
 
 
-def _filter_columns(df, columns=None):
+def _filter_columns(
+    df: pd.DataFrame, columns: list[str] | None = None
+) -> pd.DataFrame:
     """
     Select a subset of columns from a pandas DataFrame.
 
@@ -65,7 +71,7 @@ def _filter_columns(df, columns=None):
     return df
 
 
-def prepare_x_y(df):
+def prepare_x_y(df: pd.DataFrame) -> pd.DataFrame:
     """
     Prepare dataset by selecting required columns and dropping rows with missing values.
 
@@ -94,7 +100,7 @@ def prepare_x_y(df):
     return df
 
 
-def load_aptacom_full(select_columns=None):
+def load_aptacom_full(select_columns: list[str] | None = None) -> pd.DataFrame:
     """
     Load the AptaCom dataset from Hugging Face, with optional column selection.
 
@@ -129,7 +135,9 @@ def load_aptacom_full(select_columns=None):
     return dataset
 
 
-def load_aptacom_x_y(return_X_y=False):
+def load_aptacom_x_y(
+    return_X_y: bool = False,
+) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load the AptaCom dataset prepared for model training.
 

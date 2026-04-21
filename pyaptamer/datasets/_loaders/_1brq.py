@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 __author__ = "satvshr"
 __all__ = ["load_1brq"]
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyaptamer.data.loader import MoleculeLoader
 
 
-def load_1brq():
+def load_1brq() -> MoleculeLoader:
     """Load the 1brq molecule as a MoleculeLoader.
 
     Returns

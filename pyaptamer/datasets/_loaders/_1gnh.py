@@ -1,10 +1,18 @@
+from __future__ import annotations
+
 __author__ = ["satvshr", "fkiraly"]
 __all__ = ["load_1gnh"]
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Bio.PDB.Structure import Structure
+
+    from pyaptamer.data.loader import MoleculeLoader
 
 
-def load_1gnh():
+def load_1gnh() -> MoleculeLoader:
     """Load the 1GNH molecule as a MoleculeLoader.
 
     Returns
@@ -20,7 +28,7 @@ def load_1gnh():
 
 
 # This function is provided only to test struct_to_aaseq.
-def _load_1gnh_structure(pdb_path=None):
+def _load_1gnh_structure(pdb_path: str | None = None) -> Structure:
     """
     Load the 1gnh molecule from a PDB file using Biopython.
 

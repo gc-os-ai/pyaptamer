@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 __author__ = ["satvshr", "fkiraly"]
 __all__ = ["load_pfoa"]
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyaptamer.data.loader import MoleculeLoader
 
 
-def load_pfoa():
+def load_pfoa() -> MoleculeLoader:
     """Load the PFOA molecule as a MoleculeLoader.
 
     Returns
