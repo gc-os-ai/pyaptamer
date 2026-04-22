@@ -94,9 +94,18 @@ def pairs_to_features(X, k=4):
         elif "aptamer_sequence" in X.columns and "target_sequence" in X.columns:
             apt_col, prot_col = "aptamer_sequence", "target_sequence"
         else:
-            raise KeyError(
+            actual_columns = list(X.columns)
+            schema_one = {"aptamer", "protein"}
+            schema_two = {"aptamer_sequence", "target_sequence"}
+            missing_schema_one = sorted(schema_one - set(X.columns))
+            missing_schema_two = sorted(schema_two - set(X.columns))
+            raise ValueError(
                 "DataFrame must contain either ('aptamer', 'protein') "
-                "or ('aptamer_sequence', 'target_sequence') columns."
+                "or ('aptamer_sequence', 'target_sequence') columns. "
+                f"Found columns: {actual_columns}. "
+                f"Missing for ('aptamer', 'protein'): {missing_schema_one}. "
+                f"Missing for ('aptamer_sequence', 'target_sequence'): "
+                f"{missing_schema_two}."
             )
         pairs = zip(X[apt_col], X[prot_col], strict=False)
     else:
