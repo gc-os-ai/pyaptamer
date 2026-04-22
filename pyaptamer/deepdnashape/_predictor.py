@@ -59,13 +59,13 @@ _X_AXIS_FEATURES = frozenset({"Shift", "Tilt", "Shear", "Buckle"})
 
 
 def _get_bases_mapping():
-    """Build one-hot encoding maps for DNA bases.
+    """Creates a dictionary to convert DNA letters into vectors.
 
     Returns
     -------
     tuple of dict
-        A tuple (mono, di) where `mono` maps single bases to one-hot vectors,
-        and `di` maps di-nucleotide tuples to encoding vectors.
+        A set of lookup tables that translate single bases (A, T, C, G) and
+        pairs of bases into fixed numerical patterns.
     """
     bases = ["T", "G", "C", "A"]
     bits = len(bases)
@@ -96,18 +96,18 @@ def _get_bases_mapping():
 
 
 def _build_graph(x):
-    """Build chain graph edges with self loops at boundaries.
+    """Organizes the DNA sequence into a network where bases can share info.
 
     Parameters
     ----------
     x : torch.Tensor
-        Input node sequence feature representations.
+        The sequence data in numerical format.
 
     Returns
     -------
     tuple of torch.Tensor
-        A tuple (x, pairs_prev, pairs_next) where `x` is the unmodified input,
-        `pairs_prev` maps backwards edges, and `pairs_next` maps forwards edges.
+        The data along with a 'map' of how information should flow between
+        neighboring bases during the prediction.
     """
     k = x.shape[0]
     rng = torch.arange(k - 1, dtype=torch.long)
@@ -131,9 +131,9 @@ def _rescale(predictions, params):
     Parameters
     ----------
     predictions : np.ndarray
-        Array of normalized raw predictions direct from the model output.
+        The raw predictions from the neural network.
     params : dict
-        Mapping of scaling configuration specific to the DNA feature model.
+        Configuration data on how to scale values for this specific feature.
 
     Returns
     -------
@@ -162,7 +162,7 @@ class Predictor:
     --------
     >>> from pyaptamer.deepdnashape import Predictor
     >>> model = Predictor()
-    >>> model.predict("MGW", "AAGGTAGT", layer=4)
+    >>> model.predict("MGW", "AAGGTAGT")
     """
 
     def __init__(self):
@@ -200,9 +200,12 @@ class Predictor:
 
         Parameters
         ----------
-        feature : str (DNA shape feature to predict)
+        feature : str
+            DNA shape feature to predict (e.g., 'MGW' for width).
         seq : str
-        layer : int, optional, default=4 (range 0 to 7)
+            The DNA sequence string (containing letters A, T, C, G, or N).
+        layer : int, optional, default=4
+            Regarding which 'depth' of the model to use (0-7).
 
         Returns
         -------
