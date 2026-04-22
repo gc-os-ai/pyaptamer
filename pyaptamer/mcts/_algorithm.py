@@ -4,6 +4,7 @@ __author__ = ["nennomp"]
 __all__ = ["MCTS"]
 
 import random
+from pathlib import Path
 
 import numpy as np
 from skbase.base import BaseObject
@@ -275,7 +276,11 @@ class MCTS(BaseObject):
 
         return subsequence
 
-    def run(self, verbose: bool = True) -> dict:
+    def run(
+        self,
+        verbose: bool = True,
+        checkpoint_path: str | Path | None = None,
+    ) -> dict:
         """
         Perform a full recommendation run consisting of `self.n_iterations` rounds of
         (selection -> expansion -> simulation -> backpropagation)
@@ -284,6 +289,9 @@ class MCTS(BaseObject):
         ----------
         verbose : bool, optional, default=True
             Whether to print progress information.
+        checkpoint_path : str or Path, optional, default=None
+            If provided, the run state (best subsequence per round) is saved to this
+            path after each round, enabling resumption after a crash.
 
         Returns
         -------
@@ -291,10 +299,32 @@ class MCTS(BaseObject):
             Dictionary containing the final candidate sequence (`candidate`) and its
             score (`score`).
         """
+        from pyaptamer.mcts._checkpoint import MCTSRunCheckpoint
+
+        checkpoint = None
+        saved = None
+        if checkpoint_path is not None:
+            checkpoint = MCTSRunCheckpoint(checkpoint_path)
+            saved = checkpoint.load()
+
         self._reset()
 
-        # continue until we reach the target sequence length (i.e, depth * 2)
+        # resume from a compatible checkpoint
         round_count = 0
+        if saved is not None and saved.get("depth") == self.depth:
+            self.base = saved["base"]
+            self.root = TreeNode(
+                n_states=len(self.states),
+                depth=len(self.base) // 2,
+            )
+            round_count = saved["round"] + 1
+            if verbose:
+                print(
+                    f"Resuming from checkpoint at round {saved['round']}, "
+                    f"base: {self.base!r}"
+                )
+
+        # continue until we reach the target sequence length (i.e, depth * 2)
         while len(self.base) < self.depth * 2:
             if verbose:
                 print(f"\n ----- Round: {round_count + 1} -----")
@@ -321,6 +351,13 @@ class MCTS(BaseObject):
                 print(f"Depth: {len(self.base) // 2}")
                 print("#" * 50)
 
+            if checkpoint is not None:
+                checkpoint.save(
+                    base=self.base,
+                    round_idx=round_count,
+                    depth=self.depth,
+                )
+
             # reset for next iteration
             self.root = TreeNode(
                 n_states=len(self.states),
@@ -331,11 +368,16 @@ class MCTS(BaseObject):
 
         self.candidate = self.base
         reconstructed_candidate = self._reconstruct(self.candidate)
-        return {
+        result = {
             "candidate": reconstructed_candidate,
             "sequence": self.candidate,
             "score": self.experiment.evaluate(reconstructed_candidate),
         }
+
+        if checkpoint is not None:
+            checkpoint.clear()
+
+        return result
 
 
 class TreeNode:

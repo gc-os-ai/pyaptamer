@@ -2,11 +2,14 @@
 
 __author__ = ["nennomp"]
 
+import json
+
 import pytest
 import torch
 import torch.nn as nn
 
 from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
+from pyaptamer.mcts._checkpoint import RecommendCheckpoint
 
 
 class TestAptaTransModel:
@@ -470,3 +473,124 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    def _make_pipeline_with_mock_mcts(self, monkeypatch, depth=5):
+        """Return a pipeline wired to a deterministic MockMCTS."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(
+            device=device, model=model, prot_words=prot_words, depth=depth
+        )
+
+        class MockExperiment:
+            def evaluate(self, candidate):
+                return torch.tensor(0.75)
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: MockExperiment(),
+        )
+
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                self.counter = 0
+
+            def run(self, verbose=False):
+                candidates = [
+                    (f"APTA{i:03d}", f"seq_{i}", torch.tensor(i / 10.0))
+                    for i in range(20)
+                ]
+                data = candidates[self.counter % len(candidates)]
+                self.counter += 1
+                return {"candidate": data[0], "sequence": data[1], "score": data[2]}
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+        return pipeline
+
+    def test_recommend_with_checkpoint_saves_file(self, monkeypatch, tmp_path):
+        """recommend() with checkpoint_path should leave a completed checkpoint."""
+        pipeline = self._make_pipeline_with_mock_mcts(monkeypatch)
+        path = tmp_path / "rec.json"
+
+        pipeline.recommend(
+            target="AUGCAUGC",
+            n_candidates=3,
+            verbose=False,
+            checkpoint_path=path,
+        )
+
+        assert path.exists()
+        data = json.loads(path.read_text())
+        assert data["completed"] is True
+        assert len(data["candidates"]) == 3
+
+    def test_recommend_resumes_from_checkpoint(self, monkeypatch, tmp_path):
+        """recommend() should load existing candidates and skip re-running MCTS."""
+        pipeline = self._make_pipeline_with_mock_mcts(monkeypatch)
+        path = tmp_path / "rec.json"
+        target = "AUGCAUGC"
+        n_candidates = 3
+
+        # pre-seed two candidates already found
+        pre_candidates = {
+            "APTA000": ["APTA000", "seq_0", 0.0],
+            "APTA001": ["APTA001", "seq_1", 0.1],
+        }
+        cp = RecommendCheckpoint(path)
+        cp.save(
+            target=target,
+            n_candidates=n_candidates,
+            depth=pipeline.depth,
+            n_iterations=pipeline.n_iterations,
+            candidates=pre_candidates,
+            completed=False,
+        )
+
+        candidates = pipeline.recommend(
+            target=target,
+            n_candidates=n_candidates,
+            verbose=False,
+            checkpoint_path=path,
+        )
+
+        assert len(candidates) == n_candidates
+        result_keys = {c[0] for c in candidates}
+        # the two pre-seeded candidates must be present
+        assert "APTA000" in result_keys
+        assert "APTA001" in result_keys
+
+    def test_recommend_ignores_incompatible_checkpoint(self, monkeypatch, tmp_path):
+        """Checkpoint with different parameters should be ignored."""
+        pipeline = self._make_pipeline_with_mock_mcts(monkeypatch)
+        path = tmp_path / "rec.json"
+
+        cp = RecommendCheckpoint(path)
+        cp.save(
+            target="DIFFERENT_TARGET",
+            n_candidates=99,
+            depth=999,
+            n_iterations=999,
+            candidates={"FAKE": ["FAKE", "fake_seq", 0.0]},
+            completed=False,
+        )
+
+        candidates = pipeline.recommend(
+            target="AUGCAUGC",
+            n_candidates=2,
+            verbose=False,
+            checkpoint_path=path,
+        )
+
+        assert len(candidates) == 2
+        result_keys = {c[0] for c in candidates}
+        assert "FAKE" not in result_keys
+
+    def test_recommend_without_checkpoint_path(self, monkeypatch, tmp_path):
+        """recommend() without checkpoint_path should work as before."""
+        pipeline = self._make_pipeline_with_mock_mcts(monkeypatch)
+        candidates = pipeline.recommend(
+            target="AUGCAUGC", n_candidates=2, verbose=False
+        )
+        assert isinstance(candidates, set)
+        assert len(candidates) == 2
