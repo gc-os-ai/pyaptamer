@@ -20,8 +20,7 @@ from pyaptamer.aptatrans.layers._encoder import (
 )
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
 
-logger = logging.getLogger(__name__)
-
+from pyaptamer import logger
 
 class AptaTrans(nn.Module):
     """AptaTrans deep neural network as described in [1]_.

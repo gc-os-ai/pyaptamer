@@ -19,7 +19,7 @@ from pyaptamer.utils import (
 )
 from pyaptamer.utils._base import filter_words
 
-logger = logging.getLogger(__name__)
+from pyaptamer import logger
 
 
 class AptaTransPipeline:

@@ -9,7 +9,7 @@ import random
 import numpy as np
 from skbase.base import BaseObject
 
-logger = logging.getLogger(__name__)
+from pyaptamer import logger
 
 
 class MCTS(BaseObject):
