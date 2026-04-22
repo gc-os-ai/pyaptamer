@@ -377,7 +377,7 @@ class TreeNode:
     >>> print(node.uct_score())
     inf
     >>> print(child.uct_score())  # doctest: +SKIP
-    np.float64(0.6663)
+    np.float64(0.5)
     """
 
     def __init__(
@@ -398,7 +398,7 @@ class TreeNode:
         self.is_terminal = is_terminal
         self.exploitation_score = exploitation_score
 
-        self.n_visits = 1
+        self.n_visits = 0
         self.children = {}
 
     def is_fully_expanded(self) -> bool:
@@ -427,6 +427,10 @@ class TreeNode:
             The UCT score for this node.
         """
         if self.parent is None:
+            return float("inf")
+
+        # unvisited nodes get infinite UCT to guarantee first exploration
+        if self.n_visits == 0:
             return float("inf")
 
         # exploration term
