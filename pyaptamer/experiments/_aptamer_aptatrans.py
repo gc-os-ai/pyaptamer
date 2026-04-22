@@ -20,9 +20,9 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         Model to use for assigning scores.
     device : torch.device
         Device to run the model on.
-    prot_words : dict[str, float]
-        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
-        Used to encode protein sequences into their numerical representions.
+    prot_words : dict[str, int]
+        A dictionary mapping protein n-mer subsequences to unique integer IDs.
+        Used to encode protein sequences into their numerical representations.
 
     Attributes
     ----------

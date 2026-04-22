@@ -45,10 +45,9 @@ class _AptaTransTorchDataset(Dataset):
     def __len__(self):
         return len(self.x_apta)
 
-    def __getitem__(self, i):
-        x_a_t = torch.tensor(self.x_apta[i])
-        x_p_t = torch.tensor(self.x_prot[i])
+    def __getitem__(self, idx):
+        x_a = torch.tensor(self.x_apta[idx])
+        x_p = torch.tensor(self.x_prot[idx])
         if self.y is None:
-            return x_a_t, x_p_t, None
-        y_t = torch.tensor(self.y[i])
-        return x_a_t, x_p_t, y_t
+            return x_a, x_p
+        return x_a, x_p, torch.tensor(self.y[idx])

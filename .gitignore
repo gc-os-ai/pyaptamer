@@ -50,6 +50,10 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+
+# logs (auto-generated)
+lightning_logs/
+
 # folders/files generated during testing
 gn/
 

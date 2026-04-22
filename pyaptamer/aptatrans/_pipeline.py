@@ -6,15 +6,17 @@ candidate aptamers recommendation.
 __author__ = ["nennomp", "siddharth7113"]
 __all__ = ["AptaTransPipeline"]
 
+import lightning as L
+import numpy as np
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from pyaptamer.aptatrans import AptaTrans
+from pyaptamer.aptatrans._model_lightning import AptaTransLightning
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
-    generate_nplets,
-)
+from pyaptamer.utils import generate_nplets
 from pyaptamer.utils._base import filter_words
 
 
@@ -111,6 +113,7 @@ class AptaTransPipeline:
         self.n_iterations = n_iterations
 
         self.apta_words, self.prot_words = self._init_words(prot_words)
+        self.is_fitted_ = False
 
     def _init_words(
         self,
@@ -159,8 +162,8 @@ class AptaTransPipeline:
         (``rna2vec`` for aptamers, ``encode_rna`` for proteins), then wraps
         the result in a ``DataLoader``.
 
-        The future sklearn-style ``fit(X, y)`` PR will call this at the top
-        of ``fit`` and ``predict``.
+        The future sklearn-style ``(X, y)`` PR will call this at the top
+        of ```` and ``predict``.
 
         Parameters
         ----------
@@ -214,6 +217,139 @@ class AptaTransPipeline:
         torch_ds = _AptaTransTorchDataset(x_apta_enc, x_prot_enc, ds.y)
         return DataLoader(torch_ds, batch_size=batch_size, shuffle=train)
 
+    def fit(
+        self,
+        X,
+        y=None,
+        max_epochs: int = 200,
+        batch_size: int = 16,
+        val_dataloader: DataLoader | None = None,
+        accelerator: str = "auto",
+    ) -> "AptaTransPipeline":
+        """Fit AptaTrans on aptamer-protein interaction data.
+
+        Accepts any input shape supported by ``APIDataset.from_any``:
+        list of tuples, pd.DataFrame, numpy pair, or APIDataset instance.
+
+        Labels must be numeric (0/1 int) before calling this method.
+        String labels like ``"positive"``/``"negative"`` must be encoded by
+        the caller. Data augmentation (e.g., ``augment_reverse``) must also
+        be applied by the caller before passing data here.
+
+        Parameters
+        ----------
+        X : list[tuple], pd.DataFrame, tuple[np.ndarray, np.ndarray], or APIDataset
+            Paired aptamer-protein sequences in any supported format.
+        y : array-like of int, optional
+            Binary labels (1 = binding, 0 = non-binding).
+            Required for training unless X is an APIDataset with y already set.
+        max_epochs : int, default=200
+            Maximum number of training epochs.
+        batch_size : int, default=16
+            Mini-batch size for training.
+        val_dataloader : DataLoader, optional
+            Validation dataloader for early stopping. Pass ``None`` to skip.
+
+        Returns
+        -------
+        self
+            The fitted pipeline (enables method chaining).
+
+        Examples
+        --------
+        >>> import numpy as np, pandas as pd, torch
+        >>> from pyaptamer.aptatrans import (
+        ...     AptaTrans,
+        ...     AptaTransPipeline,
+        ...     EncoderPredictorConfig,
+        ... )
+        >>> device = torch.device("cpu")
+        >>> model = AptaTrans(
+        ...     EncoderPredictorConfig(32, 4, max_len=20),
+        ...     EncoderPredictorConfig(32, 4, max_len=20),
+        ... )
+        >>> pipeline = AptaTransPipeline(device, model, prot_words={"DHR": 1, "AIQ": 1})
+        >>> X = pd.DataFrame({"aptamer": ["ACGU"] * 8, "protein": ["DHRN"] * 8})
+        >>> y = np.array([1, 0, 1, 0, 1, 0, 1, 0])
+        >>> _ = pipeline.fit(X, y, max_epochs=1)  # doctest: +SKIP
+        """
+        train_dl = self._prepare_dataloader(X, y, train=True, batch_size=batch_size)
+        model_lightning = AptaTransLightning(model=self.model)
+        trainer = L.Trainer(
+            max_epochs=max_epochs,
+            enable_progress_bar=False,
+            accelerator=accelerator,
+        )
+        trainer.fit(model_lightning, train_dl, val_dataloader)
+        self.is_fitted_ = True
+        return self
+
+    def predict_interactions(
+        self,
+        X,
+        batch_size: int = 16,
+        accelerator: str = "auto",
+    ) -> np.ndarray:
+        """Predict binding probabilities for aptamer-protein pairs.
+
+        Accepts any input shape supported by ``APIDataset.from_any``.
+
+        Note: named ``predict_interactions`` to avoid conflict with the
+        existing single-pair ``predict(candidate, target)`` method.
+
+        Parameters
+        ----------
+        X : list[tuple], pd.DataFrame, tuple[np.ndarray, np.ndarray], or APIDataset
+            Paired aptamer-protein sequences in any supported format.
+        batch_size : int, default=16
+            Mini-batch size for inference.
+
+        Returns
+        -------
+        np.ndarray
+            Float array of shape ``(n_samples,)`` with binding probabilities
+            in [0, 1]. Values > 0.5 indicate predicted binding.
+
+        Raises
+        ------
+        RuntimeError
+            If called before ``fit()``.
+
+        Examples
+        --------
+        >>> import numpy as np, pandas as pd, torch
+        >>> from pyaptamer.aptatrans import (
+        ...     AptaTrans,
+        ...     AptaTransPipeline,
+        ...     EncoderPredictorConfig,
+        ... )
+        >>> device = torch.device("cpu")
+        >>> model = AptaTrans(
+        ...     EncoderPredictorConfig(32, 4, max_len=20),
+        ...     EncoderPredictorConfig(32, 4, max_len=20),
+        ... )
+        >>> pipeline = AptaTransPipeline(device, model, prot_words={"DHR": 1, "AIQ": 1})
+        >>> X = pd.DataFrame({"aptamer": ["ACGU"] * 8, "protein": ["DHRN"] * 8})
+        >>> y = np.array([1, 0, 1, 0, 1, 0, 1, 0])
+        >>> _ = pipeline.fit(X, y, max_epochs=1)  # doctest: +SKIP
+        >>> probs = pipeline.predict_interactions(X)  # doctest: +SKIP
+        """
+        if not self.is_fitted_:
+            raise RuntimeError(
+                "This AptaTransPipeline instance is not fitted yet. "
+                "Call 'fit()' before 'predict_interactions()'."
+            )
+        predict_dl = self._prepare_dataloader(
+            X, y=None, train=False, batch_size=batch_size
+        )
+        model_lightning = AptaTransLightning(model=self.model)
+        trainer = L.Trainer(
+            enable_progress_bar=False,
+            accelerator=accelerator,
+        )
+        predictions = trainer.predict(model_lightning, predict_dl)
+        return torch.cat(predictions).cpu().numpy()
+
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to
         # follow the original paper), there are additional steps. Need to decide if put
@@ -255,7 +391,8 @@ class AptaTransPipeline:
         Returns
         -------
         Tensor
-            A tensor containing the predicted interaction score.
+            A `torch.float32` tensor containing the predicted binding probability
+            in [0, 1].
         """
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate)

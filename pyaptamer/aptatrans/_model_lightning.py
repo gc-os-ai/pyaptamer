@@ -168,6 +168,32 @@ class AptaTransLightning(L.LightningModule):
         """
         return self._step(batch, batch_idx, "test")
 
+    def predict_step(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Tensor],
+        batch_idx: int,
+    ) -> Tensor:
+        """Predict binding probabilities for a batch (no labels required).
+
+        Called by ``lightning.Trainer.predict()``. Returns probabilities in
+        [0, 1] where values > 0.5 indicate predicted binding.
+
+        Parameters
+        ----------
+        batch : tuple[Tensor, Tensor] or tuple[Tensor, Tensor, Tensor]
+            Either ``(x_apta, x_prot)`` or ``(x_apta, x_prot, y)``.
+            Labels are ignored if present.
+        batch_idx : int
+            Index of the current batch.
+
+        Returns
+        -------
+        Tensor
+            Float tensor of shape ``(batch_size,)`` with binding probabilities.
+        """
+        x_apta, x_prot = batch[0], batch[1]
+        return torch.flatten(self.model(x_apta, x_prot))
+
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Defines the optimizer to be used during training."""
         params = [
