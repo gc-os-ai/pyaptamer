@@ -398,7 +398,7 @@ class TreeNode:
         self.is_terminal = is_terminal
         self.exploitation_score = exploitation_score
 
-        self.n_visits = 1
+        self.n_visits = 0
         self.children = {}
 
     def is_fully_expanded(self) -> bool:
@@ -426,7 +426,7 @@ class TreeNode:
         float
             The UCT score for this node.
         """
-        if self.parent is None:
+        if self.parent is None or self.n_visits == 0:
             return float("inf")
 
         # exploration term
