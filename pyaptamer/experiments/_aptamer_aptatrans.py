@@ -20,9 +20,9 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         Model to use for assigning scores.
     device : torch.device
         Device to run the model on.
-    prot_words : dict[str, float]
-        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
-        Used to encode protein sequences into their numerical representions.
+    prot_words : dict[str, int]
+        A dictionary mapping protein n-mer subsequences to unique integer IDs.
+        Used to encode protein sequences into their numerical representations.
 
     Attributes
     ----------
@@ -39,7 +39,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
     >>> target = "DHRNE"
-    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
+    >>> prot_words = {"DHR": 0.9, "RNE": 0.5, "NE": 0.2}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> aptamer_candidate = "AUGGC"
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)

@@ -224,6 +224,7 @@ class AptaTransPipeline:
         max_epochs: int = 200,
         batch_size: int = 16,
         val_dataloader: DataLoader | None = None,
+        accelerator: str = "auto",
     ) -> "AptaTransPipeline":
         """Fit AptaTrans on aptamer-protein interaction data.
 
@@ -274,7 +275,11 @@ class AptaTransPipeline:
         """
         train_dl = self._prepare_dataloader(X, y, train=True, batch_size=batch_size)
         model_lightning = AptaTransLightning(model=self.model)
-        trainer = L.Trainer(max_epochs=max_epochs, enable_progress_bar=False)
+        trainer = L.Trainer(
+            max_epochs=max_epochs,
+            enable_progress_bar=False,
+            accelerator=accelerator,
+        )
         trainer.fit(model_lightning, train_dl, val_dataloader)
         self.is_fitted_ = True
         return self
@@ -283,6 +288,7 @@ class AptaTransPipeline:
         self,
         X,
         batch_size: int = 16,
+        accelerator: str = "auto",
     ) -> np.ndarray:
         """Predict binding probabilities for aptamer-protein pairs.
 
@@ -337,9 +343,12 @@ class AptaTransPipeline:
             X, y=None, train=False, batch_size=batch_size
         )
         model_lightning = AptaTransLightning(model=self.model)
-        trainer = L.Trainer(enable_progress_bar=False)
+        trainer = L.Trainer(
+            enable_progress_bar=False,
+            accelerator=accelerator,
+        )
         predictions = trainer.predict(model_lightning, predict_dl)
-        return torch.cat(predictions).numpy()
+        return torch.cat(predictions).cpu().numpy()
 
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to
@@ -382,7 +391,8 @@ class AptaTransPipeline:
         Returns
         -------
         Tensor
-            A tensor containing the predicted interaction score.
+            A `torch.float32` tensor containing the predicted binding probability
+            in [0, 1].
         """
         experiment = self._init_aptamer_experiment(target)
         return experiment.evaluate(candidate)

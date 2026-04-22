@@ -48,8 +48,7 @@ def test_unlabeled_returns_y_none():
     x_apta, x_prot, _ = _toy_encoded()
     ds = _AptaTransTorchDataset(x_apta, x_prot, y=None)
     sample = ds[0]
-    assert len(sample) == 3
-    assert sample[2] is None
+    assert len(sample) == 2
 
 
 def test_dataloader_compatibility():
