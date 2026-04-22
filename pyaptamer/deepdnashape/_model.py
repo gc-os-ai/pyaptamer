@@ -33,6 +33,16 @@ def _segment_sum(data, segment_ids, num_segments):
 
 
 class KerasGRUCell(nn.Module):
+    """GRU cell similar to Keras's reset_after=True.
+
+    Parameters
+    ----------
+    input_size : int
+        Number of features in the input sequence layer `x`.
+    hidden_size : int
+        Number of features in the hidden state `h`.
+    """
+
     def __init__(self, input_size, hidden_size):
         super().__init__()
         self.hidden_size = hidden_size
@@ -41,6 +51,20 @@ class KerasGRUCell(nn.Module):
         self.bias = nn.Parameter(torch.empty(2, 3 * hidden_size))
 
     def forward(self, x, h):
+        """Forward pass for Keras GRU cell.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input feature tensor at the current graph step.
+        h : torch.Tensor
+            Previous recurrent hidden state tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            The updated hidden state tensor.
+        """
         matrix_x = x @ self.kernel + self.bias[0]
         x_z, x_r, x_h = torch.split(matrix_x, self.hidden_size, dim=-1)
 
@@ -55,6 +79,20 @@ class KerasGRUCell(nn.Module):
 
 
 class MessagePassingConv(nn.Module):
+    """Message passing convolution step for the graph neural network.
+
+    Parameters
+    ----------
+    filters : int, optional
+        Number of filters/channels in the hidden representations, default is 64.
+    multiply : str or None, optional
+        Determines bilinear processing behavior during message aggregation.
+    bn_layer : bool, optional
+        Whether to apply batch normalization.
+    gru_layer : bool, optional
+        Whether to use the KerasGRUCell during propagation.
+    """
+
     def __init__(
         self,
         filters: int = 64,
@@ -85,6 +123,22 @@ class MessagePassingConv(nn.Module):
         self.gru = KerasGRUCell(filters, filters) if gru_layer else None
 
     def forward(self, x, pairs_prev, pairs_next):
+        """Execute one iteration of graph message passing.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Matrix of node features for the current input batch.
+        pairs_prev : torch.Tensor
+            Adjacency index pairs pointing from previous nodes in the sequence.
+        pairs_next : torch.Tensor
+            Adjacency index pairs pointing from subsequent nodes in the sequence.
+
+        Returns
+        -------
+        torch.Tensor
+            Aggregated and processed output node representations.
+        """
         num_nodes = x.shape[0]
 
         prev_x = x[pairs_prev[:, 1]]
@@ -116,6 +170,16 @@ class MessagePassingConv(nn.Module):
 
 
 class AvgFeatures(nn.Module):
+    """Averages output features based on the target projection dimension.
+
+    Parameters
+    ----------
+    target_features : int, optional
+        Number of target structural dimensions to project over, default is 1.
+    filter_size : int, optional
+        Dimensionality of the initial input feature space, default is 64.
+    """
+
     def __init__(self, target_features=1, filter_size=64):
         super().__init__()
         self.target_features = target_features if target_features != 0 else 1
@@ -123,6 +187,18 @@ class AvgFeatures(nn.Module):
         self.group_size = (filter_size + self.pad_amount) // self.target_features
 
     def forward(self, x):
+        """Pad and calculate local feature means over grouped channels.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Node feature tensor derived from CNN or GRU layers.
+
+        Returns
+        -------
+        torch.Tensor
+            Vector of dimension-averaged outputs appropriate for structural mapping.
+        """
         if self.pad_amount > 0:
             x = F.pad(x, (0, self.pad_amount))
         x = x.reshape(-1, self.target_features, self.group_size)
@@ -130,6 +206,34 @@ class AvgFeatures(nn.Module):
 
 
 class DNAModel(nn.Module):
+    """Graph neural network architecture for predicting DNA shape features.
+
+    Parameters
+    ----------
+    input_features : int, optional
+        Number of dimensions in the initial base encoding arrays, default is 4.
+    filter_size : int, optional
+        Number of latent channels for message passing layers, default is 64.
+    mp_layers : int, optional
+        Total number of stacked message passing layers (depth), default is 7.
+    mp_steps : int, optional
+        Propagation steps executed sequentially per layer (width), default is 1.
+    base_features : int, optional
+        Number of targeted mathematical structural predictions, default is 1.
+    constraints : bool, optional
+        If True, preserves intermediate layer outputs to supply combined residual feedback.
+    selflayer : bool, optional
+        If True, preserves the initial isolated single-node convolution directly.
+    multiply : str or None, optional
+        Specifies if explicit linear expansion factors are applied inside convolution.
+    bn_layer : bool, optional
+        If True, applies batch normalization directly across graph hidden states.
+    gru_layer : bool, optional
+        If True, employs gated recurrent processing within node propagation rounds.
+    dropout_rate : float, optional
+        Fraction of aggregated units to probabilistically zero out, default is 0.0.
+    """
+
     def __init__(
         self,
         input_features=4,
@@ -172,6 +276,22 @@ class DNAModel(nn.Module):
         return self.avg_layer(x)
 
     def forward(self, x, pairs_prev, pairs_next):
+        """Pass input DNA matrices through the graph network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Encoded feature mapping inputs representing initial bases or k-mers.
+        pairs_prev : torch.Tensor
+            Forward adjacency connections establishing graph edge directions.
+        pairs_next : torch.Tensor
+            Backward adjacency connections generating recurrent bidirectional flows.
+
+        Returns
+        -------
+        torch.Tensor
+            Final DNA shape score prediction matrix over sequence length.
+        """
         # Conv1d (batch, channels, length)
         x = x.unsqueeze(0).permute(0, 2, 1)
         x = self.input_conv(x)

@@ -59,7 +59,14 @@ _X_AXIS_FEATURES = frozenset({"Shift", "Tilt", "Shear", "Buckle"})
 
 
 def _get_bases_mapping():
-    """Build one-hot encoding maps for DNA bases."""
+    """Build one-hot encoding maps for DNA bases.
+
+    Returns
+    -------
+    tuple of dict
+        A tuple (mono, di) where `mono` maps single bases to one-hot vectors,
+        and `di` maps di-nucleotide tuples to encoding vectors.
+    """
     bases = ["T", "G", "C", "A"]
     bits = len(bases)
 
@@ -89,7 +96,19 @@ def _get_bases_mapping():
 
 
 def _build_graph(x):
-    """Build chain graph edges with self loops at boundaries."""
+    """Build chain graph edges with self loops at boundaries.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input node sequence feature representations.
+
+    Returns
+    -------
+    tuple of torch.Tensor
+        A tuple (x, pairs_prev, pairs_next) where `x` is the unmodified input,
+        `pairs_prev` maps backwards edges, and `pairs_next` maps forwards edges.
+    """
     k = x.shape[0]
     rng = torch.arange(k - 1, dtype=torch.long)
 
@@ -107,7 +126,20 @@ def _build_graph(x):
 
 
 def _rescale(predictions, params):
-    """Rescale raw model predictions to original value range."""
+    """Rescale raw model predictions to original value range.
+
+    Parameters
+    ----------
+    predictions : np.ndarray
+        Array of normalized raw predictions direct from the model output.
+    params : dict
+        Mapping of scaling configuration specific to the DNA feature model.
+
+    Returns
+    -------
+    np.ndarray
+        The un-normalized, fully rescaled predictions in their original units.
+    """
     method = params["method"]
     if method == "minmax":
         return predictions * (params["max"] - params["min"]) + params["min"]
