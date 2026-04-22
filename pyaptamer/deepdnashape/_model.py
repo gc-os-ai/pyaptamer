@@ -33,14 +33,14 @@ def _segment_sum(data, segment_ids, num_segments):
 
 
 class KerasGRUCell(nn.Module):
-    """GRU cell similar to Keras's reset_after=True.
+    """Memory based processor that learns patterns in DNA sequences.
 
     Parameters
     ----------
     input_size : int
-        Number of features in the input sequence layer `x`.
+        The size of the incoming data signals for each DNA base.
     hidden_size : int
-        Number of features in the hidden state `h`.
+        The size of the internal memory state used to track patterns.
     """
 
     def __init__(self, input_size, hidden_size):
@@ -58,7 +58,7 @@ class KerasGRUCell(nn.Module):
         x : torch.Tensor
             Input feature tensor at the current graph step.
         h : torch.Tensor
-            Previous recurrent hidden state tensor.
+            The memory state accumulated from previous positions.
 
         Returns
         -------
@@ -79,18 +79,18 @@ class KerasGRUCell(nn.Module):
 
 
 class MessagePassingConv(nn.Module):
-    """Message passing convolution step for the graph neural network.
+    """A layer that allows neighboring DNA bases to share information.
 
     Parameters
     ----------
     filters : int, optional
-        Number of filters/channels in the hidden representations, default is 64.
+        The width of the information flow between bases, default 64.
     multiply : str or None, optional
-        Determines bilinear processing behavior during message aggregation.
+        Internal math setting for combining different types of signals.
     bn_layer : bool, optional
         Whether to apply batch normalization.
     gru_layer : bool, optional
-        Whether to use the KerasGRUCell during propagation.
+        Whether to use the Keras-style memory unit during propagation.
     """
 
     def __init__(
@@ -128,11 +128,11 @@ class MessagePassingConv(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Matrix of node features for the current input batch.
+            The current list of features for each position in the sequence.
         pairs_prev : torch.Tensor
-            Adjacency index pairs pointing from previous nodes in the sequence.
+            Map of which positions are connected to their predecessors.
         pairs_next : torch.Tensor
-            Adjacency index pairs pointing from subsequent nodes in the sequence.
+            Map of which positions are connected to their successors.
 
         Returns
         -------
@@ -170,14 +170,14 @@ class MessagePassingConv(nn.Module):
 
 
 class AvgFeatures(nn.Module):
-    """Averages output features based on the target projection dimension.
+    """Compresses internal data into simple physical measurements.
 
     Parameters
     ----------
     target_features : int, optional
-        Number of target structural dimensions to project over, default is 1.
+        How many distinct physical values to output (e.g., 1 for Width).
     filter_size : int, optional
-        Dimensionality of the initial input feature space, default is 64.
+        The size of the complex data coming from the previous layers.
     """
 
     def __init__(self, target_features=1, filter_size=64):
@@ -187,17 +187,17 @@ class AvgFeatures(nn.Module):
         self.group_size = (filter_size + self.pad_amount) // self.target_features
 
     def forward(self, x):
-        """Pad and calculate local feature means over grouped channels.
+        """Calculates the final physical average for each DNA position.
 
         Parameters
         ----------
         x : torch.Tensor
-            Node feature tensor derived from CNN or GRU layers.
+            The raw signals produced by the internal layers.
 
         Returns
         -------
         torch.Tensor
-            Vector of dimension-averaged outputs appropriate for structural mapping.
+            The actual physical shape measurement for each part of the DNA.
         """
         if self.pad_amount > 0:
             x = F.pad(x, (0, self.pad_amount))
@@ -208,31 +208,32 @@ class AvgFeatures(nn.Module):
 class DNAModel(nn.Module):
     """Graph neural network architecture for predicting DNA shape features.
 
+    Original implementation: https://github.com/JinsenLi/deepDNAshape
+
     Parameters
     ----------
     input_features : int, optional
-        Number of dimensions in the initial base encoding arrays, default is 4.
+        Number of data signals per initial DNA base, default is 4.
     filter_size : int, optional
-        Number of latent channels for message passing layers, default is 64.
+        Width of the internal processing channels, default is 64.
     mp_layers : int, optional
         Total number of stacked message passing layers (depth), default is 7.
     mp_steps : int, optional
-        Propagation steps executed sequentially per layer (width), default is 1.
+        How many iterations of information sharing per layer, default is 2.
     base_features : int, optional
-        Number of targeted mathematical structural predictions, default is 1.
+        Number of output physical properties to predict, default is 1.
     constraints : bool, optional
-        If True, preserves intermediate layer outputs to supply combined residual
-        feedback.
+        If True, keeps track of intermediate work for more stability.
     selflayer : bool, optional
-        If True, preserves the initial isolated single-node convolution directly.
+        If True, performs an initial scan before sharing info.
     multiply : str or None, optional
-        Specifies if explicit linear expansion factors are applied inside convolution.
+        Detailed math setting for how signals are combined.
     bn_layer : bool, optional
-        If True, applies batch normalization directly across graph hidden states.
+        If True, uses stabilization layers inside.
     gru_layer : bool, optional
-        If True, employs gated recurrent processing within node propagation rounds.
+        If True, uses memory based information processing.
     dropout_rate : float, optional
-        Fraction of aggregated units to probabilistically zero out, default is 0.0.
+        Reduces overfitting by ignoring random signals during training.
     """
 
     def __init__(
@@ -282,18 +283,17 @@ class DNAModel(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Encoded feature mapping inputs representing initial bases or k-mers.
+            The initial encoded sequence of DNA bases.
         pairs_prev : torch.Tensor
-            Forward adjacency connections establishing graph edge directions.
+            Connection map for information flowing one way.
         pairs_next : torch.Tensor
-            Backward adjacency connections generating recurrent bidirectional flows.
+            Connection map for information flowing the other way.
 
         Returns
         -------
         torch.Tensor
             Final DNA shape score prediction matrix over sequence length.
         """
-        # Conv1d (batch, channels, length)
         x = x.unsqueeze(0).permute(0, 2, 1)
         x = self.input_conv(x)
         x = x.permute(0, 2, 1).squeeze(0)
