@@ -39,7 +39,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
     >>> target = "DHRNE"
-    >>> prot_words = {"DHR": 0.9, "RNE": 0.5, "NE": 0.2}
+    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> aptamer_candidate = "AUGGC"
     >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)

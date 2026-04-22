@@ -9,8 +9,6 @@ import torch
 
 from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
 
-# Shared fixtures
-
 
 @pytest.fixture(scope="module")
 def small_pipeline():
@@ -44,9 +42,6 @@ def _make_dataframe(n: int = 8) -> tuple[pd.DataFrame, np.ndarray]:
     return X, y
 
 
-# fit() tests
-
-
 class TestAptaTransPipelineFit:
     def test_fit_returns_self(self, small_pipeline):
         """fit() must return self to allow method chaining."""
@@ -76,9 +71,6 @@ class TestAptaTransPipelineFit:
             (apta, prot), y, max_epochs=1, batch_size=4, accelerator="cpu"
         )
         assert small_pipeline.is_fitted_
-
-
-# predict_interactions() tests
 
 
 class TestAptaTransPipelinePredictInteractions:

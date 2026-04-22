@@ -61,7 +61,7 @@ class MCTS(BaseObject):
     >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
     >>> target = "DHRNE"
-    >>> prot_words = {"DHR": 0.9, "RNE": 0.5, "NE": 0.2}
+    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
