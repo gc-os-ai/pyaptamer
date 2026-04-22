@@ -221,7 +221,8 @@ class DNAModel(nn.Module):
     base_features : int, optional
         Number of targeted mathematical structural predictions, default is 1.
     constraints : bool, optional
-        If True, preserves intermediate layer outputs to supply combined residual feedback.
+        If True, preserves intermediate layer outputs to supply combined residual
+        feedback.
     selflayer : bool, optional
         If True, preserves the initial isolated single-node convolution directly.
     multiply : str or None, optional
