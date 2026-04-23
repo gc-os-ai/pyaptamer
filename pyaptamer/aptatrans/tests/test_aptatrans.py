@@ -2,6 +2,8 @@
 
 __author__ = ["nennomp"]
 
+from unittest.mock import patch
+
 import pytest
 import torch
 import torch.nn as nn
@@ -201,6 +203,121 @@ class TestAptaTransModel:
             f"Expected ({batch_size}, 1), got {tuple(output.shape)}. "
             f"seq_len_apta={seq_len_apta}, seq_len_prot={seq_len_prot}"
         )
+
+    def test_forward_encoder_invalid_type(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check ValueError is raised for invalid encoder_type."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+        )
+
+        x_mt = torch.randint(0, 16, (2, 16))
+        x_ss = torch.randint(0, 16, (2, 16))
+
+        with pytest.raises(
+            ValueError,
+            match="Unknown encoder_type: invalid. Options are 'apta' or 'prot'.",
+        ):
+            model.forward_encoder(x=(x_mt, x_ss), encoder_type="invalid")
+
+    def test_init_pretrained_calls_load_weights(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        monkeypatch,
+    ):
+        """Check that pretrained=True triggers load_pretrained_weights()."""
+        load_called = False
+
+        def mock_load(self_inner):
+            nonlocal load_called
+            load_called = True
+
+        monkeypatch.setattr(AptaTrans, "load_pretrained_weights", mock_load)
+
+        AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+            pretrained=True,
+        )
+
+        assert load_called
+
+    def test_load_pretrained_weights_local_file(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        tmp_path,
+    ):
+        """Check load_pretrained_weights() loads from local file correctly."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+        )
+
+        # save the model's state_dict to a temp file at the expected path
+        weights_dir = tmp_path / "weights"
+        weights_dir.mkdir()
+        weights_path = weights_dir / "pretrained.pt"
+        torch.save(model.state_dict(), weights_path)
+
+        # patch os.path functions inside _model so the path resolves to our temp file
+        with patch(
+            "pyaptamer.aptatrans._model.os.path.dirname",
+            return_value=str(tmp_path),
+        ):
+            model.load_pretrained_weights()
+
+        # verify all parameters were loaded correctly (state_dict round-trip)
+        saved_state = torch.load(weights_path, map_location="cpu")
+        for key, param in model.state_dict().items():
+            assert torch.equal(param, saved_state[key]), (
+                f"Parameter {key} mismatch after loading pretrained weights."
+            )
+
+    def test_load_pretrained_weights_download(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check load_pretrained_weights() downloads from HuggingFace when no local
+        file exists."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+        )
+
+        expected_state_dict = model.state_dict()
+
+        with (
+            patch(
+                "pyaptamer.aptatrans._model.os.path.exists",
+                return_value=False,
+            ),
+            patch(
+                "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+                return_value=expected_state_dict,
+            ) as mock_download,
+        ):
+            model.load_pretrained_weights()
+
+        # verify the download function was called with the correct URL
+        mock_download.assert_called_once()
+        call_args = mock_download.call_args
+        url = call_args.kwargs.get("url", call_args.args[0] if call_args.args else "")
+        assert "huggingface.co" in url
 
 
 class MockAptaTransNeuralNet(nn.Module):
