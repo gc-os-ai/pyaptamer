@@ -80,18 +80,47 @@ def pairs_to_features(X, k=4):
     Returns
     -------
     np.ndarray
-        A 2D NumPy array where each row corresponds to the concatenated feature vector
-        for a given (aptamer, protein) pair.
+    A 2D NumPy array where each row corresponds to the concatenated feature vector
+    for a given (aptamer, protein) pair.
     """
     pseaac = AptaNetPSeAAC()
     feats = []
 
+    if X is None:
+        raise ValueError("pairs_to_features() requires at least one pair.")
+
     if isinstance(X, pd.DataFrame):
+        required_columns = {"aptamer", "protein"}
+        missing_columns = required_columns.difference(X.columns)
+        if missing_columns:
+            missing = ", ".join(sorted(missing_columns))
+            raise ValueError(
+                "DataFrame input to pairs_to_features() is missing required "
+                f"column(s): {missing}."
+            )
+        if X.empty:
+            raise ValueError("pairs_to_features() requires at least one pair.")
+
         pairs = zip(X["aptamer"], X["protein"], strict=False)
     else:
+        if not X:
+            raise ValueError("pairs_to_features() requires at least one pair.")
         pairs = X
 
-    for aptamer_seq, protein_seq in pairs:
+    for pair in pairs:
+        if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+            raise ValueError(
+                "Each input pair must contain exactly two values: "
+                "(aptamer_sequence, protein_sequence)."
+            )
+
+        aptamer_seq, protein_seq = pair
+        if not isinstance(aptamer_seq, str) or not isinstance(protein_seq, str):
+            raise ValueError(
+                "Each input pair must contain two strings: "
+                "(aptamer_sequence, protein_sequence)."
+            )
+
         kmer = generate_kmer_vecs(aptamer_seq, k=k)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
         feats.append(np.concatenate([kmer, pseaac_vec]))
