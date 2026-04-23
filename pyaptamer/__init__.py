@@ -2,9 +2,8 @@
 
 from importlib.metadata import version
 
-from pyaptamer._config import config
+from pyaptamer._logger import logger
 
 __version__ = version("pyaptamer")
-logger = config.logger
 
-__all__ = ["__version__", "config", "logger"]
+__all__ = ["__version__", "logger"]
