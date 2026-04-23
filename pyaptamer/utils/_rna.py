@@ -6,6 +6,7 @@ __all__ = [
     "rna2vec",
 ]
 
+import warnings
 from collections.abc import Iterable
 from itertools import product
 
@@ -105,13 +106,16 @@ def rna2vec(
     -------
     np.ndarray
         A numpy array containing the numerical representation of the sequences, of
-        shape (len(sequence_list), `max_sequence_length`).
+        shape ``(len(sequence_list), max_sequence_length)``. Every input sequence
+        produces exactly one row; sequences that are too short to contain a triplet
+        are represented as all-zero rows (and a ``UserWarning`` is emitted listing
+        their indices).
 
     Raises
     ------
     ValueError
         If `max_sequence_length` is less than or equal to 0, or if `sequence_type`
-        is not "rna" or "ss".
+        is not ``"rna"`` or ``"ss"``.
 
     Examples
     --------
@@ -140,7 +144,10 @@ def rna2vec(
     triplets = generate_nplets(letters=letters, repeat=3)
 
     result = []
-    for sequence in sequence_list:
+    zero_row_indices = []
+    zero_row = np.zeros(max_sequence_length, dtype=np.int64)
+
+    for idx, sequence in enumerate(sequence_list):
         # convert DNA to RNA only for RNA sequences
         if sequence_type == "rna":
             sequence = dna2rna(sequence)
@@ -151,24 +158,35 @@ def rna2vec(
             triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
-        # skip sequences that convert to an empty list
-        if any(converted):
-            # truncate if too long
-            if max_sequence_length is not None and len(converted) > max_sequence_length:
-                converted = converted[:max_sequence_length]
+        if not any(converted):
+            # sequence is too short or contains only unknown triplets;
+            # preserve the row count by appending an all-zero row
+            zero_row_indices.append(idx)
+            result.append(zero_row.copy())
+            continue
 
-            # pad if too short
-            if max_sequence_length is not None:
-                pad_length = max_sequence_length - len(converted)
-                padded_sequence = np.pad(
-                    array=converted,
-                    pad_width=(0, pad_length),
-                    constant_values=0,
-                )
-            else:
-                padded_sequence = np.array(converted)
+        # truncate if too long
+        if len(converted) > max_sequence_length:
+            converted = converted[:max_sequence_length]
 
-            result.append(padded_sequence)
+        # pad to max_sequence_length
+        pad_length = max_sequence_length - len(converted)
+        padded_sequence = np.pad(
+            array=converted,
+            pad_width=(0, pad_length),
+            constant_values=0,
+        )
+        result.append(padded_sequence)
+
+    if zero_row_indices:
+        warnings.warn(
+            f"rna2vec: {len(zero_row_indices)} sequence(s) at index/indices "
+            f"{zero_row_indices} produced no valid triplets (sequence too short "
+            "or all characters unknown). These are represented as all-zero rows "
+            "in the output.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     return np.array(result)
 
