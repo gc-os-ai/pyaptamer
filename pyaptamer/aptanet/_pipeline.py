@@ -59,6 +59,7 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     >>> y_train = np.array([0] * 20 + [1] * 20, dtype=np.float32)
     >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
     >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
+    AptaNetPipeline(...)
     >>> preds = pipe.predict(X_test_pairs)
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
