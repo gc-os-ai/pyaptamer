@@ -71,6 +71,28 @@ def test_pairs_to_features_accepts_dataframe_input():
     assert feats.dtype == np.float32
 
 
+def test_pairs_to_features_accepts_iterable_input():
+    """Iterable inputs such as generators should be normalized safely."""
+    pairs = (
+        pair
+        for pair in [
+            ("ATGC", "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQ"),
+            ("AAAA", "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQ"),
+        ]
+    )
+
+    feats = pairs_to_features(pairs, k=2)
+
+    assert feats.shape[0] == 2
+    assert feats.dtype == np.float32
+
+
+def test_pairs_to_features_rejects_non_iterable():
+    """Non-iterable inputs should raise a clear ValueError."""
+    with pytest.raises(ValueError, match="expects an iterable of pairs or a DataFrame"):
+        pairs_to_features(123)
+
+
 def test_generate_kmer_vecs_basic_smoke():
     """A small smoke test keeps the k-mer helper covered."""
     vec = generate_kmer_vecs("ATGC", k=2)

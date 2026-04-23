@@ -69,9 +69,10 @@ def pairs_to_features(X, k=4):
 
     Parameters
     ----------
-    X : list of tuple of str or pandas.DataFrame
-        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
-        or a DataFrame containing 'aptamer' and 'protein' columns.
+    X : iterable of tuple[str, str] or pandas.DataFrame
+        An iterable where each element is a tuple
+        `(aptamer_sequence, protein_sequence)`, or a DataFrame containing
+        'aptamer' and 'protein' columns.
 
     k : int, optional
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
@@ -103,9 +104,15 @@ def pairs_to_features(X, k=4):
 
         pairs = zip(X["aptamer"], X["protein"], strict=False)
     else:
-        if not X:
+        try:
+            pairs = list(X)
+        except TypeError as exc:
+            raise ValueError(
+                "pairs_to_features() expects an iterable of pairs or a DataFrame."
+            ) from exc
+
+        if len(pairs) == 0:
             raise ValueError("pairs_to_features() requires at least one pair.")
-        pairs = X
 
     for pair in pairs:
         if not isinstance(pair, (tuple, list)) or len(pair) != 2:
