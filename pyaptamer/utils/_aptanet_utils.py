@@ -1,12 +1,15 @@
 __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
+import warnings
 from itertools import product
 
 import numpy as np
 import pandas as pd
 
 from pyaptamer.pseaac import AptaNetPSeAAC
+
+_DNA_ALPHABET = frozenset("ACGT")
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
@@ -19,16 +22,44 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     Parameters
     ----------
     aptamer_sequence : str
-        The DNA sequence of the aptamer.
+        The DNA sequence of the aptamer. Must be non-empty and consist of characters
+        from the DNA alphabet {A, C, G, T}. Characters outside this set are ignored
+        during counting, which will produce incorrect feature vectors. Consider calling
+        ``dna2rna`` first for RNA sequences containing 'U'.
     k : int, optional
-        Maximum k-mer length (default is 4).
+        Maximum k-mer length (default is 4). Must be >= 1.
 
     Returns
     -------
     np.ndarray
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
+
+    Raises
+    ------
+    ValueError
+        If ``aptamer_sequence`` is empty.
+    ValueError
+        If ``k`` is less than 1.
     """
+    if not aptamer_sequence:
+        raise ValueError(
+            "aptamer_sequence must be a non-empty string, got an empty string."
+        )
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}.")
+
+    invalid = set(aptamer_sequence.upper()) - _DNA_ALPHABET
+    if invalid:
+        warnings.warn(
+            f"aptamer_sequence contains characters outside the DNA alphabet "
+            f"{{A, C, G, T}}: {sorted(invalid)}. These characters will be ignored "
+            "during k-mer counting, producing incorrect feature vectors. "
+            "For RNA sequences, call dna2rna() first to convert 'U' -> 'T'.",
+            UserWarning,
+            stacklevel=2,
+        )
+
     DNA_BASES = list("ACGT")
 
     # Generate all possible k-mers from 1 to k
@@ -82,16 +113,41 @@ def pairs_to_features(X, k=4):
     np.ndarray
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
-    """
-    pseaac = AptaNetPSeAAC()
-    feats = []
 
+    Raises
+    ------
+    ValueError
+        If ``X`` is a DataFrame and is missing the required 'aptamer' or 'protein'
+        columns.
+    ValueError
+        If any aptamer or protein sequence is not a non-empty string.
+    """
     if isinstance(X, pd.DataFrame):
+        missing = [c for c in ("aptamer", "protein") if c not in X.columns]
+        if missing:
+            raise ValueError(
+                f"DataFrame is missing required column(s): {missing}. "
+                f"Found columns: {list(X.columns)}. "
+                "Expected a DataFrame with 'aptamer' and 'protein' columns."
+            )
         pairs = zip(X["aptamer"], X["protein"], strict=False)
     else:
         pairs = X
 
-    for aptamer_seq, protein_seq in pairs:
+    pseaac = AptaNetPSeAAC()
+    feats = []
+
+    for idx, (aptamer_seq, protein_seq) in enumerate(pairs):
+        if not isinstance(aptamer_seq, str) or not aptamer_seq:
+            raise ValueError(
+                f"aptamer sequence at index {idx} must be a non-empty string, "
+                f"got {type(aptamer_seq).__name__!r}: {aptamer_seq!r}."
+            )
+        if not isinstance(protein_seq, str) or not protein_seq:
+            raise ValueError(
+                f"protein sequence at index {idx} must be a non-empty string, "
+                f"got {type(protein_seq).__name__!r}: {protein_seq!r}."
+            )
         kmer = generate_kmer_vecs(aptamer_seq, k=k)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
         feats.append(np.concatenate([kmer, pseaac_vec]))
