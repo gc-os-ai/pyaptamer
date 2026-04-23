@@ -2,10 +2,13 @@
 
 __author__ = ["nennomp"]
 
+from pathlib import Path
+
 import pytest
 import torch
 import torch.nn as nn
 
+import pyaptamer.aptatrans._model as aptatrans_model
 from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
 
 
@@ -158,6 +161,100 @@ class TestAptaTransModel:
         # output should be in [0, 1] (sigmoid activation)
         assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
         assert not torch.allclose(output[0], output[1], atol=1e-5)
+
+    def test_load_pretrained_weights_uses_absolute_local_path(
+        self, embeddings, tmp_path, monkeypatch
+    ):
+        """Pretrained weights path should not depend on the current cwd."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            pretrained=False,
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        captured = {}
+
+        def fake_exists(path):
+            assert Path(path).is_absolute()
+            assert path.endswith("pretrained.pt")
+            return True
+
+        def fake_torch_load(path, map_location):
+            assert Path(path).is_absolute()
+            captured["path"] = path
+            captured["map_location"] = map_location
+            return {"dummy": torch.tensor(1.0)}
+
+        def fake_load_state_dict(self, state_dict, strict=True):
+            captured["state_dict"] = state_dict
+            captured["strict"] = strict
+
+        monkeypatch.setattr(aptatrans_model.os.path, "exists", fake_exists)
+        monkeypatch.setattr(aptatrans_model.torch, "load", fake_torch_load)
+        monkeypatch.setattr(AptaTrans, "load_state_dict", fake_load_state_dict)
+        monkeypatch.setattr(
+            aptatrans_model.torch.hub,
+            "load_state_dict_from_url",
+            lambda *args, **kwargs: pytest.fail(
+                "Remote download should not be used when local weights exist"
+            ),
+        )
+
+        model.load_pretrained_weights()
+
+        assert Path(captured["path"]).is_absolute()
+        assert captured["strict"] is True
+        assert "dummy" in captured["state_dict"]
+
+    def test_load_pretrained_weights_downloads_with_absolute_model_dir(
+        self, embeddings, tmp_path, monkeypatch
+    ):
+        """Download fallback should still use an absolute model_dir."""
+        model = AptaTrans(
+            apta_embedding=embeddings[0],
+            prot_embedding=embeddings[1],
+            pretrained=False,
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        captured = {}
+
+        def fake_exists(path):
+            assert Path(path).is_absolute()
+            return False
+
+        def fake_load_state_dict_from_url(url, model_dir, map_location):
+            captured["url"] = url
+            captured["model_dir"] = model_dir
+            captured["map_location"] = map_location
+            return {"dummy": torch.tensor(1.0)}
+
+        def fake_load_state_dict(self, state_dict, strict=True):
+            captured["state_dict"] = state_dict
+            captured["strict"] = strict
+
+        monkeypatch.setattr(aptatrans_model.os.path, "exists", fake_exists)
+        monkeypatch.setattr(
+            aptatrans_model.torch.hub,
+            "load_state_dict_from_url",
+            fake_load_state_dict_from_url,
+        )
+        monkeypatch.setattr(AptaTrans, "load_state_dict", fake_load_state_dict)
+        monkeypatch.setattr(
+            aptatrans_model.torch, "load", lambda *args, **kwargs: pytest.fail(
+                "Local weights should not be loaded when they do not exist"
+            )
+        )
+
+        model.load_pretrained_weights()
+
+        assert Path(captured["model_dir"]).is_absolute()
+        assert Path(captured["model_dir"]).name == "weights"
+        assert captured["strict"] is True
+        assert "dummy" in captured["state_dict"]
 
 
 class MockAptaTransNeuralNet(nn.Module):
