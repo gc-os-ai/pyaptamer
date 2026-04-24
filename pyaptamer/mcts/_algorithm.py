@@ -143,9 +143,10 @@ class MCTS(BaseObject):
         # if the sequence is not reconstructed yet, it should have an even length
         # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
         # direction marker).
-        assert len(sequence) % 2 == 0, (
-            f"Encoded sequence must have even length, got {len(sequence)}."
-        )
+        if len(sequence) % 2 != 0:
+            raise ValueError(
+                f"Encoded sequence must have even length, got {len(sequence)}."
+            )
 
         # reconstruct
         result = ""

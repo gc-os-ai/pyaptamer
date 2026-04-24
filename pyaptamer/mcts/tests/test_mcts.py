@@ -292,6 +292,17 @@ class TestMCTS:
         # mixed prepend/append
         assert mcts._reconstruct("A_C__GU_") == "UCAG"
 
+    def test_reconstruct_odd_length_raises_value_error(self, mcts):
+        """_reconstruct must raise ValueError for odd-length encoded sequences.
+
+        Regression test for GH #521: the check was an assert statement, which
+        Python strips with -O, causing an IndexError instead of a clear error.
+        """
+        import pytest
+
+        with pytest.raises(ValueError, match="even length"):
+            mcts._reconstruct("A_C")  # length 3 – odd
+
     def test_selection_not_fully_expanded(self, mcts):
         """Check selection step when the node is not fully expanded."""
         # from root with no childrem, should return the root itself
