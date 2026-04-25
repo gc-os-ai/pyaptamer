@@ -2,9 +2,6 @@
 
 __author__ = ["nennomp"]
 
-from pathlib import Path
-from unittest.mock import patch
-
 import pytest
 import torch
 import torch.nn as nn
@@ -255,7 +252,8 @@ class TestAptaTransModel:
     def test_load_pretrained_weights_local(
         self,
         embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
-        tmp_path: Path,
+        tmp_path,
+        monkeypatch,
     ):
         """Check load_pretrained_weights() loads weights from a local file."""
         model = AptaTrans(
@@ -269,25 +267,23 @@ class TestAptaTransModel:
         weights_path = weights_dir / "pretrained.pt"
         torch.save(model.state_dict(), weights_path)
 
-        with (
-            patch(
-                "pyaptamer.aptatrans._model.os.path.relpath",
-                return_value=str(weights_path),
-            ),
-            patch(
-                "pyaptamer.aptatrans._model.os.path.exists",
-                return_value=True,
-            ),
-            patch(
-                "pyaptamer.aptatrans._model.torch.load",
-                return_value=model.state_dict(),
-            ),
-        ):
-            model.load_pretrained_weights()
+        state_dict = model.state_dict()
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.os.path.relpath",
+            lambda *a, **kw: str(weights_path),
+        )
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.os.path.exists", lambda *a, **kw: True
+        )
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.torch.load", lambda *a, **kw: state_dict
+        )
+        model.load_pretrained_weights()
 
     def test_load_pretrained_weights_remote(
         self,
         embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        monkeypatch,
     ):
         """Check load_pretrained_weights() falls back to remote download."""
         model = AptaTrans(
@@ -297,20 +293,22 @@ class TestAptaTransModel:
             n_heads=4,
         )
         fake_state_dict = model.state_dict()
+        calls = []
 
-        with (
-            patch(
-                "pyaptamer.aptatrans._model.os.path.exists",
-                return_value=False,
-            ),
-            patch(
-                "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
-                return_value=fake_state_dict,
-            ) as mock_download,
-        ):
-            model.load_pretrained_weights()
-            mock_download.assert_called_once()
-            assert "huggingface.co" in mock_download.call_args.kwargs["url"]
+        def fake_load_from_url(url, **kwargs):
+            calls.append(url)
+            return fake_state_dict
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.os.path.exists", lambda *a, **kw: False
+        )
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+            fake_load_from_url,
+        )
+        model.load_pretrained_weights()
+        assert len(calls) == 1
+        assert "huggingface.co" in calls[0]
 
 
 class MockMCTS:
@@ -502,9 +500,9 @@ class TestAptaTransPipeline:
         assert score.device.type == device.type
 
     @pytest.mark.parametrize(
-        "device, target, n_candidates, depth",
+        "device, target, n_candidates, depth, verbose",
         [
-            (torch.device("cpu"), "AUGCAUGC", 3, 5),
+            (torch.device("cpu"), "AUGCAUGC", 3, 5, False),
             (
                 torch.device("cuda")
                 if torch.cuda.is_available()
@@ -512,10 +510,14 @@ class TestAptaTransPipeline:
                 "GCUAGCUA",
                 5,
                 10,
+                False,
             ),
+            (torch.device("cpu"), "AUGCAUGC", 2, 5, True),
         ],
     )
-    def test_recommend(self, device, target, n_candidates, depth, monkeypatch):
+    def test_recommend(
+        self, device, target, n_candidates, depth, verbose, monkeypatch, capsys
+    ):
         """Check AptaTransPipeline.recommend() generates candidate aptamers."""
         # setup
         model = MockAptaTransNeuralNet(device)
@@ -559,12 +561,16 @@ class TestAptaTransPipeline:
 
         monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
 
-        # test recommendation
-        candidates = pipeline.recommend(target=target, n_candidates=n_candidates)
+        candidates = pipeline.recommend(
+            target=target, n_candidates=n_candidates, verbose=verbose
+        )
 
-        # check output
         assert isinstance(candidates, set)
-        assert len(candidates) == n_candidates  # should be exactly n_candidates
+        assert len(candidates) == n_candidates
+        if verbose:
+            captured = capsys.readouterr()
+            assert "Candidate:" in captured.out
+            assert "Score:" in captured.out
 
     @pytest.mark.parametrize(
         "device, candidate, target",
@@ -596,26 +602,3 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
-
-    def test_recommend_verbose(self, monkeypatch, capsys):
-        """Check recommend() with verbose=True prints candidate information."""
-        device = torch.device("cpu")
-        model = MockAptaTransNeuralNet(device)
-        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
-        pipeline = AptaTransPipeline(
-            device=device, model=model, prot_words=prot_words, depth=5
-        )
-        n_candidates = 2
-
-        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
-        monkeypatch.setattr(pipeline, "_init_aptamer_experiment", lambda t: None)
-
-        candidates = pipeline.recommend(
-            target="AUGCAUGC", n_candidates=n_candidates, verbose=True
-        )
-
-        captured = capsys.readouterr()
-        assert isinstance(candidates, set)
-        assert len(candidates) == n_candidates
-        assert "Candidate:" in captured.out
-        assert "Score:" in captured.out
