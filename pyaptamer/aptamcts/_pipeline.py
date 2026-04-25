@@ -2,7 +2,13 @@ __author__ = ["aditi-dsi"]
 __all__ = ["AptaMCTSPipeline"]
 
 from skbase.base import BaseObject
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, clone
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.utils.validation import check_is_fitted
+
+from pyaptamer.aptamcts import AptaMCTSClassifier
+from pyaptamer.utils._aptamcts_utils import pairs_to_features
 
 
 class AptaMCTSPipeline(BaseObject, BaseEstimator):
@@ -10,7 +16,7 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     AptaMCTS pipeline for aptamer–protein interaction prediction [1]_
 
     Implements the AptaMCTS pipeline, a machine learning method that takes raw
-    RNA and protein sequences, converts them into numerical features using
+    RNA and protein sequences, converts them into numerical iCTF features using
     sequence encoding, and uses a Random Forest classifier to predict whether
     an aptamer and a protein bind (binary classification).
 
@@ -18,9 +24,13 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
 
     Parameters
     ----------
-    k : int, optional, default=4
+    rna_k : int, optional, default=4
         The k-mer window size used by the sequence encoder to extract patterns
-        from the RNA and protein strings.
+        from the RNA sequence.
+
+    prot_k : int, optional, default=3
+        The k-mer window size used by the sequence encoder to extract patterns
+        from the protein sequence.
 
     estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature extraction. If None, uses `AptaMCTSClassifier`.
@@ -43,8 +53,7 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     --------
     >>> from pyaptamer.aptamcts import AptaMCTSPipeline
     >>> import numpy as np
-    >>> pipe = AptaMCTSPipeline(k=4)
-    >>> # X data contains raw biological string pairs (aptamer, protein)
+    >>> pipe = AptaMCTSPipeline(rna_k=4, prot_k=3)
     >>> aptamer_seq = "AGCUUAGCGUAC"
     >>> protein_seq = "ACDEFGHIKLMN"
     >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(4)]
@@ -54,17 +63,33 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     >>> proba = pipe.predict_proba(X_train_pairs)
     """
 
-    def __init__(self, k=4, estimator=None):
-        pass
+    def __init__(self, rna_k=4, prot_k=3, estimator=None):
+        self.rna_k = rna_k
+        self.prot_k = prot_k
+        self.estimator = estimator
 
     def _build_pipeline(self):
-        pass
+        transformer = FunctionTransformer(
+            func=pairs_to_features,
+            kw_args={"rna_k": self.rna_k, "prot_k": self.prot_k},
+            validate=False,
+        )
+        self._estimator = self.estimator or AptaMCTSClassifier()
+
+        return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
     def fit(self, X, y):
-        pass
+        self.pipeline_ = self._build_pipeline()
+        self.pipeline_.fit(X, y)
 
-    def predict_proba(self, X):
-        pass
+        return self
 
     def predict(self, X):
-        pass
+        check_is_fitted(self)
+
+        return self.pipeline_.predict(X)
+
+    def predict_proba(self, X):
+        check_is_fitted(self)
+
+        return self.pipeline_.predict_proba(X)
