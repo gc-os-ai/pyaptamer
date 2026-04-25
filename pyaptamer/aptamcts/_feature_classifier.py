@@ -1,46 +1,10 @@
 __author__ = ["aditi-dsi"]
-__all__ = ["AptaMCTSSequenceEncoder", "AptaMCTSClassifier"]
+__all__ = ["AptaMCTSClassifier"]
 
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
-
-
-class AptaMCTSSequenceEncoder(TransformerMixin, BaseEstimator):
-    """
-    Converts raw aptamer and protein sequences into numerical feature vectors.
-
-    This transformer applies an encoding strategy to translate string sequences
-    into a continuous mathematical space. This step is strictly required before
-    passing the data to a standard classifier like Random Forest.
-
-    Parameters
-    ----------
-    k : int, default=4
-        The k-mer window size used for extracting subsequence patterns from
-        the RNA and protein strings.
-
-    Attributes
-    ----------
-    n_features_out_ : int
-        The number of numerical features generated after transformation.
-
-    Examples
-    --------
-    >>> from pyaptamer.aptamcts import AptaMCTSSequenceEncoder
-    >>> import numpy as np
-    >>> X = np.array([["MKV", "ACGU"], ["MVL", "UGCA"]])
-    >>> encoder = AptaMCTSSequenceEncoder(k=4)
-    >>> encoder.fit(X)
-    >>> encoded_X = encoder.transform(X)
-    """
-
-    def __init__(self, k=4):
-        pass
-
-    def fit(self, X, y=None):
-        pass
-
-    def transform(self, X):
-        pass
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.utils.multiclass import type_of_target
+from sklearn.utils.validation import check_is_fitted, validate_data
 
 
 class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
@@ -70,6 +34,11 @@ class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
     random_state : int, RandomState instance or None, default=None
         Controls the randomness of the bootstrapping of the samples used
         when building trees.
+
+    n_jobs : int, default=None
+        The number of jobs to run in parallel for both `fit` and `predict`.
+        `None` means 1 unless in a `joblib.parallel_backend` context.
+        `-1` means using all available processors.
 
     Attributes
     ----------
@@ -108,14 +77,91 @@ class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
         max_features="sqrt",
         class_weight="balanced",
         random_state=None,
+        n_jobs=None,
     ):
-        pass
+        self.n_estimators = n_estimators
+        self.max_features = max_features
+        self.class_weight = class_weight
+        self.random_state = random_state
+        self.n_jobs = n_jobs
 
     def fit(self, X, y):
-        pass
+        """
+        Fit the classifier on training data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training features.
+        y : array-like of shape (n_samples,)
+            Binary class labels (0/1).
+
+        Returns
+        -------
+        self : object
+            Fitted estimator.
+        """
+
+        X, y = validate_data(self, X, y)
+
+        y_type = type_of_target(y, input_name="y", raise_unknown=True)
+        if y_type != "binary":
+            raise ValueError(
+                f"Only binary classification is supported. Got target type {y_type}."
+            )
+
+        self.estimator_ = RandomForestClassifier(
+            n_estimators=self.n_estimators,
+            max_features=self.max_features,
+            class_weight=self.class_weight,
+            random_state=self.random_state,
+            n_jobs=self.n_jobs,
+        )
+
+        self.estimator_.fit(X, y)
+        self.classes_ = self.estimator_.classes_
+
+        return self
 
     def predict(self, X):
-        pass
+        """
+        Predict binary class labels for the input data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input samples.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n_samples,)
+            The predicted classes.
+        """
+
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        y_pred = self.estimator_.predict(X)
+
+        return y_pred
 
     def predict_proba(self, X):
-        pass
+        """
+        Predict class probabilities for the input data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The input samples.
+
+        Returns
+        -------
+        proba : ndarray of shape (n_samples, n_classes)
+            The class probabilities of the input samples. The order of the
+            classes corresponds to that in the `classes_` attribute.
+        """
+
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        proba = self.estimator_.predict_proba(X)
+
+        return proba
