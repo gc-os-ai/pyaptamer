@@ -3,7 +3,6 @@
 __author__ = ["nennomp"]
 __all__ = ["AptaTrans"]
 
-import logging
 import os
 from collections import OrderedDict
 from collections.abc import Callable
@@ -12,6 +11,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from pyaptamer import logger
 from pyaptamer.aptatrans.layers._convolutional import ConvBlock
 from pyaptamer.aptatrans.layers._encoder import (
     EncoderPredictorConfig,
@@ -20,7 +20,6 @@ from pyaptamer.aptatrans.layers._encoder import (
 )
 from pyaptamer.aptatrans.layers._interaction_map import InteractionMap
 
-from pyaptamer import logger
 
 class AptaTrans(nn.Module):
     """AptaTrans deep neural network as described in [1]_.

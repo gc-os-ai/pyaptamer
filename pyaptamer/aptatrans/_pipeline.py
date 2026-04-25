@@ -6,11 +6,11 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
-import logging
 
 import torch
 from torch import Tensor
 
+from pyaptamer import logger
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
@@ -18,8 +18,6 @@ from pyaptamer.utils import (
     generate_nplets,
 )
 from pyaptamer.utils._base import filter_words
-
-from pyaptamer import logger
 
 
 class AptaTransPipeline:
