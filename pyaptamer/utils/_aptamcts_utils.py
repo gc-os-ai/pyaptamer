@@ -191,5 +191,4 @@ def pairs_to_features(X, rna_k=4, prot_k=3):
         px = protein_to_ictf(protein_seq, k=prot_k)
         feats.append(np.concatenate([rx, px]))
 
-    # Ensure float32 for PyTorch compatibility
-    return np.vstack(feats).astype(np.float32)
+    return np.vstack(feats)
