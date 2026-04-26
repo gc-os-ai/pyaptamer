@@ -17,3 +17,5 @@ if not logger.handlers:
 
 # Prevent log propagation to the root logger to avoid duplicate logs
 logger.propagate = False
+
+// Contributed via automated bounty system
