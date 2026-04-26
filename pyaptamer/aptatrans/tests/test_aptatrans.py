@@ -311,22 +311,6 @@ class TestAptaTransModel:
         assert "huggingface.co" in calls[0]
 
 
-class MockMCTS:
-    """Mock MCTS returning incrementally numbered aptamer candidates."""
-
-    def __init__(self, **kwargs):
-        self.counter = 0
-
-    def run(self, verbose: bool = False):
-        result = {
-            "candidate": f"APTAMER_{self.counter:03d}",
-            "sequence": f"seq_{self.counter}",
-            "score": torch.tensor(0.75),
-        }
-        self.counter += 1
-        return result
-
-
 class MockAptaTransNeuralNet(nn.Module):
     """Mock AptaTrans model for testing pipeline."""
 
