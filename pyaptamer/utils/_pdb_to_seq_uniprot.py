@@ -4,7 +4,20 @@ import pandas as pd
 import requests
 from Bio import SeqIO
 
+import logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
+from pyaptamer.utils._logging import get_logger
 
+# Getting a logger
+logger = get_logger(__name__)
+
+@retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(requests.RequestException),
+        before_sleep=before_sleep_log(logger, logging.ERROR),
+        reraise=True
+)
 def pdb_to_seq_uniprot(pdb_id, return_type="list"):
     """
     Retrieve the canonical UniProt amino-acid sequence for a given PDB ID.
