@@ -182,7 +182,7 @@ class Predictor:
 
     Examples
     --------
-    >>> from pyaptamer.deepdnashape import Predictor
+    >>> from pyaptamer.deepDNAshape import Predictor
     >>> pred = Predictor()
     >>> pred.predict("MGW", "AAGGTAGT")
     """
