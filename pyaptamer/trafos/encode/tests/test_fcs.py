@@ -1,9 +1,13 @@
 """Tests for FCSWordTransformer."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+
 from pyaptamer.trafos.encode import FCSWordTransformer
+from pyaptamer.utils._base import filter_words
 
 
 def test_fcs_transformer_basic():
@@ -79,3 +83,26 @@ def test_fcs_transformer_max_len():
     Xt = transformer.transform(X)
     
     assert Xt.shape == (1, 3)
+
+
+def test_fcs_reproduces_bundled_protein_frequencies():
+    """Test filtering against the bundled original protein frequency table."""
+    data_path = (
+        Path(__file__).resolve().parents[3]
+        / "datasets"
+        / "data"
+        / "protein_word_freq.csv"
+    )
+    frequency_table = pd.read_csv(data_path)
+    frequencies = dict(zip(frequency_table["seq"], frequency_table["freq"]))
+
+    expected_words = {
+        seq: index + 1
+        for index, seq in enumerate(
+            frequency_table.loc[
+                frequency_table["freq"] > frequency_table["freq"].mean(), "seq"
+            ]
+        )
+    }
+
+    assert filter_words(frequencies) == expected_words

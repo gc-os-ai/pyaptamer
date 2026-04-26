@@ -73,7 +73,7 @@ def test_pseaac_vectorization(seq, expected_vector):
     )
     mismatches = [
         (i, a, b)
-        for i, (a, b) in enumerate(zip(pv, expected_vector, strict=False))
+        for i, (a, b) in enumerate(zip(pv, expected_vector))
         if not np.isclose(a, b, atol=1e-3)
     ]
     assert not mismatches, f"Vector values mismatch at indices: {mismatches}"
