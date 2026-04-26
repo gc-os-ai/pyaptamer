@@ -165,3 +165,10 @@ class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
         proba = self.estimator_.predict_proba(X)
 
         return proba
+
+    def __sklearn_tags__(self):
+        tags = super().__sklearn_tags__()
+        tags.classifier_tags.multi_class = False
+        tags.classifier_tags.poor_score = True
+        tags.non_deterministic = True
+        return tags
