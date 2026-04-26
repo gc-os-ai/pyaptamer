@@ -22,3 +22,27 @@ def test_masked_tokens_follow_bert_distribution(monkeypatch):
     assert y_masked.tolist() == seq
     assert x_orig.tolist() == seq
     assert y_orig.tolist() == seq
+
+
+def test_masked_dataset_with_padding():
+    seq = [1, 2, 3, 0, 0]
+    ds = MaskedDataset([seq], [seq], max_len=5, mask_idx=99, masked_rate=1.0)
+    x_masked, y_masked, x_orig, y_orig = ds[0]
+    assert y_masked.tolist()[3:] == [0, 0]
+    assert y_masked.tolist()[:3] != [0, 0, 0]
+
+
+def test_masked_dataset_low_mask_rate():
+    seq = [1, 2, 3, 4, 5]
+    ds = MaskedDataset([seq], [seq], max_len=5, mask_idx=99, masked_rate=0.1)
+    x_masked, y_masked, x_orig, y_orig = ds[0]
+    masked_count = y_masked.tolist().count(0)
+    assert masked_count >= 4
+
+
+def test_masked_dataset_small_sequence():
+    seq = [1, 2]
+    ds = MaskedDataset([seq], [seq], max_len=2, mask_idx=99, masked_rate=0.5)
+    x_masked, y_masked, x_orig, y_orig = ds[0]
+    assert x_orig.tolist() == seq
+    assert y_orig.tolist() == seq
