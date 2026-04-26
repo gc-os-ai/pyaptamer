@@ -123,14 +123,6 @@ class MaskedDataset(Dataset):
         """
         return self.len
 
-    # TODO: For now this method applies masking as originally intended in AptaTrans
-    # code. However, there may some errors:
-    # (1.) 80% of the positions are masked but the remaining 20% are not masked at all.
-    # In BERT, the remaining 20% are replaced with random tokens or 10% replaced with
-    # random tokens and 10% left unchanged.
-    # (2.) The masking has two sample phases, one with `self.masked_rate` and one with
-    # hardcoded `0.8 * self.masked_rate`. This means that the actual masking rate
-    # becomes `0.8 * self.masked_rate` which seems confusing and possibly not intended.
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """
         Get a single masked sequence sample.
@@ -151,31 +143,45 @@ class MaskedDataset(Dataset):
         y = torch.tensor(self.y[index], dtype=torch.int64)
 
         x_masked = x.clone().detach()
-        y_masked = x.clone().detach()
+        y_masked = torch.zeros_like(x_masked)
 
         # non-padding positions (0 is padding)
-        seq_len = torch.sum(x_masked > 0)
-        # positions to mask
-        valid_positions = self.box[x_masked > 0].tolist()
+        seq_len = int(torch.sum(x_masked > 0).item())
+        if seq_len == 0:
+            return x_masked, y_masked, x, y
+
+        # positions to consider for masking
+        valid_positions = [int(p) for p in self.box[x_masked > 0].tolist()]
         n_to_mask = int(seq_len * self.masked_rate)
+        if n_to_mask <= 0:
+            return x_masked, y_masked, x, y
 
-        # randomly sample positions to mask
+        n_to_mask = min(n_to_mask, len(valid_positions))
+
         mask_positions = random.sample(valid_positions, n_to_mask)
-        no_mask_positions = [
-            pos for pos in valid_positions if pos not in mask_positions
-        ]
+        y_masked[mask_positions] = x[mask_positions]
 
-        # apply masking
-        actual_mask_positions = random.sample(
-            mask_positions, int(len(mask_positions) * 0.8)
-        )
-        x_masked[actual_mask_positions] = self.mask_idx
+        # Use BERT style masking for the selected spots.
+        candidates = []
+        for token in torch.unique(x_masked):
+            token_value = int(token.item())
+            if token_value > 0 and token_value != self.mask_idx:
+                candidates.append(token_value)
 
-        # for RNA, also mask adjacent nucleotides for base pairing
+        for pos in mask_positions:
+            roll = random.random()
+            original_value = int(x_masked[pos].item())
+
+            if roll < 0.8:
+                x_masked[pos] = self.mask_idx
+            elif roll < 0.9 and candidates:
+                x_masked[pos] = random.choice(candidates)
+            else:
+                # leave unchanged (10%)
+                x_masked[pos] = original_value
+
+        # For RNA, also hide the neighbors in the input.
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
-
-        # zero out non-masked positions in target
-        y_masked[no_mask_positions] = 0
+            x_masked = self._mask_rna(x_masked, mask_positions)
 
         return x_masked, y_masked, x, y
