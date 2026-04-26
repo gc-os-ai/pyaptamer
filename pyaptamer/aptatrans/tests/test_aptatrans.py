@@ -262,21 +262,15 @@ class TestAptaTransModel:
             in_dim=32,
             n_heads=4,
         )
-        weights_dir = tmp_path / "weights"
-        weights_dir.mkdir()
-        weights_path = weights_dir / "pretrained.pt"
+        weights_path = tmp_path / "pretrained.pt"
         torch.save(model.state_dict(), weights_path)
 
-        state_dict = model.state_dict()
         monkeypatch.setattr(
             "pyaptamer.aptatrans._model.os.path.relpath",
             lambda *a, **kw: str(weights_path),
         )
         monkeypatch.setattr(
             "pyaptamer.aptatrans._model.os.path.exists", lambda *a, **kw: True
-        )
-        monkeypatch.setattr(
-            "pyaptamer.aptatrans._model.torch.load", lambda *a, **kw: state_dict
         )
         model.load_pretrained_weights()
 
