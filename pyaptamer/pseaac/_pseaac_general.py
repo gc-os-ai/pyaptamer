@@ -222,7 +222,7 @@ class PSeAAC:
         lambda_val : int, default=30
             The maximum distance between residues considered in the sequence-order
             correlation (θ) calculations.
-        weight : float, default=0.15
+        weight : float, default=0.05
             The weight factor that balances the contribution of sequence-order
             correlation features relative to amino acid composition features.
 
