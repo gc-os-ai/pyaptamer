@@ -59,13 +59,19 @@ _X_AXIS_FEATURES = frozenset({"Shift", "Tilt", "Shear", "Buckle"})
 
 
 def _get_bases_mapping():
-    """Creates a dictionary to convert DNA letters into vectors.
+    """Build one-hot encoding lookup tables for mono- and di-nucleotides.
+
+    Single bases (A, T, C, G) are mapped to length-4 one-hot vectors.
+    Di-nucleotide pairs are mapped to length-16 one-hot vectors (the
+    outer product of single-base encodings). Unknown bases (N)
+    are encoded as uniform distributions.
 
     Returns
     -------
-    tuple of dict
-        A set of lookup tables that translate single bases (A, T, C, G) and
-        pairs of bases into fixed numerical patterns.
+    tuple of (dict, dict)
+        (mono, di) where mono maps single-character bases to
+        np.ndarray of shape (4,) and di maps 2-tuples of
+        bases to np.ndarray of shape (16,).
     """
     bases = ["T", "G", "C", "A"]
     bits = len(bases)
@@ -96,18 +102,24 @@ def _get_bases_mapping():
 
 
 def _build_graph(x):
-    """Organizes the DNA sequence into a network where bases can share info.
+    """Construct edge indices for a linear chain graph with self-loops.
+
+    Each of the N nodes (sequence positions) is connected to its
+    immediate predecessor and successor. The first and last nodes
+    receive additional self-loop edges so that every node has the
+    same number of incoming edges.
 
     Parameters
     ----------
-    x : torch.Tensor
-        The sequence data in numerical format.
+    x : torch.Tensor of shape (N, C)
+        Node feature matrix (passed through unchanged).
 
     Returns
     -------
-    tuple of torch.Tensor
-        The data along with a 'map' of how information should flow between
-        neighboring bases during the prediction.
+    tuple of (torch.Tensor, torch.Tensor, torch.Tensor)
+        (x, pairs_prev, pairs_next) where pairs_prev and
+        pairs_next are (E, 2) edge index tensors consumed
+        by MessagePassingConv.
     """
     k = x.shape[0]
     rng = torch.arange(k - 1, dtype=torch.long)
@@ -131,14 +143,15 @@ def _rescale(predictions, params):
     Parameters
     ----------
     predictions : np.ndarray
-        The raw predictions from the neural network.
+        Raw normalized predictions from the model.
     params : dict
-        Configuration data on how to scale values for this specific feature.
+        Scaling parameters for this feature (keys depend on the
+        normalization method used during training).
 
     Returns
     -------
     np.ndarray
-        The un-normalized, fully rescaled predictions in their original units.
+        Predictions rescaled to the original value range.
     """
     method = params["method"]
     if method == "minmax":
@@ -153,7 +166,16 @@ def _rescale(predictions, params):
 
 
 class Predictor:
-    """Predict DNA shape features from sequence.
+    """Predictor for DNA structural shape features from nucleotide sequence. [1]_
+
+    This class wraps the DNAModel graph neural network to predict
+    geometric and conformational properties of DNA (e.g. Minor Groove
+    Width, Roll, Helical Twist) from a raw sequence string.
+
+    For each prediction the sequence is one-hot encoded, padded with
+    two N bases on each side, and run through the model in both
+    forward and reverse-complement orientations. The two sets of
+    predictions are averaged to produce the final result.
 
     Original implementation: https://github.com/JinsenLi/deepDNAshape
     License: BSD-3-Clause
@@ -161,8 +183,8 @@ class Predictor:
     Examples
     --------
     >>> from pyaptamer.deepdnashape import Predictor
-    >>> model = Predictor()
-    >>> model.predict("MGW", "AAGGTAGT")
+    >>> pred = Predictor()
+    >>> pred.predict("MGW", "AAGGTAGT")
     """
 
     def __init__(self):
@@ -201,11 +223,17 @@ class Predictor:
         Parameters
         ----------
         feature : str
-            DNA shape feature to predict (e.g., 'MGW' for width).
+            Name of the structural property to predict, e.g.
+            "MGW" (Minor Groove Width), "Roll",
+            "HelT" (Helical Twist). See _ALL_FEATURES
+            for the full list.
         seq : str
-            The DNA sequence string (containing letters A, T, C, G, or N).
-        layer : int, optional, default=4
-            Regarding which 'depth' of the model to use (0-7).
+            DNA sequence composed of A, T, C,
+            G, and optionally N (unknown base).
+        layer : int, optional
+            Which message-passing depth to read the
+            prediction from (0 = initial convolution only,
+            7 = deepest layer). Default is 4.
 
         Returns
         -------
