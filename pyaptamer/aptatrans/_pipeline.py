@@ -193,9 +193,9 @@ class AptaTransPipeline:
         raw strings and may change the dataset size, so it belongs in the
         preprocessing step, not inside the DataLoader pipeline.
         """
-        from torch.utils.data import DataLoader
+        import numpy as np
+        from torch.utils.data import DataLoader, TensorDataset
 
-        from pyaptamer.aptatrans._torch_dataset import _AptaTransTorchDataset
         from pyaptamer.datasets.dataclasses import APIDataset
         from pyaptamer.utils import encode_rna, rna2vec
 
@@ -213,7 +213,13 @@ class AptaTransPipeline:
             max_len=self.model.prot_embedding.max_len,
         )
 
-        torch_ds = _AptaTransTorchDataset(x_apta_enc, x_prot_enc, ds.y)
+        tensors = [
+            torch.as_tensor(np.asarray(x_apta_enc)),
+            torch.as_tensor(np.asarray(x_prot_enc)),
+        ]
+        if ds.y is not None:
+            tensors.append(torch.as_tensor(np.asarray(ds.y)))
+        torch_ds = TensorDataset(*tensors)
         return DataLoader(torch_ds, batch_size=batch_size, shuffle=train)
 
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
