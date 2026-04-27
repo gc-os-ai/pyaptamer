@@ -6,7 +6,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
-from pyaptamer.pseaac import AptaNetPSeAAC
+from pyaptamer.trafos.pseaac import AptaNetPSeAAC
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):

@@ -96,7 +96,9 @@ class BaseTransform(BaseEstimator):
             Transformed data.
         """
         if self.get_tag("property:elementwise", False):
-            return X.map(self._transform_element)
+            if isinstance(X, str):
+                return self._transform_element(X)
+            return [self._transform_element(x) for x in X]
 
         raise ValueError(
             "abstract method _transform called, "
@@ -143,12 +145,27 @@ class BaseTransform(BaseEstimator):
         return self.fit(X, y).transform(X)
 
     def _check_X_y(self, X, y):  # noqa: N802
-        """Check X and y inputs.
+        """Check and coerce X and y inputs.
 
-        Coerces X to a pd.DataFrame.
+        For elementwise transforms, coerces all input types to either
+        a ``str`` (single sequence) or a ``list`` of sequences.
+        For non-elementwise transforms, coerces X to a ``pd.DataFrame``.
         """
         if isinstance(X, MoleculeLoader):
             X = X.to_df_seq()
+
+        if self.get_tag("property:elementwise", False):
+            if isinstance(X, str | list):
+                return X, y
+            if isinstance(X, pd.DataFrame):
+                seqs = X["sequence"] if "sequence" in X.columns else X.iloc[:, 0]
+                return list(seqs), y
+            raise TypeError(
+                "X must be a str, list, MoleculeLoader instance,"
+                " or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
+
         if not isinstance(X, pd.DataFrame):
             raise TypeError(
                 "X must be a MoleculeLoader instance"
