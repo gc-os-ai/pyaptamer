@@ -1,40 +1,18 @@
-"""Tests for MaskedDataset."""
-
-import numpy as np
-from skbase.base import BaseObject
+"""Tests for MaskedDataset behavior not covered by its docstring example."""
 
 from pyaptamer.datasets.dataclasses import MaskedDataset
 
 
-def test_masked_dataset_inherits_baseobject():
-    assert issubclass(MaskedDataset, BaseObject)
+def test_masked_dataset_getitem_returns_4_tuple():
+    """__getitem__ returns (x_masked, y_masked, x, y) tensors.
 
-
-def test_masked_dataset_scitype_tag():
-    assert MaskedDataset.get_class_tags()["scitype"] == "MaskedSequences"
-
-
-def test_masked_dataset_existing_behavior_preserved():
-    """Existing __init__/__getitem__/__len__ contract must still work."""
+    The docstring example only verifies len(); this confirms the per-sample
+    output shape used by the DataLoader.
+    """
     sequences = [[1, 2, 3, 4, 0], [2, 1, 4, 0, 0]]
     targets = [[1, 2, 3, 4, 0], [2, 1, 4, 0, 0]]
     ds = MaskedDataset(
         sequences, targets, max_len=5, mask_idx=5, masked_rate=0.2, is_rna=True
     )
-    assert len(ds) == 2
     sample = ds[0]
     assert len(sample) == 4
-
-
-def test_masked_dataset_load_returns_x_y_pair():
-    """load() returns (x, y) — the canonical sequence/target arrays."""
-    sequences = [[1, 2, 3, 4, 0], [2, 1, 4, 0, 0]]
-    targets = [[1, 2, 3, 4, 0], [2, 1, 4, 0, 0]]
-    ds = MaskedDataset(
-        sequences, targets, max_len=5, mask_idx=5, masked_rate=0.2, is_rna=False
-    )
-    x, y = ds.load()
-    assert isinstance(x, np.ndarray)
-    assert isinstance(y, np.ndarray)
-    assert x.shape == (2, 5)
-    assert y.shape == (2, 5)

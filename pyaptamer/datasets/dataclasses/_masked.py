@@ -1,16 +1,15 @@
-__author__ = ["nennomp", "siddharth7113"]
+__author__ = ["nennomp"]
 __all__ = ["MaskedDataset"]
 
 import random
 
 import numpy as np
 import torch
-from skbase.base import BaseObject
 from torch import Tensor
 from torch.utils.data import Dataset
 
 
-class MaskedDataset(BaseObject, Dataset):
+class MaskedDataset(Dataset):
     """A PyTorch dataset for masked language modeling on DNA/RNA sequences.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans/blob/master/utils.py
@@ -60,12 +59,6 @@ class MaskedDataset(BaseObject, Dataset):
     2
     """
 
-    _tags = {
-        "object_type": "dataset",
-        "scitype": "MaskedSequences",
-        "has_y": True,
-    }
-
     def __init__(
         self,
         x: list | np.ndarray,
@@ -75,8 +68,7 @@ class MaskedDataset(BaseObject, Dataset):
         masked_rate: float = 0.15,
         is_rna: bool = False,
     ) -> None:
-        BaseObject.__init__(self)
-        Dataset.__init__(self)
+        super().__init__()
 
         if len(x) != len(y):
             raise ValueError(
@@ -92,19 +84,6 @@ class MaskedDataset(BaseObject, Dataset):
 
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
-
-    def load(self) -> tuple[np.ndarray, np.ndarray]:
-        """Return (x, y) — the canonical sequence/target arrays.
-
-        Returns
-        -------
-        tuple[np.ndarray, np.ndarray]
-            ``(x, y)`` where ``x`` holds the input sequences and ``y`` holds
-            the targets, both as integer arrays. Note: this is the
-            *unmasked* canonical form; per-sample masking happens in
-            ``__getitem__`` for use with a ``DataLoader``.
-        """
-        return self.x, self.y
 
     def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
         """Mask adjacent nucleotides for RNA sequences.
