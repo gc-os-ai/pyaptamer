@@ -1,22 +1,17 @@
-"""Tests for MaskedDataset as a real subclass of BaseAptamerDataset."""
+"""Tests for MaskedDataset."""
 
 import numpy as np
+from skbase.base import BaseObject
 
 from pyaptamer.datasets.dataclasses import MaskedDataset
-from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
 
 
-def test_masked_dataset_inherits_base():
-    assert issubclass(MaskedDataset, BaseAptamerDataset)
+def test_masked_dataset_inherits_baseobject():
+    assert issubclass(MaskedDataset, BaseObject)
 
 
 def test_masked_dataset_scitype_tag():
     assert MaskedDataset.get_class_tags()["scitype"] == "MaskedSequences"
-
-
-def test_masked_dataset_inner_mtype_tag():
-    """MaskedSequences scitype declares its own canonical inner mtype."""
-    assert MaskedDataset.get_class_tags()["X_inner_mtype"] == ["numpy_arrays_pair"]
 
 
 def test_masked_dataset_existing_behavior_preserved():

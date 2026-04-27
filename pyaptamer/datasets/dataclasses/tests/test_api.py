@@ -3,9 +3,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+from skbase.base import BaseObject
 
 from pyaptamer.datasets.dataclasses import APIDataset
-from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
 from pyaptamer.datasets.dataclasses.tests.conftest import (
     APTA_A,
     APTA_B,
@@ -14,8 +14,8 @@ from pyaptamer.datasets.dataclasses.tests.conftest import (
 )
 
 
-def test_api_dataset_inherits_base():
-    assert issubclass(APIDataset, BaseAptamerDataset)
+def test_api_dataset_inherits_baseobject():
+    assert issubclass(APIDataset, BaseObject)
 
 
 def test_api_dataset_is_not_torch_dataset():
@@ -27,11 +27,6 @@ def test_api_dataset_is_not_torch_dataset():
 
 def test_api_dataset_scitype_tag():
     assert APIDataset.get_class_tags()["scitype"] == "APIPairs"
-
-
-def test_api_dataset_inner_mtype_tag():
-    expected = ["pd.DataFrame", "list_tuples", "numpy_arrays"]
-    assert APIDataset.get_class_tags()["X_inner_mtype"] == expected
 
 
 def test_api_dataset_basic_construction():

@@ -5,12 +5,12 @@ __all__ = ["APIDataset"]
 
 import numpy as np
 import pandas as pd
+from skbase.base import BaseObject
 
-from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
 from pyaptamer.datasets.dataclasses._mtype import coerce_input
 
 
-class APIDataset(BaseAptamerDataset):
+class APIDataset(BaseObject):
     """In-memory container for aptamer-protein interaction (API) pairs.
 
     Holds raw sequence strings; performs no encoding. Encoding is the
@@ -35,8 +35,8 @@ class APIDataset(BaseAptamerDataset):
     """
 
     _tags = {
+        "object_type": "dataset",
         "scitype": "APIPairs",
-        "X_inner_mtype": ["pd.DataFrame", "list_tuples", "numpy_arrays"],
         "has_y": True,
     }
 

@@ -5,13 +5,12 @@ import random
 
 import numpy as np
 import torch
+from skbase.base import BaseObject
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from pyaptamer.datasets.dataclasses._base import BaseAptamerDataset
 
-
-class MaskedDataset(BaseAptamerDataset, Dataset):
+class MaskedDataset(BaseObject, Dataset):
     """A PyTorch dataset for masked language modeling on DNA/RNA sequences.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans/blob/master/utils.py
@@ -62,10 +61,8 @@ class MaskedDataset(BaseAptamerDataset, Dataset):
     """
 
     _tags = {
+        "object_type": "dataset",
         "scitype": "MaskedSequences",
-        # Descriptive only — no mtype dispatcher registered for this scitype yet.
-        # Add _mtype_masked.py sibling when conversion is needed.
-        "X_inner_mtype": ["numpy_arrays_pair"],
         "has_y": True,
     }
 
@@ -78,7 +75,7 @@ class MaskedDataset(BaseAptamerDataset, Dataset):
         masked_rate: float = 0.15,
         is_rna: bool = False,
     ) -> None:
-        BaseAptamerDataset.__init__(self)
+        BaseObject.__init__(self)
         Dataset.__init__(self)
 
         if len(x) != len(y):
