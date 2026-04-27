@@ -60,12 +60,20 @@ class APIDataset(BaseObject):
         return self._X
 
     @classmethod
-    def from_any(cls, X, y=None) -> "APIDataset":
+    def from_any(
+        cls,
+        X,
+        y=None,
+        apta_col: str = "aptamer",
+        prot_col: str = "protein",
+    ) -> "APIDataset":
         """Construct an APIDataset from any supported input shape.
 
         Accepted X shapes:
             - APIDataset (returned unchanged; pass-through)
-            - pd.DataFrame with columns ["aptamer", "protein"]
+            - pd.DataFrame with aptamer and protein columns (default names
+              ``"aptamer"`` and ``"protein"``; override via ``apta_col`` /
+              ``prot_col``)
             - list[tuple[str, str]] of (aptamer, protein) pairs
             - tuple[np.ndarray, np.ndarray] of (x_apta, x_prot)
             - tuple[MoleculeLoader, MoleculeLoader] (auto-coerces via .to_df_seq())
@@ -76,6 +84,12 @@ class APIDataset(BaseObject):
             Input in any of the supported shapes.
         y : array-like, optional
             Labels. Ignored if X is already an APIDataset.
+        apta_col : str, default ``"aptamer"``
+            Column name for the aptamer sequences when X is a ``pd.DataFrame``.
+            Ignored for other input shapes.
+        prot_col : str, default ``"protein"``
+            Column name for the protein sequences when X is a ``pd.DataFrame``.
+            Ignored for other input shapes.
 
         Returns
         -------
@@ -83,6 +97,14 @@ class APIDataset(BaseObject):
         """
         if isinstance(X, APIDataset):
             return X
+
+        # Rename DataFrame columns to canonical before coercion. The rest of
+        # the codebase always sees ["aptamer", "protein"].
+        if isinstance(X, pd.DataFrame) and (
+            apta_col != "aptamer" or prot_col != "protein"
+        ):
+            X = X.rename(columns={apta_col: "aptamer", prot_col: "protein"})
+
         df = coerce_input(X)
         return cls(x_apta=df["aptamer"], x_prot=df["protein"], y=y)
 

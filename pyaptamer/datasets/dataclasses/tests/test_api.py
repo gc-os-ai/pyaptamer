@@ -139,6 +139,24 @@ def test_from_any_with_dataframe():
     assert list(ds.y) == [1]
 
 
+def test_from_any_with_custom_column_names():
+    """DataFrame input with non-default column names is renamed via
+    ``apta_col`` / ``prot_col`` before coercion."""
+    df = pd.DataFrame({"my_apta": [APTA_A, APTA_B], "my_prot": [PROT_A, PROT_B]})
+    ds = APIDataset.from_any(df, y=[1, 0], apta_col="my_apta", prot_col="my_prot")
+    # Internal storage uses canonical names regardless of input column names.
+    assert list(ds.load().columns) == ["aptamer", "protein"]
+    assert list(ds.load()["aptamer"]) == [APTA_A, APTA_B]
+    assert list(ds.load()["protein"]) == [PROT_A, PROT_B]
+
+
+def test_from_any_default_column_names_unchanged():
+    """Defaults match canonical names — existing callers untouched."""
+    df = pd.DataFrame({"aptamer": [APTA_A], "protein": [PROT_A]})
+    ds = APIDataset.from_any(df)
+    assert list(ds.load().columns) == ["aptamer", "protein"]
+
+
 def test_from_any_with_list_tuples():
     pairs = [(APTA_A, PROT_A), (APTA_B, PROT_B)]
     ds = APIDataset.from_any(pairs, y=[1, 0])
