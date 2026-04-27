@@ -3,10 +3,13 @@
 __author__ = ["nennomp"]
 __all__ = ["MCTS"]
 
+import logging
 import random
 
 import numpy as np
 from skbase.base import BaseObject
+
+from pyaptamer import logger
 
 
 class MCTS(BaseObject):
@@ -24,11 +27,13 @@ class MCTS(BaseObject):
     ----------
     states : list[str], optional, default=None
         Possible values for the nodes. Underscores indicate whether the values are
-        supposed to be prepended or appended to the sequence.
+        supposed to be prepended or appended to the sequence. If None or empty,
+        defaults to the standard RNA nucleotide states. Must contain unique entries.
     depth : int, optional, default=20
-        Maximum depth of the search tree, also the length of the generated sequences.
+        Maximum depth of the search tree, also the length of the generated
+        sequences. Must be >= 1.
     n_iterations : int, optional, default=1000
-        Number of iterations per round for the MCTS algorithm.
+        Number of iterations per round for the MCTS algorithm. Must be >= 1.
     experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
@@ -74,14 +79,31 @@ class MCTS(BaseObject):
         n_iterations: int = 1000,
         experiment=None,
     ) -> None:
+        """
+        Raises
+        ------
+        ValueError
+            If `depth` is less than 1.
+        ValueError
+            If `n_iterations` is less than 1.
+        ValueError
+            If `states` contains duplicate entries.
+        """
+        if depth < 1:
+            raise ValueError(f"`depth` must be >= 1, got {depth}.")
+        if n_iterations < 1:
+            raise ValueError(f"`n_iterations` must be >= 1, got {n_iterations}.")
+
+        if not states:
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        elif len(states) != len(set(states)):
+            raise ValueError("`states` must contain unique entries.")
+
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
 
         super().__init__()
-
-        if states is None:
-            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
         self.states = states
 
         self.root = TreeNode(
@@ -277,8 +299,8 @@ class MCTS(BaseObject):
         # continue until we reach the target sequence length (i.e, depth * 2)
         round_count = 0
         while len(self.base) < self.depth * 2:
-            if verbose:
-                print(f"\n ----- Round: {round_count + 1} -----")
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Round: %d", round_count + 1)
 
             for _ in range(self.n_iterations):
                 # selection
@@ -296,11 +318,12 @@ class MCTS(BaseObject):
 
             self.base = self._find_best_subsequence()
 
-            if verbose:
-                print("#" * 50)
-                print(f"Best subsequence: {self.base}")
-                print(f"Depth: {len(self.base) // 2}")
-                print("#" * 50)
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Best subsequence: %s | Depth: %d",
+                    self.base,
+                    len(self.base) // 2,
+                )
 
             # reset for next iteration
             self.root = TreeNode(

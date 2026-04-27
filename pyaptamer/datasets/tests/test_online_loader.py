@@ -1,8 +1,10 @@
 __author__ = "satvshr"
 
-import pytest
-from Bio.PDB.Structure import Structure
+import os
 
+import pytest
+
+from pyaptamer.data.loader import MoleculeLoader
 from pyaptamer.datasets import load_from_rcsb
 
 
@@ -12,7 +14,13 @@ def test_download_structure(pdb_id):
     The download_structure function works correctly
     for valid PDB IDs.
     """
-    structure = load_from_rcsb(pdb_id)
-    assert isinstance(structure, Structure), (
-        f"Expected a Bio.PDB.Structure.Structure, got {type(structure)}"
+    loader = load_from_rcsb(pdb_id)
+    assert isinstance(loader, MoleculeLoader), (
+        f"Expected a MoleculeLoader, got {type(loader)}"
     )
+
+    # Ensure the pdb file was downloaded to the expected path
+    assert os.path.exists(loader.path), f"PDB file not found at {loader.path}"
+
+    df_seq = loader.to_df_seq()
+    assert not df_seq.empty, "Expected to_df_seq() to return a non-empty DataFrame"
