@@ -3,7 +3,7 @@ AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 __all__ = ["AptaTransPipeline"]
 
 
@@ -153,6 +153,74 @@ class AptaTransPipeline:
             prot_words=self.prot_words,
         )
         return experiment
+
+    def _prepare_dataloader(self, X, y=None, train=False, batch_size=32):
+        """Build a torch DataLoader from any supported input shape.
+
+        Handles input coercion (via ``APIDataset.from_any``) and encoding
+        (``rna2vec`` for aptamers, ``encode_rna`` for proteins), then wraps
+        the result in a ``DataLoader``.
+
+        The future sklearn-style ``fit(X, y)`` PR will call this at the top
+        of ``fit`` and ``predict``.
+
+        Parameters
+        ----------
+        X : APIDataset, pd.DataFrame, list[tuple], (np.ndarray, np.ndarray),
+            or (MoleculeLoader, MoleculeLoader)
+            Paired sequence input in any supported shape. See
+            ``APIDataset.from_any`` for the full list.
+        y : array-like, optional
+            Labels. Ignored if X is already an APIDataset (use ds.y instead).
+        train : bool, default False
+            If True, shuffles the DataLoader. Does NOT apply data augmentation;
+            augmentation (e.g., ``augment_reverse``) is the caller's
+            responsibility and should be applied before passing data here.
+        batch_size : int, default 32
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+
+        Notes
+        -----
+        **Labels** must be numeric (e.g., 0/1 int) before reaching this method.
+        String labels like ``"positive"``/``"negative"`` must be encoded by the
+        caller — label semantics are dataset-specific, not pipeline-specific.
+
+        **Data augmentation** (e.g., ``augment_reverse`` for training) must be
+        applied by the caller before passing data here. Augmentation operates on
+        raw strings and may change the dataset size, so it belongs in the
+        preprocessing step, not inside the DataLoader pipeline.
+        """
+        import numpy as np
+        from torch.utils.data import DataLoader, TensorDataset
+
+        from pyaptamer.datasets.dataclasses import APIDataset
+        from pyaptamer.utils import encode_rna, rna2vec
+
+        ds = APIDataset.from_any(X, y)
+        df = ds.load()
+
+        x_apta_enc = rna2vec(
+            sequence_list=df["aptamer"].tolist(),
+            max_sequence_length=self.model.apta_embedding.max_len,
+            sequence_type="rna",
+        )
+        x_prot_enc = encode_rna(
+            sequences=df["protein"].tolist(),
+            words=self.prot_words,
+            max_len=self.model.prot_embedding.max_len,
+        )
+
+        tensors = [
+            torch.as_tensor(np.asarray(x_apta_enc)),
+            torch.as_tensor(np.asarray(x_prot_enc)),
+        ]
+        if ds.y is not None:
+            tensors.append(torch.as_tensor(np.asarray(ds.y)))
+        torch_ds = TensorDataset(*tensors)
+        return DataLoader(torch_ds, batch_size=batch_size, shuffle=train)
 
     def get_interaction_map(self, candidate: str, target: str) -> Tensor:
         # TODO: to make the interaction map ready for plotting (at least if we were to

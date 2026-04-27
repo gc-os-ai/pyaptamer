@@ -1,4 +1,4 @@
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp", "satvshr", "siddharth7113"]
 
 
 import numpy as np
@@ -68,6 +68,27 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert np.issubdtype(preds.dtype, np.floating)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_apidataset(aptamer_seq, protein_seq):
+    """Integration check: AptaNetPipeline accepts an APIDataset input.
+
+    Verifies the contract this PR introduces — that the pipeline routes
+    through ``APIDataset.from_any`` correctly. Per-shape coverage
+    (DataFrame, numpy pair, etc.) is tested at the APIDataset level in
+    test_api.py.
+    """
+    from pyaptamer.datasets.dataclasses import APIDataset
+
+    n = 40
+    pairs = [(aptamer_seq, protein_seq) for _ in range(n)]
+    y = np.array([0] * (n // 2) + [1] * (n // 2), dtype=np.float32)
+
+    ds = APIDataset.from_any(pairs, y)
+    pipe = AptaNetPipeline(k=4)
+    pipe.fit(ds, ds.y)
+    assert len(pipe.predict(ds)) == n
 
 
 @parametrize_with_checks(

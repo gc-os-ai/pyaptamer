@@ -1,6 +1,6 @@
 """Test suite for AptaTrans' deep neural network and pipeline."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 
 import pytest
 import torch
@@ -470,3 +470,26 @@ class TestAptaTransPipeline:
             model.apta_embedding.max_len,
             model.prot_embedding.max_len,
         )
+
+    def test_prepare_dataloader_accepts_apidataset(self):
+        """Integration check: _prepare_dataloader routes APIDataset through
+        encoding to a working DataLoader.
+
+        Per-shape coverage (DataFrame, numpy pair, etc.) is tested at the
+        APIDataset level in test_api.py.
+        """
+        from pyaptamer.datasets.dataclasses import APIDataset
+
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipe = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+
+        ds = APIDataset(
+            x_apta=["ACGUACGUACGUACG", "UGCAUGCAUGCAUGC"],
+            x_prot=["AUGAUGAUGAUGAUG", "GCAGCAGCAGCAGCA"],
+            y=[1, 0],
+        )
+        loader = pipe._prepare_dataloader(ds, ds.y, train=False)
+        batches = list(loader)
+        assert len(batches) >= 1

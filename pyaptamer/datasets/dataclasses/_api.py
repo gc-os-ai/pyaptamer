@@ -1,110 +1,143 @@
-__author__ = ["nennomp"]
+"""APIDataset: in-memory paired aptamer-protein data container."""
+
+__author__ = ["nennomp", "siddharth7113"]
 __all__ = ["APIDataset"]
 
 import numpy as np
-import torch
-from torch.utils.data import Dataset
+import pandas as pd
+from skbase.base import BaseObject
 
-from pyaptamer.utils import encode_rna, rna2vec
-from pyaptamer.utils._augment import augment_reverse
+from pyaptamer.datasets.dataclasses._mtype import coerce_input
 
 
-class APIDataset(Dataset):
-    """A PyTorch dataset for aptamer-protein interaction (API) data.
+class APIDataset(BaseObject):
+    """In-memory container for aptamer-protein interaction (API) pairs.
+
+    Holds raw sequence strings; performs no encoding. Encoding is the
+    responsibility of downstream pipelines or transforms.
 
     Parameters
     ----------
-    x_apta : np.ndarray
-        A numpy array containing aptamer sequences.
-    x_prot : np.ndarray
-        A numpy array containing protein sequences.
-    y : np.ndarray
-        A numpy array containing labels for the interactions, where 'positive' indicates
-        a positive interaction and 'negative' indicates a negative interaction.
-    apta_max_len : int
-        The maximum length for aptamer sequences after padding or truncation.
-    prot_max_len : int
-        The maximum length for protein sequences after padding or truncation.
-    prot_words : dict[str, int]
-        A dictionary mapping protein 3-mers to unique indices for encoding protein
-        sequences.
-    split : str, optional, default="train"
-        If "train", the dataset will augment aptamer sequences by adding their
-        reverse complements. If "test", the dataset will not augment the aptamer
-        sequences.
-        complements.
+    x_apta, x_prot : array-like
+        Aptamer and protein sequences. May be np.ndarray, list, pd.Series,
+        or single-column pd.DataFrame. Lengths must match.
+    y : array-like, optional
+        Labels aligned with the rows. Pass ``None`` for unlabeled data.
+
+    Examples
+    --------
+    >>> from pyaptamer.datasets.dataclasses import APIDataset
+    >>> ds = APIDataset(x_apta=["ACGU", "UGCA"], x_prot=["MKV", "LKR"], y=[1, 0])
+    >>> ds.load().shape
+    (2, 2)
+    >>> ds.y.tolist()
+    [1, 0]
     """
 
-    def __init__(
-        self,
-        x_apta: np.ndarray,
-        x_prot: np.ndarray,
-        y: np.ndarray,
-        apta_max_len: int,
-        prot_max_len: int,
-        prot_words: dict[str, int],
-        split: str = "train",
-    ) -> None:
+    _tags = {
+        "object_type": "dataset",
+        "scitype": "APIPairs",
+        "has_y": True,
+    }
+
+    def __init__(self, x_apta=None, x_prot=None, y=None):
         super().__init__()
+        if x_apta is None and x_prot is None:
+            self._X = None
+            self.y = None
+            return
+        self._X = self._check_inputs(x_apta, x_prot)
+        # Normalize y to a 1D numpy array (handles DataFrame, Series, 2D column vectors)
+        if y is not None:
+            if isinstance(y, pd.DataFrame):
+                y = y.iloc[:, 0]
+            self.y = np.asarray(y).ravel()
+        else:
+            self.y = None
 
-        if split not in ["train", "test"]:
-            raise ValueError(f"Unknown split: {split}. Options are 'train' and 'test'.")
+    def load(self) -> pd.DataFrame:
+        """Return X as a 2-column pd.DataFrame with columns [aptamer, protein]."""
+        return self._X
 
-        self.apta_max_len = apta_max_len
-        self.prot_max_len = prot_max_len
-        self.prot_words = prot_words
-        self.split = split
+    @classmethod
+    def from_any(
+        cls,
+        X,
+        y=None,
+        apta_col: str = "aptamer",
+        prot_col: str = "protein",
+    ) -> "APIDataset":
+        """Construct an APIDataset from any supported input shape.
 
-        self.x_apta, self.x_prot, self.y = self._prepare_data(x_apta, x_prot, y, split)
-
-        self.len = len(self.x_apta)
-
-    def _prepare_data(
-        self,
-        x_apta: np.ndarray,
-        x_prot: np.ndarray,
-        y: np.ndarray,
-        split: str,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Prepare the data by augmenting aptamer sequences with their reverse complements
-        and transforming them to vector numericla representations.
+        Accepted X shapes:
+            - APIDataset (returned unchanged; pass-through)
+            - pd.DataFrame with aptamer and protein columns (default names
+              ``"aptamer"`` and ``"protein"``; override via ``apta_col`` /
+              ``prot_col``)
+            - list[tuple[str, str]] of (aptamer, protein) pairs
+            - tuple[np.ndarray, np.ndarray] of (x_apta, x_prot)
+            - tuple[MoleculeLoader, MoleculeLoader] (auto-coerces via .to_df_seq())
 
         Parameters
         ----------
-        x_apta : np.ndarray
-            Aptamer sequences.
-        x_prot : np.ndarray
-            Protein sequences.
-        y : np.ndarray
-            Laabels for the interactions.
-        split : bool
-            If True, the dataset will augment aptamer sequences by adding their reverse
-            complements.
+        X : object
+            Input in any of the supported shapes.
+        y : array-like, optional
+            Labels. Ignored if X is already an APIDataset.
+        apta_col : str, default ``"aptamer"``
+            Column name for the aptamer sequences when X is a ``pd.DataFrame``.
+            Ignored for other input shapes.
+        prot_col : str, default ``"protein"``
+            Column name for the protein sequences when X is a ``pd.DataFrame``.
+            Ignored for other input shapes.
+
+        Returns
+        -------
+        APIDataset
         """
-        if split == "train":
-            x_apta = augment_reverse(x_apta)[0]
-            x_prot = np.concatenate([x_prot, x_prot])
-            y = np.concatenate([y, y])
+        if isinstance(X, APIDataset):
+            return X
 
-        x_apta = torch.tensor(
-            rna2vec(
-                sequence_list=x_apta,
-                max_sequence_length=self.apta_max_len,
-                sequence_type="rna",
+        # Rename DataFrame columns to canonical before coercion. The rest of
+        # the codebase always sees ["aptamer", "protein"].
+        if isinstance(X, pd.DataFrame) and (
+            apta_col != "aptamer" or prot_col != "protein"
+        ):
+            X = X.rename(columns={apta_col: "aptamer", prot_col: "protein"})
+
+        df = coerce_input(X)
+        return cls(x_apta=df["aptamer"], x_prot=df["protein"], y=y)
+
+    def _check_inputs(self, x_apta, x_prot) -> pd.DataFrame:
+        """Coerce x_apta and x_prot into the canonical two-column DataFrame.
+
+        Each of x_apta, x_prot may be a single-column object (np.ndarray,
+        list, pd.Series, single-column pd.DataFrame). The result has columns
+        ["aptamer", "protein"] and aligned rows.
+        """
+        apta_series = self._to_series(x_apta, name="aptamer")
+        prot_series = self._to_series(x_prot, name="protein")
+        if len(apta_series) != len(prot_series):
+            raise ValueError(
+                f"x_apta and x_prot must have equal length; "
+                f"got {len(apta_series)} and {len(prot_series)}."
             )
+        return pd.DataFrame({"aptamer": apta_series, "protein": prot_series})
+
+    @staticmethod
+    def _to_series(x, name):
+        if isinstance(x, pd.Series):
+            return x.reset_index(drop=True).rename(name)
+        if isinstance(x, pd.DataFrame):
+            if x.shape[1] != 1:
+                raise ValueError(
+                    f"Expected single-column DataFrame for {name}; "
+                    f"got {x.shape[1]} columns."
+                )
+            return x.iloc[:, 0].reset_index(drop=True).rename(name)
+        if isinstance(x, list | np.ndarray):
+            return pd.Series(list(x), name=name)
+        raise TypeError(
+            f"Unsupported type for {name}: {type(x).__name__}; "
+            f"expected np.ndarray, list, pd.Series, or single-column pd.DataFrame."
         )
-        x_prot = encode_rna(
-            sequences=x_prot,
-            words=self.prot_words,
-            max_len=self.prot_max_len,
-        )
-        y = torch.tensor((y == "positive").astype(int))
-
-        return (x_apta, x_prot, y)
-
-    def __len__(self):
-        return self.len
-
-    def __getitem__(self, index):
-        return (self.x_apta[index], self.x_prot[index], self.y[index])
