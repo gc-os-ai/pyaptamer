@@ -85,7 +85,7 @@ class TestComputeProteinWordFrequencies:
         assert result == expected
 
     def test_non_alphabet_characters(self):
-        """Test that non-amino acid characters are included as-is (validation left to caller)."""
+        """Test non-amino acid characters are included as-is (no validation)."""
         sequences = ["AX*Y", "AXY"]
         result = compute_protein_word_frequencies(sequences, n=2)
         expected = {"AX": 2, "X*": 1, "*Y": 1, "XY": 1}
@@ -103,4 +103,3 @@ class TestComputeProteinWordFrequencies:
         sequences = ["ABC"]
         with pytest.raises(ValueError, match="n must be at least 1"):
             compute_protein_word_frequencies(sequences, n=0)
-
