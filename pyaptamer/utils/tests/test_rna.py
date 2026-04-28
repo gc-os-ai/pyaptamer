@@ -149,22 +149,27 @@ def test_rna2vec_edge_cases():
 
     # empty sequence
     result = rna2vec([""], sequence_type="rna")
-    assert len(result) == 0
+    assert len(result) == 1
+    assert np.all(result == 0)
 
     # single character sequence (can't form triplet)
     result = rna2vec(["A"], sequence_type="rna")
-    assert len(result) == 0
+    assert len(result) == 1
+    assert np.all(result == 0)
 
     # double character sequence (can't form triplet)
     result = rna2vec(["AA"], sequence_type="rna")
-    assert len(result) == 0
+    assert len(result) == 1
+    assert np.all(result == 0)
 
     # test with secondary structure sequences - edge cases
     result = rna2vec(["S"], sequence_type="ss")
-    assert len(result) == 0
+    assert len(result) == 1
+    assert np.all(result == 0)
 
     result = rna2vec(["SS"], sequence_type="ss")
-    assert len(result) == 0
+    assert len(result) == 1
+    assert np.all(result == 0)
 
 
 def test_rna2vec_default_parameters():
