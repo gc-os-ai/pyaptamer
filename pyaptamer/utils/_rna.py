@@ -22,7 +22,7 @@ def dna2rna(sequence: str) -> str:
 
     Parameters
     ----------
-    seq : str
+    sequence : str
         The DNA sequence to be converted.
 
     Returns

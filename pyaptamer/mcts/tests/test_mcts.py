@@ -241,6 +241,29 @@ def mcts(request):
 class TestMCTS:
     """Tests for the MCTS() class."""
 
+    @pytest.mark.parametrize("depth", [0, -1])
+    def test_init_invalid_depth(self, depth):
+        """Check invalid depths are rejected early."""
+        with pytest.raises(ValueError, match=r"`depth` must be >= 1"):
+            MCTS(depth=depth)
+
+    @pytest.mark.parametrize("n_iterations", [0, -1])
+    def test_init_invalid_iterations(self, n_iterations):
+        """Check invalid iteration counts are rejected early."""
+        with pytest.raises(ValueError, match=r"`n_iterations` must be >= 1"):
+            MCTS(n_iterations=n_iterations)
+
+    @pytest.mark.parametrize("states", [None, []])
+    def test_init_empty_or_none_states_defaults(self, states):
+        """Check that None or empty states default to the standard nucleotide set."""
+        mcts = MCTS(states=states)
+        assert mcts.states == ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+
+    def test_init_duplicate_states(self):
+        """Check duplicate states are rejected early."""
+        with pytest.raises(ValueError, match=r"`states` must contain unique entries"):
+            MCTS(states=["A_", "A_"])
+
     def test_reset(self, mcts):
         """Check correct reset of the inner state."""
         # modify its inner state
