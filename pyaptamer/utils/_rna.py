@@ -11,6 +11,8 @@ from itertools import product
 
 import numpy as np
 
+_VALID_NUCLEOTIDES = frozenset("ACGU")
+
 
 def dna2rna(sequence: str) -> str:
     """
@@ -30,9 +32,10 @@ def dna2rna(sequence: str) -> str:
     str
         The converted RNA sequence.
     """
-    _VALID = frozenset("ACGU")
-    # replace 'T' with 'U' and any unknown nucleotides with 'N' in a single pass
-    return "".join("U" if c == "T" else (c if c in _VALID else "N") for c in sequence)
+    # replace nucleotides 'T' with 'U'
+    result = sequence.translate(str.maketrans("T", "U"))
+    result = "".join(char if char in _VALID_NUCLEOTIDES else "N" for char in result)
+    return result
 
 
 def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str, int]:
