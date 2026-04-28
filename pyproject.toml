@@ -14,7 +14,7 @@ authors = [
 
 dependencies = [
     "biopython>=1.83",
-    "datasets>=4.0.0",
+    "datasets>=4.8.5",
     "lightning>=2.6.1",
     "numpy>=2.0.2",
     "pandas>=2.0.0",
