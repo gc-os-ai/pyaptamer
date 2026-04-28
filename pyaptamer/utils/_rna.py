@@ -11,6 +11,8 @@ from itertools import product
 
 import numpy as np
 
+_VALID_NUCLEOTIDES = frozenset("ACGU")
+
 
 def dna2rna(sequence: str) -> str:
     """
@@ -32,9 +34,7 @@ def dna2rna(sequence: str) -> str:
     """
     # replace nucleotides 'T' with 'U'
     result = sequence.translate(str.maketrans("T", "U"))
-    for char in result:
-        if char not in "ACGU":
-            result = result.replace(char, "N")  # replace unknown nucleotides with 'N'
+    result = "".join(char if char in _VALID_NUCLEOTIDES else "N" for char in result)
     return result
 
 
