@@ -38,7 +38,10 @@ def dna2rna(sequence: str) -> str:
     return result
 
 
-def generate_nplets(letters: list[str], repeat: int | Iterable[int]) -> dict[str, int]:
+from typing import Iterable, Union
+
+def generate_nplets(letters: list[str], repeat: Union[int, Iterable[int]]) -> dict[str, int]:
+
     """
     Generate a dictionary containing all possible n-plets of given characters.
 
