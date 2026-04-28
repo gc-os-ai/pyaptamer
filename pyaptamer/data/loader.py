@@ -15,10 +15,8 @@ class MoleculeLoader:
     Parameters
     ------------
     path : str, Path, or list thereof
-        file location or list of file locations with molecule files
-        str can be any of the following... [fill in]
-
-        the following formats are currently supported:
+        file location or list of file locations with molecule files.
+        The following formats are currently supported:
 
         * ``pdb`` format
 

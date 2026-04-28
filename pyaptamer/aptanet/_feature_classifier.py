@@ -198,6 +198,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
 
     Parameters
     ----------
+    input_dim : int or None, default=None
         Size of the input layer in the neural net. If `None`, it should be
         inferred from the feature matrix shape by the underlying module.
     hidden_dim : int, default=128
@@ -215,13 +216,13 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     eps : float, default=1e-08
         Epsilon value for numerical stability in RMSprop.
     estimator : sklearn estimator or None, default=None
-        Estimator used for feature selection. If `None`, a `RandomForestClassifier`.
+        Estimator used for feature selection. If `None`, a `RandomForestRegressor`.
     random_state : int or None, default=None
         Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
     threshold : str or float, default="mean"
         Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
     verbose : int, default=0
-        Verbosity level for the underlying skorch `NeuralNetBinaryClassifier`.
+        Verbosity level for the underlying skorch `NeuralNetRegressor`.
     """
 
     def __init__(

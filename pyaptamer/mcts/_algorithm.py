@@ -11,9 +11,8 @@ from skbase.base import BaseObject
 
 class MCTS(BaseObject):
     """
-    MCTS algorithm implementation for string optimization, specifically for aptamr
-    generation as described in aptamer generation as described in [1]_, originally
-    introduced in [2]_.
+    MCTS algorithm implementation for string optimization, specifically for aptamer
+    generation as described in [1]_, originally introduced in [2]_.
 
     Adapted from:
 
@@ -345,7 +344,7 @@ class TreeNode:
     Attributes
     ----------
     n_visits : int
-        Counter tracking the umber of visits to this node.
+        Counter tracking the number of visits to this node.
     children : dict[str, TreeNode]
         Dictionary of child nodes indexed by value.
 
