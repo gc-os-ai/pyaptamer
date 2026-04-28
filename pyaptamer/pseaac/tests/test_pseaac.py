@@ -6,6 +6,7 @@ import pytest
 from pyaptamer.pseaac import AptaNetPSeAAC, PSeAAC
 from pyaptamer.pseaac._props import aa_props
 from pyaptamer.pseaac.tests._props import solution
+from pyaptamer.utils._pseaac_utils import clean_protein_seq
 
 vector = "ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"
 
@@ -50,6 +51,26 @@ def test_pseaac_transform_sequence_too_short(PCLASS, seq, lambda_val):
         p.transform(seq)
 
 
+def test_clean_protein_seq_uses_x_placeholder():
+    """Invalid residues should be converted to the neutral X placeholder."""
+    with pytest.warns(UserWarning, match="Replaced with 'X'"):
+        cleaned = clean_protein_seq("ABZ*")
+
+    assert cleaned == "AXXX"
+
+
+def test_clean_protein_seq_preserves_existing_x():
+    """Existing X residues should be treated as the intended unknown placeholder."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        cleaned = clean_protein_seq("AXX")
+
+    assert cleaned == "AXX"
+    assert len(record) == 0
+
+
 @pytest.mark.parametrize(
     "seq,expected_vector",
     [
@@ -77,6 +98,23 @@ def test_pseaac_vectorization(seq, expected_vector):
         if not np.isclose(a, b, atol=1e-3)
     ]
     assert not mismatches, f"Vector values mismatch at indices: {mismatches}"
+
+
+@pytest.mark.parametrize("PCLASS", [PSeAAC, AptaNetPSeAAC])
+def test_pseaac_handles_unknown_residues(PCLASS):
+    """Unknown residues should not introduce NaNs or map to Asparagine bias."""
+    seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQZ"
+    p = PCLASS()
+
+    with pytest.warns(UserWarning, match="Replaced with 'X'"):
+        cleaned = clean_protein_seq(seq)
+
+    assert cleaned.endswith("X")
+
+    features = p.transform(seq)
+
+    assert len(features) == 350
+    assert np.all(np.isfinite(features))
 
 
 @pytest.mark.parametrize(

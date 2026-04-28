@@ -6,7 +6,11 @@ from collections import Counter
 import numpy as np
 
 from pyaptamer.pseaac._props import aa_props
-from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
+from pyaptamer.utils._pseaac_utils import (
+    AMINO_ACIDS,
+    UNKNOWN_AMINO_ACID,
+    clean_protein_seq,
+)
 
 
 class AptaNetPSeAAC:
@@ -102,6 +106,9 @@ class AptaNetPSeAAC:
 
         # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
         self.np_matrix = aa_props(type="numpy", normalize=True)
+        self.np_matrix = np.vstack(
+            [self.np_matrix, self.np_matrix.mean(axis=0, keepdims=True)]
+        )
         # Each prop_group is a tuple of 3 columns (property indices)
         self.prop_groups = [
             (0, 1, 2),
@@ -130,8 +137,10 @@ class AptaNetPSeAAC:
             ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R',
             'S', 'T', 'V', 'W', 'Y']
         """
-        counts = Counter(seq)
-        total = len(seq)
+        counts = Counter(aa for aa in seq if aa in AMINO_ACIDS)
+        total = sum(counts.values())
+        if total == 0:
+            return np.zeros(len(AMINO_ACIDS))
         return np.array([counts.get(aa, 0) / total for aa in AMINO_ACIDS])
 
     def _avg_theta_val(self, seq_vec, seq_len, n, prop_group):
@@ -175,7 +184,8 @@ class AptaNetPSeAAC:
         ----------
         protein_sequence : str
             The input protein sequence consisting of valid amino acid characters
-            (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
+            (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y) and
+            the unknown placeholder X.
 
         Returns
         -------
@@ -201,7 +211,7 @@ class AptaNetPSeAAC:
                 f"Sequence length: {seq_len}, `lambda_val`: {self.lambda_val}."
             )
 
-        aa_to_idx = {aa: i for i, aa in enumerate(AMINO_ACIDS)}
+        aa_to_idx = {aa: i for i, aa in enumerate(AMINO_ACIDS + [UNKNOWN_AMINO_ACID])}
         seq_vec = np.array([aa_to_idx[aa] for aa in seq], dtype=np.int32)
 
         aa_freq = self._normalized_aa(seq)
@@ -218,6 +228,8 @@ class AptaNetPSeAAC:
 
             sum_all_theta_val = np.sum(all_theta_val)
             denominator_val = sum_all_aa_freq + (self.weight * sum_all_theta_val)
+            if denominator_val == 0:
+                denominator_val = 1.0
 
             # First 20 features: normalized amino acid composition
             all_pseaac.extend(np.round(aa_freq / denominator_val, 3))

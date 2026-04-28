@@ -6,7 +6,11 @@ from collections import Counter
 import numpy as np
 
 from pyaptamer.pseaac._props import aa_props
-from pyaptamer.utils._pseaac_utils import AMINO_ACIDS, clean_protein_seq
+from pyaptamer.utils._pseaac_utils import (
+    AMINO_ACIDS,
+    UNKNOWN_AMINO_ACID,
+    clean_protein_seq,
+)
 
 
 class PSeAAC:
@@ -134,6 +138,10 @@ class PSeAAC:
             prop_indices=prop_indices, type="numpy", normalize=True
         )
         self._n_cols = self.np_matrix.shape[1]  # The number of properties selected
+        self.np_matrix = np.vstack(
+            [self.np_matrix, self.np_matrix.mean(axis=0, keepdims=True)]
+        )
+        self.amino_acids = AMINO_ACIDS + [UNKNOWN_AMINO_ACID]
 
         if custom_groups:
             self.prop_groups = custom_groups
@@ -173,8 +181,10 @@ class PSeAAC:
             ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R',
             'S', 'T', 'V', 'W', 'Y']
         """
-        counts = Counter(seq)
-        total = len(seq)
+        counts = Counter(aa for aa in seq if aa in AMINO_ACIDS)
+        total = sum(counts.values())
+        if total == 0:
+            return np.zeros(len(AMINO_ACIDS))
         return np.array([counts.get(aa, 0) / total for aa in AMINO_ACIDS])
 
     def _avg_theta_val(self, seq_vec, seq_len, n, prop_group):
@@ -218,7 +228,8 @@ class PSeAAC:
         ----------
         protein_sequence : str
             The input protein sequence consisting of valid amino acid characters
-            (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
+            (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y) and
+            the unknown placeholder X.
         lambda_val : int, default=30
             The maximum distance between residues considered in the sequence-order
             correlation (θ) calculations.
@@ -250,7 +261,7 @@ class PSeAAC:
                 f"Sequence length: {seq_len}, `lambda_val`: {self.lambda_val}."
             )
 
-        aa_to_idx = {aa: i for i, aa in enumerate(AMINO_ACIDS)}
+        aa_to_idx = {aa: i for i, aa in enumerate(self.amino_acids)}
         seq_vec = np.array([aa_to_idx[aa] for aa in seq], dtype=np.int32)
 
         aa_freq = self._normalized_aa(seq)
@@ -267,6 +278,8 @@ class PSeAAC:
 
             sum_all_theta_val = np.sum(all_theta_val)
             denominator_val = sum_all_aa_freq + (self.weight * sum_all_theta_val)
+            if denominator_val == 0:
+                denominator_val = 1.0
 
             # First 20 features: normalized amino acid composition
             all_pseaac.extend(np.round(aa_freq / denominator_val, 3))
