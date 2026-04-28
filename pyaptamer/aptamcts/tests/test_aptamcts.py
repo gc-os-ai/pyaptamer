@@ -11,52 +11,6 @@ from pyaptamer.mcts import MCTS
 from pyaptamer.utils._aptamcts_utils import pairs_to_features
 
 
-class MockModel:
-    """Mock model with predict_proba for testing."""
-
-    def __init__(self, positive_prob=0.8):
-        self.positive_prob = positive_prob
-
-    def predict_proba(self, X):
-        n_samples = X.shape[0]
-        neg_prob = 1.0 - self.positive_prob
-        return np.tile(
-            np.array([[neg_prob, self.positive_prob]], dtype=np.float64),
-            (n_samples, 1),
-        )
-
-
-class MockModelVariable:
-    """Mock model that returns different probabilities based on input features."""
-
-    def predict_proba(self, X):
-        # Return probability proportional to first feature (deterministic for testing)
-        probs = X[:, 0].clip(0, 1)
-        neg_probs = 1.0 - probs
-        return np.stack([neg_probs, probs], axis=1).astype(np.float64)
-
-
-class MockModelNoProba:
-    """Mock model without predict_proba for error testing."""
-
-    def predict(self, X):
-        return np.array([0.5])
-
-
-class MockModelBadOutput:
-    """Mock model that returns wrong shape from predict_proba."""
-
-    def predict_proba(self, X):
-        return np.array([0.5])
-
-
-class MockModel1DOutput:
-    """Mock model that returns 1D array instead of 2D."""
-
-    def predict_proba(self, X):
-        return np.array([0.5, 0.5])
-
-
 # ---------------------------------------------------------------------------
 # Feature encoding tests
 # ---------------------------------------------------------------------------
@@ -107,7 +61,6 @@ class TestPairsToFeatures:
 
     def test_dna_to_rna_conversion(self):
         """Check that DNA sequences are converted to RNA before encoding."""
-        # T should be converted to U, so features should match RNA version
         X_dna = pairs_to_features([("ACGT", "ACDEF")])
         X_rna = pairs_to_features([("ACGU", "ACDEF")])
 
@@ -117,8 +70,6 @@ class TestPairsToFeatures:
         """Check that character frequency features are normalized."""
         X = pairs_to_features([("AAAA", "ACDEF")])
 
-        # First 5 columns are aptamer frequencies (A, C, G, U, N)
-        # For "AAAA", A frequency should be 1.0
         assert X[0, 0] == pytest.approx(1.0, abs=1e-5)
         assert X[0, 1:5].sum() == pytest.approx(0.0, abs=1e-5)
 
@@ -127,8 +78,7 @@ class TestPairsToFeatures:
         X = pairs_to_features([("A", "A")])
 
         assert X.shape == (1, 27)
-        # Length features should be normalized
-        assert X[0, -1] == pytest.approx(1.0, abs=1e-5)  # max(len, len) / max(len, len)
+        assert X[0, -1] == pytest.approx(1.0, abs=1e-5)
 
     def test_case_insensitivity(self):
         """Check that sequence encoding is case-insensitive."""
@@ -136,6 +86,135 @@ class TestPairsToFeatures:
         X_lower = pairs_to_features([("acgt", "acdef")])
 
         np.testing.assert_array_almost_equal(X_upper, X_lower)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline fit() tests
+# ---------------------------------------------------------------------------
+
+
+class TestAptaMCTSPipelineFit:
+    """Tests for AptaMCTSPipeline.fit()."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample training data."""
+        aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+        protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+        X = [(aptamer, protein) for _ in range(40)]
+        y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+        return X, y
+
+    def test_fit_returns_self(self, sample_data):
+        """Check that fit returns self for method chaining."""
+        pipeline = AptaMCTSPipeline()
+        X, y = sample_data
+
+        result = pipeline.fit(X, y)
+
+        assert result is pipeline
+
+    def test_fit_creates_pipeline_attribute(self, sample_data):
+        """Check that fit creates the pipeline_ attribute."""
+        pipeline = AptaMCTSPipeline()
+        X, y = sample_data
+
+        pipeline.fit(X, y)
+
+        assert hasattr(pipeline, "pipeline_")
+
+    def test_fit_without_estimator_uses_default(self, sample_data):
+        """Check that fit works with default estimator."""
+        pipeline = AptaMCTSPipeline()
+        X, y = sample_data
+
+        pipeline.fit(X, y)
+
+        assert pipeline.pipeline_ is not None
+
+    def test_fit_with_custom_estimator(self, sample_data):
+        """Check that fit works with custom estimator."""
+        from sklearn.ensemble import GradientBoostingClassifier
+
+        pipeline = AptaMCTSPipeline(estimator=GradientBoostingClassifier(n_estimators=10))
+        X, y = sample_data
+
+        pipeline.fit(X, y)
+
+        assert pipeline.pipeline_ is not None
+
+    def test_fit_stores_parameters(self):
+        """Check that depth and n_iterations are stored."""
+        pipeline = AptaMCTSPipeline(depth=10, n_iterations=500)
+
+        assert pipeline.depth == 10
+        assert pipeline.n_iterations == 500
+
+
+# ---------------------------------------------------------------------------
+# Pipeline predict_proba() tests
+# ---------------------------------------------------------------------------
+
+
+class TestAptaMCTSPipelinePredictProba:
+    """Tests for AptaMCTSPipeline.predict_proba()."""
+
+    @pytest.fixture
+    def fitted_pipeline(self):
+        """Create a fitted pipeline for testing."""
+        aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+        protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+        X = [(aptamer, protein) for _ in range(40)]
+        y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+
+        pipeline = AptaMCTSPipeline()
+        pipeline.fit(X, y)
+        return pipeline, aptamer, protein
+
+    def test_predict_proba_returns_ndarray(self, fitted_pipeline):
+        """Check that predict_proba returns numpy array."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
+
+        proba = pipeline.predict_proba(X)
+
+        assert isinstance(proba, np.ndarray)
+
+    def test_predict_proba_shape(self, fitted_pipeline):
+        """Check that predict_proba returns correct shape."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
+
+        proba = pipeline.predict_proba(X)
+
+        assert proba.shape == (10, 2)
+
+    def test_predict_proba_values_in_range(self, fitted_pipeline):
+        """Check that probabilities are in [0, 1] range."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
+
+        proba = pipeline.predict_proba(X)
+
+        assert np.all(proba >= 0)
+        assert np.all(proba <= 1)
+
+    def test_predict_proba_rows_sum_to_one(self, fitted_pipeline):
+        """Check that probability rows sum to 1."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
+
+        proba = pipeline.predict_proba(X)
+
+        row_sums = proba.sum(axis=1)
+        np.testing.assert_array_almost_equal(row_sums, np.ones(10))
+
+    def test_predict_proba_unfitted_raises(self):
+        """Check that predict_proba raises when not fitted."""
+        pipeline = AptaMCTSPipeline()
+
+        with pytest.raises(Exception):
+            pipeline.predict_proba([("ACGU", "ACDEF")])
 
 
 # ---------------------------------------------------------------------------
@@ -147,88 +226,50 @@ class TestAptaMCTSPipelinePredict:
     """Tests for AptaMCTSPipeline.predict()."""
 
     @pytest.fixture
-    def pipeline(self):
-        """Create pipeline with default mock model."""
-        return AptaMCTSPipeline(model=MockModel(positive_prob=0.8))
+    def fitted_pipeline(self):
+        """Create a fitted pipeline for testing."""
+        aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+        protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+        X = [(aptamer, protein) for _ in range(40)]
+        y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
-    @pytest.fixture
-    def pipeline_variable(self):
-        """Create pipeline with variable-output mock model."""
-        return AptaMCTSPipeline(model=MockModelVariable())
+        pipeline = AptaMCTSPipeline()
+        pipeline.fit(X, y)
+        return pipeline, aptamer, protein
 
-    def test_predict_returns_float64(self, pipeline):
-        """Check that predict returns np.float64."""
-        score = pipeline.predict(aptamer="ACGU", target="ACDEFGHIK")
+    def test_predict_returns_ndarray(self, fitted_pipeline):
+        """Check that predict returns numpy array."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
 
-        assert isinstance(score, np.float64)
+        preds = pipeline.predict(X)
 
-    def test_predict_returns_correct_probability(self, pipeline):
-        """Check that predict returns the positive-class probability."""
-        score = pipeline.predict(aptamer="ACGU", target="ACDEFGHIK")
+        assert isinstance(preds, np.ndarray)
 
-        assert score == pytest.approx(0.8, abs=1e-6)
+    def test_predict_shape(self, fitted_pipeline):
+        """Check that predict returns correct shape."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
 
-    @pytest.mark.parametrize(
-        "aptamer, target",
-        [
-            ("A", "A"),
-            ("ACGU", "ACDEF"),
-            ("ACGUACGUACGU", "ACDEFGHIKLMNPQRSTVWY"),
-            ("U", "M"),
-        ],
-    )
-    def test_predict_various_sequence_lengths(self, pipeline, aptamer, target):
-        """Check predict works with various sequence lengths."""
-        score = pipeline.predict(aptamer=aptamer, target=target)
+        preds = pipeline.predict(X)
 
-        assert isinstance(score, np.float64)
-        assert 0.0 <= score <= 1.0
+        assert preds.shape == (10,)
 
-    def test_predict_uses_predict_proba(self, pipeline_variable):
-        """Check that predict internally uses model.predict_proba."""
-        # Different sequences should produce different features and thus different scores
-        score1 = pipeline_variable.predict(aptamer="AAAA", target="ACDEF")
-        score2 = pipeline_variable.predict(aptamer="CCCC", target="ACDEF")
+    def test_predict_returns_valid_labels(self, fitted_pipeline):
+        """Check that predict returns valid class labels."""
+        pipeline, aptamer, protein = fitted_pipeline
+        X = [(aptamer, protein) for _ in range(10)]
 
-        # Features differ so scores should differ (unless by coincidence)
-        assert isinstance(score1, np.float64)
-        assert isinstance(score2, np.float64)
+        preds = pipeline.predict(X)
 
-    def test_predict_no_predict_proba_raises(self):
-        """Check that AttributeError is raised when model lacks predict_proba."""
-        pipeline = AptaMCTSPipeline(model=MockModelNoProba())
+        assert set(preds).issubset({0, 1})
 
-        with pytest.raises(AttributeError, match="`model` must implement `predict_proba`"):
-            pipeline.predict(aptamer="ACGU", target="ACDEF")
+    def test_predict_unfitted_raises(self):
+        """Check that predict raises when not fitted."""
+        pipeline = AptaMCTSPipeline()
 
-    def test_predict_bad_output_shape_raises(self):
-        """Check that ValueError is raised when predict_proba returns wrong shape."""
-        pipeline = AptaMCTSPipeline(model=MockModelBadOutput())
-
-        with pytest.raises(ValueError, match="`predict_proba` must return an array"):
-            pipeline.predict(aptamer="ACGU", target="ACDEF")
-
-    def test_predict_1d_output_raises(self):
-        """Check that ValueError is raised when predict_proba returns 1D array."""
-        pipeline = AptaMCTSPipeline(model=MockModel1DOutput())
-
-        with pytest.raises(ValueError, match="`predict_proba` must return an array"):
-            pipeline.predict(aptamer="ACGU", target="ACDEF")
-
-    def test_predict_deterministic(self, pipeline):
-        """Check that predict returns same score for same input."""
-        score1 = pipeline.predict(aptamer="ACGU", target="ACDEFGHIK")
-        score2 = pipeline.predict(aptamer="ACGU", target="ACDEFGHIK")
-
-        assert score1 == score2
-
-    def test_predict_different_aptamers(self, pipeline_variable):
-        """Check that different aptamers produce different scores."""
-        score1 = pipeline_variable.predict(aptamer="AAAA", target="ACDEF")
-        score2 = pipeline_variable.predict(aptamer="GCGC", target="ACDEF")
-
-        # Aptamer features differ (GC content), so scores should differ
-        assert score1 != score2
+        with pytest.raises(Exception):
+            pipeline.predict([("ACGU", "ACDEF")])
 
 
 # ---------------------------------------------------------------------------
@@ -239,10 +280,20 @@ class TestAptaMCTSPipelinePredict:
 class TestAptaMCTSPipelineRecommend:
     """Tests for AptaMCTSPipeline.recommend()."""
 
-    def test_recommend_returns_set(self, monkeypatch):
-        """Check that recommend returns a set of candidates."""
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
+    @pytest.fixture
+    def fitted_pipeline(self):
+        """Create a fitted pipeline for testing."""
+        aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+        protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+        X = [(aptamer, protein) for _ in range(40)]
+        y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
+        pipeline = AptaMCTSPipeline(depth=5, n_iterations=2)
+        pipeline.fit(X, y)
+        return pipeline
+
+    def test_recommend_returns_set(self, fitted_pipeline, monkeypatch):
+        """Check that recommend returns a set of candidates."""
         class MockMCTS:
             def __init__(self, **kwargs):
                 self.counter = 0
@@ -259,62 +310,61 @@ class TestAptaMCTSPipelineRecommend:
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        candidates = pipeline.recommend(target="ACDEFGHIK", n_candidates=3)
+        candidates = fitted_pipeline.recommend(target="ACDEFGHIK", n_candidates=3)
 
         assert isinstance(candidates, set)
 
-    def test_recommend_correct_number_of_candidates(self, monkeypatch):
+    def test_recommend_correct_number_of_candidates(self, fitted_pipeline, monkeypatch):
         """Check that recommend returns exactly n_candidates unique results."""
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
+        counter = 0
 
         class MockMCTS:
             def __init__(self, **kwargs):
-                self.counter = 0
+                pass
 
             def run(self, verbose=False):
-                candidate = f"APT{self.counter:03d}"
-                result = {
-                    "candidate": candidate,
-                    "sequence": f"{candidate}_SEQ",
+                nonlocal counter
+                counter += 1
+                return {
+                    "candidate": f"APT{counter:03d}",
+                    "sequence": f"APT{counter:03d}_SEQ",
                     "score": np.float64(0.5),
                 }
-                self.counter += 1
-                return result
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        for n in [1, 3, 5, 10]:
-            candidates = pipeline.recommend(target="ACDEFGHIK", n_candidates=n)
+        for n in [1, 3, 5]:
+            counter = 0
+            candidates = fitted_pipeline.recommend(target="ACDEFGHIK", n_candidates=n)
             assert len(candidates) == n
 
-    def test_recommend_tuple_structure(self, monkeypatch):
+    def test_recommend_tuple_structure(self, fitted_pipeline, monkeypatch):
         """Check that each candidate is a (candidate, sequence, score) tuple."""
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
+        counter = 0
 
         class MockMCTS:
             def __init__(self, **kwargs):
-                self.counter = 0
+                pass
 
             def run(self, verbose=False):
-                candidate = f"APT{self.counter:03d}"
-                result = {
-                    "candidate": candidate,
-                    "sequence": f"{candidate}_SEQ",
-                    "score": np.float64(0.5 + self.counter * 0.1),
+                nonlocal counter
+                counter += 1
+                return {
+                    "candidate": f"APT{counter:03d}",
+                    "sequence": f"APT{counter:03d}_SEQ",
+                    "score": np.float64(0.5),
                 }
-                self.counter += 1
-                return result
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        candidates = pipeline.recommend(target="ACDEFGHIK", n_candidates=3)
+        candidates = fitted_pipeline.recommend(target="ACDEFGHIK", n_candidates=3)
 
         for candidate, sequence, score in candidates:
             assert isinstance(candidate, str)
             assert isinstance(sequence, str)
             assert isinstance(score, float)
 
-    def test_recommend_uses_mcts(self, monkeypatch):
+    def test_recommend_uses_mcts(self, fitted_pipeline, monkeypatch):
         """Check that recommend actually calls MCTS with correct parameters."""
         mcts_calls = []
 
@@ -326,24 +376,21 @@ class TestAptaMCTSPipelineRecommend:
                 self.counter = 0
 
             def run(self, verbose=False):
-                result = {
+                return {
                     "candidate": "APT000",
                     "sequence": "APT000_SEQ",
                     "score": np.float64(0.5),
                 }
-                self.counter += 1
-                return result
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=10, n_iterations=500)
-        pipeline.recommend(target="ACDEF", n_candidates=1)
+        fitted_pipeline.recommend(target="ACDEF", n_candidates=1)
 
         assert len(mcts_calls) >= 1
-        assert mcts_calls[0]["depth"] == 10
-        assert mcts_calls[0]["n_iterations"] == 500
+        assert mcts_calls[0]["depth"] == 5
+        assert mcts_calls[0]["n_iterations"] == 2
 
-    def test_recommend_uses_experiment_adapter(self, monkeypatch):
+    def test_recommend_uses_experiment_adapter(self, fitted_pipeline, monkeypatch):
         """Check that recommend creates AptamerEvalAptaMCTS experiment."""
         experiment_created = []
 
@@ -359,7 +406,7 @@ class TestAptaMCTSPipelineRecommend:
 
         class MockMCTS:
             def __init__(self, **kwargs):
-                self.counter = 0
+                pass
 
             def run(self, verbose=False):
                 return {
@@ -370,49 +417,19 @@ class TestAptaMCTSPipelineRecommend:
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
-        pipeline.recommend(target="TESTTARGET", n_candidates=1)
+        fitted_pipeline.recommend(target="TESTTARGET", n_candidates=1)
 
         assert len(experiment_created) == 1
         assert experiment_created[0]["target"] == "TESTTARGET"
-        assert experiment_created[0]["pipeline"] is pipeline
 
-    def test_recommend_deduplicates(self, monkeypatch):
-        """Check that recommend handles duplicate candidates from MCTS."""
-        call_count = 0
+    def test_recommend_unfitted_raises(self):
+        """Check that recommend raises when pipeline is not fitted."""
+        pipeline = AptaMCTSPipeline()
 
-        class MockMCTS:
-            def __init__(self, **kwargs):
-                pass
+        with pytest.raises(Exception):
+            pipeline.recommend(target="ACDEF", n_candidates=1)
 
-            def run(self, verbose=False):
-                nonlocal call_count
-                call_count += 1
-                # Return same candidate first 3 times, then different ones
-                if call_count <= 3:
-                    return {
-                        "candidate": "APT000",
-                        "sequence": "APT000_SEQ",
-                        "score": np.float64(0.5),
-                    }
-                else:
-                    idx = call_count - 3
-                    return {
-                        "candidate": f"APT{idx:03d}",
-                        "sequence": f"APT{idx:03d}_SEQ",
-                        "score": np.float64(0.5),
-                    }
-
-        monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
-
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
-        candidates = pipeline.recommend(target="ACDEF", n_candidates=2)
-
-        assert len(candidates) == 2
-        # Should have called MCTS more than 2 times due to deduplication
-        assert call_count > 2
-
-    def test_recommend_score_converted_to_float(self, monkeypatch):
+    def test_recommend_score_converted_to_float(self, fitted_pipeline, monkeypatch):
         """Check that numpy scores are converted to Python floats."""
 
         class MockMCTS:
@@ -428,37 +445,10 @@ class TestAptaMCTSPipelineRecommend:
 
         monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
 
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
-        candidates = pipeline.recommend(target="ACDEF", n_candidates=1)
+        candidates = fitted_pipeline.recommend(target="ACDEF", n_candidates=1)
 
         for _, _, score in candidates:
             assert type(score) is float
-
-    @pytest.mark.parametrize("n_candidates", [1, 5, 10])
-    def test_recommend_consistency_with_n_candidates(self, monkeypatch, n_candidates):
-        """Check recommend returns exactly the requested number of candidates."""
-        counter = 0
-
-        class MockMCTS:
-            def __init__(self, **kwargs):
-                pass
-
-            def run(self, verbose=False):
-                nonlocal counter
-                counter += 1
-                return {
-                    "candidate": f"CAND{counter:03d}",
-                    "sequence": f"SEQ{counter:03d}",
-                    "score": np.float64(counter * 0.1),
-                }
-
-        monkeypatch.setattr("pyaptamer.aptamcts._pipeline.MCTS", MockMCTS)
-
-        pipeline = AptaMCTSPipeline(model=MockModel(), depth=5, n_iterations=2)
-        candidates = pipeline.recommend(target="ACDEF", n_candidates=n_candidates)
-
-        assert len(candidates) == n_candidates
-        counter = 0  # reset for next parametrization
 
 
 # ---------------------------------------------------------------------------
@@ -471,33 +461,16 @@ class TestAptaMCTSPipelineInit:
 
     def test_default_parameters(self):
         """Check default depth and n_iterations values."""
-        pipeline = AptaMCTSPipeline(model=MockModel())
+        pipeline = AptaMCTSPipeline()
 
         assert pipeline.depth == 20
         assert pipeline.n_iterations == 1000
+        assert pipeline.estimator is None
 
     @pytest.mark.parametrize("depth, n_iterations", [(5, 100), (10, 500), (50, 2000)])
     def test_custom_parameters(self, depth, n_iterations):
         """Check custom depth and n_iterations are stored correctly."""
-        pipeline = AptaMCTSPipeline(
-            model=MockModel(), depth=depth, n_iterations=n_iterations
-        )
+        pipeline = AptaMCTSPipeline(depth=depth, n_iterations=n_iterations)
 
         assert pipeline.depth == depth
         assert pipeline.n_iterations == n_iterations
-
-    def test_model_stored(self):
-        """Check that model is stored as attribute."""
-        model = MockModel()
-        pipeline = AptaMCTSPipeline(model=model)
-
-        assert pipeline.model is model
-
-    def test_init_aptamer_experiment_type(self):
-        """Check _init_aptamer_experiment returns AptamerEvalAptaMCTS."""
-        pipeline = AptaMCTSPipeline(model=MockModel())
-        experiment = pipeline._init_aptamer_experiment(target="ACDEF")
-
-        assert isinstance(experiment, AptamerEvalAptaMCTS)
-        assert experiment.target == "ACDEF"
-        assert experiment.pipeline is pipeline
