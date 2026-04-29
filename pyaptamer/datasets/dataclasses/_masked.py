@@ -83,6 +83,8 @@ class MaskedDataset(Dataset):
         self.is_rna = is_rna
 
         self.box = np.array(list(range(max_len)))
+        vocab = np.unique(np.concatenate([self.x.ravel(), self.y.ravel()]))
+        self.vocab = vocab[vocab > 0].tolist()
         self.len = len(self.x)
 
     def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
@@ -169,11 +171,26 @@ class MaskedDataset(Dataset):
         actual_mask_positions = random.sample(
             mask_positions, int(len(mask_positions) * 0.8)
         )
+        remaining_mask_positions = [
+            pos for pos in mask_positions if pos not in actual_mask_positions
+        ]
+        random_mask_positions = random.sample(
+            remaining_mask_positions, int(len(mask_positions) * 0.1)
+        )
         x_masked[actual_mask_positions] = self.mask_idx
+        if random_mask_positions:
+            random_tokens = [
+                random.choice(self.vocab) for _ in random_mask_positions
+            ]
+            x_masked[random_mask_positions] = torch.tensor(
+                random_tokens, dtype=x_masked.dtype
+            )
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked = self._mask_rna(
+                x_masked, actual_mask_positions + random_mask_positions
+            )
 
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
