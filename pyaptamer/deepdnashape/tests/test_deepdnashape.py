@@ -76,6 +76,3 @@ def test_reverse_complement_invariance(predictor):
     
     # After flipping the results shourld match
     np.testing.assert_allclose(res1, res2[::-1], atol=1e-5)
-
-
-
