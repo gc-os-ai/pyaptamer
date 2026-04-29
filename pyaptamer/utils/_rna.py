@@ -175,9 +175,7 @@ def rna2vec(
         # when every input sequence was filtered out (or the input was empty).
         # numpy cannot infer the inner dimension from an empty list, so build
         # the empty 2-D array explicitly.
-        if max_sequence_length is not None:
-            return np.empty((0, max_sequence_length), dtype=np.int64)
-        return np.empty((0, 0), dtype=np.int64)
+        return np.empty((0, max_sequence_length), dtype=np.int64)
 
     return np.stack(result)
 
