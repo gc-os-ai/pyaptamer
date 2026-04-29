@@ -205,6 +205,7 @@ class AptaTransPipeline:
         self,
         target: str,
         n_candidates: int = 10,
+        score_threshold: float | None = None,
         verbose: bool = True,
     ) -> set[tuple[str, str, float]]:
         """Recommend aptamer candidates for a given target protein.
@@ -220,6 +221,11 @@ class AptaTransPipeline:
             The target protein sequence.
         n_candidates : int, optional, default=10
             The number of candidate aptamers to generate.
+        score_threshold : float or None, optional, default=None
+            Minimum binding score a candidate must achieve to be included in the
+            results. Candidates whose score is below this value are discarded and the
+            search continues. Must be between 0.0 and 1.0. If None, all unique
+            candidates are accepted regardless of score.
         verbose : bool, optional, default=True
             If True, enables print statements for debugging and progress tracking.
 
@@ -228,7 +234,17 @@ class AptaTransPipeline:
         set[tuple[str, str, float]]
             A set of tuples containing reconstructed and unrecontructed candidate
             aptamer sequence, and the corresponding score.
+
+        Raises
+        ------
+        ValueError
+            If `score_threshold` is not between 0.0 and 1.0.
         """
+        if score_threshold is not None and not (0.0 <= score_threshold <= 1.0):
+            raise ValueError(
+                f"`score_threshold` must be between 0.0 and 1.0, got {score_threshold}."
+            )
+
         experiment = self._init_aptamer_experiment(target)
 
         # initialize MCTS with the experiment
@@ -244,7 +260,8 @@ class AptaTransPipeline:
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
             if candidate not in candidates:
-                candidates[candidate] = (candidate, sequence, score.item())
+                if score_threshold is None or score.item() >= score_threshold:
+                    candidates[candidate] = (candidate, sequence, score.item())
 
         if verbose:
             for candidate, sequence, score in candidates.values():
