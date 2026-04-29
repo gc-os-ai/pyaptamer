@@ -190,3 +190,15 @@ def test_from_any_with_molecule_loader_pair():
 def test_from_any_unsupported_raises():
     with pytest.raises(TypeError):
         APIDataset.from_any("not a valid input")
+
+
+def test_from_any_missing_columns():
+    """ValueError is raised if a DataFrame is missing required columns."""
+    df = pd.DataFrame({"wrong_apta": [APTA_A], "protein": [PROT_A]})
+    # Default columns
+    with pytest.raises(ValueError, match="missing required columns"):
+        APIDataset.from_any(df, y=[1])
+
+    # Custom columns
+    with pytest.raises(ValueError, match="missing required columns"):
+        APIDataset.from_any(df, y=[1], apta_col="wrong_apta", prot_col="missing")
