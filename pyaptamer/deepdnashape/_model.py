@@ -90,7 +90,7 @@ class MessagePassingConv(nn.Module):
     linear (chain) graph. This layer collects the feature vectors
     from each node's immediate predecessor and successor, combines
     them through learned weight matrices, and optionally refines
-    the result with batch normalization and a KerasGRUCell.
+    the result with batch normalization and a `KerasGRUCell`.
     Stacking multiple layers allows information to propagate
     across longer sequence distances.
 
@@ -108,7 +108,7 @@ class MessagePassingConv(nn.Module):
         Whether to apply batch normalization.
     gru_layer : bool, optional
         If True, refine the aggregated features with a
-        KerasGRUCell. If False, apply a sigmoid
+        `KerasGRUCell`. If False, apply a sigmoid
         activation instead. Default is True.
     """
 
@@ -192,7 +192,7 @@ class MessagePassingConv(nn.Module):
 
 
 class AvgFeatures(nn.Module):
-    """Dimensionality reduction layer that averages channel groups.
+    """Dimensionality reduction layer that averages sub-features.
 
     Given a feature vector of size filter_size at each node,
     this layer divides the channels into target_features equal
@@ -236,14 +236,14 @@ class AvgFeatures(nn.Module):
 
 
 class DNAModel(nn.Module):
-    """Graph neural network for predicting DNA shape features. [1]_
+    """Graph neural network for predicting DNA shape features.
 
     The model treats each position in a DNA sequence as a node in a
     linear (chain) graph.  It first projects the one-hot encoded input
     through a 1-D convolution, then applies a configurable stack of
-    MessagePassingConv layers where each node exchanges features
+    `MessagePassingConv` layers where each node exchanges features
     with its neighbours through learned weight matrices and optional
-    GRU-based updates. After each layer an AvgFeatures reduction
+    GRU-based updates. After each layer an `AvgFeatures` reduction
     predictions are stacked to form the final output.
 
     Original Implementation: https://github.com/JinsenLi/deepDNAshape
@@ -258,35 +258,35 @@ class DNAModel(nn.Module):
         Number of hidden channels used throughout the
         convolution and GRU layers. Default is 64.
     mp_layers : int, optional
-        Number of stacked MessagePassingConv layers.
+        Number of stacked `MessagePassingConv` layers.
         Default is 7.
     mp_steps : int, optional
         Number of consecutive forward passes through each
-        MessagePassingConv layer before moving to the
+        `MessagePassingConv` layer before moving to the
         next. Default is 1.
     base_features : int, optional
         Number of output scalars per node produced by the
-        AvgFeatures reduction. Default is 1.
+        `AvgFeatures` reduction. Default is 1.
     constraints : bool, optional
-        If True, collect an AvgFeatures prediction after
-        every MessagePassingConv layer and stack them
+        If True, collect an `AvgFeatures` prediction after
+        every `MessagePassingConv` layer and stack them
         along a new axis. Default is True.
     selflayer : bool, optional
-        If True, collect an AvgFeatures prediction from
+        If True, collect an `AvgFeatures` prediction from
         the initial convolution output before any message
         passing. Default is True.
     multiply : str or None, optional
         Aggregation mode forwarded to each
-        MessagePassingConv. Default is "add".
+        `MessagePassingConv`. Default is "add".
     bn_layer : bool, optional
         If True, enable batch normalization inside each
-        MessagePassingConv. Default is True.
+        `MessagePassingConv`. Default is True.
     gru_layer : bool, optional
         If True, enable GRU refinement inside each
-        MessagePassingConv. Default is True.
+        `MessagePassingConv`. Default is True.
     dropout_rate : float, optional
         Dropout probability applied to node features before
-        the AvgFeatures reduction during training.
+        the `AvgFeatures` reduction during training.
         Default is 0.0.
     """
 
