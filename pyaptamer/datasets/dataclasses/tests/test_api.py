@@ -117,11 +117,15 @@ def test_init_unsupported_type_raises():
 def test_y_is_none_when_unlabeled():
     ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A])
     assert ds.y is None
+    # Dynamic tag check
+    assert ds.get_tags()["has_y"] is False
 
 
 def test_y_stored_as_numpy_array():
     ds = APIDataset(x_apta=[APTA_A], x_prot=[PROT_A], y=[1])
     assert isinstance(ds.y, np.ndarray)
+    # Dynamic tag check
+    assert ds.get_tags()["has_y"] is True
 
 
 # -- from_any tests --------------------------------------------------

@@ -41,19 +41,28 @@ class APIDataset(BaseObject):
     }
 
     def __init__(self, x_apta=None, x_prot=None, y=None):
-        super().__init__()
+        super().__init__()  # Initialize BaseObject first
+        
         if x_apta is None and x_prot is None:
             self._X = None
             self.y = None
+            # Update tag even for empty initialization
+            self.set_tags(has_y=False)
             return
+
         self._X = self._check_inputs(x_apta, x_prot)
-        # Normalize y to a 1D numpy array (handles DataFrame, Series, 2D column vectors)
+        
+        # Normalize y to a 1D numpy array
         if y is not None:
             if isinstance(y, pd.DataFrame):
                 y = y.iloc[:, 0]
             self.y = np.asarray(y).ravel()
         else:
             self.y = None
+
+        # THE FIX: Sync the instance tags with reality
+        # If y is None, has_y becomes False, stopping the DataLoader crash
+        self.set_tags(has_y=(self.y is not None))
 
     def load(self) -> pd.DataFrame:
         """Return X as a 2-column pd.DataFrame with columns [aptamer, protein]."""
