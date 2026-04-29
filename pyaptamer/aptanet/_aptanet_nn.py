@@ -7,7 +7,7 @@ import torch.nn as nn
 def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
     """
     Create a single AptaNet layer composed of a linear transformation,
-    ReLU activation, and AlphaDropout.
+    ReLU activation, and Dropout.
 
     Parameters
     ----------
@@ -18,7 +18,7 @@ def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
         Size of each output sample (i.e., number of neurons in the layer).
 
     dropout : float
-        Dropout probability for AlphaDropout. Must be between 0 and 1.
+        Dropout probability for Dropout. Must be between 0 and 1.
 
     lazy : bool, optional
         If True, use `nn.LazyLinear` instead of `nn.Linear`, allowing the input
@@ -30,13 +30,13 @@ def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
         A sequential container with:
         - Linear or LazyLinear layer
         - ReLU activation
-        - AlphaDropout layer
+        - Dropout layer
     """
     linear = nn.LazyLinear(output_dim) if lazy else nn.Linear(input_dim, output_dim)
     return nn.Sequential(
         linear,
         nn.ReLU(),
-        nn.AlphaDropout(dropout),
+        nn.Dropout(dropout),
     )
 
 
