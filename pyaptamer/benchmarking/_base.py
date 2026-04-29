@@ -32,6 +32,12 @@ class Benchmarking:
         Cross-validation strategy. If `None`, defaults to 5-fold CV.
         If you want to use an explicit train/test split, pass a
         `PredefinedSplit` object.
+    labels : list[str] or None, default=None
+        Human-readable labels for each estimator, used as row identifiers
+        in the results DataFrame. If ``None``, labels are derived from
+        ``estimator.__class__.__name__`` with automatic deduplication
+        (appending ``_1``, ``_2``, etc.) when multiple estimators share
+        the same class name.
 
     Attributes
     ----------
@@ -73,13 +79,55 @@ class Benchmarking:
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    def __init__(self, estimators, metrics, X, y, cv=None):
+    def __init__(self, estimators, metrics, X, y, cv=None, labels=None):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.X = X
         self.y = y
         self.cv = cv
         self.results = None
+
+        if labels is not None:
+            if len(labels) != len(self.estimators):
+                raise ValueError(
+                    f"Length of `labels` ({len(labels)}) must match the number "
+                    f"of estimators ({len(self.estimators)})."
+                )
+            self.labels = list(labels)
+        else:
+            self.labels = self._generate_labels()
+
+    def _generate_labels(self):
+        """Generate unique labels from estimator class names.
+
+        When multiple estimators share the same class name, a numeric suffix
+        (``_1``, ``_2``, …) is appended to each duplicate to guarantee
+        uniqueness.
+
+        Returns
+        -------
+        list[str]
+            A list of unique label strings, one per estimator.
+        """
+        raw_names = [est.__class__.__name__ for est in self.estimators]
+
+        # count how many times each name appears
+        from collections import Counter
+
+        name_counts = Counter(raw_names)
+
+        # for names that appear more than once, append an index
+        seen = {}
+        labels = []
+        for name in raw_names:
+            if name_counts[name] > 1:
+                idx = seen.get(name, 0) + 1
+                seen[name] = idx
+                labels.append(f"{name}_{idx}")
+            else:
+                labels.append(name)
+
+        return labels
 
     def _to_scorers(self, metrics):
         """Convert metric callables to a dict of scorers."""
@@ -128,9 +176,7 @@ class Benchmarking:
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
-
+        for estimator, label in zip(self.estimators, self.labels):
             cv_results = cross_validate(
                 estimator,
                 self.X,
@@ -148,7 +194,7 @@ class Benchmarking:
                     "test": float(np.mean(cv_results[f"test_{metric}"])),
                 }
 
-            results[est_name] = est_scores
+            results[label] = est_scores
 
         self.results = self._to_df(results)
         return self.results
