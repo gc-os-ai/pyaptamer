@@ -88,6 +88,6 @@ def test_sklearn_compatible_estimator(estimator, check):
 def test_aptanet_layer_uses_standard_dropout():
     """Layers with ReLU should use Dropout, not AlphaDropout."""
     layer = aptanet_layer(input_dim=64, output_dim=32, dropout=0.3)
-    dropout_layers = [m for m in layer if isinstance(m, nn.Dropout | nn.AlphaDropout)]
+    dropout_layers = [m for m in layer if isinstance(m, (nn.Dropout, nn.AlphaDropout))]
     assert len(dropout_layers) == 1
     assert isinstance(dropout_layers[0], nn.Dropout)
