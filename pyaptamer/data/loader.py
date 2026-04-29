@@ -202,3 +202,67 @@ class MoleculeLoader:
             raise ValueError(f"No sequences found in {path}")
 
         return pd.DataFrame.from_records(rows, columns=["chain_id", "sequence"])
+
+    def to_fasta(self, output_path, description=""):
+        """Export loaded sequences to a FASTA file.
+
+        Writes all sequences obtained from :meth:`to_df_seq` into a
+        standard FASTA-formatted file. Each sequence is written as a
+        separate record, using the chain ID as the record identifier.
+
+        This completes the read-write round-trip, allowing users who
+        filter, transform, or generate sequences programmatically to
+        write them back in a standard bioinformatics format.
+
+        Parameters
+        ----------
+        output_path : str or Path
+            File path where the FASTA file will be written.
+        description : str, optional, default=""
+            Description string to attach to each FASTA record.
+
+        Returns
+        -------
+        int
+            Number of sequences written to the file.
+
+        Raises
+        ------
+        ValueError
+            If no sequences are available to export.
+
+        Examples
+        --------
+        >>> from pyaptamer.data import MoleculeLoader
+        >>> loader = MoleculeLoader("protein.fasta")  # doctest: +SKIP
+        >>> n_written = loader.to_fasta("output.fasta")  # doctest: +SKIP
+        """
+        from Bio.Seq import Seq
+        from Bio.SeqRecord import SeqRecord
+
+        output_path = Path(output_path)
+        df = self.to_df_seq()
+
+        if df.empty:
+            raise ValueError("No sequences available to export.")
+
+        records = []
+        for idx, row in df.iterrows():
+            # extract chain_id from the index
+            if isinstance(idx, tuple):
+                # MultiIndex: (path, chain_id)
+                chain_id = str(idx[1])
+            else:
+                chain_id = str(idx)
+
+            record = SeqRecord(
+                Seq(row.iloc[0]),
+                id=chain_id,
+                description=description,
+            )
+            records.append(record)
+
+        with open(output_path, "w") as handle:
+            SeqIO.write(records, handle, "fasta")
+
+        return len(records)
