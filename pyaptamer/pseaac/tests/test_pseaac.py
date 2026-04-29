@@ -125,3 +125,18 @@ def test_pseaac_configurations(
     assert len(vec) == expected_len, (
         f"Expected vector length {expected_len}, but got {len(vec)}"
     )
+
+
+@pytest.mark.parametrize(
+    "seq",
+    [
+        "acdefghik" * 4,
+        "AcDeFgHiK" * 4,
+    ],
+)
+def test_clean_protein_seq_lowercase(seq):
+    """Lowercase and mixed-case sequences must be normalized, not corrupted."""
+    from pyaptamer.utils._pseaac_utils import clean_protein_seq
+
+    cleaned = clean_protein_seq(seq)
+    assert cleaned == seq.upper()

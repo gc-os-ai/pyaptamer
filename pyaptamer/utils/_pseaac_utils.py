@@ -34,6 +34,7 @@ def clean_protein_seq(seq):
     """
     import warnings
 
+    seq = seq.upper()
     cleaned = []
     invalid_found = False
 
