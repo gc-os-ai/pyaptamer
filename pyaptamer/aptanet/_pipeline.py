@@ -84,6 +84,12 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
 
     def predict_proba(self, X):
         check_is_fitted(self)
+        if not hasattr(self.pipeline_, "predict_proba"):
+            estimator_name = type(self._estimator).__name__
+            raise AttributeError(
+                "AptaNetPipeline.predict_proba is only available when the wrapped "
+                f"estimator implements predict_proba. Got {estimator_name}."
+            )
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
