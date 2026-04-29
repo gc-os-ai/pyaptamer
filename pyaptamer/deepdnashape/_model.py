@@ -35,6 +35,9 @@ def _segment_sum(data, segment_ids, num_segments):
 class KerasGRUCell(nn.Module):
     """Gated Recurrent Unit (GRU) cell.
 
+    Gated Recurrent Units (GRUs) are neural network layers that selectively
+    remember or forget information across a sequence.
+
     This implementation uses separate bias terms for the input and
     recurrent matrix multiplications. Unlike a standard single-bias
     GRU, the reset gate logic applies the recurrent bias *after* the
@@ -56,7 +59,7 @@ class KerasGRUCell(nn.Module):
         self.bias = nn.Parameter(torch.empty(2, 3 * hidden_size))
 
     def forward(self, x, h):
-        """Forward pass for Keras GRU cell.
+        """Forward pass for `KerasGRUCell`.
 
         Parameters
         ----------
@@ -142,7 +145,7 @@ class MessagePassingConv(nn.Module):
         self.gru = KerasGRUCell(filters, filters) if gru_layer else None
 
     def forward(self, x, pairs_prev, pairs_next):
-        """Execute one iteration of graph message passing.
+        """Forward pass for `MessagePassingConv`.
 
         Parameters
         ----------
