@@ -1,7 +1,7 @@
 """DeepDNAshape predictor for DNA shape feature prediction."""
 
 __author__ = ["prashantpandeygit"]
-__all__ = ["Predictor"]
+__all__ = ["deepDNAshape"]
 
 import itertools
 import json
@@ -165,7 +165,7 @@ def _rescale(predictions, params):
     return predictions * params["percentile_range"] + params["median"]
 
 
-class Predictor:
+class deepDNAshape:
     """Predictor for DNA structural shape features from nucleotide sequence. [1]_
 
     This class wraps the DNAModel graph neural network to predict
@@ -182,8 +182,8 @@ class Predictor:
 
     Examples
     --------
-    >>> from pyaptamer.deepdnashape import Predictor
-    >>> pred = Predictor()
+    >>> from pyaptamer.deepdnashape import deepDNAshape
+    >>> pred = deepDNAshape()
     >>> scores = pred.predict("MGW", "AAGGTAGT")
     """
 
