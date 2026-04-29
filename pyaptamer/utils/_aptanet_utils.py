@@ -60,7 +60,8 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
 def pairs_to_features(X, k=4):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
-    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
+    Also supports a pandas DataFrame with ('aptamer', 'protein') or
+    ('aptamer_sequence', 'target_sequence') columns.
 
     This function generates feature vectors for each (aptamer, protein) pair using:
 
@@ -71,7 +72,8 @@ def pairs_to_features(X, k=4):
     ----------
     X : list of tuple of str or pandas.DataFrame
         A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
-        or a DataFrame containing 'aptamer' and 'protein' columns.
+        or a DataFrame containing either ('aptamer', 'protein') or
+        ('aptamer_sequence', 'target_sequence') columns.
 
     k : int, optional
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
@@ -87,7 +89,25 @@ def pairs_to_features(X, k=4):
     feats = []
 
     if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
+        if "aptamer" in X.columns and "protein" in X.columns:
+            apt_col, prot_col = "aptamer", "protein"
+        elif "aptamer_sequence" in X.columns and "target_sequence" in X.columns:
+            apt_col, prot_col = "aptamer_sequence", "target_sequence"
+        else:
+            actual_columns = list(X.columns)
+            schema_one = {"aptamer", "protein"}
+            schema_two = {"aptamer_sequence", "target_sequence"}
+            missing_schema_one = sorted(schema_one - set(X.columns))
+            missing_schema_two = sorted(schema_two - set(X.columns))
+            raise ValueError(
+                "DataFrame must contain either ('aptamer', 'protein') "
+                "or ('aptamer_sequence', 'target_sequence') columns. "
+                f"Found columns: {actual_columns}. "
+                f"Missing for ('aptamer', 'protein'): {missing_schema_one}. "
+                f"Missing for ('aptamer_sequence', 'target_sequence'): "
+                f"{missing_schema_two}."
+            )
+        pairs = zip(X[apt_col], X[prot_col], strict=False)
     else:
         pairs = X
 
