@@ -3,9 +3,11 @@ __all__ = ["augment_reverse"]
 
 import numpy as np
 
+_RNA_COMPLEMENT = str.maketrans("ACGUacgu", "UGCAugca")
+
 
 def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
-    """Augment arrays of sequences by adding the reversed sequences.
+    """Augment arrays of sequences by adding their reverse complement.
 
     Parameters
     ----------
@@ -15,15 +17,15 @@ def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
     Returns
     -------
     tuple[np.ndarray, ...]
-        A tuple of arrays, each containing sequences with their reversed sequences.
+        A tuple of arrays, each containing sequences with their reverse complements
         added.
     """
     results = []
     for sequences in sequence_arrays:
-        # create array of reversed sequences
-        reversed_sequences = np.array([seq[::-1] for seq in sequences])
-        # concatenate original and reversed sequences
-        result = np.concatenate([sequences, reversed_sequences])
+        rc_sequences = np.array(
+            [seq[::-1].translate(_RNA_COMPLEMENT) for seq in sequences]
+        )
+        result = np.concatenate([sequences, rc_sequences])
         results.append(result)
 
     return tuple(results)
