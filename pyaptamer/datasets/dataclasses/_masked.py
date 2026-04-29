@@ -85,8 +85,14 @@ class MaskedDataset(Dataset):
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
 
-    def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
+    def _mask_rna(
+        self, x_masked: Tensor, mask_positions: list[int], seq_len: int
+    ) -> Tensor:
         """Mask adjacent nucleotides for RNA sequences.
+
+        Adjacent positions are constrained to the actual non-padding length of
+        the sequence so that padding tokens are never overwritten with
+        ``self.mask_idx``.
 
         Parameters
         ----------
@@ -94,6 +100,9 @@ class MaskedDataset(Dataset):
             The tensor containing the masked sequence.
         mask_positions : list[int]
             List of positions that have been masked.
+        seq_len : int
+            Length of the non-padding region of the sequence. Adjacent positions
+            beyond this length (i.e. padding) are skipped.
 
         Returns
         -------
@@ -102,8 +111,8 @@ class MaskedDataset(Dataset):
         """
         adjacent_positions = []
         for pos in mask_positions:
-            # mask position + 1 (if within bounds)
-            if pos < self.max_len - 1:
+            # mask position + 1 (if within the non-padding region)
+            if pos < seq_len - 1:
                 adjacent_positions.append(pos + 1)
             # mask position - 1 (if within bounds)
             if pos > 0:
@@ -173,7 +182,9 @@ class MaskedDataset(Dataset):
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked = self._mask_rna(
+                x_masked, actual_mask_positions, seq_len=int(seq_len)
+            )
 
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
