@@ -98,14 +98,18 @@ class APIDataset(BaseObject):
         if isinstance(X, APIDataset):
             return X
 
-        # Rename DataFrame columns to canonical before coercion. The rest of
-        # the codebase always sees ["aptamer", "protein"].
-        if isinstance(X, pd.DataFrame) and (
-            apta_col != "aptamer" or prot_col != "protein"
-        ):
-            X = X.rename(columns={apta_col: "aptamer", prot_col: "protein"})
-
         df = coerce_input(X)
+
+        # If input was a DataFrame, ensure it has the required columns
+        if isinstance(X, pd.DataFrame):
+            missing = [c for c in [apta_col, prot_col] if c not in df.columns]
+            if missing:
+                raise ValueError(f"DataFrame is missing required columns: {missing}")
+
+            # Rename to canonical names ["aptamer", "protein"]
+            if apta_col != "aptamer" or prot_col != "protein":
+                df = df.rename(columns={apta_col: "aptamer", prot_col: "protein"})
+
         return cls(x_apta=df["aptamer"], x_prot=df["protein"], y=y)
 
     def _check_inputs(self, x_apta, x_prot) -> pd.DataFrame:
