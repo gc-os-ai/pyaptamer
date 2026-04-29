@@ -78,6 +78,22 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
     def fit(self, X, y):
+        """
+        Fit the pipeline on training data.
+
+        Parameters
+        ----------
+        X : list of tuple of str or pandas.DataFrame
+            Training pairs of (aptamer_sequence, protein_sequence), or a
+            DataFrame with 'aptamer' and 'protein' columns.
+        y : array-like of shape (n_samples,)
+            Binary class labels (0/1).
+
+        Returns
+        -------
+        self : AptaNetPipeline
+            Fitted pipeline.
+        """
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
         return self
