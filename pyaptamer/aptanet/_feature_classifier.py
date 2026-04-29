@@ -125,7 +125,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         self.classes_, y = np.unique(y, return_inverse=True)
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.int64, copy=False)
+            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
         )
         return self
 
