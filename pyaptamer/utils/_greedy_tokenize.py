@@ -1,6 +1,6 @@
 """Shared greedy tokenizer helper."""
 
-__author__ = ["nennomp"]
+__author__ = ["Iskaban10"]
 __all__ = ["greedy_tokenize_sequence"]
 
 
