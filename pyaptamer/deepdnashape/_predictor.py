@@ -165,10 +165,10 @@ def _rescale(predictions, params):
     return predictions * params["percentile_range"] + params["median"]
 
 
-class deepDNAshape:
-    """Predictor for DNA structural shape features from nucleotide sequence. [1]_
+class deepDNAshape:  # noqa: N801
+    """Predictor for DNA structural shape features from nucleotide sequence.
 
-    This class wraps the DNAModel graph neural network to predict
+    This class wraps the `DNAModel` graph neural network to predict
     geometric and conformational properties of DNA (e.g. Minor Groove
     Width, Roll, Helical Twist) from a raw sequence string.
 
