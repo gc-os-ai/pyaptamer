@@ -1,12 +1,10 @@
 __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
-from itertools import product
-
 import numpy as np
 import pandas as pd
 
-from pyaptamer.pseaac import AptaNetPSeAAC
+from pyaptamer.trafos.feature import AptaNetKmerTransformer, AptaNetPairTransformer
 
 
 def generate_kmer_vecs(aptamer_sequence, k=4):
@@ -29,32 +27,8 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
     """
-    DNA_BASES = list("ACGT")
-
-    # Generate all possible k-mers from 1 to k
-    all_kmers = []
-    for i in range(1, k + 1):
-        all_kmers.extend(["".join(p) for p in product(DNA_BASES, repeat=i)])
-
-    # Count occurrences of each k-mer in the aptamer_sequence
-    kmer_counts = dict.fromkeys(all_kmers, 0)
-    for i in range(len(aptamer_sequence)):
-        for j in range(1, k + 1):
-            if i + j <= len(aptamer_sequence):
-                kmer = aptamer_sequence[i : i + j]
-                if kmer in kmer_counts:
-                    kmer_counts[kmer] += 1
-
-    # Normalize counts to frequencies
-    total_kmers = sum(kmer_counts.values())
-    kmer_freq = np.array(
-        [
-            kmer_counts[kmer] / total_kmers if total_kmers > 0 else 0
-            for kmer in all_kmers
-        ]
-    )
-
-    return kmer_freq
+    X = pd.DataFrame({"aptamer": [aptamer_sequence]})
+    return AptaNetKmerTransformer(k=k).fit_transform(X).to_numpy()[0]
 
 
 def pairs_to_features(X, k=4):
@@ -83,18 +57,12 @@ def pairs_to_features(X, k=4):
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
     """
-    pseaac = AptaNetPSeAAC()
-    feats = []
-
     if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
+        X_inner = X
     else:
-        pairs = X
-
-    for aptamer_seq, protein_seq in pairs:
-        kmer = generate_kmer_vecs(aptamer_seq, k=k)
-        pseaac_vec = np.asarray(pseaac.transform(protein_seq))
-        feats.append(np.concatenate([kmer, pseaac_vec]))
+        X_inner = pd.DataFrame(X, columns=["aptamer", "protein"])
 
     # Ensure float32 for PyTorch compatibility
-    return np.vstack(feats).astype(np.float32)
+    return AptaNetPairTransformer(k=k).fit_transform(X_inner).to_numpy().astype(
+        np.float32
+    )
