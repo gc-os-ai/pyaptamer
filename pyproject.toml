@@ -14,13 +14,13 @@ authors = [
 
 dependencies = [
     "biopython>=1.83",
-    "datasets>=4.0.0",
-    "lightning>=2.5.3",
+    "datasets>=4.8.5",
+    "lightning>=2.6.1",
     "numpy>=2.0.2",
-    "pandas>=2.0.0",
+    "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.5.1",
-    "scikit-learn>=1.3.0,<1.8.0",
+    "torch>=2.11.0",
+    "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
     "requests",
@@ -28,8 +28,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.12.0",
-    "pytest>=8.0.0",
+    "ruff>=0.15.12",
+    "pytest>=9.0.3",
     "pre-commit",
 ]
 
