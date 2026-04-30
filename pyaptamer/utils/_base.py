@@ -20,8 +20,9 @@ def filter_words(words: dict[str, float]) -> dict[str, int]:
         A dictionary mapping filtered words to unique integer indices.
     """
     if not words:
-            return {}
-    mean_freq = sum(words.values()) / len(words)
+        return {}
+
+    mean_freq = np.mean(list(words.values()))
     words = [seq for seq, freq in words.items() if freq > mean_freq]
     words = {word: i + 1 for i, word in enumerate(words)}
 
