@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 
 class MoleculeLoader:
@@ -237,10 +239,9 @@ class MoleculeLoader:
         >>> loader = MoleculeLoader("protein.fasta")  # doctest: +SKIP
         >>> n_written = loader.to_fasta("output.fasta")  # doctest: +SKIP
         """
-        from Bio.Seq import Seq
-        from Bio.SeqRecord import SeqRecord
-
         output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         df = self.to_df_seq()
 
         if df.empty:
@@ -248,21 +249,22 @@ class MoleculeLoader:
 
         records = []
         for idx, row in df.iterrows():
-            # extract chain_id from the index
+            # build a unique record ID from the index
             if isinstance(idx, tuple):
-                # MultiIndex: (path, chain_id)
-                chain_id = str(idx[1])
+                # MultiIndex: (path, chain_id) — combine filename stem and
+                # chain ID to guarantee uniqueness across multiple input files
+                record_id = f"{Path(idx[0]).stem}_{idx[1]}"
             else:
-                chain_id = str(idx)
+                record_id = str(idx)
 
             record = SeqRecord(
-                Seq(row.iloc[0]),
-                id=chain_id,
+                Seq(row["sequence"]),
+                id=record_id,
                 description=description,
             )
             records.append(record)
 
-        with open(output_path, "w") as handle:
+        with open(output_path, "w", encoding="utf-8") as handle:
             SeqIO.write(records, handle, "fasta")
 
         return len(records)

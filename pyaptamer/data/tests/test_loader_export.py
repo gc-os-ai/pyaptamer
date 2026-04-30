@@ -50,8 +50,8 @@ class TestToFasta:
         reloaded_df = reloaded.to_df_seq()
 
         # sequences should match
-        original_seqs = sorted(original_df.iloc[:, 0].tolist())
-        reloaded_seqs = sorted(reloaded_df.iloc[:, 0].tolist())
+        original_seqs = sorted(original_df["sequence"].tolist())
+        reloaded_seqs = sorted(reloaded_df["sequence"].tolist())
         assert original_seqs == reloaded_seqs
 
     def test_export_with_description(self, sample_fasta, tmp_path):
@@ -71,10 +71,10 @@ class TestToFasta:
         assert n == 3
 
     def test_export_creates_parent_dirs(self, sample_fasta, tmp_path):
-        """Test export works when output_path parent exists."""
+        """Test that to_fasta auto-creates missing parent directories."""
         loader = MoleculeLoader(str(sample_fasta))
-        output_path = tmp_path / "subdir" / "output.fasta"
-        output_path.parent.mkdir(parents=True)
+        output_path = tmp_path / "new_subdir" / "nested" / "output.fasta"
+        # do NOT manually create the directory — to_fasta should handle it
         n = loader.to_fasta(str(output_path))
         assert n == 3
         assert output_path.exists()
@@ -92,3 +92,26 @@ class TestToFasta:
         assert n == 1
         content = output_path.read_text()
         assert "ACDEFGHIKL" in content
+
+    def test_multi_file_unique_ids(self, tmp_path):
+        """Test that loading from multiple files produces unique FASTA IDs.
+
+        When two files contain chains with the same ID (e.g., both have
+        chain 'A'), the exported FASTA should disambiguate them using the
+        source filename stem.
+        """
+        fasta1 = tmp_path / "protein_alpha.fasta"
+        fasta1.write_text(">A\nACDEFGHIKL\n")
+
+        fasta2 = tmp_path / "protein_beta.fasta"
+        fasta2.write_text(">A\nMVLSPADKTN\n")
+
+        loader = MoleculeLoader([str(fasta1), str(fasta2)])
+        output_path = tmp_path / "merged.fasta"
+        n = loader.to_fasta(str(output_path))
+
+        assert n == 2
+        content = output_path.read_text()
+        # IDs should include the filename stem to avoid collisions
+        assert ">protein_alpha_A" in content
+        assert ">protein_beta_A" in content
