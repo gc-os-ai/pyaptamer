@@ -11,6 +11,7 @@ from itertools import product
 
 import numpy as np
 
+from pyaptamer.utils._greedy_tokenize import greedy_tokenize_sequence
 _VALID_NUCLEOTIDES = frozenset("ACGU")
 
 
@@ -221,30 +222,13 @@ def encode_rna(
 
     encoded_sequences = []
     for seq in sequences:
-        tokens = []
-        i = 0
-
-        while i < len(seq):
-            # try to match the longest possible pattern first
-            matched = False
-            for pattern_len in range(min(word_max_len, len(seq) - i), 0, -1):
-                pattern = seq[i : i + pattern_len]
-                if pattern in words:
-                    tokens.append(words[pattern])
-                    i += pattern_len
-                    matched = True
-                    break
-
-            # if no pattern matched, use unknown token (0) and advance by 1
-            if not matched:
-                tokens.append(0)
-                i += 1
-
-            # stop if we've reached max_len tokens
-            if len(tokens) >= max_len:
-                tokens = tokens[:max_len]
-                break
-
+        tokens = greedy_tokenize_sequence(
+            seq,
+            words,
+            word_max_len=word_max_len,
+            max_len=max_len,
+            unknown_token=0,
+        )
         # pad sequence to max_len
         padded_tokens = tokens + [0] * (max_len - len(tokens))
         encoded_sequences.append(padded_tokens)
