@@ -85,7 +85,9 @@ class MaskedDataset(Dataset):
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
 
-    def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
+    def _mask_rna(
+        self, x_masked: Tensor, mask_positions: list[int]
+    ) -> tuple[Tensor, list[int]]:
         """Mask adjacent nucleotides for RNA sequences.
 
         Parameters
@@ -97,20 +99,24 @@ class MaskedDataset(Dataset):
 
         Returns
         -------
-        Tensor
-            The tensor with adjacent nucleotides masked.
+        tuple[Tensor, list[int]]
+            A tuple containing the tensor with adjacent nucleotides masked and the
+            list of all positions that were masked (including original ones).
         """
         adjacent_positions = []
         for pos in mask_positions:
-            # mask position + 1 (if within bounds)
-            if pos < self.max_len - 1:
+            # mask position + 1 (if within bounds and not padding)
+            if pos < self.max_len - 1 and x_masked[pos + 1] > 0:
                 adjacent_positions.append(pos + 1)
-            # mask position - 1 (if within bounds)
-            if pos > 0:
+            # mask position - 1 (if within bounds and not padding)
+            if pos > 0 and x_masked[pos - 1] > 0:
                 adjacent_positions.append(pos - 1)
+
         x_masked[adjacent_positions] = self.mask_idx
 
-        return x_masked
+        # return updated tensor and the set of all masked positions
+        all_masked = list(set(mask_positions + adjacent_positions))
+        return x_masked, all_masked
 
     def __len__(self) -> int:
         """
@@ -182,7 +188,14 @@ class MaskedDataset(Dataset):
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked, rna_mask_positions = self._mask_rna(
+                x_masked, actual_mask_positions
+            )
+            # update no_mask_positions to exclude any newly masked RNA positions
+            rna_mask_set = set(rna_mask_positions)
+            no_mask_positions = [
+                pos for pos in no_mask_positions if pos not in rna_mask_set
+            ]
 
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
