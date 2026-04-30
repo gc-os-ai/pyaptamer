@@ -46,7 +46,7 @@ def clean_protein_seq(seq):
 
     if invalid_found:
         warnings.warn(
-           "Invalid amino acid(s) found in sequence. Replaced with 'X'.",
+            "Invalid amino acid(s) found in sequence. Replaced with 'X'.",
             UserWarning,
             stacklevel=2,
         )
