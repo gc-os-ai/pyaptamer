@@ -38,3 +38,16 @@ def test_filter_words_preserves_order():
     # indices should reflect order of iteration over dict
     expected = {"zebra": 1, "alpha": 2}
     assert result == expected
+
+def test_filter_words_empty_dict():
+    """Test filter_words handles an empty dictionary without warnings."""
+    # 1. create an empty dict
+    words = {}
+
+    # 2. call the function
+    result = filter_words(words)
+
+    # 3. assert the result is exactly {}
+    assert result == {}
+
+
