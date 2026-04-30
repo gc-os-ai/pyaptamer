@@ -45,7 +45,7 @@ class MaskedDataset(Dataset):
     Raises
     ------
     ValueError
-        If the lengths of `x` and `y` do not match.
+        If the inputs do not satisfy the dataset contract.
 
     Examples
     --------
@@ -75,8 +75,31 @@ class MaskedDataset(Dataset):
                 f"Input and target arrays must have the same length. "
                 f"Got x: {len(x)}, y: {len(y)}"
             )
+        if max_len <= 0:
+            raise ValueError(
+                f"`max_len` must be a positive integer. Got {max_len}."
+            )
+        if not 0.0 <= masked_rate <= 1.0:
+            raise ValueError(
+                f"`masked_rate` must be between 0.0 and 1.0. Got {masked_rate}."
+            )
 
         self.x, self.y = np.array(x), np.array(y)
+        if self.x.shape != self.y.shape:
+            raise ValueError(
+                "Input and target arrays must have the same shape after conversion. "
+                f"Got x: {self.x.shape}, y: {self.y.shape}"
+            )
+        if self.x.ndim != 2:
+            raise ValueError(
+                "Input and target arrays must be 2D with shape "
+                "(n_sequences, sequence_length)."
+            )
+        if self.x.shape[1] != max_len:
+            raise ValueError(
+                "Each encoded sequence must have length equal to `max_len`. "
+                f"Got sequence length {self.x.shape[1]} and max_len {max_len}."
+            )
         self.max_len = max_len
         self.mask_idx = mask_idx
         self.masked_rate = masked_rate
@@ -151,7 +174,7 @@ class MaskedDataset(Dataset):
         y = torch.tensor(self.y[index], dtype=torch.int64)
 
         x_masked = x.clone().detach()
-        y_masked = x.clone().detach()
+        y_masked = y.clone().detach()
 
         # non-padding positions (0 is padding)
         seq_len = torch.sum(x_masked > 0)
