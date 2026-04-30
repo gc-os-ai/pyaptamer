@@ -132,7 +132,8 @@ class GreedyEncoder(BaseTransform):
 
         return result_df
 
-    def get_test_params(self):
+    @classmethod
+    def get_test_params(cls, parameter_set="default"):
         """Get test parameters for GreedyEncoder.
 
         Returns
