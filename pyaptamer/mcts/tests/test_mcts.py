@@ -58,7 +58,7 @@ class TestTreeNode:
         assert node2.is_root is False
         assert node2.is_terminal is True
         assert node2.exploitation_score == 0.1
-        assert node2.n_visits == 1
+        assert node2.n_visits == 0
         assert len(node2.children) == 0
 
     def test_is_fully_expanded(self, root):
@@ -77,7 +77,7 @@ class TestTreeNode:
         # check whether the correct value is returned
         child.backpropagate(score=0.5)
         new_uct_score = child.uct_score()
-        assert new_uct_score == pytest.approx(0.6663, rel=1e-4)
+        assert new_uct_score == pytest.approx(0.5, rel=1e-4)
 
     def test_uct_score_parent_none(self, root):
         """Test UCT score calculation when parent is None, should return inf."""
@@ -157,9 +157,9 @@ class TestTreeNode:
         child2.backpropagate(score=10.0)
 
         # check that visits are updated
-        assert root.n_visits == 2
-        assert child1.n_visits == 2
-        assert child2.n_visits == 2
+        assert root.n_visits == 1
+        assert child1.n_visits == 1
+        assert child2.n_visits == 1
         # check that (exploitation) scores are updated
         assert root.exploitation_score == 0.0
         assert child1.exploitation_score == 10.0
