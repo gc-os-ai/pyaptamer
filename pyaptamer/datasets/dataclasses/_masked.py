@@ -166,10 +166,24 @@ class MaskedDataset(Dataset):
         ]
 
         # apply masking
-        actual_mask_positions = random.sample(
-            mask_positions, int(len(mask_positions) * 0.8)
-        )
-        x_masked[actual_mask_positions] = self.mask_idx
+        # Standard BERT masking: 80% [MASK], 10% Random, 10% Unchanged
+        random.shuffle(mask_positions)
+        n_80 = int(n_to_mask * 0.8)
+        n_10 = int(n_to_mask * 0.1)
+
+        mask_80 = mask_positions[:n_80]
+        mask_10_random = mask_positions[n_80:n_80 + n_10]
+        # The remaining 10% implicitly will stay unchanged in x_masked
+
+        x_masked[mask_80] = self.mask_idx
+        
+        # Replacing 10% with random valid token from the current sequence
+        valid_tokens = x[x > 0].tolist() 
+        if valid_tokens:
+            for pos in mask_10_random:
+                x_masked[pos] = random.choice(valid_tokens)
+        
+        actual_mask_positions = mask_80 # Passing only the strictly masked ones to RNA adjacent masking
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
