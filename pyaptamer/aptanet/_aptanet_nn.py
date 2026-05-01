@@ -9,6 +9,10 @@ def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
     Create a single AptaNet layer composed of a linear transformation,
     ReLU activation, and Dropout.
 
+    Note: This implementation uses standard Dropout (not AlphaDropout) with ReLU.
+    AlphaDropout is specifically designed for SELU activations to maintain
+    self-normalizing properties; with ReLU, it produces incorrect output statistics.
+
     Parameters
     ----------
     input_dim : int
@@ -18,7 +22,7 @@ def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
         Size of each output sample (i.e., number of neurons in the layer).
 
     dropout : float
-        Dropout probability for Dropout. Must be between 0 and 1.
+        Dropout rate. Must be between 0 and 1.
 
     lazy : bool, optional
         If True, use `nn.LazyLinear` instead of `nn.Linear`, allowing the input
