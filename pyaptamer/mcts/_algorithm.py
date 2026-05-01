@@ -426,11 +426,8 @@ class TreeNode:
         float
             The UCT score for this node.
         """
-        if self.parent is None:
-            return float("inf")
-
-        # unvisited nodes get infinite UCT to guarantee first exploration
-        if self.n_visits == 0:
+        # unvisited nodes (including root) get infinite UCT to guarantee exploration
+        if self.parent is None or self.n_visits == 0:
             return float("inf")
 
         # exploration term
