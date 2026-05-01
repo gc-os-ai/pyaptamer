@@ -144,15 +144,19 @@ class AptaTrans(nn.Module):
         self.imap = InteractionMap()
 
         # convolutional layers
-        self.conv1 = nn.Conv2d(1, self.inplanes, kernel_size=3)
+        self.conv1 = nn.Conv2d(1, self.inplanes, kernel_size=3, padding="same")
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.gelu1 = nn.GELU()
         self.layer1 = self._make_layer(planes=64, n_blocks=conv_layers[0])
         self.layer2 = self._make_layer(
-            planes=128, n_blocks=conv_layers[1], pooling=nn.MaxPool2d(2, 2)
+            planes=128,
+            n_blocks=conv_layers[1],
+            pooling=nn.MaxPool2d(2, 2, ceil_mode=True),
         )
         self.layer3 = self._make_layer(
-            planes=256, n_blocks=conv_layers[2], pooling=nn.MaxPool2d(2, 2)
+            planes=256,
+            n_blocks=conv_layers[2],
+            pooling=nn.MaxPool2d(2, 2, ceil_mode=True),
         )
 
         # fully-connected head
