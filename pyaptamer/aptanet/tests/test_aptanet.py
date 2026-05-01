@@ -6,6 +6,7 @@ import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
+from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
 
 params = [
     (
@@ -81,3 +82,13 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+def test_aptanet_mlp_no_input_dim_raises():
+    """Check that AptaNetMLP raises ValueError when use_lazy=False and input_dim=None.
+
+    Previously this silently passed None to nn.Linear, causing a confusing
+    TypeError deep inside PyTorch with no pointer to the real cause. Fixes #611.
+    """
+    with pytest.raises(ValueError, match="input_dim is required when use_lazy=False"):
+        AptaNetMLP(use_lazy=False, input_dim=None)
