@@ -47,16 +47,13 @@ class Benchmarking:
             - "test"  = mean of cross_validate(...)[f"test_{metric}"]
 
     raw_results_ : pd.DataFrame or None
-        Per-fold scores produced by :meth:`run` when ``return_raw=True``.
+        Per-fold scores, populated after every :meth:`run` call.
 
         - Index: pandas.MultiIndex with three levels
             - level 0 "estimator": estimator name
             - level 1 "metric": evaluator name
             - level 2 "fold": fold index (0-based)
         - Columns: ["train", "test"] (both floats)
-        - Cell values: raw per-fold scores, directly compatible with
-          ``sktime``'s ``Evaluator`` for Friedman tests and Critical
-          Difference diagrams.
 
     Example
     -------
@@ -123,11 +120,7 @@ class Benchmarking:
         return pd.DataFrame(records, index=index, columns=["train", "test"])
 
     def _to_raw_df(self, raw_results):
-        """Convert nested per-fold results to a raw DataFrame.
-
-        The resulting DataFrame is directly compatible with ``sktime``'s
-        ``Evaluator`` class for Friedman tests and Critical Difference diagrams.
-        """
+        """Convert nested per-fold results to a raw DataFrame."""
         records = []
         index = []
 
@@ -151,26 +144,22 @@ class Benchmarking:
         Parameters
         ----------
         return_raw : bool, default=False
-            If ``False`` (default), returns only a summary DataFrame with
-            mean scores across folds.
-
-            If ``True``, returns a tuple ``(summary, raw)`` where ``raw`` is
-            a per-fold DataFrame with a three-level MultiIndex
-            ``(estimator, metric, fold)``. The ``raw`` DataFrame is directly
-            compatible with ``sktime``'s ``Evaluator`` class for Friedman
-            tests and Critical Difference diagrams.
+            If `False` (default), returns only the summary DataFrame.
+            If `True`, also returns `raw_results_` as the second element
+            of a tuple, containing per-fold scores keyed by
+            `(estimator, metric, fold)`.
 
         Returns
         -------
         results : pd.DataFrame
             Summary DataFrame with mean scores.
 
-            - Index: pandas.MultiIndex ``(estimator, metric)``
+            - Index: pandas.MultiIndex `(estimator, metric)`
             - Columns: ["train", "test"] (floats)
 
         (results, raw_results) : tuple[pd.DataFrame, pd.DataFrame]
-            Returned only when ``return_raw=True``. ``raw_results`` has a
-            three-level MultiIndex ``(estimator, metric, fold)`` and contains
+            Returned only when `return_raw=True`. `raw_results` has a
+            three-level MultiIndex `(estimator, metric, fold)` and contains
             the raw per-fold scores.
         """
         self.scorers_ = self._to_scorers(self.metrics)
@@ -208,9 +197,7 @@ class Benchmarking:
                 return_train_score=True,
             )
 
-            # mean scores across folds (summary)
             est_scores = {}
-            # raw per-fold scores (for sktime Evaluator compatibility)
             est_raw_scores = {}
             for metric in self.scorers_.keys():
                 train_folds = cv_results[f"train_{metric}"]

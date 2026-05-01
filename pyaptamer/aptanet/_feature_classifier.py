@@ -46,33 +46,29 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
         Learning rate for the optimizer.
     alpha : float, default=0.9
         Discounting factor (rho) for the squared-gradient moving average
-        in RMSprop. Only used when ``optimizer`` is ``torch.optim.RMSprop``.
+        in RMSprop. Only used when `optimizer` is `torch.optim.RMSprop`.
     eps : float, default=1e-08
         Epsilon value for numerical stability in the optimizer.
     weight_decay : float, default=0.0
-        L2 regularisation (weight decay) applied by the optimizer. Increasing
-        this value helps prevent the neural network from overfitting.
+        L2 regularization penalty applied by the optimizer.
     n_estimators : int, default=300
-        Number of trees in the ``RandomForestClassifier`` used for feature
-        selection. Ignored when a custom ``estimator`` is provided.
+        Number of trees in the `RandomForestClassifier` used for feature
+        selection. Ignored when a custom `estimator` is provided.
     max_depth : int or None, default=9
-        Maximum depth of each tree in the ``RandomForestClassifier`` used for
-        feature selection. Ignored when a custom ``estimator`` is provided.
+        Maximum depth of each tree in the `RandomForestClassifier` used for
+        feature selection. Ignored when a custom `estimator` is provided.
     optimizer : torch.optim.Optimizer class, default=torch.optim.RMSprop
-        PyTorch optimizer class to use for training the neural network.
+        Optimizer class passed to skorch for neural network training.
     device : str or None, default=None
-        Device string passed to skorch (e.g. ``"cpu"``, ``"cuda"``,
-        ``"cuda:1"``). When ``None``, the device is selected automatically:
-        ``"cuda"`` if a GPU is available, otherwise ``"cpu"``.
+        Device string for skorch (e.g. `"cpu"`, `"cuda"`, `"cuda:1"`).
+        If `None`, uses `"cuda"` when a GPU is available, else `"cpu"`.
     estimator : sklearn estimator or None, default=None
-        Estimator used for feature selection via ``SelectFromModel``. When
-        ``None``, a ``RandomForestClassifier`` with ``n_estimators`` and
-        ``max_depth`` is used.
+        Estimator passed to `SelectFromModel`. If `None`, uses a
+        `RandomForestClassifier` with `n_estimators` and `max_depth`.
     random_state : int or None, default=None
-        Random seed for reproducibility. When set, both NumPy and Torch seeds
-        are fixed.
+        Seed for NumPy and Torch random generators.
     threshold : str or float, default="mean"
-        Threshold passed to ``SelectFromModel`` (e.g. ``"mean"`` or a float).
+        Feature-selection threshold passed to `SelectFromModel`.
     verbose : int, default=0
         Verbosity level for the underlying skorch neural net.
 
@@ -276,33 +272,29 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         Learning rate for the optimizer.
     alpha : float, default=0.9
         Discounting factor (rho) for the squared-gradient moving average
-        in RMSprop. Only used when ``optimizer`` is ``torch.optim.RMSprop``.
+        in RMSprop. Only used when `optimizer` is `torch.optim.RMSprop`.
     eps : float, default=1e-08
         Epsilon value for numerical stability in the optimizer.
     weight_decay : float, default=0.0
-        L2 regularisation (weight decay) applied by the optimizer. Increasing
-        this value helps prevent the neural network from overfitting.
+        L2 regularization penalty applied by the optimizer.
     n_estimators : int, default=300
-        Number of trees in the ``RandomForestRegressor`` used for feature
-        selection. Ignored when a custom ``estimator`` is provided.
+        Number of trees in the `RandomForestRegressor` used for feature
+        selection. Ignored when a custom `estimator` is provided.
     max_depth : int or None, default=9
-        Maximum depth of each tree in the ``RandomForestRegressor`` used for
-        feature selection. Ignored when a custom ``estimator`` is provided.
+        Maximum depth of each tree in the `RandomForestRegressor` used for
+        feature selection. Ignored when a custom `estimator` is provided.
     optimizer : torch.optim.Optimizer class, default=torch.optim.RMSprop
-        PyTorch optimizer class to use for training the neural network.
+        Optimizer class passed to skorch for neural network training.
     device : str or None, default=None
-        Device string passed to skorch (e.g. ``"cpu"``, ``"cuda"``,
-        ``"cuda:1"``). When ``None``, the device is selected automatically:
-        ``"cuda"`` if a GPU is available, otherwise ``"cpu"``.
+        Device string for skorch (e.g. `"cpu"`, `"cuda"`, `"cuda:1"`).
+        If `None`, uses `"cuda"` when a GPU is available, else `"cpu"`.
     estimator : sklearn estimator or None, default=None
-        Estimator used for feature selection via ``SelectFromModel``. When
-        ``None``, a ``RandomForestRegressor`` with ``n_estimators`` and
-        ``max_depth`` is used.
+        Estimator passed to `SelectFromModel`. If `None`, uses a
+        `RandomForestRegressor` with `n_estimators` and `max_depth`.
     random_state : int or None, default=None
-        Random seed for reproducibility. When set, both NumPy and Torch seeds
-        are fixed.
+        Seed for NumPy and Torch random generators.
     threshold : str or float, default="mean"
-        Threshold passed to ``SelectFromModel`` (e.g. ``"mean"`` or a float).
+        Feature-selection threshold passed to `SelectFromModel`.
     verbose : int, default=0
         Verbosity level for the underlying skorch neural net.
     """
