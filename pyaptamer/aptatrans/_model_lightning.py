@@ -320,7 +320,12 @@ class AptaTransEncoderLightning(AptaTransLightning):
             params = list(self.model.encoder_prot.parameters()) + list(
                 self.model.token_predictor_prot.parameters()
             )
-
+        else:
+            raise ValueError(
+                f"Invalid encoder_type '{self.encoder_type}'. "
+                "Expected one of: 'apta', 'prot'."
+            )
+            
         optimizer = torch.optim.Adam(
             params,
             lr=self.lr,

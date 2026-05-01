@@ -87,7 +87,11 @@ class AptaNetMLP(nn.Module):
         use_lazy=True,
     ):
         super().__init__()
-
+        if not use_lazy and input_dim is None:
+            raise ValueError(
+                "input_dim is required when use_lazy=False. "
+                "Either provide input_dim or set use_lazy=True."
+            )
         first_lazy = use_lazy and (input_dim is None)
 
         layers = [aptanet_layer(input_dim, hidden_dim, dropout, lazy=first_lazy)]
