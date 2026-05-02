@@ -2,6 +2,7 @@ __author__ = ["nennomp"]
 __all__ = ["APIDataset"]
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
@@ -57,6 +58,58 @@ class APIDataset(Dataset):
         self.x_apta, self.x_prot, self.y = self._prepare_data(x_apta, x_prot, y, split)
 
         self.len = len(self.x_apta)
+
+    @classmethod
+    def from_dataframe(
+        cls,
+        df: pd.DataFrame,
+        apta_col: str,
+        prot_col: str,
+        label_col: str,
+        apta_max_len: int,
+        prot_max_len: int,
+        prot_words: dict[str, int],
+        split: str = "train",
+    ) -> "APIDataset":
+        """
+        Create an APIDataset from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe containing the data.
+        apta_col : str
+            The name of the column containing aptamer sequences.
+        prot_col : str
+            The name of the column containing protein sequences.
+        label_col : str
+            The name of the column containing interaction labels.
+        apta_max_len : int
+            Maximum length for aptamer sequences.
+        prot_max_len : int
+            Maximum length for protein sequences.
+        prot_words : dict[str, int]
+            Protein k-mer word mapping.
+        split : str, optional, default="train"
+            If "train", the dataset will augment aptamer sequences.
+
+        Returns
+        -------
+        APIDataset
+            An instance of APIDataset.
+        """
+        x_apta = df[apta_col].values
+        x_prot = df[prot_col].values
+        y = df[label_col].values
+        return cls(
+            x_apta=x_apta,
+            x_prot=x_prot,
+            y=y,
+            apta_max_len=apta_max_len,
+            prot_max_len=prot_max_len,
+            prot_words=prot_words,
+            split=split,
+        )
 
     def _prepare_data(
         self,
