@@ -16,11 +16,11 @@ def test_masked_dataset_y_initialization():
     # We set masked_rate to 1.0 to ensure mask_positions is populated
     dataset = MaskedDataset(x, y, max_len=5, mask_idx=9, masked_rate=1.0, is_rna=False)
     
-    x_masked, y_masked, x_orig, y_orig = dataset[0]
+    x_masked, x_orig, y_masked, y_orig = dataset[0]
     
-    # At masked positions, y_masked should retain its original target values (from y)
+    # At masked positions, y_masked should retain its original sequence values (from x)
     # At unmasked positions, y_masked is explicitly set to 0.
-    # We verify that any non-zero value in y_masked must come from y, not x.
+    # We verify that any non-zero value in y_masked must come from x, not y.
     y_masked_np = y_masked.numpy()
     y_orig_np = y_orig.numpy()
     x_orig_np = x_orig.numpy()
@@ -28,7 +28,7 @@ def test_masked_dataset_y_initialization():
     non_zero_mask = y_masked_np != 0
     assert np.any(non_zero_mask), "Expected at least one non-zero value in y_masked after masking"
     
-    assert np.array_equal(y_masked_np[non_zero_mask], y_orig_np[non_zero_mask])
+    assert np.array_equal(y_masked_np[non_zero_mask], x_orig_np[non_zero_mask])
     
-    # Explicitly check that it didn't clone from x
-    assert not np.array_equal(y_masked_np[non_zero_mask], x_orig_np[non_zero_mask])
+    # Explicitly check that it didn't clone from y (the secondary structure)
+    assert not np.array_equal(y_masked_np[non_zero_mask], y_orig_np[non_zero_mask])

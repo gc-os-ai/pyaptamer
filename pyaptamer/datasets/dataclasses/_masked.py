@@ -143,15 +143,15 @@ class MaskedDataset(Dataset):
         Returns
         -------
         tuple[Tensor, Tensor, Tensor, Tensor]
-            A tuple of tensors containing input sequence with masked tokens, target
-            sequence with non-masked positions set to 0, original input sequence, and
+            A tuple of tensors containing input sequence with masked tokens, original 
+            input sequence, target sequence with non-masked positions set to 0, and
             original target sequence, respectively.
         """
         x = torch.tensor(self.x[index], dtype=torch.int64)
         y = torch.tensor(self.y[index], dtype=torch.int64)
 
         x_masked = x.clone().detach()
-        y_masked = y.clone().detach()
+        y_masked = x.clone().detach()
 
         # non-padding positions (0 is padding)
         seq_len = torch.sum(x_masked > 0)
@@ -179,4 +179,4 @@ class MaskedDataset(Dataset):
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
 
-        return x_masked, y_masked, x, y
+        return x_masked, x, y_masked, y
