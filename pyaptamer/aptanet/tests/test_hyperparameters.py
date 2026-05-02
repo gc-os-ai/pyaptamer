@@ -91,3 +91,26 @@ def test_aptanet_regressor_hyperparameter_propagation():
     assert net.lr == lr
     assert net.optimizer == optimizer
     assert net.optimizer__weight_decay == weight_decay
+
+def test_aptanet_hyperparameters_edge_cases():
+    """
+    Test that AptaNet components correctly handle edge-case hyperparameter inputs,
+    such as `max_depth=None` (infinite depth for Random Forest).
+    """
+    clf = AptaNetClassifier(
+        max_depth=None,
+        n_estimators=10,
+        random_state=42
+    )
+    
+    # Create dummy data
+    X = np.random.rand(20, 10).astype(np.float32)
+    y = np.random.randint(0, 2, 20).astype(np.float32)
+    
+    # Ensure fitting does not raise an exception with max_depth=None
+    clf.fit(X, y)
+    
+    # Verify the selector propagated None correctly
+    pipeline = clf.pipeline_
+    selector = pipeline.named_steps["select"]
+    assert selector.estimator.max_depth is None
