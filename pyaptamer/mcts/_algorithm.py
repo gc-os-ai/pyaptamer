@@ -70,6 +70,7 @@ class MCTS(BaseObject):
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
+    >>> candidate["candidate"]  # the reconstructed aptamer string  # doctest: +SKIP
     """
 
     def __init__(
@@ -111,6 +112,14 @@ class MCTS(BaseObject):
         )
         self.base = ""
         self.candidate = ""
+
+    def __repr__(self) -> str:
+        """Return a human-readable representation of the MCTS configuration."""
+        return (
+            f"MCTS(depth={self.depth}, n_iterations={self.n_iterations}, "
+            f"n_states={len(self.states)}, "
+            f"experiment={self.experiment.__class__.__name__ if self.experiment else None})"
+        )
 
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
@@ -281,18 +290,24 @@ class MCTS(BaseObject):
     def run(self, verbose: bool = True) -> dict:
         """
         Perform a full recommendation run consisting of `self.n_iterations` rounds of
-        (selection -> expansion -> simulation -> backpropagation)
+        (selection -> expansion -> simulation -> backpropagation).
 
         Parameters
         ----------
         verbose : bool, optional, default=True
-            Whether to print progress information.
+            Whether to log progress information via ``logger.debug``.
+            Messages are only emitted when the logger level is ``DEBUG``.
 
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
-            score (`score`).
+            A dictionary with the following keys:
+
+            - ``"candidate"`` (*str*) — The reconstructed aptamer sequence.
+            - ``"sequence"`` (*str*) — The raw encoded sequence with direction
+              markers (underscores), before reconstruction.
+            - ``"score"`` (*float*) — The score of the candidate as evaluated
+              by ``self.experiment``.
         """
         self._reset()
 
