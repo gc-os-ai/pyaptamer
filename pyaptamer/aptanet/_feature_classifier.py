@@ -57,8 +57,9 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
     max_depth : int or None, default=9
         Maximum depth of each tree in the `RandomForestClassifier` used for
         feature selection. Ignored when a custom `estimator` is provided.
-    optimizer : torch.optim.Optimizer class, default=torch.optim.RMSprop
+    optimizer : torch.optim.Optimizer class, default=None
         Optimizer class passed to skorch for neural network training.
+        If `None`, defaults to `torch.optim.RMSprop`.
     device : str or None, default=None
         Device string for skorch (e.g. `"cpu"`, `"cuda"`, `"cuda:1"`).
         If `None`, uses `"cuda"` when a GPU is available, else `"cpu"`.
@@ -283,8 +284,9 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     max_depth : int or None, default=9
         Maximum depth of each tree in the `RandomForestRegressor` used for
         feature selection. Ignored when a custom `estimator` is provided.
-    optimizer : torch.optim.Optimizer class, default=torch.optim.RMSprop
+    optimizer : torch.optim.Optimizer class, default=None
         Optimizer class passed to skorch for neural network training.
+        If `None`, defaults to `torch.optim.RMSprop`.
     device : str or None, default=None
         Device string for skorch (e.g. `"cpu"`, `"cuda"`, `"cuda:1"`).
         If `None`, uses `"cuda"` when a GPU is available, else `"cpu"`.
