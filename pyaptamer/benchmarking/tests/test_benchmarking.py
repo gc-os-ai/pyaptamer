@@ -68,3 +68,74 @@ def test_benchmarking_with_predefined_split_regression(aptamer_seq, protein_seq)
     assert "train" in summary.columns
     assert "test" in summary.columns
     assert (reg.__class__.__name__, "mean_squared_error") in summary.index
+
+
+# ---------- Tests for standard deviation columns ----------
+
+
+class TestBenchmarkingStdScores:
+    """Tests for the train_std and test_std columns."""
+
+    def test_std_columns_present(self):
+        """Results DataFrame should contain train_std and test_std columns."""
+        from sklearn.dummy import DummyClassifier
+
+        X = np.array([[1, 0], [0, 1], [1, 1], [0, 0]] * 5)
+        y = np.array([1, 0, 1, 0] * 5)
+        test_fold = np.ones(len(y)) * -1
+        test_fold[-4:] = 0
+        cv = PredefinedSplit(test_fold)
+
+        bench = Benchmarking(
+            estimators=[DummyClassifier(strategy="most_frequent")],
+            metrics=[accuracy_score],
+            X=X, y=y, cv=cv,
+        )
+        results = bench.run()
+
+        assert "train_std" in results.columns
+        assert "test_std" in results.columns
+
+    def test_std_values_non_negative(self):
+        """Standard deviation must be >= 0."""
+        from sklearn.dummy import DummyClassifier
+
+        X = np.array([[1, 0], [0, 1], [1, 1], [0, 0]] * 5)
+        y = np.array([1, 0, 1, 0] * 5)
+        test_fold = np.ones(len(y)) * -1
+        test_fold[-4:] = 0
+        cv = PredefinedSplit(test_fold)
+
+        bench = Benchmarking(
+            estimators=[DummyClassifier(strategy="most_frequent")],
+            metrics=[accuracy_score],
+            X=X, y=y, cv=cv,
+        )
+        results = bench.run()
+
+        assert (results["train_std"] >= 0).all()
+        assert (results["test_std"] >= 0).all()
+
+    def test_std_columns_with_multiple_metrics(self):
+        """Std columns should work with multiple metrics."""
+        from sklearn.dummy import DummyClassifier
+        from sklearn.metrics import precision_score
+
+        X = np.array([[1, 0], [0, 1], [1, 1], [0, 0]] * 5)
+        y = np.array([1, 0, 1, 0] * 5)
+        test_fold = np.ones(len(y)) * -1
+        test_fold[-4:] = 0
+        cv = PredefinedSplit(test_fold)
+
+        bench = Benchmarking(
+            estimators=[DummyClassifier(strategy="most_frequent")],
+            metrics=[accuracy_score, precision_score],
+            X=X, y=y, cv=cv,
+        )
+        results = bench.run()
+
+        assert results.shape[0] == 2  # 2 metrics
+        assert "train_std" in results.columns
+        assert "test_std" in results.columns
+        assert results.shape[1] == 4  # train, test, train_std, test_std
+
