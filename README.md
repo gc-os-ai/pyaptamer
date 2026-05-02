@@ -19,6 +19,8 @@
 - ✅ feature extraction from proteins and compounds
 - ✅ compatible with `pdb` and `biopython`
 - ✅ `scikit-learn`-like API - standardized and composable
+- ✅ **AptaNet Optimization**: Tuning weights, optimizers, and RF selectors
+- ✅ **Advanced Benchmarking**: Per-fold raw result extraction for `sktime`
 - 🛠️ Easily extendable with plugins
 - 📦 Minimal dependencies
 
@@ -39,7 +41,7 @@ Checkout [examples/](examples) to see how to use the current API.
 ```bash
 pip install pyaptamer==0.1.0a1
 ```
-NOTE: pyaptamer is in early development. The API is unstable and may change between releases.
+NOTE: pyaptamer is in early development. The API is unstable and may change between releases. See the [CHANGELOG.md](CHANGELOG.md) for recent updates.
 
 ### Development install
 
