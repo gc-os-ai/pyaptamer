@@ -36,7 +36,7 @@ class Benchmarking:
     Attributes
     ----------
     results : pd.DataFrame
-        DataFrame produced by :meth:`run`.
+        Summary DataFrame produced by :meth:`run`.
 
         - Index: pandas.MultiIndex with two levels (names shown in parentheses)
             - level 0 "estimator": estimator name
@@ -45,6 +45,15 @@ class Benchmarking:
         - Cell values: mean scores (float) computed across CV folds:
             - "train" = mean of cross_validate(...)[f"train_{metric}"]
             - "test"  = mean of cross_validate(...)[f"test_{metric}"]
+
+    raw_results_ : pd.DataFrame or None
+        Per-fold scores, populated after every :meth:`run` call.
+
+        - Index: pandas.MultiIndex with three levels
+            - level 0 "estimator": estimator name
+            - level 1 "metric": evaluator name
+            - level 2 "fold": fold index (0-based)
+        - Columns: ["train", "test"] (both floats)
 
     Example
     -------
@@ -73,13 +82,15 @@ class Benchmarking:
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    def __init__(self, estimators, metrics, X, y, cv=None):
+    def __init__(self, estimators, metrics, X, y, cv=None, labels=None):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.X = X
         self.y = y
         self.cv = cv
+        self.labels = labels
         self.results = None
+        self.raw_results_ = None
 
     def _to_scorers(self, metrics):
         """Convert metric callables to a dict of scorers."""
@@ -96,7 +107,7 @@ class Benchmarking:
         return scorers
 
     def _to_df(self, results):
-        """Convert nested results to a unified DataFrame."""
+        """Convert nested mean results to a summary DataFrame."""
         records = []
         index = []
 
@@ -108,28 +119,74 @@ class Benchmarking:
         index = pd.MultiIndex.from_tuples(index, names=["estimator", "metric"])
         return pd.DataFrame(records, index=index, columns=["train", "test"])
 
-    def run(self):
+    def _to_raw_df(self, raw_results):
+        """Convert nested per-fold results to a raw DataFrame."""
+        records = []
+        index = []
+
+        for est_name, est_scores in raw_results.items():
+            for metric_name, fold_scores in est_scores.items():
+                for fold_idx, (train_score, test_score) in enumerate(
+                    zip(fold_scores["train"], fold_scores["test"])
+                ):
+                    records.append({"train": train_score, "test": test_score})
+                    index.append((est_name, metric_name, fold_idx))
+
+        index = pd.MultiIndex.from_tuples(
+            index, names=["estimator", "metric", "fold"]
+        )
+        return pd.DataFrame(records, index=index, columns=["train", "test"])
+
+    def run(self, return_raw=False):
         """
         Train each estimator and evaluate with cross-validation.
+
+        Parameters
+        ----------
+        return_raw : bool, default=False
+            If `False` (default), returns only the summary DataFrame.
+            If `True`, also returns `raw_results_` as the second element
+            of a tuple, containing per-fold scores keyed by
+            `(estimator, metric, fold)`.
 
         Returns
         -------
         results : pd.DataFrame
+            Summary DataFrame with mean scores.
 
-            - Index: pandas.MultiIndex with two levels (names shown in parentheses)
-                - level 0 "estimator": estimator name
-                - level 1 "metric": evaluator name
-            - Columns: ["train", "test"] (both floats)
-            - Cell values: mean scores (float) computed across CV folds:
-                - "train" = mean of cross_validate(...)[f"train_{metric}"]
-                - "test"  = mean of cross_validate(...)[f"test_{metric}"]
+            - Index: pandas.MultiIndex `(estimator, metric)`
+            - Columns: ["train", "test"] (floats)
 
+        (results, raw_results) : tuple[pd.DataFrame, pd.DataFrame]
+            Returned only when `return_raw=True`. `raw_results` has a
+            three-level MultiIndex `(estimator, metric, fold)` and contains
+            the raw per-fold scores.
         """
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
+        raw_results = {}
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
+        if self.labels is not None:
+            if len(self.labels) != len(self.estimators):
+                raise ValueError("Length of labels must match length of estimators.")
+            names = self.labels
+        else:
+            counts = {}
+            for est in self.estimators:
+                name = est.__class__.__name__
+                counts[name] = counts.get(name, 0) + 1
+
+            names = []
+            seen = {}
+            for est in self.estimators:
+                name = est.__class__.__name__
+                if counts[name] > 1:
+                    seen[name] = seen.get(name, 0) + 1
+                    names.append(f"{name}_{seen[name]}")
+                else:
+                    names.append(name)
+
+        for estimator, est_name in zip(self.estimators, names):
 
             cv_results = cross_validate(
                 estimator,
@@ -140,15 +197,26 @@ class Benchmarking:
                 return_train_score=True,
             )
 
-            # average across folds
             est_scores = {}
+            est_raw_scores = {}
             for metric in self.scorers_.keys():
+                train_folds = cv_results[f"train_{metric}"]
+                test_folds = cv_results[f"test_{metric}"]
                 est_scores[metric] = {
-                    "train": float(np.mean(cv_results[f"train_{metric}"])),
-                    "test": float(np.mean(cv_results[f"test_{metric}"])),
+                    "train": float(np.mean(train_folds)),
+                    "test": float(np.mean(test_folds)),
+                }
+                est_raw_scores[metric] = {
+                    "train": train_folds.tolist(),
+                    "test": test_folds.tolist(),
                 }
 
             results[est_name] = est_scores
+            raw_results[est_name] = est_raw_scores
 
         self.results = self._to_df(results)
+        self.raw_results_ = self._to_raw_df(raw_results)
+
+        if return_raw:
+            return self.results, self.raw_results_
         return self.results
