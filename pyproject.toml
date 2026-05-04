@@ -13,7 +13,7 @@ authors = [
 ]
 
 dependencies = [
-    "biopython>=1.83",
+    "biopython>=1.87",
     "datasets>=4.8.5",
     "lightning>=2.6.1",
     "numpy>=2.2.6",
