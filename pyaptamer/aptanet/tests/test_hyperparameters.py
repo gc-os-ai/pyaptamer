@@ -14,7 +14,7 @@ def test_aptanet_classifier_hyperparameter_propagation():
     max_depth = 5
     lr = 0.001
     weight_decay = 0.01
-    optimizer = optim.Adam
+    optimizer = optim.RMSprop
     
     clf = AptaNetClassifier(
         n_estimators=n_estimators,
@@ -60,7 +60,7 @@ def test_aptanet_regressor_hyperparameter_propagation():
     max_depth = 3
     lr = 0.0005
     weight_decay = 0.05
-    optimizer = optim.SGD
+    optimizer = optim.RMSprop
     
     reg = AptaNetRegressor(
         n_estimators=n_estimators,
