@@ -38,7 +38,8 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
     >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
     >>> labels = np.array([0, 1, 0, 1, 0])
     >>> pipeline = AptaMCTSPipeline()
-    >>> pipeline.fit(pairs, labels)
+    >>> pipeline.fit(pairs, labels)  # doctest: +ELLIPSIS
+    AptaMCTSPipeline(...)
     >>> target_protein = "ACDEFGHIKLMN"
     >>> experiment = AptamerEvalAptaMCTS(target_protein, pipeline)
     >>> aptamer_candidate = "AUGGC"
