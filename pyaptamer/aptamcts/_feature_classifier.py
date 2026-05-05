@@ -66,7 +66,8 @@ class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
     >>> X = np.random.rand(3, 10)
     >>> y = np.array([1, 0, 1])
     >>> clf = AptaMCTSClassifier(n_estimators=50, random_state=42)
-    >>> clf.fit(X, y)
+    >>> clf.fit(X, y)  # doctest: +ELLIPSIS
+    AptaMCTSClassifier(...)
     >>> preds = clf.predict(np.random.rand(1, 10))
     >>> proba = clf.predict_proba(np.random.rand(1, 10))
     """

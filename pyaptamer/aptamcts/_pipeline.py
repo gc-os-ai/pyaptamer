@@ -59,6 +59,7 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(4)]
     >>> y_train = np.array([0, 1, 0, 1], dtype=np.float32)
     >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
+    AptaMCTSPipeline(...)
     >>> preds = pipe.predict(X_train_pairs)
     >>> proba = pipe.predict_proba(X_train_pairs)
     """
