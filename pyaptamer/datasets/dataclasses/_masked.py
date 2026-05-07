@@ -14,9 +14,19 @@ class MaskedDataset(Dataset):
 
     Original implementation: https://github.com/PNUMLB/AptaTrans/blob/master/utils.py
 
-    This dataset implements random masking for sequence data, where a portion
-    of tokens are masked and need to be predicted. For RNA sequences, it also
-    masks adjacent nucleotides to account for base pairing.
+    This dataset implements BERT-style random masking for sequence data [1]_. For each
+    sample, ``masked_rate`` of non-padding tokens are selected. Of those selected
+    tokens:
+
+    - **80 %** are replaced with the ``mask_idx`` token,
+    - **10 %** are replaced with a uniformly random token drawn from
+      ``[1, vocab_size]`` (only when ``vocab_size`` is provided),
+    - **10 %** are left unchanged.
+
+    The training target (``y_masked``) retains the original token values at all
+    selected positions and is zero elsewhere, so the loss is computed only over the
+    selected tokens. For RNA sequences, positions adjacent to masked tokens are also
+    masked to account for base-pairing interactions.
 
     Parameters
     ----------
@@ -29,11 +39,17 @@ class MaskedDataset(Dataset):
     mask_idx : int
         Token index used to replace masked positions.
     masked_rate : float, optional, default=0.15
-        Proportion of non-padding tokens to mask (should be between 0.0 and 1.0).
+        Proportion of non-padding tokens to select for masking
+        (should be between 0.0 and 1.0).
     is_rna : bool, optional, default=False
         Whether the sequences are RNA (True) or DNA (False). For RNA sequences,
         adjacent nucleotides are also masked to account for base pairing.
         Default is False.
+    vocab_size : int or None, optional, default=None
+        Size of the token vocabulary (excluding the padding token 0). When provided,
+        the 10 % random-replacement step draws tokens uniformly from
+        ``[1, vocab_size]``. When ``None``, the random-replacement step is skipped
+        and those positions are left unchanged instead.
 
     Attributes
     ----------
@@ -46,6 +62,11 @@ class MaskedDataset(Dataset):
     ------
     ValueError
         If the lengths of `x` and `y` do not match.
+
+    References
+    ----------
+    .. [1] Devlin, Jacob, et al. "BERT: Pre-training of Deep Bidirectional
+       Transformers for Language Understanding." NAACL 2019.
 
     Examples
     --------
@@ -67,6 +88,7 @@ class MaskedDataset(Dataset):
         mask_idx: int,
         masked_rate: float = 0.15,
         is_rna: bool = False,
+        vocab_size: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -81,6 +103,7 @@ class MaskedDataset(Dataset):
         self.mask_idx = mask_idx
         self.masked_rate = masked_rate
         self.is_rna = is_rna
+        self.vocab_size = vocab_size
 
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
@@ -123,17 +146,15 @@ class MaskedDataset(Dataset):
         """
         return self.len
 
-    # TODO: For now this method applies masking as originally intended in AptaTrans
-    # code. However, there may some errors:
-    # (1.) 80% of the positions are masked but the remaining 20% are not masked at all.
-    # In BERT, the remaining 20% are replaced with random tokens or 10% replaced with
-    # random tokens and 10% left unchanged.
-    # (2.) The masking has two sample phases, one with `self.masked_rate` and one with
-    # hardcoded `0.8 * self.masked_rate`. This means that the actual masking rate
-    # becomes `0.8 * self.masked_rate` which seems confusing and possibly not intended.
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """
         Get a single masked sequence sample.
+
+        Applies BERT-style masking: ``masked_rate`` of non-padding tokens are
+        selected; 80 % are replaced with ``mask_idx``, 10 % with a random token
+        (when ``vocab_size`` is set), and 10 % are left unchanged. The returned
+        target tensor retains original values only at selected positions so the
+        pre-training loss is computed exclusively over those tokens.
 
         Parameters
         ----------
@@ -143,9 +164,12 @@ class MaskedDataset(Dataset):
         Returns
         -------
         tuple[Tensor, Tensor, Tensor, Tensor]
-            A tuple of tensors containing input sequence with masked tokens, target
-            sequence with non-masked positions set to 0, original input sequence, and
-            original target sequence, respectively.
+            A tuple of ``(x_masked, y_masked, x, y)`` where:
+
+            - ``x_masked``: input sequence with selected tokens replaced/masked.
+            - ``y_masked``: original sequence with non-selected positions zeroed.
+            - ``x``: original (unmodified) input sequence.
+            - ``y``: original target sequence.
         """
         x = torch.tensor(self.x[index], dtype=torch.int64)
         y = torch.tensor(self.y[index], dtype=torch.int64)
@@ -154,28 +178,43 @@ class MaskedDataset(Dataset):
         y_masked = x.clone().detach()
 
         # non-padding positions (0 is padding)
-        seq_len = torch.sum(x_masked > 0)
-        # positions to mask
-        valid_positions = self.box[x_masked > 0].tolist()
+        seq_len = int(torch.sum(x_masked > 0).item())
         n_to_mask = int(seq_len * self.masked_rate)
 
-        # randomly sample positions to mask
-        mask_positions = random.sample(valid_positions, n_to_mask)
-        no_mask_positions = [
-            pos for pos in valid_positions if pos not in mask_positions
-        ]
+        if n_to_mask == 0:
+            y_masked[:] = 0
+            return x_masked, y_masked, x, y
 
-        # apply masking
-        actual_mask_positions = random.sample(
-            mask_positions, int(len(mask_positions) * 0.8)
-        )
-        x_masked[actual_mask_positions] = self.mask_idx
+        valid_positions = self.box[(x_masked > 0).numpy()].tolist()
+
+        # select positions to process (BERT: `masked_rate` of all non-padding tokens)
+        selected_positions = random.sample(valid_positions, n_to_mask)
+
+        # BERT 80/10/10 split over the selected positions
+        n_mask_token = int(n_to_mask * 0.8)
+        n_random_token = int(n_to_mask * 0.1)
+        # the remaining positions are left unchanged in x_masked
+
+        shuffled = selected_positions.copy()
+        random.shuffle(shuffled)
+        mask_token_positions = shuffled[:n_mask_token]
+        random_token_positions = shuffled[n_mask_token : n_mask_token + n_random_token]
+
+        # 80 % → replace with [MASK]
+        x_masked[mask_token_positions] = self.mask_idx
+
+        # 10 % → replace with a uniformly random token
+        if self.vocab_size is not None:
+            for pos in random_token_positions:
+                x_masked[pos] = random.randint(1, self.vocab_size)
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked = self._mask_rna(x_masked, mask_token_positions)
 
-        # zero out non-masked positions in target
+        # zero out non-selected positions in target so loss is only over selected tokens
+        selected_set = set(selected_positions)
+        no_mask_positions = [pos for pos in valid_positions if pos not in selected_set]
         y_masked[no_mask_positions] = 0
 
         return x_masked, y_masked, x, y
