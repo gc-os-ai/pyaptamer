@@ -83,8 +83,7 @@ class PositionalEncoding(nn.Module):
         )
 
         out = x + self.pe[:, : x.shape[1], :]
-        if self.dropout:
-            out = self.dropout(out)
+        out = self.dropout(out)
         return out
 
 
