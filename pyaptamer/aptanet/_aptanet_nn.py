@@ -7,38 +7,45 @@ import torch.nn as nn
 def aptanet_layer(input_dim, output_dim, dropout, lazy=False):
     """
     Create a single AptaNet layer composed of a linear transformation,
-    ReLU activation, and AlphaDropout.
-
+    SELU activation, and AlphaDropout.
+ 
     Parameters
     ----------
     input_dim : int
         Size of each input sample. Ignored if `lazy=True`.
-
+ 
     output_dim : int
         Size of each output sample (i.e., number of neurons in the layer).
-
+ 
     dropout : float
         Dropout probability for AlphaDropout. Must be between 0 and 1.
-
+ 
     lazy : bool, optional
         If True, use `nn.LazyLinear` instead of `nn.Linear`, allowing the input
         size to be inferred at runtime. Default is False.
-
+ 
     Returns
     -------
     nn.Sequential
         A sequential container with:
         - Linear or LazyLinear layer
-        - ReLU activation
+        - SELU activation
         - AlphaDropout layer
+ 
+    Notes
+    -----
+    SELU and AlphaDropout are used together by design. AlphaDropout is
+    specifically formulated to preserve the mean and variance of SELU-activated
+    networks (self-normalising property). Using AlphaDropout with ReLU (as in
+    the original code) breaks these guarantees. See:
+    Klambauer et al., "Self-Normalizing Neural Networks", NeurIPS 2017.
     """
     linear = nn.LazyLinear(output_dim) if lazy else nn.Linear(input_dim, output_dim)
     return nn.Sequential(
         linear,
-        nn.ReLU(),
+        nn.SELU(),           # correct activation for AlphaDropout
         nn.AlphaDropout(dropout),
     )
-
 
 class AptaNetMLP(nn.Module):
     """

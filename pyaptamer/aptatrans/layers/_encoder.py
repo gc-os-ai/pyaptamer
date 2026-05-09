@@ -78,9 +78,10 @@ class PositionalEncoding(nn.Module):
             Output tensor of shape (batch_size, seq_len, n_features (`d_model`)), with
             positional encodings applied.
         """
-        assert x.shape[1] <= self.max_len, (
-            f"Input sequence length {x.shape[1]} exceeds maximum length {self.max_len}."
-        )
+        if x.shape[1] > self.max_len:
+            raise ValueError(
+                f"Input sequence length {x.shape[1]} exceeds maximum length {self.max_len}."
+            )
 
         out = x + self.pe[:, : x.shape[1], :]
         if self.dropout:

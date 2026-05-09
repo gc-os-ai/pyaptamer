@@ -73,12 +73,20 @@ class Benchmarking:
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    def __init__(self, estimators, metrics, X, y, cv=None):
-        self.estimators = estimators if isinstance(estimators, list) else [estimators]
+    def __init__(self, estimators, metrics, X, y, cv=None, estimator_names=None):
+        self.estimators = (
+            estimators if isinstance(estimators, list) else [estimators]
+        )
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.X = X
         self.y = y
         self.cv = cv
+
+        self.estimator_names = estimator_names or [
+            f"{e.__class__.__name__}_{i}"
+            for i, e in enumerate(self.estimators)
+        ]
+
         self.results = None
 
     def _to_scorers(self, metrics):
@@ -128,9 +136,7 @@ class Benchmarking:
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
-
+        for est_name, estimator in zip(self.estimator_names,self.estimators):
             cv_results = cross_validate(
                 estimator,
                 self.X,

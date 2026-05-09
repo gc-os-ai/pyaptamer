@@ -311,20 +311,33 @@ class AptaTransEncoderLightning(AptaTransLightning):
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
-        """Defines the optimizer to be used during training."""
+        """Defines the optimizer to be used during training.
+ 
+        Raises
+        ------
+        ValueError
+            If ``encoder_type`` is not ``'apta'`` or ``'prot'``.
+            (Also validated in ``__init__``, kept here as a safety net.)
+        """
         if self.encoder_type == "apta":
-            params = list(self.model.encoder_apta.parameters()) + list(
-                self.model.token_predictor_apta.parameters()
+            params = (
+                list(self.model.encoder_apta.parameters())
+                + list(self.model.token_predictor_apta.parameters())
             )
         elif self.encoder_type == "prot":
-            params = list(self.model.encoder_prot.parameters()) + list(
-                self.model.token_predictor_prot.parameters()
+            params = (
+                list(self.model.encoder_prot.parameters())
+                + list(self.model.token_predictor_prot.parameters())
             )
-
-        optimizer = torch.optim.Adam(
+        else:
+            raise ValueError(
+                f"Invalid encoder_type: {self.encoder_type!r}. "
+                "Must be 'apta' or 'prot'."
+            )
+ 
+        return torch.optim.Adam(
             params,
             lr=self.lr,
             weight_decay=self.weight_decay,
             betas=self.betas,
         )
-        return optimizer

@@ -240,11 +240,30 @@ class AptaTransPipeline:
 
         # generate aptamer candidates
         candidates = {}
+        max_iterations = n_candidates * self.n_iterations * 10
+        iterations = 0
+
         while len(candidates) < n_candidates:
+            if iterations >= max_iterations:
+                logger.warning(
+                    "Could only find %d unique candidates after %d iterations. "
+                    "Consider increasing n_iterations or reducing n_candidates.",
+                    len(candidates),
+                    iterations,
+                )
+                break
+
             result = mcts.run(verbose=verbose)
             candidate, sequence, score = tuple(result.values())
+
             if candidate not in candidates:
-                candidates[candidate] = (candidate, sequence, score.item())
+                candidates[candidate] = (
+                    candidate,
+                    sequence,
+                    score.item(),
+                )
+
+            iterations += 1
 
         if verbose:
             for candidate, sequence, score in candidates.values():

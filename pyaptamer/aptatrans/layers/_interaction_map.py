@@ -40,9 +40,10 @@ class InteractionMap(nn.Module):
         Tensor
             Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
         """
-        assert x_apta.shape[-1] == x_prot.shape[-1], (
-            "The number of features of `x_apta` and `x_prot` must match."
-        )
+        if x_apta.shape[-1] != x_prot.shape[-1]:
+            raise ValueError(
+                "The number of features of `x_apta` and `x_prot` must match."
+            )
 
         # compute interaction matrix using batch matrix multiplication
         out = torch.matmul(x_apta, x_prot.transpose(-2, -1))  # (batch_size, s1, s2)
