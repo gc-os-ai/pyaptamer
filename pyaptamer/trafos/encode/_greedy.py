@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import warnings
 
 from pyaptamer.trafos.base import BaseTransform
 
