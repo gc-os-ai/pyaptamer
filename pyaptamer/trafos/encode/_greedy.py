@@ -1,8 +1,9 @@
 """Base transformation class."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
-import warnings
 
 from pyaptamer.trafos.base import BaseTransform
 
@@ -117,9 +118,11 @@ class GreedyEncoder(BaseTransform):
                 # stop if we've reached max_len tokens
                 if max_len is not None and len(tokens) >= max_len:
                     tokens = tokens[:max_len]
-                    warnings.warn("One or more sequence exceeds maximum length and was truncted ",
-                                  UserWarning,
-                                  stacklevel=2)
+                    warnings.warn(
+                        "One or more sequence exceeds maximum length and was truncted ",
+                        UserWarning,
+                        stacklevel=2,
+                    )
                     break
 
             encoded_seqs.append(tokens)
