@@ -68,3 +68,55 @@ def test_benchmarking_with_predefined_split_regression(aptamer_seq, protein_seq)
     assert "train" in summary.columns
     assert "test" in summary.columns
     assert (reg.__class__.__name__, "mean_squared_error") in summary.index
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_benchmarking_same_class_estimators_no_overwrite(aptamer_seq, protein_seq):
+    """
+    Check that passing two estimators of the same class produces two rows,
+    not one. Regression test for silent result overwrite via class name key.
+    """
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+
+    test_fold = np.ones(len(y), dtype=int) * -1
+    test_fold[-2:] = 0
+    cv = PredefinedSplit(test_fold)
+
+    bench = Benchmarking(
+        estimators=[AptaNetPipeline(k=3), AptaNetPipeline(k=4)],
+        metrics=[accuracy_score],
+        X=X_raw,
+        y=y,
+        cv=cv,
+    )
+    summary = bench.run()
+
+    assert len(summary) == 2
+    assert ("AptaNetPipeline_0", "accuracy_score") in summary.index
+    assert ("AptaNetPipeline_1", "accuracy_score") in summary.index
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_benchmarking_single_estimator_name_unchanged(aptamer_seq, protein_seq):
+    """
+    Check that a single estimator still uses the plain class name (no index suffix).
+    """
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+
+    test_fold = np.ones(len(y), dtype=int) * -1
+    test_fold[-2:] = 0
+    cv = PredefinedSplit(test_fold)
+
+    bench = Benchmarking(
+        estimators=[AptaNetPipeline(k=4)],
+        metrics=[accuracy_score],
+        X=X_raw,
+        y=y,
+        cv=cv,
+    )
+    summary = bench.run()
+
+    assert len(summary) == 1
+    assert ("AptaNetPipeline", "accuracy_score") in summary.index
