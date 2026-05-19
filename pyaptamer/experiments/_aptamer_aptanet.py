@@ -31,7 +31,7 @@ class AptamerEvalAptaNet(BaseAptamerEval):
     AptaNetPipeline(...)
     >>> target = "ACDEFACDEFACDEFACDEFACDEFACDEFACDEFACDEF"
     >>> experiment = AptamerEvalAptaNet(target, pipeline)
-    >>> aptamer_candidate = "AUGGC"
+    >>> aptamer_candidate = "ATGGC"
     >>> score = experiment.evaluate(aptamer_candidate)
     """
 
@@ -46,8 +46,7 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         ----------
         aptamer_candidate : str
             The aptamer candidate to evaluate. It should be a string consisting of
-            letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
-            (for DNA).
+            letters representing DNA nucleotides: 'A', 'C', 'G', and 'T'.
 
         Returns
         -------
