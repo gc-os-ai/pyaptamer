@@ -141,6 +141,7 @@ def rna2vec(
 
     result = []
     for sequence in sequence_list:
+        sequence = sequence.upper()  # ensure case-insensitivity
         # convert DNA to RNA only for RNA sequences
         if sequence_type == "rna":
             sequence = dna2rna(sequence)
