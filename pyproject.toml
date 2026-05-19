@@ -24,6 +24,7 @@ dependencies = [
     "skorch",
     "imblearn",
     "requests",
+    "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]
