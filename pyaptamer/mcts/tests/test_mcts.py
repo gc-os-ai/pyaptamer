@@ -368,20 +368,20 @@ class TestMCTS:
         assert isinstance(result["candidate"], str)
         assert isinstance(result["sequence"], str)
 
-    def test_repr(self):
-        """Verify __repr__ includes configuration details."""
-        mcts = MCTS(depth=10, n_iterations=500)
-        r = repr(mcts)
-        assert "MCTS(" in r
-        assert "depth=10" in r
-        assert "n_iterations=500" in r
-        assert "n_states=8" in r
-        assert "experiment=None" in r
+    def test_repr(self, mcts):
+        """Verify __repr__ includes configuration details and handles experiment correctly."""
+        # Test without experiment
+        mcts_no_exp = MCTS(depth=10, n_iterations=500)
+        r_no_exp = repr(mcts_no_exp)
+        assert "MCTS(" in r_no_exp
+        assert "depth=10" in r_no_exp
+        assert "n_iterations=500" in r_no_exp
+        assert "n_states=8" in r_no_exp
+        assert "experiment=None" in r_no_exp
 
-    def test_repr_with_experiment(self, mcts):
-        """Verify __repr__ shows experiment class name."""
-        r = repr(mcts)
-        assert "MCTS(" in r
-        assert "experiment=" in r
-        assert "None" not in r
+        # Test with experiment (using fixture)
+        r_with_exp = repr(mcts)
+        assert "MCTS(" in r_with_exp
+        assert "experiment=" in r_with_exp
+        assert "None" not in r_with_exp
 

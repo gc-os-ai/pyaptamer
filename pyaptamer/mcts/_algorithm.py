@@ -70,7 +70,7 @@ class MCTS(BaseObject):
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
-    >>> candidate["candidate"]  # the reconstructed aptamer string  # doctest: +SKIP
+    >>> candidate["candidate"]  # the reconstructed aptamer string
     """
 
     def __init__(
@@ -116,7 +116,8 @@ class MCTS(BaseObject):
     def __repr__(self) -> str:
         """Return a human-readable representation of the MCTS configuration."""
         return (
-            f"MCTS(depth={self.depth}, n_iterations={self.n_iterations}, "
+            f"MCTS(depth={self.depth}, "
+            f"n_iterations={self.n_iterations}, "
             f"n_states={len(self.states)}, "
             f"experiment={self.experiment.__class__.__name__ if self.experiment else None})"
         )
@@ -303,11 +304,11 @@ class MCTS(BaseObject):
         dict
             A dictionary with the following keys:
 
-            - ``"candidate"`` (*str*) — The reconstructed aptamer sequence.
-            - ``"sequence"`` (*str*) — The raw encoded sequence with direction
+            - `candidate` (*str*) — The reconstructed aptamer sequence.
+            - `sequence` (*str*) — The raw encoded sequence with direction
               markers (underscores), before reconstruction.
-            - ``"score"`` (*float*) — The score of the candidate as evaluated
-              by ``self.experiment``.
+            - `score` (*float*) — The score of the candidate as evaluated
+              by `self.experiment`.
         """
         self._reset()
 
