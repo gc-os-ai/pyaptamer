@@ -384,4 +384,3 @@ class TestMCTS:
         assert "MCTS(" in r_with_exp
         assert "experiment=" in r_with_exp
         assert "None" not in r_with_exp
-
