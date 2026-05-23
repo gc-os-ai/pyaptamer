@@ -39,15 +39,10 @@ def test_filter_words_preserves_order():
     expected = {"zebra": 1, "alpha": 2}
     assert result == expected
 
+
 def test_filter_words_empty_dict():
-    """Test filter_words handles an empty dictionary without warnings."""
-    # 1. create an empty dict
-    words = {}
+    """Test filter_words raises ValueError for an empty dictionary."""
+    import pytest
 
-    # 2. call the function
-    result = filter_words(words)
-
-    # 3. assert the result is exactly {}
-    assert result == {}
-
-
+    with pytest.raises(ValueError, match="words must be a non-empty dictionary"):
+        filter_words({})
