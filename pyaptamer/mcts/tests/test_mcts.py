@@ -369,7 +369,7 @@ class TestMCTS:
         assert isinstance(result["sequence"], str)
 
     def test_repr(self, mcts):
-        """Verify __repr__ includes configuration details and handles experiment correctly."""
+        """Verify __repr__ config details and handles experiment."""
         # Test without experiment
         mcts_no_exp = MCTS(depth=10, n_iterations=500)
         r_no_exp = repr(mcts_no_exp)

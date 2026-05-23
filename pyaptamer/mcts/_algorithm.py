@@ -115,11 +115,12 @@ class MCTS(BaseObject):
 
     def __repr__(self) -> str:
         """Return a human-readable representation of the MCTS configuration."""
+        exp_name = self.experiment.__class__.__name__ if self.experiment else None
         return (
             f"MCTS(depth={self.depth}, "
             f"n_iterations={self.n_iterations}, "
             f"n_states={len(self.states)}, "
-            f"experiment={self.experiment.__class__.__name__ if self.experiment else None})"
+            f"experiment={exp_name})"
         )
 
     def _reset(self) -> None:
