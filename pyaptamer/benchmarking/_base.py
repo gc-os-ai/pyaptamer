@@ -73,12 +73,13 @@ class Benchmarking:
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    def __init__(self, estimators, metrics, X, y, cv=None):
+    def __init__(self, estimators, metrics, X, y, cv=None, labels=None):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
         self.X = X
         self.y = y
         self.cv = cv
+        self.labels = labels
         self.results = None
 
     def _to_scorers(self, metrics):
@@ -128,8 +129,27 @@ class Benchmarking:
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
+        if self.labels is not None:
+            if len(self.labels) != len(self.estimators):
+                raise ValueError("Length of labels must match length of estimators.")
+            names = self.labels
+        else:
+            counts = {}
+            for est in self.estimators:
+                name = est.__class__.__name__
+                counts[name] = counts.get(name, 0) + 1
+            
+            names = []
+            seen = {}
+            for est in self.estimators:
+                name = est.__class__.__name__
+                if counts[name] > 1:
+                    seen[name] = seen.get(name, 0) + 1
+                    names.append(f"{name}_{seen[name]}")
+                else:
+                    names.append(name)
+
+        for estimator, est_name in zip(self.estimators, names):
 
             cv_results = cross_validate(
                 estimator,

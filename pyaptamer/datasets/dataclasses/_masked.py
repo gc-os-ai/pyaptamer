@@ -85,7 +85,7 @@ class MaskedDataset(Dataset):
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
 
-    def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
+    def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> tuple[Tensor, list[int]]:
         """Mask adjacent nucleotides for RNA sequences.
 
         Parameters
@@ -97,20 +97,20 @@ class MaskedDataset(Dataset):
 
         Returns
         -------
-        Tensor
-            The tensor with adjacent nucleotides masked.
+        tuple[Tensor, list[int]]
+            The tensor with adjacent nucleotides masked and the list of adjacent positions.
         """
         adjacent_positions = []
         for pos in mask_positions:
             # mask position + 1 (if within bounds)
-            if pos < self.max_len - 1:
+            if pos < self.max_len - 1 and x_masked[pos + 1] > 0:
                 adjacent_positions.append(pos + 1)
             # mask position - 1 (if within bounds)
-            if pos > 0:
+            if pos > 0 and x_masked[pos - 1] > 0:
                 adjacent_positions.append(pos - 1)
         x_masked[adjacent_positions] = self.mask_idx
 
-        return x_masked
+        return x_masked, adjacent_positions
 
     def __len__(self) -> int:
         """
@@ -143,8 +143,8 @@ class MaskedDataset(Dataset):
         Returns
         -------
         tuple[Tensor, Tensor, Tensor, Tensor]
-            A tuple of tensors containing input sequence with masked tokens, target
-            sequence with non-masked positions set to 0, original input sequence, and
+            A tuple of tensors containing input sequence with masked tokens, original 
+            input sequence, target sequence with non-masked positions set to 0, and
             original target sequence, respectively.
         """
         x = torch.tensor(self.x[index], dtype=torch.int64)
@@ -173,9 +173,10 @@ class MaskedDataset(Dataset):
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked, adjacent_positions = self._mask_rna(x_masked, actual_mask_positions)
+            no_mask_positions = [pos for pos in no_mask_positions if pos not in adjacent_positions]
 
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
 
-        return x_masked, y_masked, x, y
+        return x_masked, x, y_masked, y
