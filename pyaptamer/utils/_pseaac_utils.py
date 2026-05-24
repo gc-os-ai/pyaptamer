@@ -1,5 +1,5 @@
 __author__ = "satvshr"
-__all__ = ["clean_protein_seq"]
+__all__ = ["AMINO_ACIDS", "clean_protein_seq"]
 
 """
 Utility functions for amino acid sequence validation in PSeAAC.
@@ -13,6 +13,8 @@ Functions
 clean_protein_seq(seq)
     Replaces invalid amino acids with "N" and warn the user.
 """
+
+import warnings
 
 AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
@@ -32,8 +34,6 @@ def clean_protein_seq(seq):
         Cleaned protein sequence where all invalid characters have been replaced
         with "N".
     """
-    import warnings
-
     cleaned = []
     invalid_found = False
 
