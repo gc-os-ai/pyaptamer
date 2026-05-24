@@ -15,8 +15,8 @@ def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
     Returns
     -------
     tuple[np.ndarray, ...]
-        A tuple of arrays, each containing sequences with their reversed sequences.
-        added.
+        A tuple of arrays, each containing sequences with their reversed sequences
+        appended.
     """
     results = []
     for sequences in sequence_arrays:
