@@ -70,7 +70,7 @@ class MCTS(BaseObject):
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
-    >>> candidate["candidate"]  # the reconstructed aptamer string
+    >>> seq = candidate["candidate"]  # the reconstructed aptamer string
     """
 
     def __init__(
