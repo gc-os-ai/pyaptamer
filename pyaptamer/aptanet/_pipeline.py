@@ -5,11 +5,10 @@ __required__ = ["python>=3.10"]
 from skbase.base import BaseObject
 from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptanet import AptaNetClassifier
-from pyaptamer.utils._aptanet_utils import pairs_to_features
+from pyaptamer.trafos.features import AptaNetFeatures
 
 
 class AptaNetPipeline(BaseObject, BaseEstimator):
@@ -69,23 +68,28 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = FunctionTransformer(
-            func=pairs_to_features,
-            kw_args={"k": self.k},
-            validate=False,
-        )
+        transformer = AptaNetFeatures(k=self.k)
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
     def fit(self, X, y):
+        import pandas as pd
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
         self.pipeline_ = self._build_pipeline()
         self.pipeline_.fit(X, y)
         return self
 
     def predict_proba(self, X):
         check_is_fitted(self)
+        import pandas as pd
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
         check_is_fitted(self)
+        import pandas as pd
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=["aptamer", "protein"])
         return self.pipeline_.predict(X)
