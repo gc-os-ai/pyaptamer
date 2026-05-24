@@ -10,6 +10,7 @@ __all__ = [
     "struct_to_aaseq",
     "pdb_to_seq_uniprot",
     "pdb_to_aaseq",
+    "compute_protein_word_frequencies",
 ]
 
 from pyaptamer.utils._aa_str_to_letter import aa_str_to_letter
@@ -23,3 +24,4 @@ from pyaptamer.utils._rna import (
     rna2vec,
 )
 from pyaptamer.utils._struct_to_aaseq import struct_to_aaseq
+from pyaptamer.utils._base import compute_protein_word_frequencies
