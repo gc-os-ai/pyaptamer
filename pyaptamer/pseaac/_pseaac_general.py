@@ -131,7 +131,7 @@ class PSeAAC:
             )
 
         self.np_matrix = aa_props(
-            prop_indices=prop_indices, type="numpy", normalize=True
+            prop_indices=prop_indices, output_type="numpy", normalize=True
         )
         self._n_cols = self.np_matrix.shape[1]  # The number of properties selected
 
