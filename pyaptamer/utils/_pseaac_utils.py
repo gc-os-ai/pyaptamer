@@ -11,15 +11,18 @@ is used for efficient membership testing.
 Functions
 ---------
 clean_protein_seq(seq)
-    Replaces invalid amino acids with "N" and warn the user.
+    Remove invalid amino acids from the sequence and warn the user.
 """
 
 AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 
 def clean_protein_seq(seq):
-    """
-    Replace invalid amino acids with "N" and warn the user.
+    """Remove invalid amino acids from the sequence and warn the user.
+
+    Invalid characters (i.e. characters that are not one of the 20 standard
+    amino acid one-letter codes) are stripped from the sequence. A
+    ``UserWarning`` is issued whenever at least one character is removed.
 
     Parameters
     ----------
@@ -29,8 +32,7 @@ def clean_protein_seq(seq):
     Returns
     -------
     str
-        Cleaned protein sequence where all invalid characters have been replaced
-        with "N".
+        Cleaned protein sequence with all invalid characters removed.
     """
     import warnings
 
@@ -41,12 +43,12 @@ def clean_protein_seq(seq):
         if aa in AMINO_ACIDS:
             cleaned.append(aa)
         else:
-            cleaned.append("N")
             invalid_found = True
 
     if invalid_found:
         warnings.warn(
-            "Invalid amino acid(s) found in sequence. Replaced with 'N'.",
+            "Invalid amino acid(s) found in sequence. "
+            "These characters have been removed.",
             UserWarning,
             stacklevel=2,
         )
