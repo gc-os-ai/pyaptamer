@@ -1,7 +1,5 @@
 __author__ = ["nennomp"]
-__all__ = [
-    "filter_words",
-]
+__all__ = ["filter_words"]
 
 import numpy as np
 
@@ -18,9 +16,15 @@ def filter_words(words: dict[str, float]) -> dict[str, int]:
     -------
     dict[str, int]
         A dictionary mapping filtered words to unique integer indices.
+
+    Raises
+    ------
+    ValueError
+        If ``words`` is empty.
     """
+    if not words:
+        raise ValueError("`words` must not be empty.")
     mean_freq = np.mean(list(words.values()))
     words = [seq for seq, freq in words.items() if freq > mean_freq]
     words = {word: i + 1 for i, word in enumerate(words)}
-
     return words

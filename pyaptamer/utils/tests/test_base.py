@@ -1,6 +1,8 @@
 """Test suite for the base generic utilities."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "Ishiezz"]
+
+import pytest
 
 from pyaptamer.utils._base import filter_words
 
@@ -38,3 +40,9 @@ def test_filter_words_preserves_order():
     # indices should reflect order of iteration over dict
     expected = {"zebra": 1, "alpha": 2}
     assert result == expected
+
+
+def test_filter_words_empty_dict():
+    """Check that an empty dict raises a ValueError."""
+    with pytest.raises(ValueError, match="`words` must not be empty"):
+        filter_words({})
