@@ -6,7 +6,12 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pyaptamer.aptatrans import AptaTransEncoderLightning, AptaTransLightning
+from pyaptamer.aptatrans import (
+    AptaTrans,
+    AptaTransEncoderLightning,
+    AptaTransLightning,
+    EncoderPredictorConfig,
+)
 
 
 @pytest.fixture
@@ -72,7 +77,7 @@ class TestAptaTransLightning:
     )
     @pytest.mark.parametrize(
         "step_method",
-        ["training_step", "test_step"],
+        ["training_step", "validation_step", "test_step"],
     )
     def test_step(self, lightning_model, batch_size, seq_len, step_method):
         """Check training_step and test_step compute loss correctly."""
@@ -128,3 +133,20 @@ class TestAptaTransEncoderLightning:
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert loss.item() >= 0
+
+    @pytest.mark.parametrize("encoder_type", ["apta", "prot"])
+    def test_configure_optimizers(self, encoder_type):
+        """Check configure_optimizers() returns correct params for each encoder type."""
+        embedding = EncoderPredictorConfig(num_embeddings=16, target_dim=16, max_len=16)
+        real_model = AptaTrans(
+            apta_embedding=embedding,
+            prot_embedding=embedding,
+            in_dim=32,
+            n_encoder_layers=2,
+            n_heads=4,
+        )
+        model = AptaTransEncoderLightning(real_model, encoder_type=encoder_type)
+        optimizer = model.configure_optimizers()
+
+        assert isinstance(optimizer, torch.optim.Adam)
+        assert optimizer.defaults["lr"] == model.lr
