@@ -32,6 +32,9 @@ dev = [
     "pytest>=9.0.3",
     "pre-commit",
 ]
+aptacom = [
+    "xgboost>=1.7.0",
+]
 
 [tool.ruff]
 line-length = 88
