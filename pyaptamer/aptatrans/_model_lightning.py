@@ -92,7 +92,7 @@ class AptaTransLightning(L.LightningModule):
         batch_idx: int
             Index of the batch.
         stage: str
-            The stage of the step, either "train" or "test".
+            The stage of the step, either "train", "val" or "test".
 
         Returns
         -------
@@ -131,6 +131,25 @@ class AptaTransLightning(L.LightningModule):
             The computed loss for the batch.
         """
         return self._step(batch, batch_idx, "train")
+
+    def validation_step(
+        self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int
+    ) -> Tensor:
+        """Defines a single (mini-batch) step in the validation loop.
+
+        Parameters
+        ----------
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
+        batch_idx: int
+            Index of the batch.
+
+        Returns
+        -------
+        Tensor
+            The computed loss for the batch.
+        """
+        return self._step(batch, batch_idx, "val")
 
     def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         """Defines a single (mini-batch) step in the test loop.

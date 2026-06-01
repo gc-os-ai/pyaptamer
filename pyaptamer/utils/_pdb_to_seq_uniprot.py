@@ -28,6 +28,7 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
 
     mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
     mapping_resp = requests.get(mapping_url)
+    mapping_resp.raise_for_status()
     mapping_data = mapping_resp.json()
 
     uniprot_ids = list(mapping_data.get(pdb_id, {}).get("UniProt", {}).keys())
@@ -38,6 +39,7 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
 
     fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
     fasta_resp = requests.get(fasta_url)
+    fasta_resp.raise_for_status()
     fasta_data = fasta_resp.text
 
     record = next(SeqIO.parse(io.StringIO(fasta_data), "fasta"))

@@ -5,7 +5,7 @@ import numpy as np
 
 
 def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
-    """Augment arrays of sequences by adding their reverse complement.
+    """Augment arrays of sequences by adding the reversed sequences.
 
     Parameters
     ----------
@@ -15,7 +15,7 @@ def augment_reverse(*sequence_arrays: np.ndarray) -> tuple[np.ndarray, ...]:
     Returns
     -------
     tuple[np.ndarray, ...]
-        A tuple of arrays, each containing sequences with their reverse complements
+        A tuple of arrays, each containing sequences with their reversed sequences.
         added.
     """
     results = []

@@ -1,5 +1,7 @@
 """Base transformation class."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -60,7 +62,7 @@ class GreedyEncoder(BaseTransform):
     def __init__(
         self,
         words: dict[str, int],
-        max_len: int,
+        max_len: int = None,
         word_max_len: int = None,
     ):
         self.words = words
@@ -116,6 +118,11 @@ class GreedyEncoder(BaseTransform):
                 # stop if we've reached max_len tokens
                 if max_len is not None and len(tokens) >= max_len:
                     tokens = tokens[:max_len]
+                    warnings.warn(
+                        "One or more sequence exceeds maximum length and was truncted ",
+                        UserWarning,
+                        stacklevel=2,
+                    )
                     break
 
             encoded_seqs.append(tokens)

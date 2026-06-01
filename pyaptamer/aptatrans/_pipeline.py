@@ -6,9 +6,11 @@ candidate aptamers recommendation.
 __author__ = ["nennomp"]
 __all__ = ["AptaTransPipeline"]
 
+
 import torch
 from torch import Tensor
 
+from pyaptamer import logger
 from pyaptamer.aptatrans import AptaTrans
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
@@ -102,7 +104,7 @@ class AptaTransPipeline:
         """
         if depth < 3:
             raise ValueError(
-                f"Invalid depth value: {depth}. Must be grater or equal than 3."
+                f"Invalid depth value: {depth}. Must be greater than or equal to 3."
             )
 
         self.device = device
@@ -237,17 +239,20 @@ class AptaTransPipeline:
         )
 
         # generate aptamer candidates
-        candidates = set()
+        candidates = {}
         while len(candidates) < n_candidates:
-            candidate = mcts.run(verbose=verbose)
-            candidates.add(tuple(candidate.values()))
+            result = mcts.run(verbose=verbose)
+            candidate, sequence, score = tuple(result.values())
+            if candidate not in candidates:
+                candidates[candidate] = (candidate, sequence, score.item())
 
         if verbose:
-            for candidate, sequence, score in candidates:
-                print(
-                    f"Candidate: {candidate}, "
-                    f"Sequence: {sequence}, "
-                    f"Score: {score.item():.4f}"
+            for candidate, sequence, score in candidates.values():
+                logger.info(
+                    "Candidate: %s, Sequence: %s, Score: %.4f",
+                    candidate,
+                    sequence,
+                    score,
                 )
 
-        return candidates
+        return set(candidates.values())

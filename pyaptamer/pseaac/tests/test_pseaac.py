@@ -125,3 +125,15 @@ def test_pseaac_configurations(
     assert len(vec) == expected_len, (
         f"Expected vector length {expected_len}, but got {len(vec)}"
     )
+
+
+def test_pseaac_group_props_and_custom_groups_conflict():
+    """Both group_props and custom_groups cannot be specified at the same time."""
+    with pytest.raises(ValueError, match="not both"):
+        PSeAAC(group_props=3, custom_groups=[[0, 1, 2]])
+
+
+def test_pseaac_indivisible_group_props():
+    """Error message must be readable when group_props doesn't divide n_props."""
+    with pytest.raises(ValueError, match="divisible by group_props"):
+        PSeAAC(prop_indices=[0, 1, 2, 3, 4], group_props=3)
