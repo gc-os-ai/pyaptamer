@@ -37,6 +37,7 @@ def clean_protein_seq(seq):
     cleaned = []
     invalid_found = False
 
+    seq = seq.upper()
     for aa in seq:
         if aa in AMINO_ACIDS:
             cleaned.append(aa)
