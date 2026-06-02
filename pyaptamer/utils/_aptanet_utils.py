@@ -9,12 +9,19 @@ import pandas as pd
 from pyaptamer.pseaac import AptaNetPSeAAC
 
 
+import warnings
+
+import numpy as np
+import pandas as pd
+
+
 def generate_kmer_vecs(aptamer_sequence, k=4):
     """
     Generate normalized k-mer frequency vectors for the aptamer sequence.
 
-    For all possible k-mers from length 1 to k, count their occurrences in the sequence
-    and normalize to form a frequency vector.
+    .. deprecated:: 0.1.0
+        `generate_kmer_vecs` will be removed in a future version.
+        Use `pyaptamer.trafos.encode.KMerEncoder` instead.
 
     Parameters
     ----------
@@ -26,46 +33,29 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     Returns
     -------
     np.ndarray
-        1D numpy array of normalized frequency vector for all possible k-mers from
-        length 1 to k.
+        1D numpy array of normalized frequency vector.
     """
-    DNA_BASES = list("ACGT")
-
-    # Generate all possible k-mers from 1 to k
-    all_kmers = []
-    for i in range(1, k + 1):
-        all_kmers.extend(["".join(p) for p in product(DNA_BASES, repeat=i)])
-
-    # Count occurrences of each k-mer in the aptamer_sequence
-    kmer_counts = dict.fromkeys(all_kmers, 0)
-    for i in range(len(aptamer_sequence)):
-        for j in range(1, k + 1):
-            if i + j <= len(aptamer_sequence):
-                kmer = aptamer_sequence[i : i + j]
-                if kmer in kmer_counts:
-                    kmer_counts[kmer] += 1
-
-    # Normalize counts to frequencies
-    total_kmers = sum(kmer_counts.values())
-    kmer_freq = np.array(
-        [
-            kmer_counts[kmer] / total_kmers if total_kmers > 0 else 0
-            for kmer in all_kmers
-        ]
+    warnings.warn(
+        "`generate_kmer_vecs` is deprecated and will be removed in a future version. "
+        "Use `pyaptamer.trafos.encode.KMerEncoder` instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    from pyaptamer.trafos.encode import KMerEncoder
 
-    return kmer_freq
+    encoder = KMerEncoder(k=k)
+    # KMerEncoder expects a DataFrame
+    X = pd.DataFrame([aptamer_sequence])
+    return encoder.transform(X).values[0]
 
 
 def pairs_to_features(X, k=4):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
-    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
 
-    This function generates feature vectors for each (aptamer, protein) pair using:
-
-    - k-mer representation of the aptamer sequence
-    - Pseudo amino acid composition (PSeAAC) representation of the protein sequence
+    .. deprecated:: 0.1.0
+        `pairs_to_features` will be removed in a future version.
+        Use `pyaptamer.trafos.encode.AptaNetFeatureExtractor` instead.
 
     Parameters
     ----------
@@ -74,27 +64,24 @@ def pairs_to_features(X, k=4):
         or a DataFrame containing 'aptamer' and 'protein' columns.
 
     k : int, optional
-        The k-mer size used to generate the k-mer vector from the aptamer sequence.
-        Default is 4.
+        The k-mer size. Default is 4.
 
     Returns
     -------
     np.ndarray
-        A 2D NumPy array where each row corresponds to the concatenated feature vector
-        for a given (aptamer, protein) pair.
+        A 2D NumPy array of feature vectors.
     """
-    pseaac = AptaNetPSeAAC()
-    feats = []
+    warnings.warn(
+        "`pairs_to_features` is deprecated and will be removed in a future version. "
+        "Use `pyaptamer.trafos.encode.AptaNetFeatureExtractor` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from pyaptamer.trafos.encode import AptaNetFeatureExtractor
 
-    if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
-    else:
-        pairs = X
+    extractor = AptaNetFeatureExtractor(k=k)
 
-    for aptamer_seq, protein_seq in pairs:
-        kmer = generate_kmer_vecs(aptamer_seq, k=k)
-        pseaac_vec = np.asarray(pseaac.transform(protein_seq))
-        feats.append(np.concatenate([kmer, pseaac_vec]))
+    if not isinstance(X, pd.DataFrame):
+        X = pd.DataFrame(X, columns=["aptamer", "protein"])
 
-    # Ensure float32 for PyTorch compatibility
-    return np.vstack(feats).astype(np.float32)
+    return extractor.transform(X).values.astype(np.float32)
