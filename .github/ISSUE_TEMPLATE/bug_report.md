@@ -6,6 +6,9 @@ assignees: ''
 
 ---
 
+**Search existing issues**
+- [ ] I have searched existing issues to ensure this bug has not been reported yet.
+
 **Describe the bug**
 <!--
 A clear and concise description of what the bug is.
