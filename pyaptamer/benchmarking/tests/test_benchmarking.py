@@ -68,3 +68,39 @@ def test_benchmarking_with_predefined_split_regression(aptamer_seq, protein_seq)
     assert "train" in summary.columns
     assert "test" in summary.columns
     assert (reg.__class__.__name__, "mean_squared_error") in summary.index
+
+
+def test_to_scorers_duplicate_metric_names_no_overwrite():
+    """
+    Two metrics that share the same __name__ must produce distinct scorer keys
+    with _0/_1 suffixes instead of silently overwriting each other.
+    """
+    bench = Benchmarking(estimators=[], metrics=[], X=[], y=[])
+
+    def metric_a(y_true, y_pred):
+        return accuracy_score(y_true, y_pred)
+
+    def metric_b(y_true, y_pred):
+        return accuracy_score(y_true, np.ones_like(y_pred))
+
+    metric_b.__name__ = "metric_a"
+
+    scorers = bench._to_scorers([metric_a, metric_b])
+
+    assert "metric_a_0" in scorers
+    assert "metric_a_1" in scorers
+    assert "metric_a" not in scorers
+    assert len(scorers) == 2
+
+
+def test_to_scorers_single_metric_name_unchanged():
+    """
+    A single metric must keep its original __name__ with no suffix appended.
+    """
+    bench = Benchmarking(estimators=[], metrics=[], X=[], y=[])
+
+    scorers = bench._to_scorers([accuracy_score])
+
+    assert "accuracy_score" in scorers
+    assert "accuracy_score_0" not in scorers
+    assert len(scorers) == 1
