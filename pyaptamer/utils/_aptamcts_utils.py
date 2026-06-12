@@ -85,14 +85,18 @@ def rna_to_ictf(aptamer_sequence, k=4):
     aptamer_sequence = aptamer_sequence.upper()
     aptamer_sequence = aptamer_sequence.replace("T", "U")
 
+    seq_len = len(aptamer_sequence)
+    if seq_len == 0:
+        return np.zeros(len(r_mers))
+
     for mer in range(1, k + 1):
-        for i in range(len(aptamer_sequence)):
-            if i + mer <= len(aptamer_sequence):
+        for i in range(seq_len):
+            if i + mer <= seq_len:
                 pattern = aptamer_sequence[i : i + mer]
                 if pattern in rmer_counts:
                     rmer_counts[pattern] += 1
 
-    r_feature = np.array([rmer_counts[rmer] / len(aptamer_sequence) for rmer in r_mers])
+    r_feature = np.array([rmer_counts[rmer] / seq_len for rmer in r_mers])
 
     return r_feature
 
@@ -132,6 +136,11 @@ def protein_to_ictf(protein_sequence, k=3):
     pmer_counts = dict.fromkeys(p_mers, 0)
 
     protein_sequence = protein_sequence.upper()
+
+    seq_len = len(protein_sequence)
+    if seq_len == 0:
+        return np.zeros(len(p_mers))
+
     rpseq = []
     for p in protein_sequence:
         rpseq.append(rpdict.get(p, "X"))
@@ -139,13 +148,13 @@ def protein_to_ictf(protein_sequence, k=3):
     pseq = "".join(rpseq)
 
     for mer in range(1, k + 1):
-        for i in range(len(pseq)):
-            if i + mer <= len(pseq):
+        for i in range(seq_len):
+            if i + mer <= seq_len:
                 pattern = pseq[i : i + mer]
                 if pattern in pmer_counts:
                     pmer_counts[pattern] += 1
 
-    p_feature = np.array([pmer_counts[pmer] / len(protein_sequence) for pmer in p_mers])
+    p_feature = np.array([pmer_counts[pmer] / seq_len for pmer in p_mers])
 
     return p_feature
 

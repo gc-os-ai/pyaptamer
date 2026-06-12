@@ -12,10 +12,8 @@ class AptaMCTSClassifier(ClassifierMixin, BaseEstimator):
     Random Forest-based binary classifier used as a scoring function for AptaMCTS.
 
     This model applies a sklearn Random Forest classifier to predict aptamer-protein
-    interactions. It only accepts numerical features. RNA and protein sequences
-    must already be converted into numbers (e.g., via AptaMCTSSequenceEncoder)
-    before passing them in here.
-
+    interactions. It only accepts numerical features. Raw sequences should be encoded
+    into numeric vectors first before passing them in here.
     The estimator is non-deterministic and only supports binary classification.
 
     Parameters
