@@ -9,13 +9,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-# Allow one concurrent deployment, cancelling older in-progress runs.
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
   build:
@@ -33,19 +26,8 @@ jobs:
       - name: Build HTML
         run: sphinx-build -b html docs/source docs/build/html
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload built docs as artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: docs-html
           path: docs/build/html
-
-  deploy:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
