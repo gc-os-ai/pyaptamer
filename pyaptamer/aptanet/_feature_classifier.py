@@ -118,15 +118,34 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
                 f"Only binary classification is supported. Got target type {y_type}."
             )
 
+        np_state = None
+        torch_state = None
+        torch_cuda_state = None
+
         if self.random_state is not None:
+            np_state = np.random.get_state()
+            torch_state = torch.get_rng_state()
+
+            if torch.cuda.is_available():
+                torch_cuda_state = torch.cuda.get_rng_state()
+
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
-        self.classes_, y = np.unique(y, return_inverse=True)
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
-        )
+        try:
+            self.classes_, y = np.unique(y, return_inverse=True)
+            self.pipeline_ = self._build_pipeline()
+            self.pipeline_.fit(
+                X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+            )
+        finally:
+            if self.random_state is not None:
+                np.random.set_state(np_state)
+                torch.set_rng_state(torch_state)
+
+                if torch.cuda.is_available():
+                    torch.cuda.set_rng_state(torch_cuda_state)
+
         return self
 
     def predict_proba(self, X):
@@ -302,14 +321,33 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         X, y = validate_data(self, X, y)
         y = y.reshape(-1, 1)
 
+        np_state = None
+        torch_state = None
+        torch_cuda_state = None
+
         if self.random_state is not None:
+            np_state = np.random.get_state()
+            torch_state = torch.get_rng_state()
+
+            if torch.cuda.is_available():
+                torch_cuda_state = torch.cuda.get_rng_state()
+
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
-        )
+        try:
+            self.pipeline_ = self._build_pipeline()
+            self.pipeline_.fit(
+                X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+            )
+        finally:
+            if self.random_state is not None:
+                np.random.set_state(np_state)
+                torch.set_rng_state(torch_state)
+
+                if torch.cuda.is_available():
+                    torch.cuda.set_rng_state(torch_cuda_state)
+
         return self
 
     def predict(self, X):
