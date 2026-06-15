@@ -27,7 +27,8 @@ class AptamerEvalAptaNet(BaseAptamerEval):
     >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
     >>> labels = np.array([0] * 5, dtype=np.float32)
     >>> pipeline = AptaNetPipeline()
-    >>> pipeline.fit(pairs, labels)
+    >>> pipeline.fit(pairs, labels)  # doctest: +ELLIPSIS
+    AptaNetPipeline(...)
     >>> target = "ACDEFACDEFACDEFACDEFACDEFACDEFACDEFACDEF"
     >>> experiment = AptamerEvalAptaNet(target, pipeline)
     >>> aptamer_candidate = "AUGGC"

@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from pyaptamer import logger
 from pyaptamer.aptatrans.layers._convolutional import ConvBlock
 from pyaptamer.aptatrans.layers._encoder import (
     EncoderPredictorConfig,
@@ -270,10 +271,10 @@ class AptaTrans(nn.Module):
         )
 
         if os.path.exists(path):
-            print(f"Loading pretrained weights from {path}...")
+            logger.info("Loading pretrained weights from %s...", path)
             state_dict = torch.load(path, map_location=torch.device("cpu"))
         else:
-            print("Downloading best weights from hugging face...")
+            logger.info("Downloading best weights from hugging face...")
             url = (
                 "https://huggingface.co/gcos/pyaptamer-aptatrans/resolve/main/"
                 "pretrained.pt"
@@ -369,7 +370,6 @@ class AptaTrans(nn.Module):
         """
         out = self.forward_imap(x_apta, x_prot)
 
-        out = torch.squeeze(out, dim=2)  # remove extra dimension
         out = self.gelu1(self.bn1(self.conv1(out)))
         out = self.layer1(out)
         out = self.layer2(out)
