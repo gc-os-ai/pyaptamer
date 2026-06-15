@@ -127,7 +127,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
             torch_state = torch.get_rng_state()
 
             if torch.cuda.is_available():
-                torch_cuda_state = torch.cuda.get_rng_state()
+                torch_cuda_state = torch.cuda.get_rng_state_all()
 
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
@@ -144,7 +144,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
                 torch.set_rng_state(torch_state)
 
                 if torch.cuda.is_available():
-                    torch.cuda.set_rng_state(torch_cuda_state)
+                    torch.cuda.set_rng_state_all(torch_cuda_state)
 
         return self
 
@@ -330,7 +330,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
             torch_state = torch.get_rng_state()
 
             if torch.cuda.is_available():
-                torch_cuda_state = torch.cuda.get_rng_state()
+                torch_cuda_state = torch.cuda.get_rng_state_all()
 
             np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
@@ -346,7 +346,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
                 torch.set_rng_state(torch_state)
 
                 if torch.cuda.is_available():
-                    torch.cuda.set_rng_state(torch_cuda_state)
+                    torch.cuda.set_rng_state_all(torch_cuda_state)
 
         return self
 
