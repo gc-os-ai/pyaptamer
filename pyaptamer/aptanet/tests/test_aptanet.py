@@ -15,6 +15,70 @@ params = [
 ]
 
 
+class _DummyFitPipeline:
+    def __init__(self):
+        self.fit_args = None
+
+    def fit(self, X, y):
+        self.fit_args = (X, y)
+        return self
+
+
+class _DummyClassifierPipeline:
+    def __init__(self, expected):
+        self.expected = expected
+
+    def predict_proba(self, X):
+        return np.repeat(self.expected[None, :], len(X), axis=0)
+
+
+class _DummyRegressorPipeline:
+    def predict(self, X):
+        return np.zeros(len(X), dtype=np.float32)
+
+
+def test_pipeline_fit_returns_self(monkeypatch):
+    """AptaNetPipeline.fit should follow the sklearn contract and return self."""
+    pipe = AptaNetPipeline()
+    dummy_pipeline = _DummyFitPipeline()
+
+    monkeypatch.setattr(AptaNetPipeline, "_build_pipeline", lambda self: dummy_pipeline)
+
+    X_raw = [("ACGU", "ACDE")]
+    y = np.array([1], dtype=np.float32)
+
+    result = pipe.fit(X_raw, y)
+
+    assert result is pipe
+    assert pipe.pipeline_ is dummy_pipeline
+    assert dummy_pipeline.fit_args == (X_raw, y)
+
+
+def test_pipeline_predict_proba_delegates_for_classifier_pipeline():
+    """predict_proba should still delegate normally for classifier-backed pipelines."""
+    pipe = AptaNetPipeline()
+    pipe.pipeline_ = _DummyClassifierPipeline(expected=np.array([0.25, 0.75]))
+    pipe._estimator = AptaNetClassifier()
+
+    proba = pipe.predict_proba([("ACGU", "ACDE"), ("UGCA", "WXYZ")])
+
+    assert proba.shape == (2, 2)
+    assert np.allclose(proba, np.array([[0.25, 0.75], [0.25, 0.75]]))
+
+
+def test_pipeline_predict_proba_raises_clear_error_for_regressor():
+    """predict_proba should fail with a clear message for regressor-backed pipelines."""
+    pipe = AptaNetPipeline(estimator=AptaNetRegressor())
+    pipe.pipeline_ = _DummyRegressorPipeline()
+    pipe._estimator = AptaNetRegressor()
+
+    with pytest.raises(
+        AttributeError,
+        match="only available when the wrapped estimator implements predict_proba",
+    ):
+        pipe.predict_proba([("ACGU", "ACDE")])
+
+
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
