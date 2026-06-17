@@ -59,8 +59,10 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
 
 def pairs_to_features(X, k=4):
     """
-    Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
-    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
+    Convert aptamer-protein pairs into concatenated numeric feature vectors.
+
+    Accepts either an iterable of ``(aptamer_sequence, protein_sequence)`` pairs
+    or a pandas DataFrame with ``aptamer`` and ``protein`` columns.
 
     This function generates feature vectors for each (aptamer, protein) pair using:
 
@@ -69,9 +71,9 @@ def pairs_to_features(X, k=4):
 
     Parameters
     ----------
-    X : list of tuple of str or pandas.DataFrame
-        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
-        or a DataFrame containing 'aptamer' and 'protein' columns.
+    X : iterable of tuple[str, str] or pandas.DataFrame
+        Sequence pairs as ``(aptamer, protein)`` tuples, or a DataFrame containing
+        ``aptamer`` and ``protein`` columns.
 
     k : int, optional
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
@@ -82,18 +84,49 @@ def pairs_to_features(X, k=4):
     np.ndarray
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
+
+    Raises
+    ------
+    ValueError
+        If input is empty, DataFrame columns are missing, pair structure is invalid,
+        sequence entries are not strings, or sequences are empty.
+
+    Notes
+    -----
+    Aptamer and protein sequences are normalized to uppercase before feature
+    extraction.
     """
     pseaac = AptaNetPSeAAC()
     feats = []
 
     if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
+        if "aptamer" not in X.columns or "protein" not in X.columns:
+            raise ValueError("DataFrame must contain 'aptamer' and 'protein'")
+        pairs = list(zip(X["aptamer"], X["protein"], strict=False))
     else:
-        pairs = X
+        pairs = list(X)
 
-    for aptamer_seq, protein_seq in pairs:
+    if not pairs:
+        raise ValueError("Empty input")
+
+    for pair in pairs:
+        if not isinstance(pair, (list | tuple)) or len(pair) != 2:
+            raise ValueError("Each element must be (aptamer, protein)")
+
+        aptamer_seq, protein_seq = pair
+
+        if not isinstance(aptamer_seq, str) or not isinstance(protein_seq, str):
+            raise ValueError("Sequences must be strings")
+
+        if not aptamer_seq or not protein_seq:
+            raise ValueError("Sequences cannot be empty")
+
+        aptamer_seq = aptamer_seq.upper()
+        protein_seq = protein_seq.upper()
+
         kmer = generate_kmer_vecs(aptamer_seq, k=k)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
+
         feats.append(np.concatenate([kmer, pseaac_vec]))
 
     # Ensure float32 for PyTorch compatibility
