@@ -2,6 +2,7 @@ __author__ = ["nennomp", "satvshr"]
 
 
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
@@ -81,3 +82,25 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_fit_with_aptacom_dataframe(aptamer_seq, protein_seq):
+    """
+    Test if AptaNetPipeline fits on a DataFrame with 'aptamer_sequence' and 'target_sequence'.
+    This matches the schema returned by load_aptacom_x_y(return_X_y=True).
+    """
+    X = pd.DataFrame(
+        {
+            "aptamer_sequence": [aptamer_seq] * 8,
+            "target_sequence": [protein_seq] * 8,
+        }
+    )
+    y = np.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=np.float32)
+
+    pipe = AptaNetPipeline(k=4)
+    # This should not raise KeyError or ValueError
+    pipe.fit(X, y)
+
+    preds = pipe.predict(X)
+    assert len(preds) == 8
