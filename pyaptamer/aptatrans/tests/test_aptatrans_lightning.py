@@ -128,3 +128,14 @@ class TestAptaTransEncoderLightning:
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert loss.item() >= 0
+
+    def test_configure_optimizers_invalid_encoder_type_raises(self, mock_model):
+        """Check that an invalid encoder_type raises ValueError in configure_optimizers.
+
+        Previously, any encoder_type other than 'apta' or 'prot' left `params`
+        undefined, causing a silent NameError at training time. Fixes #610.
+        """
+        model = AptaTransEncoderLightning(mock_model, encoder_type="invalid")
+
+        with pytest.raises(ValueError, match="Invalid encoder_type 'invalid'"):
+            model.configure_optimizers()
