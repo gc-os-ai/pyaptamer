@@ -2,6 +2,7 @@ __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
 from itertools import product
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -29,6 +30,12 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
     """
+    warnings.warn(
+        "`generate_kmer_vecs` is deprecated and will be removed in a future version. "
+        "Please use `pyaptamer.trafos.features.KMerFeatures` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     DNA_BASES = list("ACGT")
 
     # Generate all possible k-mers from 1 to k
@@ -83,6 +90,12 @@ def pairs_to_features(X, k=4):
         A 2D NumPy array where each row corresponds to the concatenated feature vector
         for a given (aptamer, protein) pair.
     """
+    warnings.warn(
+        "`pairs_to_features` is deprecated and will be removed in a future version. "
+        "Please use `pyaptamer.trafos.features.AptaNetFeatures` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     pseaac = AptaNetPSeAAC()
     feats = []
 
