@@ -77,10 +77,10 @@ class MoleculeLoader:
 
         index_tuples = []
         sequences = []
+        seen = set()
 
         for path in self._path:
             seq_df = self._load_dispatch(path)
-            seen = set()
 
             for _, row in seq_df.iterrows():
                 seq = row["sequence"]

@@ -62,3 +62,25 @@ def test_no_seqres_pdb_raises():
 
     with pytest.raises(ValueError, match="No sequences found"):
         loader.to_df_seq()
+
+
+def test_ignore_duplicates_across_multiple_files():
+    """Test ignore_duplicates filters duplicate sequences across files."""
+    root_path = Path(__file__).parent.parent.parent
+    # Use the same valid PDB file twice to simulate cross-file duplication
+    path = root_path / "datasets/data/1brq.pdb"
+    full_paths = [path, path]
+
+    # Without ignore_duplicates, the sequences should be loaded twice
+    loader_with_dups = MoleculeLoader(full_paths, ignore_duplicates=False)
+    df_with_dups = loader_with_dups.to_df_seq()
+
+    # With ignore_duplicates=True, duplicates from the second file
+    # should be safely filtered out.
+    loader_no_dups = MoleculeLoader(full_paths, ignore_duplicates=True)
+    df_no_dups = loader_no_dups.to_df_seq()
+
+    # Verify that the deduplicated DataFrame is strictly smaller than the duplicated one
+    assert len(df_no_dups) < len(df_with_dups)
+    # Since we passed the exact same file twice, it should be exactly half the size
+    assert len(df_no_dups) == len(df_with_dups) // 2
