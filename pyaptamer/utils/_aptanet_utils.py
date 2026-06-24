@@ -1,13 +1,6 @@
 __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
-from itertools import product
-
-import numpy as np
-import pandas as pd
-
-from pyaptamer.pseaac import AptaNetPSeAAC
-
 
 import warnings
 
@@ -46,7 +39,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
     encoder = KMerEncoder(k=k)
     # KMerEncoder expects a DataFrame
     X = pd.DataFrame([aptamer_sequence])
-    return encoder.transform(X).values[0]
+    return encoder.fit_transform(X).values[0]
 
 
 def pairs_to_features(X, k=4):
@@ -84,4 +77,4 @@ def pairs_to_features(X, k=4):
     if not isinstance(X, pd.DataFrame):
         X = pd.DataFrame(X, columns=["aptamer", "protein"])
 
-    return extractor.transform(X).values.astype(np.float32)
+    return extractor.fit_transform(X).values.astype(np.float32)

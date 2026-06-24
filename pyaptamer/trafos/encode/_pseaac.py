@@ -92,5 +92,10 @@ class PSeAACTransformer(BaseTransform):
         """
         return [
             {"lambda_val": 5},
-            {"lambda_val": 3, "weight": 0.1, "prop_indices": [0, 1, 2], "group_props": 3},
+            {
+                "lambda_val": 3,
+                "weight": 0.1,
+                "prop_indices": [0, 1, 2],
+                "group_props": 3,
+            },
         ]

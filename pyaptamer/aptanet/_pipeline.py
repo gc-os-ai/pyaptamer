@@ -2,13 +2,12 @@ __author__ = ["nennomp", "satvshr"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
+import pandas as pd
 from skbase.base import BaseObject
 from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
-import pandas as pd
 from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.trafos.encode import AptaNetFeatureExtractor
 
@@ -30,6 +29,14 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     ----------
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
+
+    alphabet : list[str] or str or None, optional, default=None
+        Characters used to build the k-mer vocabulary. Passed through to
+        ``KMerEncoder`` via ``AptaNetFeatureExtractor``.
+
+        * ``None`` (default) – infer the alphabet from the aptamer sequences
+          seen during ``fit``.
+        * ``str`` or ``list[str]`` – use the provided characters.
 
     estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
@@ -65,16 +72,17 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
-    def __init__(self, k=4, estimator=None):
+    def __init__(self, k=4, alphabet=None, estimator=None):
         self.k = k
+        self.alphabet = alphabet
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = AptaNetFeatureExtractor(k=self.k)
+        transformer = AptaNetFeatureExtractor(k=self.k, alphabet=self.alphabet)
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
 
-    def _convert_X(self, X):
+    def _convert_X(self, X):  # noqa: N802
         if isinstance(X, list) and len(X) > 0 and isinstance(X[0], tuple):
             X = pd.DataFrame(X, columns=["aptamer", "protein"])
         return X

@@ -14,23 +14,60 @@ class KMerEncoder(BaseTransform):
     For all possible k-mers from length 1 up to k, count their occurrences in
     each sequence and normalize to form a frequency vector.
 
+    The alphabet used to generate the k-mer vocabulary is either inferred
+    automatically from the sequences seen during ``fit`` or supplied
+    explicitly via the ``alphabet`` parameter.
+
     Parameters
     ----------
     k : int, optional, default=4
         Maximum k-mer length.
+    alphabet : list[str] or str or None, optional, default=None
+        Characters used to build the k-mer vocabulary.
+
+        * ``None`` (default) – infer the alphabet from the unique characters
+          found in the input sequences during ``fit``.
+        * ``str`` or ``list[str]`` – use the provided characters, e.g.
+          ``"ACGU"`` or ``["A", "C", "G", "U"]``.
     """
 
     _tags = {
         "authors": ["satvshr"],
         "maintainers": ["satvshr"],
         "output_type": "numeric",
-        "property:fit_is_empty": True,
+        "property:fit_is_empty": False,
         "capability:multivariate": False,
     }
 
-    def __init__(self, k: int = 4):
+    def __init__(self, k: int = 4, alphabet=None):
         self.k = k
+        self.alphabet = alphabet
         super().__init__()
+
+    def _fit(self, X, y=None):
+        """Fit the encoder by determining the alphabet.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Input data whose first column contains sequence strings.
+        y : ignored
+
+        Returns
+        -------
+        self
+        """
+        if self.alphabet is not None:
+            self.alphabet_ = list(self.alphabet)
+        else:
+            # Auto-infer: extract all unique characters from input sequences
+            raw_sequences = X.values[:, 0].tolist()
+            sequences = ["".join(seq) for seq in raw_sequences]
+            unique_chars = set()
+            for seq in sequences:
+                unique_chars.update(seq)
+            self.alphabet_ = sorted(list(unique_chars))
+        return self
 
     def _transform(self, X):
         """Transform the data.
@@ -46,12 +83,12 @@ class KMerEncoder(BaseTransform):
             Transformed data.
         """
         k = self.k
-        DNA_BASES = list("ACGT")
+        bases = self.alphabet_
 
         # Generate all possible k-mers from 1 to k
         all_kmers = []
         for i in range(1, k + 1):
-            all_kmers.extend(["".join(p) for p in product(DNA_BASES, repeat=i)])
+            all_kmers.extend(["".join(p) for p in product(bases, repeat=i)])
 
         raw_sequences = X.values[:, 0].tolist()
         sequences = ["".join(seq) for seq in raw_sequences]
@@ -88,4 +125,4 @@ class KMerEncoder(BaseTransform):
         params : dict
             Test parameters for KMerEncoder.
         """
-        return [{"k": 1}, {"k": 2}]
+        return [{"k": 1}, {"k": 2}, {"k": 1, "alphabet": "ACGU"}]

@@ -26,13 +26,20 @@ class AptaNetFeatureExtractor(BaseTransform):
         The name of the column containing aptamer sequences.
     protein_col : str, optional, default="protein"
         The name of the column containing protein sequences.
+    alphabet : list[str] or str or None, optional, default=None
+        Characters used to build the k-mer vocabulary. Passed through to
+        ``KMerEncoder``.
+
+        * ``None`` (default) – infer the alphabet from the aptamer sequences
+          seen during ``fit``.
+        * ``str`` or ``list[str]`` – use the provided characters.
     """
 
     _tags = {
         "authors": ["satvshr"],
         "maintainers": ["satvshr"],
         "output_type": "numeric",
-        "property:fit_is_empty": True,
+        "property:fit_is_empty": False,
         "capability:multivariate": True,
     }
 
@@ -43,19 +50,81 @@ class AptaNetFeatureExtractor(BaseTransform):
         weight: float = 0.05,
         aptamer_col: str = "aptamer",
         protein_col: str = "protein",
+        alphabet=None,
     ):
         self.k = k
         self.lambda_val = lambda_val
         self.weight = weight
         self.aptamer_col = aptamer_col
         self.protein_col = protein_col
+        self.alphabet = alphabet
 
-        self._kmer_encoder = KMerEncoder(k=k)
+        self._kmer_encoder = KMerEncoder(k=k, alphabet=alphabet)
         self._pseaac_transformer = PSeAACTransformer(
             lambda_val=lambda_val, weight=weight
         )
 
         super().__init__()
+
+    def _resolve_aptamer_col(self, X):
+        """Resolve the aptamer column name from the DataFrame.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Input data containing aptamer and protein columns.
+
+        Returns
+        -------
+        str
+            The resolved aptamer column name.
+        """
+        if self.aptamer_col not in X.columns:
+            if X.shape[1] >= 2 and self.aptamer_col == "aptamer":
+                return X.columns[0]
+            else:
+                raise ValueError(f"Column '{self.aptamer_col}' not found in X.")
+        return self.aptamer_col
+
+    def _resolve_protein_col(self, X):
+        """Resolve the protein column name from the DataFrame.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Input data containing aptamer and protein columns.
+
+        Returns
+        -------
+        str
+            The resolved protein column name.
+        """
+        if self.protein_col not in X.columns:
+            if X.shape[1] >= 2 and self.protein_col == "protein":
+                return X.columns[1]
+            else:
+                raise ValueError(f"Column '{self.protein_col}' not found in X.")
+        return self.protein_col
+
+    def _fit(self, X, y=None):
+        """Fit the feature extractor.
+
+        Fits the internal ``KMerEncoder`` on the aptamer column so that it
+        can infer the alphabet from the input sequences.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Input data containing aptamer and protein columns.
+        y : ignored
+
+        Returns
+        -------
+        self
+        """
+        aptamer_col = self._resolve_aptamer_col(X)
+        self._kmer_encoder.fit(X[[aptamer_col]], y)
+        return self
 
     def _transform(self, X):
         """Transform the data.
@@ -70,24 +139,8 @@ class AptaNetFeatureExtractor(BaseTransform):
         Xt : pd.DataFrame
             Concatenated feature matrix.
         """
-        # Validate columns
-        if self.aptamer_col not in X.columns:
-            # Fallback to first column if names don't match and it's 2-column df
-            if X.shape[1] >= 2 and self.aptamer_col == "aptamer":
-                aptamer_col = X.columns[0]
-            else:
-                raise ValueError(f"Column '{self.aptamer_col}' not found in X.")
-        else:
-            aptamer_col = self.aptamer_col
-
-        if self.protein_col not in X.columns:
-            # Fallback to second column
-            if X.shape[1] >= 2 and self.protein_col == "protein":
-                protein_col = X.columns[1]
-            else:
-                raise ValueError(f"Column '{self.protein_col}' not found in X.")
-        else:
-            protein_col = self.protein_col
+        aptamer_col = self._resolve_aptamer_col(X)
+        protein_col = self._resolve_protein_col(X)
 
         # Transform columns
         X_aptamer = X[[aptamer_col]]
@@ -97,7 +150,6 @@ class AptaNetFeatureExtractor(BaseTransform):
         feat_protein = self._pseaac_transformer.transform(X_protein)
 
         # Concatenate results along columns
-        # Resetting columns names for feature matrix if desired, or keep as is.
         # pairs_to_features returns a single numpy array, so we return a single DF.
         Xt = pd.concat([feat_aptamer, feat_protein], axis=1)
 
