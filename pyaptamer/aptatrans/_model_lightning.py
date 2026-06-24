@@ -102,11 +102,11 @@ class AptaTransLightning(L.LightningModule):
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
         y_hat = torch.flatten(self.model(x_apta, x_prot))
-        loss = F.binary_cross_entropy(y_hat, y.view(-1).float())
+        loss = F.binary_cross_entropy(y_hat, y.float())
 
         # compute accuracy
         y_pred = (y_hat > 0.5).float()
-        accuracy = (y_pred == y.view(-1).float()).float().mean()
+        accuracy = (y_pred == y.float()).float().mean()
 
         self._log_metric(f"{stage}_loss", loss)
         self._log_metric(f"{stage}_accuracy", accuracy)
@@ -284,10 +284,8 @@ class AptaTransEncoderLightning(AptaTransLightning):
 
         Parameters
         ----------
-        batch: tuple[Tensor, Tensor, Tensor, Tensor]
-            A batch of data containing masked sequence (MLM input), original 
-            sequence (SSP input), masked target (MLM target), and original
-            secondary structure (SSP target).
+        batch: tuple[Tensor, Tensor, Tensor]
+            A batch of data containing aptamer sequences, protein sequences, and labels.
         batch_idx: int
             Index of the batch.
         stage: str
