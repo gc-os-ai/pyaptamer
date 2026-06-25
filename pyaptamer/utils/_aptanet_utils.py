@@ -1,20 +1,19 @@
 __author__ = "satvshr"
 __all__ = ["generate_kmer_vecs", "pairs_to_features"]
 
-from itertools import product
-
 import numpy as np
 import pandas as pd
 
 from pyaptamer.pseaac import AptaNetPSeAAC
 
 
-def generate_kmer_vecs(aptamer_sequence, k=4):
+def generate_kmer_vecs(aptamer_sequence, k=4, alphabet=None):
     """
     Generate normalized k-mer frequency vectors for the aptamer sequence.
 
-    For all possible k-mers from length 1 to k, count their occurrences in the sequence
-    and normalize to form a frequency vector.
+    .. deprecated:: 0.1.0
+        `generate_kmer_vecs` will be removed in a future version.
+        Use `pyaptamer.trafos.encode.KMerEncoder` instead.
 
     Parameters
     ----------
@@ -22,6 +21,8 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         The DNA sequence of the aptamer.
     k : int, optional
         Maximum k-mer length (default is 4).
+    alphabet : list[str] or str or None, optional
+        Alphabet to use for encoding. If None, it is inferred from sequence.
 
     Returns
     -------
@@ -29,32 +30,20 @@ def generate_kmer_vecs(aptamer_sequence, k=4):
         1D numpy array of normalized frequency vector for all possible k-mers from
         length 1 to k.
     """
-    DNA_BASES = list("ACGT")
+    import warnings
 
-    # Generate all possible k-mers from 1 to k
-    all_kmers = []
-    for i in range(1, k + 1):
-        all_kmers.extend(["".join(p) for p in product(DNA_BASES, repeat=i)])
-
-    # Count occurrences of each k-mer in the aptamer_sequence
-    kmer_counts = dict.fromkeys(all_kmers, 0)
-    for i in range(len(aptamer_sequence)):
-        for j in range(1, k + 1):
-            if i + j <= len(aptamer_sequence):
-                kmer = aptamer_sequence[i : i + j]
-                if kmer in kmer_counts:
-                    kmer_counts[kmer] += 1
-
-    # Normalize counts to frequencies
-    total_kmers = sum(kmer_counts.values())
-    kmer_freq = np.array(
-        [
-            kmer_counts[kmer] / total_kmers if total_kmers > 0 else 0
-            for kmer in all_kmers
-        ]
+    warnings.warn(
+        "`generate_kmer_vecs` is deprecated and will be removed in a future version. "
+        "Use `pyaptamer.trafos.encode.KMerEncoder` instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
+    from pyaptamer.trafos.encode import KMerEncoder
 
-    return kmer_freq
+    encoder = KMerEncoder(k=k, alphabet=alphabet)
+    # KMerEncoder expects a DataFrame
+    X = pd.DataFrame([aptamer_sequence])
+    return encoder.fit_transform(X).values[0]
 
 
 def pairs_to_features(X, k=4):
@@ -87,12 +76,19 @@ def pairs_to_features(X, k=4):
     feats = []
 
     if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
+        pairs = list(zip(X["aptamer"], X["protein"], strict=False))
     else:
-        pairs = X
+        pairs = list(X)
+
+    # Determine unique alphabet across all sequences in the batch to keep
+    # shapes consistent
+    unique_chars = set()
+    for aptamer_seq, _ in pairs:
+        unique_chars.update(aptamer_seq)
+    alphabet = sorted(unique_chars)
 
     for aptamer_seq, protein_seq in pairs:
-        kmer = generate_kmer_vecs(aptamer_seq, k=k)
+        kmer = generate_kmer_vecs(aptamer_seq, k=k, alphabet=alphabet)
         pseaac_vec = np.asarray(pseaac.transform(protein_seq))
         feats.append(np.concatenate([kmer, pseaac_vec]))
 
