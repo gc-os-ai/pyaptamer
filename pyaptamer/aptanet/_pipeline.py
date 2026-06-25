@@ -1,15 +1,14 @@
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp", "satvshr", "siddharth7113"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
 from skbase.base import BaseObject
 from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptanet import AptaNetClassifier
-from pyaptamer.utils._aptanet_utils import pairs_to_features
+from pyaptamer.aptanet._transforms import PairsToFeatures
 
 
 class AptaNetPipeline(BaseObject, BaseEstimator):
@@ -21,15 +20,18 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     multi-layer perceptron to predict whether an aptamer and a protein interact
     (binary classification).
 
-    The pipeline starts from string pairs, converts them into numeric features
-    (aptamer k-mer frequencies + protein PSeAAC), applies tree-based feature
-    selection, and feeds the result into the estimator.
+    The pipeline takes a MoleculeLoader of aptamer/protein pairs, converts them
+    into numeric features (aptamer k-mer frequencies + protein PSeAAC), applies
+    tree-based feature selection, and feeds the result into the estimator.
 
     Parameters
     ----------
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
-
+    aptamer_col : str, optional, default="aptamer"
+        Name of the MoleculeLoader column holding aptamer sequences.
+    protein_col : str, optional, default="protein"
+        Name of the MoleculeLoader column holding protein sequences.
     estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
 
@@ -51,28 +53,37 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     Examples
     --------
     >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> import numpy as np
     >>> pipe = AptaNetPipeline()
     >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
     >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
-    >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(40)]
+    >>> X_train = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 40, "protein": [protein_seq] * 40}
+    ... )
     >>> y_train = np.array([0] * 20 + [1] * 20, dtype=np.float32)
-    >>> X_test_pairs = [(aptamer_seq, protein_seq) for _ in range(10)]
-    >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
+    >>> X_test = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 10, "protein": [protein_seq] * 10}
+    ... )
+    >>> pipe.fit(X_train, y_train)  # doctest: +ELLIPSIS
     AptaNetPipeline(...)
-    >>> preds = pipe.predict(X_test_pairs)
-    >>> proba = pipe.predict_proba(X_test_pairs)
+    >>> preds = pipe.predict(X_test)
+    >>> proba = pipe.predict_proba(X_test)
     """
 
-    def __init__(self, k=4, estimator=None):
+    def __init__(
+        self, k=4, aptamer_col="aptamer", protein_col="protein", estimator=None
+    ):
         self.k = k
+        self.aptamer_col = aptamer_col
+        self.protein_col = protein_col
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = FunctionTransformer(
-            func=pairs_to_features,
-            kw_args={"k": self.k},
-            validate=False,
+        transformer = PairsToFeatures(
+            k=self.k,
+            aptamer_col=self.aptamer_col,
+            protein_col=self.protein_col,
         )
         self._estimator = self.estimator or AptaNetClassifier()
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
