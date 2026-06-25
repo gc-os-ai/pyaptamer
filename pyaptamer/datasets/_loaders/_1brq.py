@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["satvshr", "siddharth7113"]
 __all__ = ["load_1brq"]
 
 import os
@@ -16,4 +16,4 @@ def load_1brq():
 
     pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1brq.pdb")
 
-    return MoleculeLoader(pdb_path)
+    return MoleculeLoader(data={"sequence": [pdb_path]}, tiling="samples")
