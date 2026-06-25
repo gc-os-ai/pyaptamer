@@ -78,6 +78,26 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     assert np.issubdtype(preds.dtype, np.floating)
 
 
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_seq):
+    """A FASTA-sourced loader yields the same features as the in-memory loader."""
+    from pyaptamer.aptanet._transforms import PairsToFeatures
+
+    fasta = tmp_path / "library.fasta"
+    fasta.write_text(f">apt1\n{aptamer_seq}\n>apt2\n{aptamer_seq}\n")
+
+    from_file = MoleculeLoader(
+        data={"aptamer": [str(fasta)], "protein": [protein_seq]}, tiling="samples"
+    )
+    in_memory = _make_loader(aptamer_seq, protein_seq, 2)
+
+    feats_file = PairsToFeatures().fit_transform(from_file)
+    feats_mem = PairsToFeatures().fit_transform(in_memory)
+
+    assert feats_file.shape == feats_mem.shape
+    assert np.allclose(feats_file.to_numpy(), feats_mem.to_numpy())
+
+
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
     expected_failed_checks={
