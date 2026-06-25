@@ -1,5 +1,7 @@
 """Tests for the MoleculeLoader lazy data container."""
 
+__author__ = ["siddharth7113"]
+
 from pathlib import Path
 
 import pandas as pd
@@ -217,6 +219,49 @@ def test_fastq_is_sequence_only(tmp_path):
     assert df["selex"].tolist() == ["ACGTACGT", "TTTTGGGG"]
     # sequence-only: per-base quality is dropped, so no quality column appears
     assert list(df.columns) == ["selex"]
+
+
+@pytest.mark.parametrize(
+    "ext, content",
+    [
+        (
+            "gb",
+            "LOCUS       TEST                       8 bp    DNA     linear   UNK"
+            " 01-JAN-1980\nDEFINITION  test.\nACCESSION   TEST\nFEATURES        "
+            "     Location/Qualifiers\nORIGIN\n        1 acgtacgt\n//\n",
+        ),
+        (
+            "embl",
+            "ID   TEST; SV 1; linear; DNA; STD; UNC; 8 BP.\nSQ   Sequence 8 BP;"
+            "\n     acgtacgt"
+            "                                                                8\n//\n",
+        ),
+    ],
+)
+def test_genbank_and_embl_dispatch(tmp_path, ext, content):
+    """GenBank/EMBL files dispatch through SeqIO by suffix and yield sequences."""
+    path = tmp_path / f"record.{ext}"
+    path.write_text(content)
+
+    loader = MoleculeLoader(data={"seq": [str(path)]}, tiling="samples")
+    df = loader.to_dataframe()
+
+    assert df["seq"].tolist() == ["ACGTACGT"]
+
+
+def test_fasta_path_broadcasts_against_in_memory_column(tmp_path):
+    """A FASTA file column explodes per-record while an in-memory column broadcasts."""
+    fasta = tmp_path / "library.fasta"
+    fasta.write_text(">apt1\nACGTACGT\n>apt2\nTTTTGGGG\n>apt3\nGGGGCCCC\n")
+    protein = "ACDEFGHIKLMNPQRSTVWY"
+
+    loader = MoleculeLoader(
+        data={"aptamer": [str(fasta)], "protein": [protein]}, tiling="samples"
+    )
+    df = loader.to_dataframe()
+
+    assert df["aptamer"].tolist() == ["ACGTACGT", "TTTTGGGG", "GGGGCCCC"]
+    assert df["protein"].tolist() == [protein, protein, protein]
 
 
 # --------------------------------------------------------------------------- #
