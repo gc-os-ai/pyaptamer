@@ -81,3 +81,17 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_with_custom_alphabet(aptamer_seq, protein_seq):
+    """Test if Pipeline works correctly when a custom alphabet is specified."""
+    pipe = AptaNetPipeline(k=1, alphabet="ACGTU")
+
+    X_raw = [(aptamer_seq, protein_seq) for _ in range(10)]
+    y = np.array([0] * 5 + [1] * 5, dtype=np.float32)
+
+    pipe.fit(X_raw, y)
+    preds = pipe.predict(X_raw)
+
+    assert preds.shape == (10,)

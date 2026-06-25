@@ -64,14 +64,15 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     >>> proba = pipe.predict_proba(X_test_pairs)
     """
 
-    def __init__(self, k=4, estimator=None):
+    def __init__(self, k=4, estimator=None, alphabet=None):
         self.k = k
         self.estimator = estimator
+        self.alphabet = alphabet
 
     def _build_pipeline(self):
         transformer = FunctionTransformer(
             func=pairs_to_features,
-            kw_args={"k": self.k},
+            kw_args={"k": self.k, "alphabet": self.alphabet},
             validate=False,
         )
         self._estimator = self.estimator or AptaNetClassifier()

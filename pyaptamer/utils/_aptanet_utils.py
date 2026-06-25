@@ -46,7 +46,7 @@ def generate_kmer_vecs(aptamer_sequence, k=4, alphabet=None):
     return encoder.fit_transform(X).values[0]
 
 
-def pairs_to_features(X, k=4):
+def pairs_to_features(X, k=4, alphabet=None):
     """
     Convert a list of (aptamer_sequence, protein_sequence) pairs into feature vectors.
     Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
@@ -66,6 +66,9 @@ def pairs_to_features(X, k=4):
         The k-mer size used to generate the k-mer vector from the aptamer sequence.
         Default is 4.
 
+    alphabet : list[str] or str or None, optional
+        Alphabet to use for encoding. If None, it is inferred across the sequences in the batch.
+
     Returns
     -------
     np.ndarray
@@ -80,12 +83,15 @@ def pairs_to_features(X, k=4):
     else:
         pairs = list(X)
 
-    # Determine unique alphabet across all sequences in the batch to keep
-    # shapes consistent
-    unique_chars = set()
-    for aptamer_seq, _ in pairs:
-        unique_chars.update(aptamer_seq)
-    alphabet = sorted(unique_chars)
+    if alphabet is None:
+        # Determine unique alphabet across all sequences in the batch to keep
+        # shapes consistent
+        unique_chars = set()
+        for aptamer_seq, _ in pairs:
+            unique_chars.update(aptamer_seq)
+        alphabet = sorted(unique_chars)
+    else:
+        alphabet = list(alphabet)
 
     for aptamer_seq, protein_seq in pairs:
         kmer = generate_kmer_vecs(aptamer_seq, k=k, alphabet=alphabet)
