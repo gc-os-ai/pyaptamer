@@ -29,7 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.15.19",
-    "pytest>=9.0.3",
+    "pytest>=9.1.1",
     "pre-commit",
 ]
 docs = [
