@@ -48,7 +48,7 @@ class GreedyEncoder(BaseTransform):
     >>> words = {"QT": 1, "QTA": 2, "S": 3, "G": 4}
     >>>
     >>> encoder = GreedyEncoder(words=words, max_len=5, word_max_len=2)
-    >>> encoded_data = encoder.fit_transform(data.to_df_seq())
+    >>> encoded_data = encoder.fit_transform(data)
     """
 
     _tags = {

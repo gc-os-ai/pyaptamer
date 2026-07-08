@@ -83,7 +83,7 @@ Scoring functions that connect a model to the search.
    :nosignatures:
 
    load_aptacom_full
-   load_aptacom_x_y
+   load_aptacom
    load_csv_dataset
    load_from_rcsb
    load_hf_to_dataset
@@ -91,7 +91,6 @@ Scoring functions that connect a model to the search.
    load_1gnh
    load_5nu7
    load_li2014
-   load_pfoa
 ```
 
 ## Benchmarking
