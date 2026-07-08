@@ -4,11 +4,10 @@ __all__ = ["AptaMCTSPipeline"]
 from skbase.base import BaseObject
 from sklearn.base import BaseEstimator, clone
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptamcts import AptaMCTSClassifier
-from pyaptamer.utils._aptamcts_utils import pairs_to_features
+from pyaptamer.aptamcts._transforms import PairsToFeatures
 
 
 class AptaMCTSPipeline(BaseObject, BaseEstimator):
@@ -51,17 +50,20 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
 
     Examples
     --------
-    >>> from pyaptamer.aptamcts import AptaMCTSPipeline
     >>> import numpy as np
+    >>> from pyaptamer.aptamcts import AptaMCTSPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> pipe = AptaMCTSPipeline(rna_k=4, prot_k=3)
     >>> aptamer_seq = "AGCUUAGCGUAC"
     >>> protein_seq = "ACDEFGHIKLMN"
-    >>> X_train_pairs = [(aptamer_seq, protein_seq) for _ in range(4)]
+    >>> X_train = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 4, "protein": [protein_seq] * 4}
+    ... )
     >>> y_train = np.array([0, 1, 0, 1], dtype=np.float32)
-    >>> pipe.fit(X_train_pairs, y_train)  # doctest: +ELLIPSIS
+    >>> pipe.fit(X_train, y_train)  # doctest: +ELLIPSIS
     AptaMCTSPipeline(...)
-    >>> preds = pipe.predict(X_train_pairs)
-    >>> proba = pipe.predict_proba(X_train_pairs)
+    >>> preds = pipe.predict(X_train)
+    >>> proba = pipe.predict_proba(X_train)
     """
 
     def __init__(self, rna_k=4, prot_k=3, estimator=None):
@@ -70,11 +72,7 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = FunctionTransformer(
-            func=pairs_to_features,
-            kw_args={"rna_k": self.rna_k, "prot_k": self.prot_k},
-            validate=False,
-        )
+        transformer = PairsToFeatures(rna_k=self.rna_k, prot_k=self.prot_k)
         self._estimator = self.estimator or AptaMCTSClassifier()
 
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])

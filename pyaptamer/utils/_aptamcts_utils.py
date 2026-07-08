@@ -3,13 +3,11 @@ __all__ = [
     "get_reduced_protein_letter_dict",
     "rna_to_ictf",
     "protein_to_ictf",
-    "pairs_to_features",
 ]
 
 from itertools import product
 
 import numpy as np
-import pandas as pd
 
 
 def get_reduced_protein_letter_dict():
@@ -157,47 +155,3 @@ def protein_to_ictf(protein_sequence, k=3):
     p_feature = np.array([pmer_counts[pmer] / seq_len for pmer in p_mers])
 
     return p_feature
-
-
-def pairs_to_features(X, rna_k=4, prot_k=3):
-    """
-    Convert a list of (aptamer, protein) sequence pairs into iCTF feature vectors.
-    Also supports a pandas DataFrame with 'aptamer' and 'protein' columns.
-
-    This function generates feature vectors for each (aptamer, protein) pair by
-    concatenating:
-    - The Improved Conjoint Triad Feature (iCTF) representation of the aptamer.
-    - The Improved Conjoint Triad Feature (iCTF) representation of the protein.
-
-    Parameters
-    ----------
-    X : list of tuple of str or pandas.DataFrame
-        A list where each element is a tuple `(aptamer_sequence, protein_sequence)`,
-        or a DataFrame containing 'aptamer' and 'protein' columns.
-    rna_k : int, optional
-        The k-mer size used to generate the iCTF vector for the aptamer sequence.
-        Default is 4.
-    prot_k : int, optional
-        The k-mer size used to generate the iCTF vector for the protein sequence.
-        Default is 3.
-
-    Returns
-    -------
-    np.ndarray
-        A 2D NumPy array where each row corresponds to the concatenated iCTF feature
-        vector for a given (aptamer, protein) pair.
-    """
-
-    feats = []
-
-    if isinstance(X, pd.DataFrame):
-        pairs = zip(X["aptamer"], X["protein"], strict=False)
-    else:
-        pairs = X
-
-    for aptamer_seq, protein_seq in pairs:
-        rx = rna_to_ictf(aptamer_seq, k=rna_k)
-        px = protein_to_ictf(protein_seq, k=prot_k)
-        feats.append(np.concatenate([rx, px]))
-
-    return np.vstack(feats)
