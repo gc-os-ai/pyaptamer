@@ -2,6 +2,7 @@ __all__ = ["AptamerEvalAptaMCTS"]
 
 import numpy as np
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.experiments._aptamer import BaseAptamerEval
 
 
@@ -32,13 +33,16 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
     --------
     >>> import numpy as np
     >>> from pyaptamer.aptamcts import AptaMCTSPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.experiments import AptamerEvalAptaMCTS
     >>> aptamer_seq = "AGCUUAGCGUAC"
     >>> protein_seq = "ACDEFGHIKLMN"
-    >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
+    >>> X = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 5, "protein": [protein_seq] * 5}
+    ... )
     >>> labels = np.array([0, 1, 0, 1, 0])
     >>> pipeline = AptaMCTSPipeline()
-    >>> pipeline.fit(pairs, labels)  # doctest: +ELLIPSIS
+    >>> pipeline.fit(X, labels)  # doctest: +ELLIPSIS
     AptaMCTSPipeline(...)
     >>> target_protein = "ACDEFGHIKLMN"
     >>> experiment = AptamerEvalAptaMCTS(target_protein, pipeline)
@@ -70,6 +74,9 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
             The probability score assigned to the aptamer candidate.
         """
 
-        score = self.pipeline.predict_proba(X=[(aptamer_candidate, self.target)])
+        X = MoleculeLoader(
+            data={"aptamer": [aptamer_candidate], "protein": [self.target]}
+        )
+        score = self.pipeline.predict_proba(X=X)
 
         return np.float64(score[:, 1].item())

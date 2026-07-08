@@ -5,6 +5,7 @@ import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptamcts import AptaMCTSClassifier, AptaMCTSPipeline
+from pyaptamer.data import MoleculeLoader
 
 params = [
     (
@@ -12,6 +13,13 @@ params = [
         "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
     )
 ]
+
+
+def _make_loader(aptamer_seq, protein_seq, n):
+    """Build a MoleculeLoader of n identical aptamer/protein pairs."""
+    return MoleculeLoader(
+        data={"aptamer": [aptamer_seq] * n, "protein": [protein_seq] * n}
+    )
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
@@ -22,7 +30,7 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
     pipe = AptaMCTSPipeline(rna_k=4, prot_k=3)
 
-    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    X_raw = _make_loader(aptamer_seq, protein_seq, 40)
     y = np.array([0] * 20 + [1] * 20, dtype=int)
 
     pipe.fit(X_raw, y)
@@ -40,7 +48,7 @@ def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
     pipe = AptaMCTSPipeline()
 
-    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    X_raw = _make_loader(aptamer_seq, protein_seq, 40)
     y = np.array([0] * 20 + [1] * 20, dtype=int)
 
     pipe.fit(X_raw, y)
