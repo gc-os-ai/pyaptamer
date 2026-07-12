@@ -27,11 +27,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+viz = [
+    "matplotlib>=3.7.0",
+]
 dev = [
     "ruff>=0.15.19",
     "pytest>=9.1.1",
     "pytest-cov>=7.0",
     "pre-commit",
+    "matplotlib>=3.7.0",
 ]
 docs = [
     "sphinx>=7.0",
