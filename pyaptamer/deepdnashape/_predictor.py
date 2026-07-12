@@ -1,6 +1,6 @@
 """DeepDNAshape predictor for DNA shape feature prediction."""
 
-__author__ = ["prashantpandeygit"]
+__author__ = ["prashantpandeygit", "Alleny244"]
 __all__ = ["deepDNAshape"]
 
 import itertools
@@ -168,15 +168,23 @@ def _rescale(predictions, params):
 class deepDNAshape:  # noqa: N801
     """Predictor for DNA structural shape features from nucleotide sequence.
 
-    This class wraps the `DNAModel` graph neural network to predict
-    geometric and conformational properties of DNA (e.g. Minor Groove
-    Width, Roll, Helical Twist) from a raw sequence string.
+    Given a DNA string (A/T/C/G, optionally N), this class predicts
+    numeric shape properties such as Minor Groove Width (``MGW``),
+    propeller twist (``ProT``), helical twist (``HelT``), and roll
+    (``Roll``).
 
-    For each prediction the sequence is one-hot encoded, padded with
-    two N bases on each side, and run through the model in both
-    forward and reverse-complement orientations. The two sets of
-    predictions are averaged to produce the final result.
+    There are two kinds of features:
 
+    - **Intrabase** features (e.g. ``MGW``, ``ProT``): one value per
+      base, so a sequence of length ``N`` returns shape ``(N,)``.
+    - **Interbase** features (e.g. ``Roll``, ``HelT``): one value per
+      step between bases, so the return shape is ``(N - 1,)``.
+
+    Internally the sequence is one-hot encoded, padded with two ``N``
+    bases on each side, and scored in both forward and reverse-complement
+    orientations. The two predictions are averaged.
+
+    Original author: Jinsen Li.
     Original implementation: https://github.com/JinsenLi/deepDNAshape
     License: BSD-3-Clause
 
@@ -184,7 +192,8 @@ class deepDNAshape:  # noqa: N801
     --------
     >>> from pyaptamer.deepdnashape import deepDNAshape
     >>> pred = deepDNAshape()
-    >>> scores = pred.predict("MGW", "AAGGTAGT")
+    >>> mgw = pred.predict("MGW", "AAGGTAGT")  # shape (8,)
+    >>> roll = pred.predict("Roll", "AAGGTAGT")  # shape (7,)
     """
 
     def __init__(self):
@@ -224,21 +233,27 @@ class deepDNAshape:  # noqa: N801
         ----------
         feature : str
             Name of the structural property to predict, e.g.
-            "MGW" (Minor Groove Width), "Roll",
-            "HelT" (Helical Twist). See _ALL_FEATURES
-            for the full list.
+            ``"MGW"`` (Minor Groove Width), ``"ProT"``
+            (propeller twist), ``"Roll"``, or ``"HelT"``
+            (helical twist). Must be one of the supported
+            feature names.
         seq : str
-            DNA sequence composed of A, T, C,
-            G, and optionally N (unknown base).
+            DNA sequence composed of A, T, C, G, and
+            optionally N (unknown base). Length ``N``.
         layer : int, optional
             Which message-passing depth to read the
-            prediction from (0 = initial convolution only,
-            7 = deepest layer). Default is 4.
+            prediction from (``0`` = initial convolution
+            only, ``7`` = deepest layer). Default is ``4``.
 
         Returns
         -------
         np.ndarray
-            Predicted shape values, one per position in the input sequence.
+            Predicted shape values as floats.
+
+            - Intrabase features (e.g. ``MGW``, ``ProT``):
+              shape ``(N,)``, one value per base.
+            - Interbase features (e.g. ``Roll``, ``HelT``):
+              shape ``(N - 1,)``, one value per base step.
         """
         if feature not in _ALL_FEATURES:
             raise ValueError(

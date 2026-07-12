@@ -1,6 +1,6 @@
 """Graph neural network model for DNA shape prediction."""
 
-__author__ = ["prashantpandeygit"]
+__author__ = ["prashantpandeygit", "Alleny244"]
 __all__ = ["DNAModel"]
 
 import torch
@@ -242,14 +242,16 @@ class DNAModel(nn.Module):
     """Graph neural network for predicting DNA shape features.
 
     The model treats each position in a DNA sequence as a node in a
-    linear (chain) graph.  It first projects the one-hot encoded input
+    linear (chain) graph. It first projects the one-hot encoded input
     through a 1-D convolution, then applies a configurable stack of
     `MessagePassingConv` layers where each node exchanges features
     with its neighbours through learned weight matrices and optional
-    GRU-based updates. After each layer an `AvgFeatures` reduction
-    predictions are stacked to form the final output.
+    GRU-based updates. After each layer, an `AvgFeatures` reduction
+    produces a score; those scores are stacked to form the final
+    output.
 
-    Original Implementation: https://github.com/JinsenLi/deepDNAshape
+    Original author: Jinsen Li.
+    Original implementation: https://github.com/JinsenLi/deepDNAshape
 
     Parameters
     ----------
