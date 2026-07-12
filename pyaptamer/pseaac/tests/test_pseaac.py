@@ -17,8 +17,8 @@ def test_normalized_values():
     This test targets the common `aa_props` normalization and therefore uses
     the package-level `aa_props` implementation.
     """
-    original_df = aa_props(type="pandas", normalize=False)
-    normalized_df = aa_props(type="pandas", normalize=True)
+    original_df = aa_props(output_type="pandas", normalize=False)
+    normalized_df = aa_props(output_type="pandas", normalize=True)
 
     manual_norm = (original_df - original_df.mean()) / original_df.std(ddof=0)
     manual_norm = manual_norm.round(3)
