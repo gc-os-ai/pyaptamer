@@ -85,7 +85,9 @@ class MaskedDataset(Dataset):
         self.box = np.array(list(range(max_len)))
         self.len = len(self.x)
 
-    def _mask_rna(self, x_masked: Tensor, mask_positions: list[int]) -> Tensor:
+    def _mask_rna(
+        self, x_masked: Tensor, mask_positions: list[int]
+    ) -> tuple[Tensor, list[int]]:
         """Mask adjacent nucleotides for RNA sequences.
 
         Parameters
@@ -97,20 +99,24 @@ class MaskedDataset(Dataset):
 
         Returns
         -------
-        Tensor
-            The tensor with adjacent nucleotides masked.
+        tuple[Tensor, list[int]]
+            A tuple containing the tensor with adjacent nucleotides masked and the
+            list of all positions that were masked (including original ones).
         """
         adjacent_positions = []
         for pos in mask_positions:
-            # mask position + 1 (if within bounds)
-            if pos < self.max_len - 1:
+            # mask position + 1 (if within bounds and not padding)
+            if pos < self.max_len - 1 and x_masked[pos + 1] > 0:
                 adjacent_positions.append(pos + 1)
-            # mask position - 1 (if within bounds)
-            if pos > 0:
+            # mask position - 1 (if within bounds and not padding)
+            if pos > 0 and x_masked[pos - 1] > 0:
                 adjacent_positions.append(pos - 1)
+
         x_masked[adjacent_positions] = self.mask_idx
 
-        return x_masked
+        # return updated tensor and the set of all masked positions
+        all_masked = list(set(mask_positions + adjacent_positions))
+        return x_masked, all_masked
 
     def __len__(self) -> int:
         """
@@ -123,14 +129,6 @@ class MaskedDataset(Dataset):
         """
         return self.len
 
-    # TODO: For now this method applies masking as originally intended in AptaTrans
-    # code. However, there may some errors:
-    # (1.) 80% of the positions are masked but the remaining 20% are not masked at all.
-    # In BERT, the remaining 20% are replaced with random tokens or 10% replaced with
-    # random tokens and 10% left unchanged.
-    # (2.) The masking has two sample phases, one with `self.masked_rate` and one with
-    # hardcoded `0.8 * self.masked_rate`. This means that the actual masking rate
-    # becomes `0.8 * self.masked_rate` which seems confusing and possibly not intended.
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """
         Get a single masked sequence sample.
@@ -165,15 +163,39 @@ class MaskedDataset(Dataset):
             pos for pos in valid_positions if pos not in mask_positions
         ]
 
-        # apply masking
-        actual_mask_positions = random.sample(
-            mask_positions, int(len(mask_positions) * 0.8)
-        )
+        # BERT masking strategy: 80% [MASK], 10% random token, 10% unchanged
+        random.shuffle(mask_positions)
+        n_mask = int(len(mask_positions) * 0.8)
+        n_random = int(len(mask_positions) * 0.1)
+
+        actual_mask_positions = mask_positions[:n_mask]
+        random_token_positions = mask_positions[n_mask : n_mask + n_random]
+        # The remaining positions (n_mask + n_random onwards) are kept unchanged
+
+        # 1. 80% are replaced with the mask token
         x_masked[actual_mask_positions] = self.mask_idx
+
+        # 2. 10% are replaced with a random valid token
+        if random_token_positions:
+            # Random tokens between 1 and mask_idx - 1 (assuming 0 is padding)
+            random_tokens = torch.randint(
+                1,
+                max(2, self.mask_idx),
+                (len(random_token_positions),),
+                dtype=x_masked.dtype,
+            )
+            x_masked[random_token_positions] = random_tokens
 
         # for RNA, also mask adjacent nucleotides for base pairing
         if self.is_rna:
-            x_masked = self._mask_rna(x_masked, actual_mask_positions)
+            x_masked, rna_mask_positions = self._mask_rna(
+                x_masked, actual_mask_positions
+            )
+            # update no_mask_positions to exclude any newly masked RNA positions
+            rna_mask_set = set(rna_mask_positions)
+            no_mask_positions = [
+                pos for pos in no_mask_positions if pos not in rna_mask_set
+            ]
 
         # zero out non-masked positions in target
         y_masked[no_mask_positions] = 0
