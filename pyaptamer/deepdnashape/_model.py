@@ -32,16 +32,16 @@ def _segment_sum(data, segment_ids, num_segments):
     return result
 
 
-class KerasGRUCell(nn.Module):
-    """Gated Recurrent Unit (GRU) cell.
+class DualBiasGRUCell(nn.Module):
+    """Custom GRU cell with separate input and recurrent biases.
 
-    Gated Recurrent Units (GRUs) are neural network layers that selectively
-    remember or forget information across a sequence.
+    A GRU (Gated Recurrent Unit) updates a hidden state over a sequence
+    by choosing what to keep and what to overwrite at each step.
 
-    This implementation uses separate bias terms for the input and
-    recurrent matrix multiplications. Unlike a standard single-bias
-    GRU, the reset gate logic applies the recurrent bias *after* the
-    matrix product is computed.
+    This is not ``torch.nn.GRUCell``. It uses two bias vectors (one for
+    the input transform, one for the recurrent transform) so the math
+    matches the original deepDNAshape TensorFlow weights. Using the
+    standard PyTorch GRU would load those weights incorrectly.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ class KerasGRUCell(nn.Module):
         self.bias = nn.Parameter(torch.empty(2, 3 * hidden_size))
 
     def forward(self, x, h):
-        """Forward pass for `KerasGRUCell`.
+        """Forward pass for `DualBiasGRUCell`.
 
         Parameters
         ----------
@@ -93,7 +93,7 @@ class MessagePassingConv(nn.Module):
     linear (chain) graph. This layer collects the feature vectors
     from each node's immediate predecessor and successor, combines
     them through learned weight matrices, and optionally refines
-    the result with batch normalization and a `KerasGRUCell`.
+    the result with batch normalization and a `DualBiasGRUCell`.
     Stacking multiple layers allows information to propagate
     across longer sequence distances.
 
@@ -111,7 +111,7 @@ class MessagePassingConv(nn.Module):
         Whether to apply batch normalization.
     gru_layer : bool, optional
         If True, refine the aggregated features with a
-        `KerasGRUCell`. If False, apply a sigmoid
+        `DualBiasGRUCell`. If False, apply a sigmoid
         activation instead. Default is True.
     """
 
@@ -142,7 +142,7 @@ class MessagePassingConv(nn.Module):
 
         # keras defaults eps=1e-3, momentum=0.99 (pytorch momentum = 1 - 0.99 = 0.01)
         self.bn = nn.BatchNorm1d(filters, eps=1e-3, momentum=0.01) if bn_layer else None
-        self.gru = KerasGRUCell(filters, filters) if gru_layer else None
+        self.gru = DualBiasGRUCell(filters, filters) if gru_layer else None
 
     def forward(self, x, pairs_prev, pairs_next):
         """Forward pass for `MessagePassingConv`.
