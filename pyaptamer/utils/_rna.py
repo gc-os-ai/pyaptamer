@@ -182,16 +182,16 @@ def encode_rna(
 ):
     """Encode RNA sequences into their numerical representations.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    This function tokenizes RNA sequences using a greedy longest-match approach,
+    where longer nucleotide patterns are preferred over shorter ones. Sequences are
+    either truncated or zero-padded to `max_len` tokens.
 
     Parameters
     ----------
     sequences : list[str]
         List of RNA sequences to be encoded.
     words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
+        A dictionary mapping RNA 3-mers to unique indices.
     max_len : int
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
