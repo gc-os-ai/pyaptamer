@@ -139,14 +139,25 @@ class GreedyEncoder(BaseTransform):
 
         return result_df
 
-    def get_test_params(self):
+    @classmethod
+    def get_test_params(cls, parameter_set="default"):
         """Get test parameters for GreedyEncoder.
+
+        Parameters
+        ----------
+        parameter_set : str, default="default"
+            Name of the parameter set to return. Only ``"default"`` is supported.
 
         Returns
         -------
-        params : dict
-            Test parameters for GreedyEncoder.
+        list[dict]
+            List of parameter dictionaries for constructing test instances.
         """
+        if parameter_set != "default":
+            raise ValueError(
+                'parameter_set must be "default"; '
+                f"got {parameter_set!r}"
+            )
         param0 = {
             "words": {"A": 1, "C": 2, "G": 3, "U": 4, "AC": 5, "GU": 6},
         }
