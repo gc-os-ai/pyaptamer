@@ -27,11 +27,11 @@ class TestAptaTransModel:
         embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
     ):
         """
-        Check that an AssertionError is raised if input dimension is not divisible by
+        Check that a ValueError is raised if input dimension is not divisible by
         the number of heads.
         """
         with pytest.raises(
-            AssertionError,
+            ValueError,
             match="Input dimension 128 must be divisible by number of heads 3.",
         ):
             AptaTrans(
