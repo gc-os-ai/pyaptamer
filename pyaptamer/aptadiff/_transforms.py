@@ -92,6 +92,7 @@ class AptamerOneHotEncoder(BaseTransform):
         pad_idx = self.vocab_[self.pad_token]
 
         for seq in X[self.aptamer_col]:
+            seq = seq.upper()
             seq = seq[: self.target_length]
             indices = [self.vocab_.get(char, pad_idx) for char in seq]
 
