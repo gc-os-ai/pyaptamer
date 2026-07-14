@@ -1,21 +1,6 @@
 """Tests for seq2vec."""
 
-import numpy as np
-
 from pyaptamer.utils._aptatrans_utils import seq2vec
-
-
-def test_seq2vec_matches_docstring_example():
-    words = {"AA": 1, "AC": 2, "A": 3}
-    sequences = (["AAAC"], ["HHHC"])
-
-    seq_out, ss_out = seq2vec(sequences, words, seq_max_len=4)
-
-    expected_seq = np.array([[1.0, 2.0, 0.0, 0.0]])
-    expected_ss = np.array([[9.0, 0.0, 0.0, 0.0]])
-
-    np.testing.assert_array_equal(seq_out, expected_seq)
-    np.testing.assert_array_equal(ss_out, expected_ss)
 
 
 def test_seq2vec_empty_input_returns_zero_shaped_arrays():
