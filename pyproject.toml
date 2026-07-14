@@ -30,7 +30,7 @@ dependencies = [
 dev = [
     "ruff>=0.15.21",
     "pytest>=9.1.1",
-    "pytest-cov>=7.0",
+    "pytest-cov>=7.1.0",
     "pre-commit",
 ]
 docs = [
