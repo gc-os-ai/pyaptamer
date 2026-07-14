@@ -1,4 +1,4 @@
-﻿"""Tests for clean_protein_seq."""
+"""Tests for clean_protein_seq."""
 
 import pytest
 

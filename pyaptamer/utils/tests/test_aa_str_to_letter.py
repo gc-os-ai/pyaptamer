@@ -1,4 +1,4 @@
-﻿"""Tests for aa_str_to_letter."""
+"""Tests for aa_str_to_letter."""
 
 import pytest
 

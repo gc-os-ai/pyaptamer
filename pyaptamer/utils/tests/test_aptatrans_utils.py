@@ -1,4 +1,4 @@
-﻿"""Tests for seq2vec."""
+"""Tests for seq2vec."""
 
 import numpy as np
 
