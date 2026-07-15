@@ -1,4 +1,4 @@
-"""DeepDNAshape predictor for DNA shape feature prediction."""
+"""DeepDNAshape transform for DNA shape feature prediction."""
 
 __author__ = ["prashantpandeygit", "Alleny244"]
 __all__ = ["deepDNAshape"]
@@ -8,8 +8,11 @@ import json
 import os
 
 import numpy as np
+import pandas as pd
 import torch
 from huggingface_hub import hf_hub_download
+
+from pyaptamer.trafos.base import BaseTransform
 
 from ._model import DNAModel
 
@@ -165,10 +168,17 @@ def _rescale(predictions, params):
     return predictions * params["percentile_range"] + params["median"]
 
 
-class deepDNAshape:  # noqa: N801
-    """Predictor for DNA structural shape features from nucleotide sequence.
+def _as_sequence_str(value):
+    """Coerce a DataFrame cell to a DNA sequence string."""
+    if isinstance(value, str):
+        return value
+    return "".join(value)
 
-    Given a DNA string (A/T/C/G, optionally N), this class predicts
+
+class deepDNAshape(BaseTransform):  # noqa: N801
+    """Transform DNA sequences into structural shape feature values.
+
+    Given DNA strings (A/T/C/G, optionally N), this transformer predicts
     numeric shape properties such as Minor Groove Width (``MGW``),
     propeller twist (``ProT``), helical twist (``HelT``), and roll
     (``Roll``).
@@ -176,11 +186,18 @@ class deepDNAshape:  # noqa: N801
     There are two kinds of features:
 
     - **Intrabase** features (e.g. ``MGW``, ``ProT``): one value per
-      base, so a sequence of length ``N`` returns shape ``(N,)``.
+      base, so a sequence of length ``N`` yields ``N`` values.
     - **Interbase** features (e.g. ``Roll``, ``HelT``): one value per
-      step between bases, so the return shape is ``(N - 1,)``.
+      step between bases, so a sequence of length ``N`` yields
+      ``N - 1`` values.
 
-    Internally the sequence is one-hot encoded, padded with two ``N``
+    Variable-length outputs are right-padded with ``NaN`` so every row
+    in a batch has the same width.
+
+    Fitting is empty: model weights are pretrained and downloaded from
+    Hugging Face on first ``transform``.
+
+    Internally each sequence is one-hot encoded, padded with two ``N``
     bases on each side, and scored in both forward and reverse-complement
     orientations. The two predictions are averaged.
 
@@ -188,22 +205,52 @@ class deepDNAshape:  # noqa: N801
     Original implementation: https://github.com/JinsenLi/deepDNAshape
     License: BSD-3-Clause
 
+    Parameters
+    ----------
+    feature : str, default="MGW"
+        Structural property to predict. Must be a supported feature name.
+    layer : int, default=4
+        Message-passing depth to read (``0`` = initial convolution only,
+        ``7`` = deepest layer).
+
     Examples
     --------
+    >>> import pandas as pd
     >>> from pyaptamer.deepdnashape import deepDNAshape
-    >>> pred = deepDNAshape()
-    >>> mgw = pred.predict("MGW", "AAGGTAGT")  # shape (8,)
-    >>> roll = pred.predict("Roll", "AAGGTAGT")  # shape (7,)
+    >>> X = pd.DataFrame({"seq": ["AAGGTAGT"]})
+    >>> mgw = deepDNAshape(feature="MGW").fit_transform(X)
+    >>> roll = deepDNAshape(feature="Roll").fit_transform(X)
     """
 
-    def __init__(self):
+    _tags = {
+        "authors": ["prashantpandeygit", "Alleny244"],
+        "maintainers": ["Alleny244"],
+        "output_type": "numeric",
+        "property:fit_is_empty": True,
+        "capability:multivariate": False,
+        "capability:y": False,
+    }
+
+    def __init__(self, feature="MGW", layer=4):
+        self.feature = feature
+        self.layer = layer
+        super().__init__()
+
+        if self.feature not in _ALL_FEATURES:
+            raise ValueError(
+                f"Unknown feature. Must be one of {sorted(_ALL_FEATURES)}."
+            )
+        if not 0 <= self.layer <= 7:
+            raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
+
         self._mono, self._di = _get_bases_mapping()
         with open(_PARAMS_PATH) as f:
             self._params = json.load(f)
-        self._models = {}
+        self._model = None
 
-    def _load_model(self, feature):
-        """Load and cache pretrained model for the given feature."""
+    def _load_model(self):
+        """Load and cache the pretrained model for ``self.feature``."""
+        feature = self.feature
         input_features = 4 if feature in _INTRABASE_FEATURES else 16
         model = DNAModel(
             input_features=input_features,
@@ -223,48 +270,16 @@ class deepDNAshape:  # noqa: N801
         )
         model.load_state_dict(torch.load(weights_path, weights_only=True))
         model.eval()
-        self._models[feature] = model
+        self._model = model
 
     @torch.no_grad()
-    def predict(self, feature, seq, layer=4):
-        """Predict DNA shape values for a single sequence.
-
-        Parameters
-        ----------
-        feature : str
-            Name of the structural property to predict, e.g.
-            ``"MGW"`` (Minor Groove Width), ``"ProT"``
-            (propeller twist), ``"Roll"``, or ``"HelT"``
-            (helical twist). Must be one of the supported
-            feature names.
-        seq : str
-            DNA sequence composed of A, T, C, G, and
-            optionally N (unknown base). Length ``N``.
-        layer : int, optional
-            Which message-passing depth to read the
-            prediction from (``0`` = initial convolution
-            only, ``7`` = deepest layer). Default is ``4``.
-
-        Returns
-        -------
-        np.ndarray
-            Predicted shape values as floats.
-
-            - Intrabase features (e.g. ``MGW``, ``ProT``):
-              shape ``(N,)``, one value per base.
-            - Interbase features (e.g. ``Roll``, ``HelT``):
-              shape ``(N - 1,)``, one value per base step.
-        """
-        if feature not in _ALL_FEATURES:
-            raise ValueError(
-                f"Unknown feature. Must be one of {sorted(_ALL_FEATURES)}."
-            )
-        if not 0 <= layer <= 7:
-            raise ValueError(f"layer must be between 0 and 7, got {layer}.")
-
-        if feature not in self._models:
-            self._load_model(feature)
-        model = self._models[feature]
+    def _predict_one(self, seq):
+        """Predict shape values for a single DNA sequence string."""
+        if self._model is None:
+            self._load_model()
+        model = self._model
+        feature = self.feature
+        layer = self.layer
 
         padded = "NN" + seq + "NN"
         rev = "".join(_REV_COMPLEMENT[b] for b in reversed(padded))
@@ -297,3 +312,31 @@ class deepDNAshape:  # noqa: N801
         predictions = (pred_fwd + pred_rev[::-1]) / 2
         predictions = predictions.T[layer]
         return predictions[2:-2]
+
+    def _transform(self, X):
+        """Transform DNA sequences into shape feature rows.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Univariate frame; the first column holds DNA sequence strings.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per input sequence. Columns are positional shape
+            values, right-padded with ``NaN`` to the longest prediction
+            in the batch.
+        """
+        sequences = [_as_sequence_str(v) for v in X.iloc[:, 0].tolist()]
+        preds = [
+            np.asarray(self._predict_one(seq), dtype=np.float64) for seq in sequences
+        ]
+
+        max_len = max((len(p) for p in preds), default=0)
+        padded = np.full((len(preds), max_len), np.nan, dtype=np.float64)
+        for i, pred in enumerate(preds):
+            padded[i, : len(pred)] = pred
+
+        columns = [f"pos_{i}" for i in range(max_len)]
+        return pd.DataFrame(padded, index=X.index, columns=columns)

@@ -1,6 +1,7 @@
 __author__ = ["prashantpandeygit", "Alleny244"]
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from pyaptamer.deepdnashape import deepDNAshape
@@ -76,83 +77,103 @@ _REF_PREDICTIONS = {
 }
 
 
-@pytest.fixture
-def predictor():
-    """Returns an instance of deepDNAshape for testing."""
-    return deepDNAshape()
+def _frame(*seqs):
+    """Build a univariate DataFrame of DNA sequences."""
+    return pd.DataFrame({"seq": list(seqs)})
 
 
-def test_invalid_feature(predictor):
+def _values(Xt):
+    """Return the first row of a transform output without trailing NaNs."""
+    row = Xt.iloc[0].to_numpy(dtype=np.float64)
+    if np.isnan(row).any():
+        return row[~np.isnan(row)]
+    return row
+
+
+def test_invalid_feature():
     """Test an unknown DNA shape feature raises ValueError."""
     with pytest.raises(ValueError, match="Unknown feature"):
-        predictor.predict("INVALID_FEATURE", TEST_SEQ)
+        deepDNAshape(feature="INVALID_FEATURE")
 
 
 @pytest.mark.parametrize("layer", [-1, 8, 10])
-def test_invalid_layer(predictor, layer):
+def test_invalid_layer(layer):
     """Test out of bound layer number raises ValueError."""
     with pytest.raises(ValueError, match="layer must be between 0 and 7"):
-        predictor.predict("MGW", TEST_SEQ, layer=layer)
+        deepDNAshape(feature="MGW", layer=layer)
+
+
+def test_fit_returns_self():
+    """Empty fit follows the estimator contract and returns self."""
+    est = deepDNAshape(feature="MGW")
+    assert est.fit(_frame(TEST_SEQ)) is est
 
 
 @pytest.mark.parametrize("feature", ["MGW", "ProT"])
-def test_intrabase_model_shape(predictor, feature):
+def test_intrabase_model_shape(feature):
     """
-    Test that intrabase features return an array of shape (N,)
-    matching the length of the input sequence.
+    Test that intrabase features return N values matching sequence length.
     """
-    preds = predictor.predict(feature, TEST_SEQ)
+    Xt = deepDNAshape(feature=feature).fit_transform(_frame(TEST_SEQ))
+    preds = _values(Xt)
 
-    assert isinstance(preds, np.ndarray)
+    assert isinstance(Xt, pd.DataFrame)
     assert np.issubdtype(preds.dtype, np.floating)
     assert preds.shape == (len(TEST_SEQ),)
 
 
 @pytest.mark.parametrize("feature", ["Roll", "HelT"])
-def test_interbase_model_shape(predictor, feature):
+def test_interbase_model_shape(feature):
     """
-    Test that interbase features return an array of shape (N-1,)
-    reflecting steps between base pairs.
+    Test that interbase features return N-1 values between base pairs.
     """
-    preds = predictor.predict(feature, TEST_SEQ)
+    Xt = deepDNAshape(feature=feature).fit_transform(_frame(TEST_SEQ))
+    preds = _values(Xt)
 
-    assert isinstance(preds, np.ndarray)
+    assert isinstance(Xt, pd.DataFrame)
     assert np.issubdtype(preds.dtype, np.floating)
     assert preds.shape == (len(TEST_SEQ) - 1,)
 
 
 @pytest.mark.parametrize("layer", [0, 4, 7])
-def test_layer_prediction(predictor, layer):
+def test_layer_prediction(layer):
     """Test if valid layer numbers produce predictions successfully."""
-    feature = "MGW"
-    preds = predictor.predict(feature, TEST_SEQ, layer=layer)
-    assert preds.shape == (len(TEST_SEQ),)
+    Xt = deepDNAshape(feature="MGW", layer=layer).fit_transform(_frame(TEST_SEQ))
+    assert _values(Xt).shape == (len(TEST_SEQ),)
 
 
-def test_reverse_complement_invariance(predictor):
+def test_reverse_complement_invariance():
     """
-    Verify that the predictor is invariant to DNA orientation due to its
+    Verify that the transformer is invariant to DNA orientation due to its
     internal reverse-complement logic.
     """
-    feature = "MGW"
-    # sequence and its reverse complement
-    seq = "ATGC"
-    rev_comp_seq = "GCAT"
-
-    res1 = predictor.predict(feature, seq)
-    res2 = predictor.predict(feature, rev_comp_seq)
-
-    # After flipping the results shourld match
+    est = deepDNAshape(feature="MGW")
+    res1 = _values(est.fit_transform(_frame("ATGC")))
+    res2 = _values(est.fit_transform(_frame("GCAT")))
     np.testing.assert_allclose(res1, res2[::-1], atol=1e-5)
 
 
+def test_batch_nan_padding():
+    """Shorter sequences are right-padded with NaN in a batch."""
+    short = "ATGC"
+    long = TEST_SEQ
+    Xt = deepDNAshape(feature="MGW").fit_transform(_frame(short, long))
+
+    assert Xt.shape == (2, len(long))
+    assert np.isnan(Xt.iloc[0, len(short) :]).all()
+    assert not np.isnan(Xt.iloc[0, : len(short)]).any()
+    assert not np.isnan(Xt.iloc[1].to_numpy()).any()
+
+
 @pytest.mark.parametrize("feature", ["MGW", "ProT", "Roll", "HelT"])
-def test_reference_predictions(predictor, feature):
+def test_reference_predictions(feature):
     """Predictions match frozen numerical reference values.
 
     Uses a short fixed sequence and layer=4. This catches accidental
     changes to encoding, graph building, rescaling, or weight loading.
     """
     expected = _REF_PREDICTIONS[feature]
-    actual = predictor.predict(feature, REF_SEQ, layer=4)
+    actual = _values(
+        deepDNAshape(feature=feature, layer=4).fit_transform(_frame(REF_SEQ))
+    )
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
