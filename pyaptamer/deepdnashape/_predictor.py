@@ -104,42 +104,6 @@ def _get_bases_mapping():
     return mono, di
 
 
-def _build_graph(x):
-    """Construct edge indices for a linear chain graph with self-loops.
-
-    Each of the N nodes (sequence positions) is connected to its
-    immediate predecessor and successor. The first and last nodes
-    receive additional self-loop edges so that every node has the
-    same number of incoming edges.
-
-    Parameters
-    ----------
-    x : torch.Tensor of shape (N, C)
-        Node feature matrix (passed through unchanged).
-
-    Returns
-    -------
-    tuple of (torch.Tensor, torch.Tensor, torch.Tensor)
-        (x, pairs_prev, pairs_next) where pairs_prev and
-        pairs_next are (E, 2) edge index tensors consumed
-        by MessagePassingConv.
-    """
-    k = x.shape[0]
-    rng = torch.arange(k - 1, dtype=torch.long)
-
-    edges = torch.repeat_interleave(rng, 4).reshape(-1, 4)
-    pad = torch.tensor([0, 1, 1, 0], dtype=torch.long)
-    edges = edges + pad
-
-    edges = edges.reshape(-1, 2)
-    self_start = torch.zeros(1, 2, dtype=torch.long)
-    self_end = torch.full((1, 2), k - 1, dtype=torch.long)
-    edges = torch.cat([self_start, edges, self_end], dim=0)
-
-    edges = edges.reshape(-1, 4)
-    return x, edges[:, :2], edges[:, 2:]
-
-
 def _rescale(predictions, params):
     """Rescale raw model predictions to original value range.
 
@@ -297,11 +261,8 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         x_fwd = torch.tensor(encode(padded), dtype=torch.float32)
         x_rev = torch.tensor(encode(rev), dtype=torch.float32)
 
-        x_fwd, prev_fwd, next_fwd = _build_graph(x_fwd)
-        x_rev, prev_rev, next_rev = _build_graph(x_rev)
-
-        pred_fwd = model(x_fwd, prev_fwd, next_fwd).numpy()
-        pred_rev = model(x_rev, prev_rev, next_rev).numpy()
+        pred_fwd = model(x_fwd).numpy()
+        pred_rev = model(x_rev).numpy()
 
         params = self._params[feature]
         pred_fwd = _rescale(pred_fwd, params)

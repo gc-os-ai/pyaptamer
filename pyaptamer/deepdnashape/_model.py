@@ -8,30 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def _segment_sum(data, segment_ids, num_segments):
-    """Sum rows of data grouped by segment_ids
-
-    Parameters
-    ----------
-    data : torch.Tensor, shape (E, C)
-        Values to sum.
-    segment_ids : torch.Tensor, shape (E,)
-        Segment index for each row of data.
-    num_segments : int
-        Total number of output segments.
-
-    Returns
-    -------
-    torch.Tensor, shape (num_segments, C)
-    """
-    result = torch.zeros(
-        num_segments, data.shape[1], dtype=data.dtype, device=data.device
-    )
-    idx = segment_ids.unsqueeze(1).expand_as(data)
-    result.scatter_add_(0, idx, data)
-    return result
-
-
 class DualBiasGRUCell(nn.Module):
     """Custom GRU cell with separate input and recurrent biases.
 
@@ -150,7 +126,7 @@ class MessagePassingConv(nn.Module):
         self.bn = nn.BatchNorm1d(filters, eps=1e-3, momentum=0.01) if bn_layer else None
         self.gru = DualBiasGRUCell(filters, filters) if gru_layer else None
 
-    def forward(self, x, pairs_prev, pairs_next):
+    def forward(self, x):
         """Forward pass for `MessagePassingConv`.
 
         Parameters
@@ -158,25 +134,16 @@ class MessagePassingConv(nn.Module):
         x : torch.Tensor of shape (N, filters)
             Current node feature matrix, one row per sequence
             position.
-        pairs_prev : torch.Tensor of shape (E, 2)
-            Edge index pairs [target, source] for edges
-            pointing from predecessor nodes.
-        pairs_next : torch.Tensor of shape (E, 2)
-            Edge index pairs [target, source] for edges
-            pointing from successor nodes.
 
         Returns
         -------
         torch.Tensor of shape (N, filters)
             Updated node feature matrix.
         """
-        num_nodes = x.shape[0]
 
-        prev_x = x[pairs_prev[:, 1]]
-        prev_sumx = _segment_sum(prev_x, pairs_prev[:, 0], num_nodes)
-
-        next_x = x[pairs_next[:, 1]]
-        next_sumx = _segment_sum(next_x, pairs_next[:, 0], num_nodes)
+        idx = torch.arange(x.shape[0], device=x.device)
+        prev_sumx = x[(idx - 1).clamp(min=0)]
+        next_sumx = x[(idx + 1).clamp(max=x.shape[0] - 1)]
 
         aggre = next_sumx @ self.w_next + prev_sumx @ self.w_prev + self.b
 
@@ -349,7 +316,7 @@ class DNAModel(nn.Module):
             x = self.dropout(x)
         return self.avg_layer(x)
 
-    def forward(self, x, pairs_prev, pairs_next):
+    def forward(self, x):
         """Run the full forward pass of the graph neural network.
 
         Parameters
@@ -357,12 +324,6 @@ class DNAModel(nn.Module):
         x : torch.Tensor of shape (N, input_features)
             One-hot (or di-nucleotide) encoded sequence, one
             row per node.
-        pairs_prev : torch.Tensor of shape (E, 2)
-            Predecessor edge indices produced by
-            _build_graph.
-        pairs_next : torch.Tensor of shape (E, 2)
-            Successor edge indices produced by
-            _build_graph.
 
         Returns
         -------
@@ -379,7 +340,7 @@ class DNAModel(nn.Module):
 
         for layer in self.mp:
             for _ in range(self.steps):
-                x = layer(x, pairs_prev, pairs_next)
+                x = layer(x)
             if self.constraints:
                 results.append(self._call_avg(x))
 
