@@ -1,4 +1,10 @@
 
+import math
+import torch
+from torch import nn
+from torch.nn import functional as F
+
+from ._utils import Bottleneck
 class EncoderCNN (nn.Module):
     # 0~3 is already used by embedding ATGC
     def __init__(self, embedding_dim=32, window_size=7, num_layers=6):

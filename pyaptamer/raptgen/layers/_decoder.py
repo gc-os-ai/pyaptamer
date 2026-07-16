@@ -1,5 +1,11 @@
 
 
+import math
+import torch
+from torch import nn
+from torch.nn import functional as F
+from ._utils import Bottleneck
+
 class DecoderPHMM(nn.Module):
     # tile hidden and input to make x
     def __init__(self,  motif_len, embed_size,  hidden_size=32):

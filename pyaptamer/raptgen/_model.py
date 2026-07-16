@@ -5,6 +5,9 @@ from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM       
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn 
 
+from torch import nn
+from torch.nn import functional as F
+from layers._utils import Bottleneck
 
 
 
