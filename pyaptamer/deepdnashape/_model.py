@@ -312,6 +312,11 @@ class DNAModel(nn.Module):
         self.avg_layer = AvgFeatures(base_features, filter_size)
 
     def _call_avg(self, x):
+        """Apply optional dropout, then reduce channels with `AvgFeatures`.
+
+        Dropout runs only in training mode. At inference this is just the
+        average reduction used at multiple points in `forward`.
+        """
         if self.training:
             x = self.dropout(x)
         return self.avg_layer(x)
