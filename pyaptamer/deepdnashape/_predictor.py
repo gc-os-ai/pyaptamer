@@ -16,49 +16,42 @@ from pyaptamer.trafos.base import BaseTransform
 
 from ._model import DNAModel
 
-_HF_REPO_ID = "parkneurals/deepdnashape"
-_PARAMS_PATH = os.path.join(os.path.dirname(__file__), "_params.json")
-
-_REV_COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"}
-
-_INTRABASE_FEATURES = frozenset(
-    {
-        "Shear",
-        "Stretch",
-        "Stagger",
-        "Buckle",
-        "ProT",
-        "Opening",
-        "MGW",
-        "EP",
-        "Shear-FL",
-        "Stretch-FL",
-        "Stagger-FL",
-        "Buckle-FL",
-        "ProT-FL",
-        "Opening-FL",
-        "MGW-FL",
-    }
-)
-_INTERBASE_FEATURES = frozenset(
-    {
-        "Shift",
-        "Slide",
-        "Rise",
-        "Tilt",
-        "Roll",
-        "HelT",
-        "Shift-FL",
-        "Slide-FL",
-        "Rise-FL",
-        "Tilt-FL",
-        "Roll-FL",
-        "HelT-FL",
-    }
-)
-_ALL_FEATURES = _INTRABASE_FEATURES | _INTERBASE_FEATURES
-
-_X_AXIS_FEATURES = frozenset({"Shift", "Tilt", "Shear", "Buckle"})
+_CONFIG = {
+    "hf_repo_id": "parkneurals/deepdnashape",
+    "params_path": os.path.join(os.path.dirname(__file__), "_params.json"),
+    "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
+    "features": {
+        # intrabase
+        "Shear": {"kind": "intrabase", "flip_rev": True},
+        "Stretch": {"kind": "intrabase", "flip_rev": False},
+        "Stagger": {"kind": "intrabase", "flip_rev": False},
+        "Buckle": {"kind": "intrabase", "flip_rev": True},
+        "ProT": {"kind": "intrabase", "flip_rev": False},
+        "Opening": {"kind": "intrabase", "flip_rev": False},
+        "MGW": {"kind": "intrabase", "flip_rev": False},
+        "EP": {"kind": "intrabase", "flip_rev": False},
+        "Shear-FL": {"kind": "intrabase", "flip_rev": False},
+        "Stretch-FL": {"kind": "intrabase", "flip_rev": False},
+        "Stagger-FL": {"kind": "intrabase", "flip_rev": False},
+        "Buckle-FL": {"kind": "intrabase", "flip_rev": False},
+        "ProT-FL": {"kind": "intrabase", "flip_rev": False},
+        "Opening-FL": {"kind": "intrabase", "flip_rev": False},
+        "MGW-FL": {"kind": "intrabase", "flip_rev": False},
+        # interbase
+        "Shift": {"kind": "interbase", "flip_rev": True},
+        "Slide": {"kind": "interbase", "flip_rev": False},
+        "Rise": {"kind": "interbase", "flip_rev": False},
+        "Tilt": {"kind": "interbase", "flip_rev": True},
+        "Roll": {"kind": "interbase", "flip_rev": False},
+        "HelT": {"kind": "interbase", "flip_rev": False},
+        "Shift-FL": {"kind": "interbase", "flip_rev": False},
+        "Slide-FL": {"kind": "interbase", "flip_rev": False},
+        "Rise-FL": {"kind": "interbase", "flip_rev": False},
+        "Tilt-FL": {"kind": "interbase", "flip_rev": False},
+        "Roll-FL": {"kind": "interbase", "flip_rev": False},
+        "HelT-FL": {"kind": "interbase", "flip_rev": False},
+    },
+}
 
 
 def _get_bases_mapping():
@@ -200,22 +193,23 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         self.layer = layer
         super().__init__()
 
-        if self.feature not in _ALL_FEATURES:
+        if self.feature not in _CONFIG["features"]:
             raise ValueError(
-                f"Unknown feature. Must be one of {sorted(_ALL_FEATURES)}."
+                f"Unknown feature. Must be one of {sorted(_CONFIG['features'])}."
             )
         if not 0 <= self.layer <= 7:
             raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
 
         self._mono, self._di = _get_bases_mapping()
-        with open(_PARAMS_PATH) as f:
+        with open(_CONFIG["params_path"]) as f:
             self._params = json.load(f)
         self._model = None
 
     def _load_model(self):
         """Load and cache the pretrained model for ``self.feature``."""
         feature = self.feature
-        input_features = 4 if feature in _INTRABASE_FEATURES else 16
+        kind = _CONFIG["features"][feature]["kind"]
+        input_features = 4 if kind == "intrabase" else 16
         model = DNAModel(
             input_features=input_features,
             filter_size=64,
@@ -230,7 +224,7 @@ class deepDNAshape(BaseTransform):  # noqa: N801
             gru_layer=True,
         )
         weights_path = hf_hub_download(
-            repo_id=_HF_REPO_ID,
+            repo_id=_CONFIG["hf_repo_id"],
             filename=f"{feature}.pt",
         )
         model.load_state_dict(torch.load(weights_path, weights_only=True))
@@ -245,11 +239,13 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         model = self._model
         feature = self.feature
         layer = self.layer
+        feature_meta = _CONFIG["features"][feature]
+        rev_complement = _CONFIG["rev_complement"]
 
         padded = "NN" + seq + "NN"
-        rev = "".join(_REV_COMPLEMENT[b] for b in reversed(padded))
+        rev = "".join(rev_complement[b] for b in reversed(padded))
 
-        if feature in _INTERBASE_FEATURES:
+        if feature_meta["kind"] == "interbase":
 
             def encode(s):
                 return np.array([self._di[(s[i], s[i + 1])] for i in range(len(s) - 1)])
@@ -268,7 +264,7 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         pred_fwd = _rescale(pred_fwd, params)
         pred_rev = _rescale(pred_rev, params)
 
-        if feature in _X_AXIS_FEATURES:
+        if feature_meta["flip_rev"]:
             pred_rev = -pred_rev
 
         predictions = (pred_fwd + pred_rev[::-1]) / 2
