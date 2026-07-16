@@ -221,7 +221,8 @@ class AvgFeatures(nn.Module):
     def __init__(self, target_features=1, filter_size=64):
         super().__init__()
         self.target_features = target_features if target_features != 0 else 1
-        self.pad_amount = filter_size % self.target_features
+        remainder = filter_size % self.target_features
+        self.pad_amount = (self.target_features - remainder) % self.target_features
         self.group_size = (filter_size + self.pad_amount) // self.target_features
 
     def forward(self, x):

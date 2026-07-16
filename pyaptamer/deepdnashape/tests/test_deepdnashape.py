@@ -177,3 +177,18 @@ def test_reference_predictions(feature):
         deepDNAshape(feature=feature, layer=4).fit_transform(_frame(REF_SEQ))
     )
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
+
+
+def test_avg_features_pads_to_next_multiple():
+    """AvgFeatures pads up to the next multiple of target_features."""
+    import torch
+
+    from pyaptamer.deepdnashape._model import AvgFeatures
+
+    layer = AvgFeatures(target_features=5, filter_size=64)
+    assert layer.pad_amount == 1
+    assert layer.group_size == 13
+
+    x = torch.randn(3, 64)
+    out = layer(x)
+    assert out.shape == (3 * 5,)
