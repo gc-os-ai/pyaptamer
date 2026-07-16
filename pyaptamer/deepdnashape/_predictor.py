@@ -18,7 +18,7 @@ from ._model import DNAModel
 
 _CONFIG = {
     "hf_repo_id": "parkneurals/deepdnashape",
-    "params_path": os.path.join(os.path.dirname(__file__), "_params.json"),
+    "params_path": os.path.join(os.path.dirname(__file__), "data", "params.json"),
     "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
     "features": {
         # intrabase

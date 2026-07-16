@@ -65,7 +65,7 @@ include-package-data = true
 pyaptamer = [
     "datasets/data/*.csv",
     "datasets/data/*.pdb",
-    "deepdnashape/_params.json",
+    "deepdnashape/data/*",
 ]
 
 [tool.ruff.lint.per-file-ignores]
