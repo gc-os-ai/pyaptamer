@@ -77,29 +77,29 @@ def _get_bases_mapping():
         bases to np.ndarray of shape (16,).
     """
     bases = ["T", "G", "C", "A"]
-    bits = len(bases)
+    n_bases = len(bases)
 
     mono = {}
     for i, base in enumerate(bases):
-        vec = np.zeros(bits)
+        vec = np.zeros(n_bases)
         vec[i] = 1
         mono[base] = vec
-    mono["N"] = np.ones(bits, dtype=float) / bits
+    mono["N"] = np.ones(n_bases, dtype=float) / n_bases
 
-    di = {("N", "N"): np.ones(bits * bits, dtype=float) / bits / bits}
+    di = {("N", "N"): np.ones(n_bases * n_bases, dtype=float) / n_bases / n_bases}
     for i, pair in enumerate(itertools.product(bases, repeat=2)):
-        vec = np.zeros(bits * bits)
+        vec = np.zeros(n_bases * n_bases)
         vec[i] = 1
         di[pair] = vec
 
     for bp in bases:
-        di[(bp, "N")] = np.zeros(bits * bits)
-        di[("N", bp)] = np.zeros(bits * bits)
+        di[(bp, "N")] = np.zeros(n_bases * n_bases)
+        di[("N", bp)] = np.zeros(n_bases * n_bases)
         for bp2 in bases:
             di[(bp, "N")] += di[(bp, bp2)]
             di[("N", bp)] += di[(bp2, bp)]
-        di[(bp, "N")] /= bits
-        di[("N", bp)] /= bits
+        di[(bp, "N")] /= n_bases
+        di[("N", bp)] /= n_bases
 
     return mono, di
 
