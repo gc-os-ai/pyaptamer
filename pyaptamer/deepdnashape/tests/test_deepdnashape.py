@@ -109,37 +109,25 @@ def test_fit_returns_self():
     assert est.fit(_frame(TEST_SEQ)) is est
 
 
-@pytest.mark.parametrize("feature", ["MGW", "ProT"])
-def test_intrabase_model_shape(feature):
-    """
-    Test that intrabase features return N values matching sequence length.
-    """
-    Xt = deepDNAshape(feature=feature).fit_transform(_frame(TEST_SEQ))
+@pytest.mark.parametrize(
+    ("feature", "layer", "expected_len"),
+    [
+        ("MGW", 4, len(TEST_SEQ)),  # intrabase
+        ("ProT", 4, len(TEST_SEQ)),  # intrabase
+        ("Roll", 4, len(TEST_SEQ) - 1),  # interbase
+        ("HelT", 4, len(TEST_SEQ) - 1),  # interbase
+        ("MGW", 0, len(TEST_SEQ)),  # layer smoke
+        ("MGW", 7, len(TEST_SEQ)),  # layer smoke
+    ],
+)
+def test_output_shape(feature, layer, expected_len):
+    """Output length matches feature kind; valid layers produce floats."""
+    Xt = deepDNAshape(feature=feature, layer=layer).fit_transform(_frame(TEST_SEQ))
     preds = _values(Xt)
 
     assert isinstance(Xt, pd.DataFrame)
     assert np.issubdtype(preds.dtype, np.floating)
-    assert preds.shape == (len(TEST_SEQ),)
-
-
-@pytest.mark.parametrize("feature", ["Roll", "HelT"])
-def test_interbase_model_shape(feature):
-    """
-    Test that interbase features return N-1 values between base pairs.
-    """
-    Xt = deepDNAshape(feature=feature).fit_transform(_frame(TEST_SEQ))
-    preds = _values(Xt)
-
-    assert isinstance(Xt, pd.DataFrame)
-    assert np.issubdtype(preds.dtype, np.floating)
-    assert preds.shape == (len(TEST_SEQ) - 1,)
-
-
-@pytest.mark.parametrize("layer", [0, 4, 7])
-def test_layer_prediction(layer):
-    """Test if valid layer numbers produce predictions successfully."""
-    Xt = deepDNAshape(feature="MGW", layer=layer).fit_transform(_frame(TEST_SEQ))
-    assert _values(Xt).shape == (len(TEST_SEQ),)
+    assert preds.shape == (expected_len,)
 
 
 def test_reverse_complement_invariance():
