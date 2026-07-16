@@ -1,4 +1,4 @@
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "Ishiezz"]
 __all__ = [
     "dna2rna",
     "encode_rna",
@@ -182,9 +182,9 @@ def encode_rna(
 ):
     """Encode RNA sequences into their numerical representations.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    This function tokenizes RNA sequences using a greedy longest-match approach,
+    where longer RNA patterns are preferred over shorter ones. Sequences are
+    either truncated or zero-padded to `max_len` tokens.
 
     Parameters
     ----------
@@ -196,26 +196,20 @@ def encode_rna(
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
     word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
+        Maximum length of RNA patterns to consider during tokenization.
     return_type : str, optional, default="tensor"
         The type of the returned encoded sequences.
 
         * "tensor": returns a PyTorch Tensor
         * "numpy": returns a NumPy ndarray
 
-    Returns
-    -------
-    Tensor
-        Encoded sequences with shape (n_sequences, `max_len`).
-
-    Examples
-    --------
-    >>> from pyaptamer.utils import encode_rna
-    >>> words = {"A": 1, "C": 2, "D": 3, "AC": 4}
-    >>> print(encode_rna("ACD", words, max_len=5))
-    tensor([[4, 3, 0, 0, 0]])
+    Raises
+    ------
+    ValueError
+        If `return_type` is not "tensor" or "numpy".
+    ...
     """
-    # handle single protein input
+    # handle single RNA sequence input
     if isinstance(sequences, str):
         sequences = [sequences]
 
@@ -251,6 +245,11 @@ def encode_rna(
 
     # convert to numpy array first
     result = np.array(encoded_sequences, dtype=np.int64)
+
+    if return_type not in ("tensor", "numpy"):
+        raise ValueError(
+            f"`return_type` must be either 'tensor' or 'numpy', got '{return_type}'."
+        )
 
     if return_type == "numpy":
         return result
