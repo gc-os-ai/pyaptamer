@@ -259,8 +259,9 @@ class deepDNAshape(BaseTransform):  # noqa: N801
             mp_steps=1,
             base_features=1,
             constraints=True,
-            multiply="add",
             selflayer=True,
+            gate=True,
+            dual_weights=True,
             bn_layer=True,
             gru_layer=True,
         )

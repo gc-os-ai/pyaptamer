@@ -102,11 +102,15 @@ class MessagePassingConv(nn.Module):
     filters : int, optional
         Number of channels in the hidden node representations.
         Default is 64.
-    multiply : str or None, optional
-        Aggregation mode. "add" applies a second set of
-        learned weights and an element-wise product with the
-        current node state. None uses a simple residual
-        (additive skip) connection. Default is None.
+    gate : bool, optional
+        If True, combine aggregated neighbor features with the
+        current node state by an element-wise product (plus bias).
+        If False, use a simple residual (additive skip) connection.
+        Default is True.
+    dual_weights : bool, optional
+        If True (and ``gate`` is True), apply a second pair of
+        learned neighbor weight matrices before the gated product.
+        Ignored when ``gate`` is False. Default is True.
     bn_layer : bool, optional
         Whether to apply batch normalization.
     gru_layer : bool, optional
@@ -118,13 +122,15 @@ class MessagePassingConv(nn.Module):
     def __init__(
         self,
         filters: int = 64,
-        multiply: str | None = None,
+        gate: bool = True,
+        dual_weights: bool = True,
         bn_layer: bool = True,
         gru_layer: bool = True,
     ):
         super().__init__()
         self.filters = filters
-        self.multiply = multiply
+        self.gate = gate
+        self.dual_weights = dual_weights
 
         self.w_next = nn.Parameter(torch.empty(filters, filters))
         self.w_prev = nn.Parameter(torch.empty(filters, filters))
@@ -132,8 +138,8 @@ class MessagePassingConv(nn.Module):
         nn.init.normal_(self.w_next)
         nn.init.normal_(self.w_prev)
 
-        if multiply:
-            if multiply == "add":
+        if gate:
+            if dual_weights:
                 self.w_next_all = nn.Parameter(torch.empty(filters, filters))
                 self.w_prev_all = nn.Parameter(torch.empty(filters, filters))
                 nn.init.normal_(self.w_next_all)
@@ -174,8 +180,8 @@ class MessagePassingConv(nn.Module):
 
         aggre = next_sumx @ self.w_next + prev_sumx @ self.w_prev + self.b
 
-        if self.multiply:
-            if self.multiply == "add":
+        if self.gate:
+            if self.dual_weights:
                 aggre = (
                     aggre + next_sumx @ self.w_next_all + prev_sumx @ self.w_prev_all
                 )
@@ -280,9 +286,13 @@ class DNAModel(nn.Module):
         If True, collect an `AvgFeatures` prediction from
         the initial convolution output before any message
         passing. Default is True.
-    multiply : str or None, optional
-        Aggregation mode forwarded to each
-        `MessagePassingConv`. Default is "add".
+    gate : bool, optional
+        Forwarded to each `MessagePassingConv`. If True, use
+        gated (multiplicative) aggregation. Default is True.
+    dual_weights : bool, optional
+        Forwarded to each `MessagePassingConv`. If True (and
+        ``gate`` is True), use a second pair of neighbor
+        weight matrices. Default is True.
     bn_layer : bool, optional
         If True, enable batch normalization inside each
         `MessagePassingConv`. Default is True.
@@ -304,7 +314,8 @@ class DNAModel(nn.Module):
         base_features=1,
         constraints=True,
         selflayer=True,
-        multiply="add",
+        gate=True,
+        dual_weights=True,
         bn_layer=True,
         gru_layer=True,
         dropout_rate=0.0,
@@ -320,7 +331,8 @@ class DNAModel(nn.Module):
             [
                 MessagePassingConv(
                     filters=filter_size,
-                    multiply=multiply,
+                    gate=gate,
+                    dual_weights=dual_weights,
                     bn_layer=bn_layer,
                     gru_layer=gru_layer,
                 )
