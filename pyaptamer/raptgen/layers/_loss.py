@@ -11,7 +11,7 @@ from typing import Union, List, Tuple
 
 import logging
 
-from pyaptamer.pyaptamer.raptgen.layers._utils import State, Transition
+from pyaptamer.raptgen.layers._utils import State, Transition
 logger = logging.getLogger(__name__)
 
 

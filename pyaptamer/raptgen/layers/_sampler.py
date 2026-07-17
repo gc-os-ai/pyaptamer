@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 
-from pyaptamer.pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
+from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
 import logging
 logger = logging.getLogger(__name__)
 

@@ -2,8 +2,8 @@
 import torch
 
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
-from pyaptamer.raptgen.layers._decoder import DecoderPHMM       
-from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn 
+from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast       
+from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss_fn_fast 
 
 from torch import nn
 from torch.nn import functional as F
@@ -44,3 +44,15 @@ class CNN_PHMM_VAE(VAE):
         super(CNN_PHMM_VAE, self).__init__(
             encoder, decoder, embed_size, hidden_size)
         self.loss_fn = profile_hmm_loss_fn
+
+
+
+class CNN_PHMM_VAE_FAST(VAE):
+    def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
+        encoder = EncoderCNN(hidden_size, kernel_size)
+        decoder = DecoderPHMM_fast(
+            motif_len, embed_size, hidden_size=hidden_size)
+
+        super(CNN_PHMM_VAE_FAST, self).__init__(
+            encoder, decoder, embed_size, hidden_size)
+        self.loss_fn = profile_hmm_loss_fn_fast
