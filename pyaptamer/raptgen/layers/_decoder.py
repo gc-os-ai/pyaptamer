@@ -24,15 +24,6 @@ class DecoderPHMM(nn.Module):
             nn.BatchNorm1d(hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True))
 
-        self.fc2 = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size*2),
-            nn.BatchNorm1d(hidden_size*2),
-            nn.LeakyReLU(negative_slope=0.01),
-            nn.Linear(hidden_size*2, hidden_size),
-            nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(negative_slope=0.01)
-        )
-
         self.tr_from_M = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),

@@ -1,10 +1,12 @@
 
 from torch import nn
 from torch.nn import functional as F
-from ._utils import Bottleneck
 
 
 class Bottleneck(nn.Module):
+    """
+    
+    """
     def __init__(self, init_dim=32, window_size=7):
         super(Bottleneck, self).__init__()
         assert window_size % 2 == 1, f"window size should be odd, given {window_size}"

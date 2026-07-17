@@ -7,8 +7,7 @@ from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 
 from torch import nn
 from torch.nn import functional as F
-from layers._utils import Bottleneck
-
+from pyaptamer.raptgen.layers._utils import Bottleneck
 
 
 class VAE(nn.Module):
