@@ -1,7 +1,8 @@
-
+"""Sampler for profile HMMs"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["ProfileHMMSampler"]
 import torch
 import numpy as np
-
 from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
 import logging
 logger = logging.getLogger(__name__)

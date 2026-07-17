@@ -1,5 +1,8 @@
-from enum import IntEnum
+"""Utility functions and classes for RaptGen layers"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["View", "nt_index", "State", "Transition"]
 
+from enum import IntEnum
 from torch import nn
 
 
@@ -30,6 +33,7 @@ class Transition(IntEnum):
     I2I = 4
     D2M = 5
     D2D = 6
+    
 class View(nn.Module):
     def __init__(self, shape):
         super(View, self).__init__()

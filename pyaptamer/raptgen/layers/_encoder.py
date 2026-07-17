@@ -1,9 +1,11 @@
+"""Encoder for RaptGen's variational autoencoder"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["EncoderCNN"]
 
 import math
 import torch
 from torch import nn
 from torch.nn import functional as F
-
 from pyaptamer.raptgen.layers._conv import Bottleneck
 
 class EncoderCNN (nn.Module):

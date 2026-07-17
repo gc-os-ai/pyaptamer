@@ -1,4 +1,6 @@
-
+"""Decoder for RaptGen's variational autoencoder"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["DecoderPHMM", "DecoderPHMM_fast"]
 
 import math
 import torch

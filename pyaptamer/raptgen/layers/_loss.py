@@ -1,3 +1,6 @@
+"""Loss functions for RaptGen's variational autoencoder"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["kld_loss", "ce_loss", "profile_hmm_loss", "profile_hmm_loss_fn", "profile_hmm_loss_fn_fast", "torch_multi_polytope_dp_log", "multi_categorical_loss_fn", "end_padded_multi_categorical_loss_fn"]
 
 from enum import IntEnum, Enum
 import math
@@ -24,6 +27,7 @@ def kld_loss(mu, logvar):
 def ce_loss(recon_param, input):
     CE = F.cross_entropy(recon_param, input, reduction="sum") / input.shape[0]
     return CE
+
 def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
     batch_size, random_len = input.shape
 
@@ -88,6 +92,16 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
         return - force_loss - torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
     return - torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
 
+def profile_hmm_loss_fn(input, recon_param, mu, logvar, debug=False, test=False, beta=1, force_matching=False, match_cost=5):
+    phmmloss = profile_hmm_loss(
+        recon_param, input, force_matching=force_matching, match_cost=match_cost)
+    kld = kld_loss(mu, logvar)
+
+    if debug:
+        logger.info(f"phmm={phmmloss:.2f}, kld={kld:.2f}")
+    if test:
+        return phmmloss.item(), kld.item()
+    return phmmloss + beta * kld
 
 def profile_hmm_loss_fn_fast(input, recon_param, mu, logvar, debug=False, test=False, beta=1, force_matching=False, match_cost=5):
     phmmloss = torch_multi_polytope_dp_log(*recon_param, input, force_matching, match_cost)
@@ -204,13 +218,3 @@ def multi_categorical_loss_fn(input, recon_param, mu, logvar, debug=False, test=
     return ce + beta * kld
 
 
-def profile_hmm_loss_fn(input, recon_param, mu, logvar, debug=False, test=False, beta=1, force_matching=False, match_cost=5):
-    phmmloss = profile_hmm_loss(
-        recon_param, input, force_matching=force_matching, match_cost=match_cost)
-    kld = kld_loss(mu, logvar)
-
-    if debug:
-        logger.info(f"phmm={phmmloss:.2f}, kld={kld:.2f}")
-    if test:
-        return phmmloss.item(), kld.item()
-    return phmmloss + beta * kld

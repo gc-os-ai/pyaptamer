@@ -1,3 +1,6 @@
+"""Convolutional layers(Bottleneck) for RaptGen's variational autoencoder"""
+__author__ = ["NoorMajdoub"]
+__all__ = ["Bottleneck"]
 
 from torch import nn
 from torch.nn import functional as F

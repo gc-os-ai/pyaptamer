@@ -1,13 +1,17 @@
 
-import torch
+"""VAE and CNN_PHMM_VAE model composed from RaptGen layers"""
 
+__author__ = ["nourmajdoub"]
+__all__ = ["VAE", "CNN_PHMM_VAE", "CNN_PHMM_VAE_FAST","VAE"]
+
+
+import torch
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast       
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss_fn_fast 
 
 from torch import nn
 from torch.nn import functional as F
-from pyaptamer.raptgen.layers._utils import Bottleneck
 
 
 class VAE(nn.Module):
