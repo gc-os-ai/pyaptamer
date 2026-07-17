@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from pyaptamer.pyaptamer.raptgen._model import CNN_PHMM_VAE
-from pyaptamer.pyaptamer.raptgen.layers._conv import Bottleneck
-from pyaptamer.pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
+from pyaptamer.raptgen._model import CNN_PHMM_VAE
+from pyaptamer.raptgen.layers._conv import Bottleneck
+from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 
 @pytest.mark.parametrize(
