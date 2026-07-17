@@ -7,23 +7,13 @@ import torch.nn.functional as F
 from tqdm.auto import tqdm
 import numpy as np
 from pathlib import Path
+from typing import Union, List, Tuple
 
 import logging
+
+from pyaptamer.pyaptamer.raptgen.layers._utils import State, Transition
 logger = logging.getLogger(__name__)
-class State(IntEnum):
-    M = 0
-    I = 1
-    D = 2
 
-
-class Transition(IntEnum):
-    M2M = 0
-    M2I = 1
-    M2D = 2
-    I2M = 3
-    I2I = 4
-    D2M = 5
-    D2D = 6
 
 def kld_loss(mu, logvar):
     KLD = - 0.5 * torch.sum(1 + logvar - mu.pow(2) -
@@ -97,6 +87,8 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
             torch.sum((match_cost-1) * a[:, :, Transition.M2M], dim=1).mean()
         return - force_loss - torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
     return - torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
+
+
 def profile_hmm_loss_fn_fast(input, recon_param, mu, logvar, debug=False, test=False, beta=1, force_matching=False, match_cost=5):
     phmmloss = torch_multi_polytope_dp_log(*recon_param, input, force_matching, match_cost)
     kld = kld_loss(mu, logvar)
@@ -106,6 +98,9 @@ def profile_hmm_loss_fn_fast(input, recon_param, mu, logvar, debug=False, test=F
     if test:
         return phmmloss.item(), kld.item()
     return phmmloss + beta * kld
+
+
+
 def torch_multi_polytope_dp_log(transition_proba, emission_proba, output, force_matching=False, match_cost=5):
     """
     torch_multi_polytope_dp_log(
@@ -190,7 +185,7 @@ def torch_multi_polytope_dp_log(transition_proba, emission_proba, output, force_
 
 
 def end_padded_multi_categorical_loss_fn(input, recon_param, mu, logvar, debug=False, test=False, beta=1):
-    from raptgen.data import nt_index
+    from pyaptamer.pyaptamer.raptgen.layers._utils import nt_index
     loss = multi_categorical_loss_fn(
         F.pad(input, (0, 1), "constant", nt_index.EOS),
         recon_param, mu, logvar, debug, test, beta)
