@@ -112,7 +112,7 @@ from pyaptamer.raptgen.layers._decoder import DecoderPHMM
 @pytest.mark.parametrize(
     "motif_len, embed_size, hidden_size", [(4, 8, 16), (10, 16, 32)]
 )
-def test_decoderphmm_layers(motif_len, embed_size,  hidden_size=32):
+def test_decoderphmm_layers(motif_len, embed_size,  hidden_size):
     """
     Check DecoderPHMM initializes its layers correctly
     """
