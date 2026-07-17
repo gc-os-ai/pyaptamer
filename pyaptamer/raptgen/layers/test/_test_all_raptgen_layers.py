@@ -6,10 +6,13 @@ from torch import Tensor
 
 from pyaptamer.pyaptamer.raptgen._model import CNN_PHMM_VAE
 from pyaptamer.pyaptamer.raptgen.layers._conv import Bottleneck
+from pyaptamer.pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
+from pyaptamer.raptgen.layers._encoder import EncoderCNN
 
 @pytest.mark.parametrize(
         "init_dim, window_size", [(8, 3), (16, 5), (32, 7)]
         )
+
 def test_bottleneck_layers(init_dim, window_size):
     """Check Bottleneck() initializes its conv and batchnorm layers correctly"""
     block = Bottleneck(init_dim=init_dim, window_size=window_size)
@@ -18,7 +21,6 @@ def test_bottleneck_layers(init_dim, window_size):
     assert block.conv1.in_channels == init_dim
     assert block.conv1.out_channels == init_dim * 2
     assert block.conv1.kernel_size == (1,)
-
 
     assert isinstance(block.conv2, nn.Conv1d)
     assert block.conv2.in_channels == init_dim * 2
@@ -53,25 +55,24 @@ def test_bottleneck_forward(init_dim, window_size,x):
     out = block(x)
     assert out.shape == x.shape
 
-
-
-
 def test_bottleneck_rejects_even_window_size():
-    """Check that Bottleneck() enforces odd window_size"""
+    """
+    Check that Bottleneck enforces odd window_size
+    """
     with pytest.raises(AssertionError):
         Bottleneck(init_dim=8, window_size=4)
 
 
 
-from pyaptamer.pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
-from pyaptamer.raptgen.layers._encoder import EncoderCNN
 
 
 @pytest.mark.parametrize(
     "embedding_dim, window_size, num_layers", [(16, 3, 2), (32, 7, 6)]
 )
 def test_encodercnn_layers(embedding_dim, window_size, num_layers):
-    """Check EncoderCNN() initializes its embedding and resnet layers correctly"""
+    """
+    Check EncoderCNN embedding and layers initialization
+    """
     encoder = EncoderCNN(
         embedding_dim=embedding_dim, window_size=window_size, num_layers=num_layers
     )
@@ -90,7 +91,9 @@ def test_encodercnn_layers(embedding_dim, window_size, num_layers):
     [(16, 2, 4, 30), (32, 6, 2, 50)],
 )
 def test_encodercnn_forward(embedding_dim, num_layers, batch_size, seq_len):
-    """Test the forward pass of EncoderCNN (sequence collapses to one vector)"""
+    """
+    Test the forward pass of EncoderCNN (Output shape)
+    """
     encoder = EncoderCNN(embedding_dim=embedding_dim, num_layers=num_layers)
     x = torch.randint(low=0, high=4, size=(batch_size, seq_len))
 
@@ -107,7 +110,9 @@ from pyaptamer.raptgen.layers._decoder import DecoderPHMM
     "motif_len, embed_size, hidden_size", [(4, 8, 16), (10, 16, 32)]
 )
 def test_decoderphmm_layers(motif_len, embed_size,  hidden_size=32):
-    """Check DecoderPHMM() initializes its layers correctly"""
+    """
+    Check DecoderPHMM initializes its layers correctly
+    """
     decoder = DecoderPHMM(
         motif_len=motif_len, embed_size=embed_size, hidden_size=hidden_size
     )
@@ -123,7 +128,9 @@ def test_decoderphmm_layers(motif_len, embed_size,  hidden_size=32):
     [(4, 8, 16, 2), (10, 16, 32, 5)],
 )
 def test_decoderphmm_forward(motif_len, embed_size, hidden_size, batch_size):
-    """Test the forward pass of DecoderPHMM (check output shapes)"""
+    """
+    Test the forward pass of DecoderPHMM (check output shapes)
+    """
     decoder = DecoderPHMM(motif_len=motif_len, embed_size=embed_size, hidden_size=hidden_size)
     x = torch.randn(batch_size, embed_size)
 
@@ -138,7 +145,9 @@ def test_decoderphmm_forward(motif_len, embed_size, hidden_size, batch_size):
     "motif_len, embed_size, hidden_size, kernel_size", [(4, 8, 16, 5), (10, 16, 32, 7)]
 )
 def test_cnn_phmm_vae_layers(motif_len, embed_size, hidden_size, kernel_size):
-    """Check CNN_PHMM_VAE() builds the correct encoder/decoder and loss_fn"""
+    """
+    Check CNN_PHMM_VAE builds the correct encoder/decoder and loss_fn
+    """
     model = CNN_PHMM_VAE(
         motif_len=motif_len,
         embed_size=embed_size,
@@ -154,12 +163,15 @@ def test_cnn_phmm_vae_layers(motif_len, embed_size, hidden_size, kernel_size):
     assert model.h2logvar.out_features == embed_size
 
 
+
 @pytest.mark.parametrize(
     "motif_len, embed_size, hidden_size, kernel_size, batch_size, seq_len",
     [(4, 8, 16, 5, 3, 20), (10, 16, 32, 7, 2, 40)],
 )
 def test_cnn_phmm_vae_forward(motif_len, embed_size, hidden_size, kernel_size, batch_size, seq_len):
-    """Test the forward pass of CNN_PHMM_VAE end-to-end (real encoder + decoder)"""
+    """
+    Test the forward pass of CNN_PHMM_VAE
+    """
     model = CNN_PHMM_VAE(
         motif_len=motif_len,
         embed_size=embed_size,
