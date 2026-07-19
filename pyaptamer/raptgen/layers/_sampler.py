@@ -1,16 +1,18 @@
 """Sampler for profile HMMs"""
+
 __author__ = ["NoorMajdoub"]
 __all__ = ["ProfileHMMSampler"]
-import torch
-import numpy as np
-from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
 import logging
+
+import numpy as np
+import torch
+
+from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
+
 logger = logging.getLogger(__name__)
 
 
-
-
-class ProfileHMMSampler():
+class ProfileHMMSampler:
     def __init__(self, transition_proba, emission_proba, proba_is_log=False):
         self.e = emission_proba
         self.a = transition_proba
@@ -25,24 +27,35 @@ class ProfileHMMSampler():
         seq = ""
         while True:
             if state == State.M:
-                p = self.a[idx][np.array([
-                    Transition.M2M.value,
-                    Transition.M2I.value,
-                    Transition.M2D.value])]
+                p = self.a[idx][
+                    np.array(
+                        [
+                            Transition.M2M.value,
+                            Transition.M2I.value,
+                            Transition.M2D.value,
+                        ]
+                    )
+                ]
             elif state == State.I:
-                p = np.stack([
-                    self.a[idx][Transition.I2M.value],
-                    self.a[idx][Transition.I2I.value],
-                    0])
+                p = np.stack(
+                    [
+                        self.a[idx][Transition.I2M.value],
+                        self.a[idx][Transition.I2I.value],
+                        0,
+                    ]
+                )
             elif state == State.D:
-                p = np.stack([
-                    self.a[idx][Transition.D2M.value],
-                    0,
-                    self.a[idx][Transition.D2D.value]])
+                p = np.stack(
+                    [
+                        self.a[idx][Transition.D2M.value],
+                        0,
+                        self.a[idx][Transition.D2D.value],
+                    ]
+                )
             else:
                 logger.info("something wrong")
 
-            state = np.random.choice([State.M, State.I, State.D], p=p/sum(p))
+            state = np.random.choice([State.M, State.I, State.D], p=p / sum(p))
             if state != State.I:
                 idx += 1
             states.append((idx, state))
@@ -52,9 +65,9 @@ class ProfileHMMSampler():
             if state == State.M:
                 # logger.info("{:.2f}, {:.2f}, {:.2f}, {:.2f}".format(*self.e[idx-1]))
 
-                seq += np.random.choice(list("ATGC"), p=self.e[idx-1])
+                seq += np.random.choice(list("ATGC"), p=self.e[idx - 1])
                 if debug:
-                    logger.info(idx, state, self.e[idx-1], seq[-1])
+                    logger.info(idx, state, self.e[idx - 1], seq[-1])
             elif state == State.I:
                 seq += np.random.choice(list("atgc"))
             else:
@@ -70,24 +83,27 @@ class ProfileHMMSampler():
         seq = ""
         while True:
             if state == State.M:
-                p = self.a[idx][np.array([
-                    Transition.M2M.value,
-                    Transition.M2I.value,
-                    Transition.M2D.value])]
+                p = self.a[idx][
+                    np.array(
+                        [
+                            Transition.M2M.value,
+                            Transition.M2I.value,
+                            Transition.M2D.value,
+                        ]
+                    )
+                ]
             elif state == State.I:
-                p = [
-                    self.a[idx][Transition.I2M.value],
-                    0,
-                    0]
+                p = [self.a[idx][Transition.I2M.value], 0, 0]
             elif state == State.D:
                 p = [
                     self.a[idx][Transition.D2M.value],
                     0,
-                    self.a[idx][Transition.D2D.value]]
+                    self.a[idx][Transition.D2D.value],
+                ]
             else:
                 logger.info("something wrong")
             p[np.argmax(p)] += 1000000
-            state = np.random.choice([State.M, State.I, State.D], p=p/sum(p))
+            state = np.random.choice([State.M, State.I, State.D], p=p / sum(p))
             if state != State.I:
                 idx += 1
             states.append((idx, state))
@@ -97,9 +113,9 @@ class ProfileHMMSampler():
 
             if state == State.M:
                 # logger.info("{:.2f}, {:.2f}, {:.2f}, {:.2f}".format(*self.e[idx-1]))
-                p = np.copy(self.e[idx-1])
+                p = np.copy(self.e[idx - 1])
                 p[np.argmax(p)] += 100000
-                seq += np.random.choice(list("ATGC"), p=p/sum(p))
+                seq += np.random.choice(list("ATGC"), p=p / sum(p))
             elif state == State.I:
                 seq += "N"
             else:
@@ -125,39 +141,51 @@ class ProfileHMMSampler():
         for i in range(random_len + 1):
             for j in range(model_len + 1):
                 # State M
-                if j*i != 0:
-                    F[State.M, j, i] = e[j - 1][one_hot_seq[i - 1]] + \
-                        torch.logsumexp(torch.stack((
-                            a[j - 1, Transition.M2M] +
-                            F[State.M, j - 1, i - 1],
-                            a[j - 1, Transition.I2M] +
-                            F[State.I, j - 1, i - 1],
-                            a[j - 1, Transition.D2M] + F[State.D, j - 1, i - 1])), dim=0)
+                if j * i != 0:
+                    F[State.M, j, i] = e[j - 1][one_hot_seq[i - 1]] + torch.logsumexp(
+                        torch.stack(
+                            (
+                                a[j - 1, Transition.M2M] + F[State.M, j - 1, i - 1],
+                                a[j - 1, Transition.I2M] + F[State.I, j - 1, i - 1],
+                                a[j - 1, Transition.D2M] + F[State.D, j - 1, i - 1],
+                            )
+                        ),
+                        dim=0,
+                    )
 
                 # State I
                 if i != 0:
-                    F[State.I, j, i] = - 1.3863 + \
-                        torch.logsumexp(torch.stack((
-                            a[j, Transition.M2I] + F[State.M, j, i-1],
-                            a[j, Transition.I2I] + F[State.I, j, i-1]
-                        )), dim=0)
+                    F[State.I, j, i] = -1.3863 + torch.logsumexp(
+                        torch.stack(
+                            (
+                                a[j, Transition.M2I] + F[State.M, j, i - 1],
+                                a[j, Transition.I2I] + F[State.I, j, i - 1],
+                            )
+                        ),
+                        dim=0,
+                    )
 
                 # State D
                 if j != 0:
-                    F[State.D, j, i] = \
-                        torch.logsumexp(torch.stack((
-                            a[j - 1, Transition.M2D] + F[State.M, j - 1, i],
-                            a[j - 1, Transition.D2D] + F[State.D, j - 1, i]
-                        )), dim=0)
+                    F[State.D, j, i] = torch.logsumexp(
+                        torch.stack(
+                            (
+                                a[j - 1, Transition.M2D] + F[State.M, j - 1, i],
+                                a[j - 1, Transition.D2D] + F[State.D, j - 1, i],
+                            )
+                        ),
+                        dim=0,
+                    )
 
-        F[State.M, model_len+1, random_len] = \
-            torch.logsumexp(torch.stack((
-                a[model_len, Transition.M2M] +
-                F[State.M, model_len, random_len],
-                a[model_len, Transition.I2M] +
-                F[State.I, model_len, random_len],
-                a[model_len, Transition.D2M] +
-                F[State.D, model_len, random_len]
-            )), dim=0)
+        F[State.M, model_len + 1, random_len] = torch.logsumexp(
+            torch.stack(
+                (
+                    a[model_len, Transition.M2M] + F[State.M, model_len, random_len],
+                    a[model_len, Transition.I2M] + F[State.I, model_len, random_len],
+                    a[model_len, Transition.D2M] + F[State.D, model_len, random_len],
+                )
+            ),
+            dim=0,
+        )
 
-        return F[State.M, model_len+1, random_len]
+        return F[State.M, model_len + 1, random_len]

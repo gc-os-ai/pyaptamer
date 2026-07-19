@@ -1,22 +1,20 @@
-
 """VAE and CNN_PHMM_VAE model composed from RaptGen layers"""
 
 __author__ = ["nourmajdoub"]
-__all__ = ["VAE", "CNN_PHMM_VAE", "CNN_PHMM_VAE_FAST","VAE"]
+__all__ = ["VAE", "CNN_PHMM_VAE", "CNN_PHMM_VAE_FAST", "VAE"]
 
 
 import torch
-from pyaptamer.raptgen.layers._encoder import EncoderCNN
-from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast       
-from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss_fn_fast 
-
 from torch import nn
-from torch.nn import functional as F
+
+from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast
+from pyaptamer.raptgen.layers._encoder import EncoderCNN
+from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss_fn_fast
 
 
 class VAE(nn.Module):
     def __init__(self, encoder, decoder, embed_size=10, hidden_size=32):
-        super(VAE, self).__init__()
+        super().__init__()
 
         self.encoder = encoder
         self.decoder = decoder
@@ -38,25 +36,23 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, logvar, deterministic)
         recon_param = self.decoder(z)
         return recon_param, mu, logvar
-    
+
 
 class CNN_PHMM_VAE(VAE):
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
         decoder = DecoderPHMM(motif_len, embed_size)
 
-        super(CNN_PHMM_VAE, self).__init__(
-            encoder, decoder, embed_size, hidden_size)
+        super().__init__(encoder, decoder, embed_size, hidden_size)
         self.loss_fn = profile_hmm_loss_fn
-
 
 
 class CNN_PHMM_VAE_FAST(VAE):
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
-        decoder = DecoderPHMM_fast(
-            motif_len, embed_size, hidden_size=hidden_size)
+        decoder = DecoderPHMM_fast(motif_len, embed_size, hidden_size=hidden_size)
 
-        super(CNN_PHMM_VAE_FAST, self).__init__(
-            encoder, decoder, embed_size, hidden_size)
+        super().__init__(
+            encoder, decoder, embed_size, hidden_size
+        )
         self.loss_fn = profile_hmm_loss_fn_fast

@@ -1,20 +1,20 @@
 """Decoder for RaptGen's variational autoencoder"""
+
 __author__ = ["NoorMajdoub"]
 __all__ = ["DecoderPHMM", "DecoderPHMM_fast"]
 
-import math
 import torch
 from torch import nn
-from torch.nn import functional as F
+
 
 class DecoderPHMM(nn.Module):
     # tile hidden and input to make x
-    def __init__(self,  motif_len, embed_size,  hidden_size=32):
-        super(DecoderPHMM, self).__init__()
+    def __init__(self, motif_len, embed_size, hidden_size=32):
+        super().__init__()
 
         class View(nn.Module):
             def __init__(self, shape):
-                super(View, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, x):
@@ -23,40 +23,41 @@ class DecoderPHMM(nn.Module):
         self.fc1 = nn.Sequential(
             nn.Linear(embed_size, hidden_size),
             nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(negative_slope=0.01, inplace=True))
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+        )
 
         self.tr_from_M = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, (motif_len+1)*3),
+            nn.Linear(hidden_size, (motif_len + 1) * 3),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len+1, 3)),
-            nn.LogSoftmax(dim=2)
+            View((-1, motif_len + 1, 3)),
+            nn.LogSoftmax(dim=2),
         )
         self.tr_from_I = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, (motif_len+1)*2),
+            nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len+1, 2)),
-            nn.LogSoftmax(dim=2)
+            View((-1, motif_len + 1, 2)),
+            nn.LogSoftmax(dim=2),
         )
         self.tr_from_D = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, (motif_len+1)*2),
+            nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len+1, 2)),
-            nn.LogSoftmax(dim=2)
+            View((-1, motif_len + 1, 2)),
+            nn.LogSoftmax(dim=2),
         )
 
         self.emission = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, motif_len*4),
+            nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             View((-1, motif_len, 4)),
-            nn.LogSoftmax(dim=2)
+            nn.LogSoftmax(dim=2),
         )
 
     def forward(self, input):
@@ -67,21 +68,27 @@ class DecoderPHMM(nn.Module):
         transition_from_deletion = self.tr_from_D(x)
 
         emission_proba = self.emission(x)
-        return (torch.cat((
-            transition_from_match,
-            transition_from_insertion,
-            transition_from_deletion), dim=2), emission_proba)
-    
+        return (
+            torch.cat(
+                (
+                    transition_from_match,
+                    transition_from_insertion,
+                    transition_from_deletion,
+                ),
+                dim=2,
+            ),
+            emission_proba,
+        )
 
 
 class DecoderPHMM_fast(nn.Module):
     # tile hidden and input to make x
-    def __init__(self,  motif_len, embed_size,  hidden_size=32):
-        super(DecoderPHMM_fast, self).__init__()
+    def __init__(self, motif_len, embed_size, hidden_size=32):
+        super().__init__()
 
         class View(nn.Module):
             def __init__(self, shape):
-                super(View, self).__init__()
+                super().__init__()
                 self.shape = shape
 
             def forward(self, x):
@@ -89,24 +96,25 @@ class DecoderPHMM_fast(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Linear(embed_size, hidden_size),
-            nn.LeakyReLU(negative_slope=0.01, inplace=True))
+            nn.LeakyReLU(negative_slope=0.01, inplace=True),
+        )
 
         self.transition = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, 3*3*(motif_len+1)),
+            nn.Linear(hidden_size, 3 * 3 * (motif_len + 1)),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, 3, 3, motif_len+1)),
-            nn.LogSoftmax(dim=2)
+            View((-1, 3, 3, motif_len + 1)),
+            nn.LogSoftmax(dim=2),
         )
 
         self.emission = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            nn.Linear(hidden_size, motif_len*4),
+            nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             View((-1, motif_len, 4)),
-            nn.LogSoftmax(dim=2)
+            nn.LogSoftmax(dim=2),
         )
 
     def forward(self, input):
