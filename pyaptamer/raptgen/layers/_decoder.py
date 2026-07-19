@@ -81,7 +81,7 @@ class DecoderPHMM(nn.Module):
         )
 
 
-class DecoderPHMM_fast(nn.Module):
+class DecoderPHMM_fast(nn.Module):  # noqa: N801
     # tile hidden and input to make x
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()

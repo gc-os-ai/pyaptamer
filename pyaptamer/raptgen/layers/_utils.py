@@ -12,7 +12,7 @@ def one_hot_index(seq):
     return [int(nt_index[char]) for char in seq]
 
 
-class nt_index(IntEnum):
+class nt_index(IntEnum):  # noqa: N801
     A = 0
     T = 1
     G = 2
@@ -25,7 +25,7 @@ class nt_index(IntEnum):
 
 class State(IntEnum):
     M = 0
-    I = 1
+    I = 1  # noqa: E741
     D = 2
 
 

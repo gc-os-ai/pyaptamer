@@ -38,7 +38,7 @@ class VAE(nn.Module):
         return recon_param, mu, logvar
 
 
-class CNN_PHMM_VAE(VAE):
+class CNN_PHMM_VAE(VAE):  # noqa: N801
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
         decoder = DecoderPHMM(motif_len, embed_size)
@@ -47,12 +47,10 @@ class CNN_PHMM_VAE(VAE):
         self.loss_fn = profile_hmm_loss_fn
 
 
-class CNN_PHMM_VAE_FAST(VAE):
+class CNN_PHMM_VAE_FAST(VAE):  # noqa: N801
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
         decoder = DecoderPHMM_fast(motif_len, embed_size, hidden_size=hidden_size)
 
-        super().__init__(
-            encoder, decoder, embed_size, hidden_size
-        )
+        super().__init__(encoder, decoder, embed_size, hidden_size)
         self.loss_fn = profile_hmm_loss_fn_fast

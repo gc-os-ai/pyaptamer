@@ -18,6 +18,7 @@ import torch.nn as nn
 
 from pyaptamer.raptgen._model import CNN_PHMM_VAE
 from pyaptamer.raptgen.layers._conv import Bottleneck
+from pyaptamer.raptgen.layers._decoder import DecoderPHMM
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 
@@ -107,9 +108,6 @@ def test_encodercnn_forward(embedding_dim, num_layers, batch_size, seq_len):
     assert out.shape == (batch_size, embedding_dim)
 
 
-from pyaptamer.raptgen.layers._decoder import DecoderPHMM
-
-
 @pytest.mark.parametrize(
     "motif_len, embed_size, hidden_size", [(4, 8, 16), (10, 16, 32)]
 )
@@ -121,7 +119,7 @@ def test_decoderphmm_layers(motif_len, embed_size, hidden_size):
         motif_len=motif_len, embed_size=embed_size, hidden_size=hidden_size
     )
 
-    assert isinstance(decoder.fc1, nn.sequential)
+    assert isinstance(decoder.fc1, nn.Sequential)
     assert decoder.fc1[0].in_features == embed_size
     assert decoder.fc1[0].out_features == hidden_size
 
