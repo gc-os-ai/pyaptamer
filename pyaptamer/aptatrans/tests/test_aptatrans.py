@@ -159,6 +159,49 @@ class TestAptaTransModel:
         assert torch.all(output >= 0.0) and torch.all(output <= 1.0)
         assert not torch.allclose(output[0], output[1], atol=1e-5)
 
+    @pytest.mark.parametrize(
+        "batch_size, seq_len_apta, seq_len_prot, in_dim",
+        [
+            # Asymmetric sequence lengths
+            (2, 10, 20, 32),
+            (3, 20, 10, 32),
+            (4, 15, 25, 64),
+        ],
+    )
+    @torch.no_grad()
+    def test_forward_output_shape_asymmetric(
+        self, batch_size: int, seq_len_apta: int, seq_len_prot: int, in_dim: int
+    ) -> None:
+        """Check forward() output is (batch, 1) for asymmetric sequence lengths.
+
+        Regression test for the spurious squeeze(dim=2) in forward(): the interaction
+        map from forward_imap is already (batch, 1, s1, s2) — the shape conv1 expects.
+        """
+        apta_embedding = EncoderPredictorConfig(
+            num_embeddings=16, target_dim=8, max_len=seq_len_apta
+        )
+        prot_embedding = EncoderPredictorConfig(
+            num_embeddings=16, target_dim=8, max_len=seq_len_prot
+        )
+        model = AptaTrans(
+            apta_embedding=apta_embedding,
+            prot_embedding=prot_embedding,
+            in_dim=in_dim,
+            n_encoder_layers=2,
+            n_heads=4,
+            conv_layers=[2, 2, 2],
+        )
+
+        x_apta = torch.randint(0, 16, (batch_size, seq_len_apta), dtype=torch.long)
+        x_prot = torch.randint(0, 16, (batch_size, seq_len_prot), dtype=torch.long)
+
+        output = model(x_apta, x_prot)
+
+        assert output.shape == (batch_size, 1), (
+            f"Expected ({batch_size}, 1), got {tuple(output.shape)}. "
+            f"seq_len_apta={seq_len_apta}, seq_len_prot={seq_len_prot}"
+        )
+
 
 class MockAptaTransNeuralNet(nn.Module):
     """Mock AptaTrans model for testing pipeline."""

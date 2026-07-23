@@ -1,29 +1,36 @@
-"""Tests for molecule data loading module, toy data."""
+"""Tests for the molecule dataset loaders (load_1gnh, load_1brq, ...).
+
+The ``MoleculeLoader`` class itself is tested in ``pyaptamer/data/tests/``;
+here we only check that the dataset ``load_*`` functions return a usable
+loader.
+"""
 
 import pytest
 
 from pyaptamer.data.loader import MoleculeLoader
-from pyaptamer.datasets import load_1brq, load_1gnh, load_5nu7, load_pfoa
+from pyaptamer.datasets import load_1brq, load_1gnh, load_5nu7
 
-LOADERS = [
-    load_1gnh,
-    load_5nu7,
-    load_1brq,
-    load_pfoa,
-]
+# Molecule loaders that carry amino-acid sequences (have SEQRES records).
+SEQUENCE_LOADERS = [load_1gnh, load_5nu7, load_1brq]
 
 
-@pytest.mark.parametrize("loader", LOADERS)
-def test_loader_returns_molecule_loader(loader):
-    """Each loader should return a MoleculeLoader instance."""
+@pytest.mark.parametrize("loader", SEQUENCE_LOADERS)
+def test_sequence_loader_materializes(loader):
+    """Each protein loader returns a MoleculeLoader that materializes to data.
+
+    Calling ``to_dataframe()`` actually exercises the loader -- a bare
+    ``isinstance`` check would pass even on an unmigrated loader that errors
+    on materialization.
+    """
     mol = loader()
     assert isinstance(mol, MoleculeLoader)
+    assert not mol.to_dataframe().empty
 
 
-def test_loader_mol_to_df_seq():
-    """Test that loader's to_df_seq method works correctly."""
-    mol = load_1gnh()
-    df = mol.to_df_seq()
+def test_load_1gnh_to_dataframe():
+    """load_1gnh materializes to one row per chain (tiling='samples')."""
+    df = load_1gnh().to_dataframe()
+
+    # 1gnh has 10 chains -> 10 rows, single sequence column
     assert df.shape == (10, 1)
-    seq = df.iloc[0, 0]
-    assert seq.startswith("QTDMSRK")
+    assert df.iloc[0, 0].startswith("QTDMSRK")

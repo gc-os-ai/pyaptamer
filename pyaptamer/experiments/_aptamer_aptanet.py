@@ -2,6 +2,7 @@ __all__ = ["AptamerEvalAptaNet"]
 
 import numpy as np
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.experiments._aptamer import BaseAptamerEval
 
 
@@ -21,13 +22,17 @@ class AptamerEvalAptaNet(BaseAptamerEval):
     --------
     >>> import numpy as np
     >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.experiments import AptamerEvalAptaNet
     >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
     >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
-    >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
+    >>> X = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 5, "protein": [protein_seq] * 5}
+    ... )
     >>> labels = np.array([0] * 5, dtype=np.float32)
     >>> pipeline = AptaNetPipeline()
-    >>> pipeline.fit(pairs, labels)
+    >>> pipeline.fit(X, labels)  # doctest: +ELLIPSIS
+    AptaNetPipeline(...)
     >>> target = "ACDEFACDEFACDEFACDEFACDEFACDEFACDEFACDEF"
     >>> experiment = AptamerEvalAptaNet(target, pipeline)
     >>> aptamer_candidate = "AUGGC"
@@ -53,6 +58,9 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         np.float64
             The probability score assigned to the aptamer candidate.
         """
-        score = self.pipeline.predict_proba(X=[(aptamer_candidate, self.target)])
+        X = MoleculeLoader(
+            data={"aptamer": [aptamer_candidate], "protein": [self.target]}
+        )
+        score = self.pipeline.predict_proba(X=X)
 
         return np.float64(score[:, 1].item())  # return the positive class probability
