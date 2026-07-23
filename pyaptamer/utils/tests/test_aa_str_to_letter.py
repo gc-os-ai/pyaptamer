@@ -14,4 +14,5 @@ from pyaptamer.utils._aa_str_to_letter import aa_str_to_letter
     ],
 )
 def test_aa_str_to_letter(aa_str, expected):
+    """Check known codes, lowercase input, and unknown-code fallback."""
     assert aa_str_to_letter(aa_str) == expected
