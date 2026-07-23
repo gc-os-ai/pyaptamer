@@ -32,6 +32,8 @@ def dna2rna(sequence: str) -> str:
     str
         The converted RNA sequence.
     """
+    # normalize to uppercase for consistent translation and validation
+    sequence = sequence.upper()
     # replace nucleotides 'T' with 'U'
     result = sequence.translate(str.maketrans("T", "U"))
     result = "".join(char if char in _VALID_NUCLEOTIDES else "N" for char in result)
@@ -151,24 +153,22 @@ def rna2vec(
             triplets.get(sequence[i : i + 3], 0) for i in range(len(sequence) - 2)
         ]
 
-        # skip sequences that convert to an empty list
-        if any(converted):
-            # truncate if too long
-            if max_sequence_length is not None and len(converted) > max_sequence_length:
-                converted = converted[:max_sequence_length]
+        # truncate if too long
+        if max_sequence_length is not None and len(converted) > max_sequence_length:
+            converted = converted[:max_sequence_length]
 
-            # pad if too short
-            if max_sequence_length is not None:
-                pad_length = max_sequence_length - len(converted)
-                padded_sequence = np.pad(
-                    array=converted,
-                    pad_width=(0, pad_length),
-                    constant_values=0,
-                )
-            else:
-                padded_sequence = np.array(converted)
+        # pad if too short
+        if max_sequence_length is not None:
+            pad_length = max_sequence_length - len(converted)
+            padded_sequence = np.pad(
+                array=converted,
+                pad_width=(0, pad_length),
+                constant_values=0,
+            )
+        else:
+            padded_sequence = np.array(converted)
 
-            result.append(padded_sequence)
+        result.append(padded_sequence)
 
     return np.array(result)
 
@@ -182,21 +182,21 @@ def encode_rna(
 ):
     """Encode RNA sequences into their numerical representations.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    This function tokenizes RNA sequences using a greedy longest-match approach,
+    where longer nucleotide patterns are preferred over shorter ones. Sequences are
+    either truncated or zero-padded to `max_len` tokens.
 
     Parameters
     ----------
     sequences : list[str]
         List of RNA sequences to be encoded.
     words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
+        A dictionary mapping RNA n-mers to unique indices.
     max_len : int
         Maximum length of each encoded sequence. Sequences will be truncated
         or padded to this length.
     word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
+        Maximum length of nucleotide patterns to consider during tokenization.
     return_type : str, optional, default="tensor"
         The type of the returned encoded sequences.
 
@@ -215,12 +215,13 @@ def encode_rna(
     >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
-    # handle single protein input
+    # handle single input
     if isinstance(sequences, str):
         sequences = [sequences]
 
     encoded_sequences = []
     for seq in sequences:
+        seq = seq.upper()  # ensure case-insensitivity
         tokens = []
         i = 0
 
