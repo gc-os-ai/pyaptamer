@@ -1,7 +1,10 @@
 """Base transformation class."""
 
+__author__ = ["fkiraly", "siddharth7113"]
+
 import pandas as pd
 from skbase.base import BaseEstimator
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
 from pyaptamer.data import MoleculeLoader
 
@@ -38,11 +41,12 @@ class BaseTransform(BaseEstimator):
         self : object
             Returns self.
         """
-        if self.get_tag("property:fit_is_empty", False):
-            return self
-
         X_inner, y_inner = self._check_X_y(X, y)
-        self._fit(X=X_inner, y=y_inner)
+
+        if not self.get_tag("property:fit_is_empty", False):
+            self._fit(X=X_inner, y=y_inner)
+
+        self._is_fitted = True
         return self
 
     def _fit(self, X, y=None):
@@ -77,7 +81,13 @@ class BaseTransform(BaseEstimator):
         -------
         X : array-like, shape (n_samples, n_features_transformed)
             Transformed data.
+
+        Raises
+        ------
+        NotFittedError
+            If ``fit`` has not been called before.
         """
+        self.check_is_fitted(method_name="transform")
         X_inner = self._check_X(X)
         Xt = self._transform(X=X_inner)
         return Xt
@@ -141,6 +151,30 @@ class BaseTransform(BaseEstimator):
             Transformed data.
         """
         return self.fit(X, y).transform(X)
+
+    def __sklearn_tags__(self):
+        """Return the sklearn tags of this transformer.
+
+        ``BaseTransform`` extends skbase's ``BaseEstimator``,so
+        sklearn has no ``__sklearn_tags__`` to inherit. This adds the tags
+        directly, so meta-estimators such as ``sklearn.pipeline.Pipeline`` can
+        introspect transformers.
+
+        Returns
+        -------
+        tags : sklearn.utils.Tags
+            Tags describing this transformer to sklearn.
+        """
+        return Tags(
+            estimator_type="transformer",
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(),
+            classifier_tags=None,
+            regressor_tags=None,
+            # X is a MoleculeLoader or a pd.DataFrame of sequence strings,
+            # never a numeric 2D array
+            input_tags=InputTags(two_d_array=False, string=True),
+        )
 
     def _check_X_y(self, X, y):  # noqa: N802
         """Check X and y inputs.
