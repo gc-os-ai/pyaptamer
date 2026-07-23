@@ -19,7 +19,9 @@ AMINO_ACIDS = list("ACDEFGHIKLMNPQRSTVWY")
 
 def clean_protein_seq(seq):
     """
-    Replace invalid amino acids with "N" and warn the user.
+    Normalize valid amino acids to uppercase.
+
+    Invalid amino acids are replaced with "N" and trigger a warning.
 
     Parameters
     ----------
@@ -29,15 +31,15 @@ def clean_protein_seq(seq):
     Returns
     -------
     str
-        Cleaned protein sequence where all invalid characters have been replaced
-        with "N".
+        Cleaned protein sequence where valid amino acids have been uppercased and
+        invalid characters have been replaced with "N".
     """
     import warnings
 
     cleaned = []
     invalid_found = False
 
-    for aa in seq:
+    for aa in seq.upper():
         if aa in AMINO_ACIDS:
             cleaned.append(aa)
         else:
