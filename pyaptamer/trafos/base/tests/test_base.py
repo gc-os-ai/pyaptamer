@@ -130,7 +130,8 @@ def test_not_fitted_before_fit(cls):
 def test_sklearn_tags(cls):
     """sklearn reads tags off a transformer instead of falling back to defaults."""
     est = cls.create_test_instance()
-    with warnings.catch_warnings(action="error", category=DeprecationWarning):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
         tags = get_tags(est)
     assert isinstance(tags, Tags)
     assert tags.estimator_type == "transformer"
