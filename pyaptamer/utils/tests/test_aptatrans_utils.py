@@ -1,5 +1,7 @@
 """Tests for seq2vec."""
 
+import numpy as np
+
 from pyaptamer.utils._aptatrans_utils import seq2vec
 
 
@@ -11,20 +13,22 @@ def test_seq2vec_empty_input_returns_zero_shaped_arrays():
 
 
 def test_seq2vec_splits_sequences_longer_than_seq_max_len():
-    """Check a sequence longer than seq_max_len is split across multiple rows."""
-    words = {"A": 1}
-    sequences = (["AAAAA"], ["HHHHH"])
+    """Check seq2vec splits and encodes a sequence longer than seq_max_len correctly."""
+    words = {"A": 1, "C": 2}
+    sequences = (["ACACA"], ["HBEGI"])
+
     seq_out, ss_out = seq2vec(sequences, words, seq_max_len=2)
-    assert seq_out.shape[1] == 2
-    assert seq_out.shape[0] == 3
+
+    np.testing.assert_array_equal(seq_out, [[1, 2], [1, 2], [1, 0]])
+    np.testing.assert_array_equal(ss_out, [[1, 2], [3, 4], [5, 0]])
 
 
 def test_seq2vec_skips_unmatched_characters():
-    """Check a character with no vocabulary match is skipped rather than erroring."""
-    # "Z" is not in the vocabulary at word lengths 1-3, forcing the
-    # "skip character if no match found" branch (i += 1) to execute.
-    words = {"A": 1}
-    sequences = (["AZA"], ["HHH"])
-    seq_out, _ = seq2vec(sequences, words, seq_max_len=5)
-    # only the two "A" tokens match; "Z" is skipped entirely
-    assert seq_out[0].tolist()[:2] == [1.0, 1.0]
+    """Check a character with no vocabulary match is skipped, not zero-padded."""
+    words = {"A": 1, "C": 2}
+    sequences = (["ACZCA"], ["HBEGI"])
+
+    seq_out, ss_out = seq2vec(sequences, words, seq_max_len=3)
+
+    np.testing.assert_array_equal(seq_out, [[1, 2, 2], [1, 0, 0]])
+    np.testing.assert_array_equal(ss_out, [[1, 2, 4], [5, 0, 0]])
