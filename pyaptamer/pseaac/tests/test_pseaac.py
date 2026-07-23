@@ -1,5 +1,7 @@
 __author__ = "satvshr"
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -137,3 +139,18 @@ def test_pseaac_indivisible_group_props():
     """Error message must be readable when group_props doesn't divide n_props."""
     with pytest.raises(ValueError, match="divisible by group_props"):
         PSeAAC(prop_indices=[0, 1, 2, 3, 4], group_props=3)
+
+
+@pytest.mark.parametrize("PCLASS", [PSeAAC, AptaNetPSeAAC])
+def test_pseaac_is_case_insensitive(PCLASS):
+    seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQ"
+    encoder = PCLASS()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        lower = encoder.transform(seq.lower())
+
+    upper = encoder.transform(seq)
+
+    assert np.array_equal(lower, upper)
+    assert caught == []
