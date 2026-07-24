@@ -70,3 +70,4 @@ pyaptamer = [
 
 [tool.ruff.lint.per-file-ignores]
 "examples/*.ipynb" = ["T201"]
+"build_tools/*.py" = ["T201"]
