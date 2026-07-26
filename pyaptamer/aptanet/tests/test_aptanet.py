@@ -1,4 +1,4 @@
-__author__ = ["nennomp", "satvshr"]
+__author__ = ["nennomp", "satvshr", "siddharth7113"]
 
 
 import numpy as np
@@ -6,6 +6,7 @@ import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
+from pyaptamer.data import MoleculeLoader
 
 params = [
     (
@@ -13,6 +14,13 @@ params = [
         "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY",
     )
 ]
+
+
+def _make_loader(aptamer_seq, protein_seq, n):
+    """Build a MoleculeLoader of n identical aptamer/protein pairs."""
+    return MoleculeLoader(
+        data={"aptamer": [aptamer_seq] * n, "protein": [protein_seq] * n}
+    )
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
@@ -23,7 +31,7 @@ def test_pipeline_fit_and_predict_classification(aptamer_seq, protein_seq):
     """
     pipe = AptaNetPipeline(k=4)
 
-    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    X_raw = _make_loader(aptamer_seq, protein_seq, 40)
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
     pipe.fit(X_raw, y)
@@ -41,7 +49,7 @@ def test_pipeline_fit_and_predict_proba(aptamer_seq, protein_seq):
     """
     pipe = AptaNetPipeline()
 
-    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    X_raw = _make_loader(aptamer_seq, protein_seq, 40)
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
 
     pipe.fit(X_raw, y)
@@ -60,7 +68,7 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     """
     pipe = AptaNetPipeline(estimator=AptaNetRegressor())
 
-    X_raw = [(aptamer_seq, protein_seq) for _ in range(40)]
+    X_raw = _make_loader(aptamer_seq, protein_seq, 40)
     y = np.linspace(0, 1, 40).astype(np.float32)
 
     pipe.fit(X_raw, y)
@@ -68,6 +76,26 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
 
     assert preds.shape == (40,)
     assert np.issubdtype(preds.dtype, np.floating)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_seq):
+    """A FASTA-sourced loader yields the same features as the in-memory loader."""
+    from pyaptamer.aptanet._transforms import PairsToFeatures
+
+    fasta = tmp_path / "library.fasta"
+    fasta.write_text(f">apt1\n{aptamer_seq}\n>apt2\n{aptamer_seq}\n")
+
+    from_file = MoleculeLoader(
+        data={"aptamer": [str(fasta)], "protein": [protein_seq]}, tiling="samples"
+    )
+    in_memory = _make_loader(aptamer_seq, protein_seq, 2)
+
+    feats_file = PairsToFeatures().fit_transform(from_file)
+    feats_mem = PairsToFeatures().fit_transform(in_memory)
+
+    assert feats_file.shape == feats_mem.shape
+    assert np.allclose(feats_file.to_numpy(), feats_mem.to_numpy())
 
 
 @parametrize_with_checks(

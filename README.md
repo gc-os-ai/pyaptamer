@@ -22,8 +22,6 @@
 - 🛠️ Easily extendable with plugins
 - 📦 Minimal dependencies
 
-NOTE: the package is in early development, API is unstable and not 100% features are complete - contributions appreciated!
-
 ---
 
 ## 🛠️ Usage
@@ -84,14 +82,16 @@ Contributions and participation are subject to the GC.OS Code of Conduct.
 The package is maintained in collaboration between [ecoSPECS](https://ecospecs.de/en/) and the [German Center for Open Source AI](https://gcos.ai/).
 
 * German Center for Open Source AI
-    * Franz Kiraly ([@fkiraly](https://www.github.com/fkiraly)) - primary point of contact (package)
-    * Simon Blanke ([@simonblanke](https://www.github.com/simonblanke))
+    * Franz Kiraly ([@fkiraly](https://www.github.com/fkiraly))
+    * Siddharth ([@siddharth7113](https://www.github.com/siddharth7113)) - primary point of contact (package)
 * ecoSPECS
     * Dennis Kubiczek ([@KubiczekD](https://www.github.com/KubiczekD)) - primary point of contact (domain/aptamers)
-    * Fatih Yolcu ([@fat1hy0](https://www.github.com/fat1hy0))
-    * Jakob Birke ([@jabirke](https://www.github.com/jabirke))
-    * Kerstin Moser ([@KerstinMoser](https://www.github.com/KerstinMoser))
+    * Jakob Birke ([@jabirke](https://www.github.com/jabirke)) -  (domain/aptamers)
 * European Summer of Code contributors 2025
     * Matteo Pinna ([@nennomp](https://www.github.com/nennomp))
     * Satvik Mishra ([@satvshr](https://www.github.com/satvshr))
     * Siddharth ([@siddharth7113](https://www.github.com/siddharth7113))
+* European Summer of Code contributors 2026
+    * Aditi Bindal ([@aditi-dsi](https://github.com/aditi-dsi))
+    * Allen Y ([@Alleny244](https://github.com/Alleny244)))
+    * Nour Majdoub ([@NoorMajdoub](https://github.com/NoorMajdoub))

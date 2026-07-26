@@ -148,7 +148,7 @@ class BaseTransform(BaseEstimator):
         Coerces X to a pd.DataFrame.
         """
         if isinstance(X, MoleculeLoader):
-            X = X.to_df_seq()
+            X = X.to_dataframe()
         if not isinstance(X, pd.DataFrame):
             raise TypeError(
                 "X must be a MoleculeLoader instance"
