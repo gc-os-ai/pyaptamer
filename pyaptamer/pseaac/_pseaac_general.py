@@ -127,7 +127,7 @@ class PSeAAC:
 
         if group_props is not None and custom_groups is not None:
             raise ValueError(
-                "Specify only one of `group_props` or `custom_groups`,not both."
+                "Specify only one of `group_props` or `custom_groups`, not both."
             )
 
         self.np_matrix = aa_props(
@@ -148,7 +148,7 @@ class PSeAAC:
         else:
             if self._n_cols % group_props != 0:
                 raise ValueError(
-                    f"Number of properties ({self._n_cols}) must be divisible by"
+                    f"Number of properties ({self._n_cols}) must be divisible by "
                     f"group_props ({group_props})."
                 )
             self.prop_groups = [
@@ -219,12 +219,6 @@ class PSeAAC:
         protein_sequence : str
             The input protein sequence consisting of valid amino acid characters
             (A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y).
-        lambda_val : int, default=30
-            The maximum distance between residues considered in the sequence-order
-            correlation (θ) calculations.
-        weight : float, default=0.15
-            The weight factor that balances the contribution of sequence-order
-            correlation features relative to amino acid composition features.
 
         Returns
         -------

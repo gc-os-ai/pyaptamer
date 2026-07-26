@@ -203,5 +203,8 @@ pyaptamer/datasets/data/proteins-shin2023.csv
 # Model weights files
 pyaptamer/aptatrans/weights/pretrained.pt
 
+# Sphinx autosummary generated stubs
+docs/source/generated/
+
 # For macOS
 .DS_Store
