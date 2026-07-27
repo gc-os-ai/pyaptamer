@@ -4,7 +4,6 @@ __author__ = ["fkiraly", "siddharth7113"]
 
 import pandas as pd
 from skbase.base import BaseEstimator
-from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
 from pyaptamer.data import MoleculeLoader
 
@@ -151,30 +150,6 @@ class BaseTransform(BaseEstimator):
             Transformed data.
         """
         return self.fit(X, y).transform(X)
-
-    def __sklearn_tags__(self):
-        """Return the sklearn tags of this transformer.
-
-        ``BaseTransform`` extends skbase's ``BaseEstimator``,so
-        sklearn has no ``__sklearn_tags__`` to inherit. This adds the tags
-        directly, so meta-estimators such as ``sklearn.pipeline.Pipeline`` can
-        introspect transformers.
-
-        Returns
-        -------
-        tags : sklearn.utils.Tags
-            Tags describing this transformer to sklearn.
-        """
-        return Tags(
-            estimator_type="transformer",
-            target_tags=TargetTags(required=False),
-            transformer_tags=TransformerTags(),
-            classifier_tags=None,
-            regressor_tags=None,
-            # X is a MoleculeLoader or a pd.DataFrame of sequence strings,
-            # never a numeric 2D array
-            input_tags=InputTags(two_d_array=False, string=True),
-        )
 
     def _check_X_y(self, X, y):  # noqa: N802
         """Check X and y inputs.

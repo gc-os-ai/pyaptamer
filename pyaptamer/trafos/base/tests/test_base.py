@@ -1,14 +1,12 @@
 """Contract tests for BaseTransform descendants.
 
-Checks the fitted-state and sklearn tag contract against every transformer in
-the package:
+Checks the fitted-state contract against every transformer in the package:
 
     test_scenario_applies             - every transformer is matched by a scenario
     test_not_fitted_before_fit        - is_fitted is False before fit
     test_raises_not_fitted_error      - transform before fit raises NotFittedError
     test_fit_sets_is_fitted           - fit sets is_fitted and returns self
     test_fit_transform_sets_is_fitted - fit_transform leaves the state fitted
-    test_sklearn_tags                 - sklearn reads tags off the transformer
 
 Transformers are discovered with ``all_objects``, and the input each is checked
 against comes from a scenario, after sktime's test design: a scenario supplies
@@ -22,13 +20,10 @@ taking a new kind of input needs a new scenario class.
 
 __author__ = ["siddharth7113"]
 
-import warnings
-
 import pandas as pd
 import pytest
 from skbase._exceptions import NotFittedError
 from skbase.lookup import all_objects
-from sklearn.utils import Tags, get_tags
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.base import BaseTransform
@@ -126,21 +121,9 @@ def test_not_fitted_before_fit(cls):
         est.check_is_fitted()
 
 
-@pytest.mark.parametrize("cls", _transformers(), ids=lambda cls: cls.__name__)
-def test_sklearn_tags(cls):
-    """sklearn reads tags off a transformer instead of falling back to defaults."""
-    est = cls.create_test_instance()
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", DeprecationWarning)
-        tags = get_tags(est)
-    assert isinstance(tags, Tags)
-    assert tags.estimator_type == "transformer"
-    assert tags.transformer_tags is not None
-
-
 @pytest.mark.parametrize("cls, scenario", _cases())
 def test_raises_not_fitted_error(cls, scenario):
-    """transform before fit raises NotFittedError, not a bare AttributeError."""
+    """transform before fit raises NotFittedError"""
     est = cls.create_test_instance()
     with pytest.raises(NotFittedError, match="has not been fitted"):
         est.transform(**scenario.args["transform"])

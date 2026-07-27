@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=2.3.3",
     "scikit-base",
     "torch>=2.12.1",
+    # <1.8.0: transformers lack __sklearn_tags__ (extend skbase); 1.8 errors. #735
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
@@ -77,3 +78,9 @@ omit = [
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # transformers lack __sklearn_tags__; deferred, sklearn<1.8.0 pin guards. #735
+    "ignore:.*__sklearn_tags__.*:DeprecationWarning",
+]
