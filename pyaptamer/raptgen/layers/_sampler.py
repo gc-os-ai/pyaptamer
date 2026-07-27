@@ -16,11 +16,9 @@ class ProfileHMMSampler:
     """
     Sampler class for generation of aptamer sequences from the dcoder hmm probabilites 
     Takes the transition and emission probabilities produced by
-`DecoderPHMM`/`DecoderPHMM_fast` and uses them to generate concrete
-A/T/G/C sequences, either by random sampling (`sample`) or by taking
-the most likely path through the model (`most_probable`). Also
-supports scoring how well a given sequence fits the model
-(`calc_seq_proba`), via the profile HMM forward algorithm.
+`DecoderPHMM` and uses them to generate concrete A/T/G/C sequences.
+Generation mechanisms are random sampling or the most likely path through the model. 
+Supports scoring how well a given sequence fits the model via the profile HMM forward algorithm.
 
 Parameters
 ----------
