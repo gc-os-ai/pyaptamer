@@ -83,6 +83,21 @@ class VAE(nn.Module):
 
 
 class CNN_PHMM_VAE(VAE):  # noqa: N801
+    """Raptgen algorithm for unsupervsed aptamer seqeunces generation.
+    Implements the raptegen main architecture via a CNN based encoder and profile HMM b
+    Parameters
+    ----------
+   motif len: int,optional 
+   Length of the aptamer squence being modeled/generated
+   embed size : int optional default 10
+   hidden size
+   kernel size: Convolution  kernel (window) size usd in the cnn encoder,must be an odd number
+
+    Attributes
+    ----------
+       encoder the cnn based encoder that maps the input seqeunce to hidden space
+       decode the hmm based decoder that reconstructs aptamer from the learned distribution
+       """
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
         decoder = DecoderPHMM(motif_len, embed_size)
@@ -92,6 +107,10 @@ class CNN_PHMM_VAE(VAE):  # noqa: N801
 
 
 class CNN_PHMM_VAE_FAST(VAE):  # noqa: N801
+    """RaptGen algorithm for unsupervised aptamer sequence generation.
+    Same as `CNN_PHMM_VAE`, but uses `DecoderPHMM_fast` and its matching
+    loss function `profile_hmm_loss_fn_fast` for faster training.
+    """
     def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
         encoder = EncoderCNN(hidden_size, kernel_size)
         decoder = DecoderPHMM_fast(motif_len, embed_size, hidden_size=hidden_size)
