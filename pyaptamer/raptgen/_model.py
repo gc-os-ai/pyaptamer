@@ -26,8 +26,7 @@ class VAE(nn.Module):
         in the inheritent class
         
     decoder : torch.nn.Module
-        The decoder module that reconstructs/generate new sequences from the latent space of shape (batch size,embed size)
-     
+        The decoder module that reconstructs/generate new sequences from the latent space of shape (batch size,embed size
 
     embed_size : int, optional, default=10
         The dimensionality of the generated sequence
@@ -50,12 +49,6 @@ class VAE(nn.Module):
     h2logvar : torch.nn.Linear
         Linear layer that maps hidden representation to log-variance (logvar)
         of the latent distribution. Maps from `hidden_size` to `embed_size`.
-
-    Notes
-    -----
-    The VAE uses the reparameterization trick to enable backpropagation through
-    the stochastic sampling process. The model minimizes a combination of
-    reconstruction loss and KL divergence loss, and ensure non determinisme in generated sequences
     """
     def __init__(self, encoder, decoder, embed_size=10, hidden_size=32):
         super().__init__()
@@ -84,13 +77,14 @@ class VAE(nn.Module):
 
 class CNN_PHMM_VAE(VAE):  # noqa: N801
     """Raptgen algorithm for unsupervsed aptamer seqeunces generation.
-    Implements the raptegen main architecture via a CNN based encoder and profile HMM b
+    Implements the raptegen main architecture via a CNN based encoder and profile HMM based decoder.
+    
     Parameters
     ----------
    motif len: int,optional 
    Length of the aptamer squence being modeled/generated
-   embed size : int optional default 10
-   hidden size
+   
+   embed size : int optional 
    kernel size: Convolution  kernel (window) size usd in the cnn encoder,must be an odd number
 
     Attributes
