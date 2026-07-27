@@ -13,6 +13,50 @@ from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss
 
 
 class VAE(nn.Module):
+    """Variational Autoencoder generic base class for Raptgen VAE variants.
+
+    Implements the base VAE architecture shared by the RaptGen VAE variants, handles the
+    projection from the encoders hidden representation to the latent space, reconstructs points in the latent space 
+    via reparameterization mecanism (mean, variance and added random noise) to be used by the decoder for generation.
+
+    Parameters
+    ----------
+    encoder : torch.nn.Module
+        The encoder module that maps input data to hidden representations of shape (batch_size,hidden_size),concrete implementation
+        in the inheritent class
+        
+    decoder : torch.nn.Module
+        The decoder module that reconstructs/generate new sequences from the latent space of shape (batch size,embed size)
+     
+
+    embed_size : int, optional, default=10
+        The dimensionality of the generated sequence
+
+    hidden_size : int, optional, default=32
+        The size of the intermediate hidden reresentaation shared between the encoder output and decoder input layer
+
+    Attributes
+    ----------
+    encoder : torch.nn.Module
+        The encoder module.
+
+    decoder : torch.nn.Module
+        The decoder module.
+
+    h2mu : torch.nn.Linear
+        Linear layer that maps hidden representation to mean (mu) of the 
+        latent distribution. Maps from `hidden_size` to `embed_size`.
+
+    h2logvar : torch.nn.Linear
+        Linear layer that maps hidden representation to log-variance (logvar)
+        of the latent distribution. Maps from `hidden_size` to `embed_size`.
+
+    Notes
+    -----
+    The VAE uses the reparameterization trick to enable backpropagation through
+    the stochastic sampling process. The model minimizes a combination of
+    reconstruction loss and KL divergence loss, and ensure non determinisme in generated sequences
+    """
     def __init__(self, encoder, decoder, embed_size=10, hidden_size=32):
         super().__init__()
 
