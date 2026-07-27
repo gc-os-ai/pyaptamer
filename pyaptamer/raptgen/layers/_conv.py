@@ -16,7 +16,7 @@ dimension space via a 1x1 convolution layer then captures the
 features with a 7x7 convolution layer (7x7 by default, configurable via window_size) then project back down into the initial dimension.
     Parameters
     ----------
-    init_dim : : int, optional, default=32 
+    init_dim :  int, optional, default=32 
     Number of input/output channels. The intermediate convolutions use init_dim * 2 channels.
     
     window_size : int, optional, default=7
