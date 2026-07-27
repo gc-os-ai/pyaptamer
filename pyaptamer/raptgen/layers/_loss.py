@@ -24,18 +24,20 @@ logger = logging.getLogger(__name__)
 
 
 def kld_loss(mu, logvar):
+    """Compute the KL-divergence loss term for a VAE's latent distribution."""
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / mu.shape[0]
     return KLD
 
 
 def ce_loss(recon_param, input):
+    """Compute cross-entropy reconstruction loss."""
     CE = F.cross_entropy(recon_param, input, reduction="sum") / input.shape[0]
     return CE
 
 
 def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
+    """Compute the profile HMM reconstruction loss via the forward algorithm."""
     batch_size, random_len = input.shape
-
     a, e_m = recon_param
     motif_len = e_m.shape[1]
 
@@ -119,6 +121,7 @@ def profile_hmm_loss_fn(
     force_matching=False,
     match_cost=5,
 ):
+    """Combined VAE training loss for `CNN_PHMM_VAE`"""
     phmmloss = profile_hmm_loss(
         recon_param, input, force_matching=force_matching, match_cost=match_cost
     )
@@ -142,6 +145,7 @@ def profile_hmm_loss_fn_fast(
     force_matching=False,
     match_cost=5,
 ):
+    """Combined VAE training loss for `CNN_PHMM_VAE_FAST`"""
     phmmloss = torch_multi_polytope_dp_log(
         *recon_param, input, force_matching, match_cost
     )
