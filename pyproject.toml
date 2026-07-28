@@ -19,7 +19,7 @@ dependencies = [
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.12.1",
+    "torch>=2.13.0",
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
