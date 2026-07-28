@@ -1,5 +1,7 @@
 """Base transformation class."""
 
+__author__ = ["fkiraly", "siddharth7113"]
+
 import pandas as pd
 from skbase.base import BaseEstimator
 
@@ -38,11 +40,12 @@ class BaseTransform(BaseEstimator):
         self : object
             Returns self.
         """
-        if self.get_tag("property:fit_is_empty", False):
-            return self
-
         X_inner, y_inner = self._check_X_y(X, y)
-        self._fit(X=X_inner, y=y_inner)
+
+        if not self.get_tag("property:fit_is_empty", False):
+            self._fit(X=X_inner, y=y_inner)
+
+        self._is_fitted = True
         return self
 
     def _fit(self, X, y=None):
@@ -77,7 +80,13 @@ class BaseTransform(BaseEstimator):
         -------
         X : array-like, shape (n_samples, n_features_transformed)
             Transformed data.
+
+        Raises
+        ------
+        NotFittedError
+            If ``fit`` has not been called before.
         """
+        self.check_is_fitted(method_name="transform")
         X_inner = self._check_X(X)
         Xt = self._transform(X=X_inner)
         return Xt
