@@ -1,4 +1,4 @@
-__author__ = ["satvshr", "fkiraly"]
+__author__ = ["satvshr", "fkiraly", "siddhart7113"]
 __all__ = ["load_1gnh"]
 
 import os
@@ -16,7 +16,7 @@ def load_1gnh():
 
     pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
 
-    return MoleculeLoader(pdb_path)
+    return MoleculeLoader(data={"sequence": [pdb_path]}, tiling="samples")
 
 
 # This function is provided only to test struct_to_aaseq.

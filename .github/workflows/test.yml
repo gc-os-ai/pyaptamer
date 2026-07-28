@@ -162,4 +162,4 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m pytest pyaptamer -p no:warnings
+          python -m pytest pyaptamer -p no:warnings --cov=pyaptamer --cov-report=term-missing

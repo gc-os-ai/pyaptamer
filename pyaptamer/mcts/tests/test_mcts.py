@@ -368,3 +368,27 @@ class TestMCTS:
         # length of sequence should be 2 * 5 (i.e., 2 * 5) as it still contains
         # the underscores
         assert len(candidate["sequence"]) == 10
+
+    def test_run_return_dict_keys(self, mcts):
+        """Verify that run() returns exactly the three documented keys."""
+        result = mcts.run(verbose=False)
+        assert set(result.keys()) == {"candidate", "sequence", "score"}
+        assert isinstance(result["candidate"], str)
+        assert isinstance(result["sequence"], str)
+
+    def test_repr(self, mcts):
+        """Verify __repr__ config details and handles experiment."""
+        # Test without experiment
+        mcts_no_exp = MCTS(depth=10, n_iterations=500)
+        r_no_exp = repr(mcts_no_exp)
+        assert "MCTS(" in r_no_exp
+        assert "depth=10" in r_no_exp
+        assert "n_iterations=500" in r_no_exp
+        assert "n_states=8" in r_no_exp
+        assert "experiment=None" in r_no_exp
+
+        # Test with experiment (using fixture)
+        r_with_exp = repr(mcts)
+        assert "MCTS(" in r_with_exp
+        assert "experiment=" in r_with_exp
+        assert "None" not in r_with_exp
