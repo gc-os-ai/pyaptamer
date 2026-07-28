@@ -9,12 +9,13 @@ from torch import nn
 
 
 def one_hot_index(seq):
-     """Convert a nucleotide sequence string into a list of integer indices."""
+    """Convert a nucleotide sequence string into a list of integer indices."""
     return [int(nt_index[char]) for char in seq]
 
 
 class nt_index(IntEnum):  # noqa: N801
     """Nucleotide-to-integer index mapping."""
+
     A = 0
     T = 1
     G = 2
@@ -27,6 +28,7 @@ class nt_index(IntEnum):  # noqa: N801
 
 class State(IntEnum):
     """HMM states: Match, Insert, Delete."""
+
     M = 0
     I = 1  # noqa: E741
     D = 2
@@ -34,6 +36,7 @@ class State(IntEnum):
 
 class Transition(IntEnum):
     """HMM state-transition types."""
+
     M2M = 0
     M2I = 1
     M2D = 2
@@ -52,6 +55,7 @@ class View(nn.Module):
     shape : tuple
       Target shape to reshape input to.
     """
+
     def __init__(self, shape):
         super().__init__()
         self.shape = (shape,)

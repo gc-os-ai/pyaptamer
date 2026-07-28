@@ -1,16 +1,7 @@
 """Tests for the raptgen.layers module"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = [
-    "test_bottleneck_layers",
-    "test_bottleneck_forward",
-    "test_encodercnn_layers",
-    "test_encodercnn_forward",
-    "test_decoderphmm_layers",
-    "test_decoderphmm_forward",
-    "test_cnn_phmm_vae_layers",
-    "test_cnn_phmm_vae_forward",
-]
+
 
 import pytest
 import torch
@@ -25,7 +16,9 @@ from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 
 @pytest.mark.parametrize("init_dim, window_size", [(8, 3), (16, 5), (32, 7)])
 def test_bottleneck_layers(init_dim, window_size):
-    """Check Bottleneck() initializes its conv and batchnorm layers correctly"""
+    """
+    Checks that `Bottleneck` initializes its conv and batchnorm layers correctly.
+    """
     block = Bottleneck(init_dim=init_dim, window_size=window_size)
 
     assert isinstance(block.conv1, nn.Conv1d)
@@ -58,7 +51,7 @@ def test_bottleneck_layers(init_dim, window_size):
 )
 def test_bottleneck_forward(init_dim, window_size, x):
     """
-    Test the forward pass of the Bottleneck residual block (Shape must not change)
+    Tests the forward pass of the `Bottleneck` residual block (Shape must not change).
     """
     block = Bottleneck(init_dim=init_dim, window_size=window_size)
     out = block(x)
@@ -78,7 +71,7 @@ def test_bottleneck_rejects_even_window_size():
 )
 def test_encodercnn_layers(embedding_dim, window_size, num_layers):
     """
-    Check EncoderCNN embedding and layers initialization
+    Checks `EncoderCNN` embedding and layers initialization.
     """
     encoder = EncoderCNN(
         embedding_dim=embedding_dim, window_size=window_size, num_layers=num_layers
@@ -99,7 +92,7 @@ def test_encodercnn_layers(embedding_dim, window_size, num_layers):
 )
 def test_encodercnn_forward(embedding_dim, num_layers, batch_size, seq_len):
     """
-    Test the forward pass of EncoderCNN (Output shape)
+    Tests the forward pass of `EncoderCNN` (Output shape)
     """
     encoder = EncoderCNN(embedding_dim=embedding_dim, num_layers=num_layers)
     x = torch.randint(low=0, high=4, size=(batch_size, seq_len))
@@ -113,7 +106,7 @@ def test_encodercnn_forward(embedding_dim, num_layers, batch_size, seq_len):
 )
 def test_decoderphmm_layers(motif_len, embed_size, hidden_size):
     """
-    Check DecoderPHMM initializes its layers correctly
+    Checks that `DecoderPHMM` initializes its layers correctly.
     """
     decoder = DecoderPHMM(
         motif_len=motif_len, embed_size=embed_size, hidden_size=hidden_size
@@ -130,7 +123,7 @@ def test_decoderphmm_layers(motif_len, embed_size, hidden_size):
 )
 def test_decoderphmm_forward(motif_len, embed_size, hidden_size, batch_size):
     """
-    Test the forward pass of DecoderPHMM (check output shapes)
+    Tests the forward pass of `DecoderPHMM` (checks output shapes).
     """
     decoder = DecoderPHMM(
         motif_len=motif_len, embed_size=embed_size, hidden_size=hidden_size
@@ -148,7 +141,7 @@ def test_decoderphmm_forward(motif_len, embed_size, hidden_size, batch_size):
 )
 def test_cnn_phmm_vae_layers(motif_len, embed_size, hidden_size, kernel_size):
     """
-    Check CNN_PHMM_VAE builds the correct encoder/decoder and loss_fn
+    Checks that `CNN_PHMM_VAE` builds the correct encoder/decoder and loss function.
     """
     model = CNN_PHMM_VAE(
         motif_len=motif_len,
@@ -173,7 +166,7 @@ def test_cnn_phmm_vae_forward(
     motif_len, embed_size, hidden_size, kernel_size, batch_size, seq_len
 ):
     """
-    Test the forward pass of CNN_PHMM_VAE
+    Tests the forward pass of CNN_PHMM_VAE.
     """
     model = CNN_PHMM_VAE(
         motif_len=motif_len,

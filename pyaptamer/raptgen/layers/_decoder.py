@@ -8,35 +8,38 @@ from torch import nn
 
 
 class DecoderPHMM(nn.Module):
-    """ 
+    """
     RaptGen profile HMM decoder for aptamer unsupervised generation.
     Reconstructs/generates aptamer sequences from a latent point sampled
-from the encoder's learned distribution. Works by predicting the
-parameters of a profile Hidden Markov Model (HMM), per-position transition and
-emission probabilities of the nucleotides for the entire sequence in a forward pass.
+    from the encoder's learned distribution. Works by predicting the
+    parameters of a profile Hidden Markov Model (HMM), per-position transition and
+    emission probabilities of the nucleotides for the entire
+    sequence in a forward pass.
     Parameters
-    ---------- 
-    motif_len : int 
-        The length of the aptamer sequences being modeled/generated. 
-    
-    embed_size : int 
-        The dimensionality of the input latent space. 
-    
-    hidden_size : int, optional, default=32 
+    ----------
+    motif_len : int
+        The length of the aptamer sequences being modeled/generated.
+
+    embed_size : int
+        The dimensionality of the input latent space.
+
+    hidden_size : int, optional, default=32
         The size of the shared hidden representation.
 
-    Attributes 
-    ---------- 
+    Attributes
+    ----------
 
-    fc1 : nn.Sequential 
-        Projects the latent point to the shared hidden representation. 
-    
-    tr_from_M, tr_from_I, tr_from_D : nn.Sequential 
-        Predict transition probabilities out of the Match, Insert, and Delete states depending on how many transitions are possible from that state. 
-    
-    emission : nn.Sequential 
+    fc1 : nn.Sequential
+        Projects the latent point to the shared hidden representation.
+
+    tr_from_M, tr_from_I, tr_from_D : nn.Sequential
+        Predict transition probabilities out of the Match, Insert, and Delete
+        states depending on how many transitions are possible from that state.
+
+    emission : nn.Sequential
         Predicts per-position emission probabilities over the 4 nucleotides.
     """
+
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
 
@@ -112,9 +115,10 @@ emission probabilities of the nucleotides for the entire sequence in a forward p
 class DecoderPHMM_fast(nn.Module):  # noqa: N801
     """
     Optimized version of DecoderPHMM, but computes all state
-    transitions (Match/Insert/Delete) as a single combined 3x3 transition 
+    transitions (Match/Insert/Delete) as a single combined 3x3 transition
     tensor per position, instead of three separate transition sub-networks.
     """
+
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
 

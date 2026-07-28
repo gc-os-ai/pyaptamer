@@ -14,33 +14,34 @@ logger = logging.getLogger(__name__)
 
 class ProfileHMMSampler:
     """
-    Sampler class for generation of aptamer sequences from the dcoder hmm probabilites 
+    Sampler class for generation of aptamer sequences from the dcoder hmm probabilites
     Takes the transition and emission probabilities produced by
-`DecoderPHMM` and uses them to generate concrete A/T/G/C sequences.
-Generation mechanisms are random sampling or the most likely path through the model. 
-Supports scoring how well a given sequence fits the model via the profile HMM forward algorithm.
+    `DecoderPHMM` and uses them to generate concrete A/T/G/C sequences.
+    Generation mechanisms are random sampling or the most likely path through the model.
+    Supports scoring how well a given sequence fits the model via the
+    profile HMM forward algorithm.
 
-Parameters
-----------
-transition_proba : ndarray
-    Per-position transition probabilities between states.
-emission_proba : ndarray
-    Per-position nucleotide emission probabilities.
-    
-proba_is_log : bool, optional, default=False
-    If True, `transition_proba`/`emission_proba` are given as
-    log-probabilities ( when recieved directly from the decoder).
-Attributes:
-----------
-e : ndarray 
-  Emission probabilites,stored as non-log probabilities and exponentiated if `proba_is_log` is True. Always
-    renormalized so each row sums to 1.
-a : ndarray
- Transition probabilities.stored as non-log probabilities and exponentiated if `proba_is_log` is True.
- 
+    Parameters
+    ----------
+    transition_proba : ndarray
+        Per-position transition probabilities between states.
+    emission_proba : ndarray
+        Per-position nucleotide emission probabilities.
 
-----------
+    proba_is_log : bool, optional, default=False
+        If True, `transition_proba`/`emission_proba` are given as
+        log-probabilities ( when recieved directly from the decoder).
+    Attributes:
+    ----------
+    e : ndarray
+        Emission probabilites,stored as non-log probabilities and
+        exponentiated if `proba_is_log` is True.
+        Always renormalized so each row sums to 1.
+    a : ndarray
+        Transition probabilities.stored as non-log probabilities and
+        exponentiated if `proba_is_log` is True.
     """
+
     def __init__(self, transition_proba, emission_proba, proba_is_log=False):
         self.e = emission_proba
         self.a = transition_proba
@@ -50,7 +51,9 @@ a : ndarray
         self.e = self.e / np.sum(self.e, axis=1)[:, None]
 
     def sample(self, sequence_only=False, debug=False):
-        """Randomly samples a sequence by going over the profile HMM's states."""
+        """
+        Randomly samples a sequence by going over the profile HMM's states.
+        """
         idx, state = (0, State.M)
         states = [(idx, state)]
         seq = ""
@@ -107,7 +110,9 @@ a : ndarray
             return seq
 
     def most_probable(self, sequence_only=False):
-        """Generate the most likely sequence through the profile HMM."""
+        """
+        Generate the most likely sequence through the profile HMM.
+        """
         idx, state = (0, State.M)
         states = [(idx, state)]
         seq = ""
@@ -156,7 +161,9 @@ a : ndarray
             return seq
 
     def calc_seq_proba(self, seq: str):
-        """Compute the log-probability that this profile HMM generates the given seq"""
+        """
+        Compute the log-probability that this profile HMM generates the given seq.
+        """
         one_hot_seq = torch.tensor(one_hot_index(seq))
         model_len = self.e.shape[0]
         random_len = len(seq)
