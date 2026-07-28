@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,7 +19,7 @@ dependencies = [
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.12.1",
+    "torch>=2.13.0",
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.15.22",
+    "ruff>=0.16.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",
