@@ -67,6 +67,7 @@ pyaptamer = ["datasets/data/*.csv", "datasets/data/*.pdb"]
 
 [tool.ruff.lint.per-file-ignores]
 "examples/*.ipynb" = ["T201"]
+"scripts/*.py" = ["T201"]
 
 [tool.coverage.run]
 source = ["pyaptamer"]
