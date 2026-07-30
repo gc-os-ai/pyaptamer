@@ -33,6 +33,19 @@ change without notice.
    EncoderPredictorConfig
 ```
 
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+   AptaMCTSClassifier
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -56,6 +69,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -123,4 +137,7 @@ Scoring functions that connect a model to the search.
    struct_to_aaseq
    pdb_to_seq_uniprot
    pdb_to_aaseq
+   get_reduced_protein_letter_dict
+   rna_to_ictf
+   protein_to_ictf
 ```

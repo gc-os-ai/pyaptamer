@@ -3,7 +3,7 @@
 Python library for aptamer design.
 
 `pyaptamer` provides aptamer-protein interaction models and aptamer candidate
-generation behind a `scikit-learn`-style API. Two algorithms are available today:
+generation behind a `scikit-learn`-style API. Three algorithms are available today:
 
 :::{list-table}
 :header-rows: 1
@@ -11,6 +11,8 @@ generation behind a `scikit-learn`-style API. Two algorithms are available today
 
 * - Algorithm
   - Use
+* - {doc}`AptaMCTS <user_guide/aptamcts>`
+  - Predict aptamer-protein interactions, serving as the scoring function for MCTS-based aptamer generation.
 * - {doc}`AptaNet <user_guide/aptanet>`
   - Predict whether an aptamer and a protein interact, from sequence pairs.
 * - {doc}`AptaTrans <user_guide/aptatrans>`
