@@ -34,6 +34,12 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     estimator : sklearn-compatible estimator or None, default=None
         Estimator applied after feature extraction. If None, uses `AptaMCTSClassifier`.
 
+    aptamer_col : str, default="aptamer"
+        Name of the column holding aptamer sequences.
+
+    protein_col : str, default="protein"
+        Name of the column holding protein sequences.
+
     Attributes
     ----------
     pipeline_ : sklearn.pipeline.Pipeline
@@ -66,13 +72,27 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
     >>> proba = pipe.predict_proba(X_train)
     """
 
-    def __init__(self, rna_k=4, prot_k=3, estimator=None):
+    def __init__(
+        self,
+        rna_k=4,
+        prot_k=3,
+        aptamer_col="aptamer",
+        protein_col="protein",
+        estimator=None,
+    ):
         self.rna_k = rna_k
         self.prot_k = prot_k
+        self.aptamer_col = aptamer_col
+        self.protein_col = protein_col
         self.estimator = estimator
 
     def _build_pipeline(self):
-        transformer = PairsToFeatures(rna_k=self.rna_k, prot_k=self.prot_k)
+        transformer = PairsToFeatures(
+            rna_k=self.rna_k,
+            prot_k=self.prot_k,
+            aptamer_col=self.aptamer_col,
+            protein_col=self.protein_col,
+        )
         self._estimator = self.estimator or AptaMCTSClassifier()
 
         return Pipeline([("features", transformer), ("clf", clone(self._estimator))])

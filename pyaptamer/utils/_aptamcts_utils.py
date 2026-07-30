@@ -1,4 +1,4 @@
-__author__ = "aditi-dsi"
+__author__ = ["aditi-dsi"]
 __all__ = [
     "get_reduced_protein_letter_dict",
     "rna_to_ictf",
