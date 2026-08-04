@@ -78,7 +78,7 @@ class SelfAttention(nn.Module):
         self.local_attn_heads = n_local_attn_heads
 
         self.local_attn = LocalAttention(
-            window_size=local_attn_window_size, causal=False, dropout=0.0
+            window_size=local_attn_window_size, dropout=0.0
         )
 
         self.to_q = nn.Linear(dim, d_heads * heads, bias=False)
