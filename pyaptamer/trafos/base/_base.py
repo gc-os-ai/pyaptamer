@@ -171,3 +171,7 @@ class BaseTransform(BaseEstimator):
         """
         X, _ = self._check_X_y(X, None)
         return X
+
+    def get_torch_transform(self):
+        """Return torch-compatible version of this transform, or None."""
+        return None
