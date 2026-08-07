@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def aa_props(prop_indices=None, type="numpy", normalize=True):
+def aa_props(prop_indices=None, output_type="numpy", normalize=True):
     """
     Amino acid physicochemical property matrix for PSeAAC.
 
@@ -71,7 +71,7 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
     prop_indices : list of int, optional
         List of indices (0-based) of properties to include (e.g., [0, 4, 7]).
         If None, returns all 21 properties.
-    type : {'numpy', 'pandas'}, default='numpy'
+    output_type : {'numpy', 'pandas'}, default='numpy'
         If 'pandas', returns a DataFrame with amino acid and property labels.
         If 'numpy', returns a numpy array.
     normalize : bool, default=True
@@ -83,7 +83,7 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
 
     Returns
     -------
-    props : numpy.ndarray or pandas.DataFrame (depending on `type`)
+    props : numpy.ndarray or pandas.DataFrame (depending on `output_type`)
 
         - Rows: standard amino acids (A, C, D, ..., Y)
         - Columns: physicochemical properties of the standard amino acids.
@@ -93,7 +93,7 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
     --------
     >>> from pyaptamer.pseaac._props import aa_props
     >>> df = aa_props()
-    >>> arr = aa_props(type="numpy", normalize=True)
+    >>> arr = aa_props(output_type="numpy", normalize=True)
     """
     aa_order = [
         "A",
@@ -1082,9 +1082,9 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
     else:
         selected_names = prop_names
 
-    if type == "pandas":
+    if output_type == "pandas":
         return pd.DataFrame(props, index=aa_order, columns=selected_names)
-    elif type == "numpy":
+    elif output_type == "numpy":
         return props
     else:
-        raise ValueError("type must be 'numpy' or 'pandas'")
+        raise ValueError("`output_type` must be 'numpy' or 'pandas'")
