@@ -208,3 +208,19 @@ def test_interaction_map_mismatch_input_features(x_apta, x_prot):
         match="The number of features of `x_apta` and `x_prot` must match",
     ):
         interaction_map(x_apta, x_prot)
+
+
+@pytest.mark.parametrize(
+    "d_model, max_len, seq_len",
+    [(128, 10, 20), (256, 5, 15)],
+)
+def test_positional_encoding_exceeds_max_len(d_model, max_len, seq_len):
+    """Check PositionalEncoding raises AssertionError when input exceeds max_len."""
+    pe = PositionalEncoding(d_model=d_model, max_len=max_len)
+    x = torch.randn(1, seq_len, d_model)
+
+    with pytest.raises(
+        AssertionError,
+        match=f"Input sequence length {seq_len} exceeds maximum length {max_len}.",
+    ):
+        pe(x)
