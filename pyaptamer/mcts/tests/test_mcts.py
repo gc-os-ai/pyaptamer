@@ -30,11 +30,11 @@ def val_not_found():
 
 
 @pytest.fixture
-def tree_with_children(tree_node):
+def tree_with_children(root):
     """Provide a TreeNode with some children already added."""
     for val in ["A_", "C_", "G_"]:
-        tree_node.create_child(val=val)
-    return tree_node
+        root.create_child(val=val)
+    return root
 
 
 class TestTreeNode:
