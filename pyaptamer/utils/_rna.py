@@ -174,39 +174,48 @@ def rna2vec(
 
 
 def encode_rna(
-    sequences: list[str],
+    sequences: list[str] | str,
     words: dict[str, int],
     max_len: int,
     word_max_len: int = 3,
     return_type: str = "tensor",
-):
+) -> "np.ndarray | torch.Tensor":
     """Encode RNA sequences into their numerical representations.
 
-    This function tokenizes protein sequences using a greedy longest-match approach,
-    where longer amino acid patterns are preferred over shorter ones. Sequences are
-    either trunacted or zero-padded to `max_len` tokens.
+    This function tokenizes RNA sequences using a greedy longest-match approach,
+    where longer patterns are preferred over shorter ones. Sequences are
+    either truncated or zero-padded to `max_len` tokens.
 
     Parameters
     ----------
-    sequences : list[str]
-        List of RNA sequences to be encoded.
+    sequences : list[str] or str
+        List of RNA sequences to be encoded. A single string is also accepted
+        and treated as a list of one sequence.
     words : dict[str, int]
-        A dictionary mappings RNA 3-mers to unique indices.
+        A dictionary mapping RNA sub-sequences (e.g. 3-mers) to unique integer
+        indices.
     max_len : int
-        Maximum length of each encoded sequence. Sequences will be truncated
-        or padded to this length.
+        Maximum number of tokens per encoded sequence. Sequences will be
+        truncated or zero-padded to this length.
     word_max_len : int, optional, default=3
-        Maximum length of amino acid patterns to consider during tokenization.
+        Maximum length of patterns to consider during greedy tokenization.
     return_type : str, optional, default="tensor"
-        The type of the returned encoded sequences.
+        Format of the returned array:
 
-        * "tensor": returns a PyTorch Tensor
-        * "numpy": returns a NumPy ndarray
+        * ``"tensor"``: returns a PyTorch ``Tensor`` of dtype ``torch.int64``
+        * ``"numpy"``: returns a NumPy ``ndarray`` of dtype ``np.int64``
 
     Returns
     -------
-    Tensor
-        Encoded sequences with shape (n_sequences, `max_len`).
+    torch.Tensor or np.ndarray
+        Encoded sequences of shape ``(n_sequences, max_len)``.
+        Returns a PyTorch ``Tensor`` when ``return_type="tensor"`` (default),
+        or a NumPy ``ndarray`` when ``return_type="numpy"``.
+
+    Raises
+    ------
+    ValueError
+        If ``return_type`` is not ``"tensor"`` or ``"numpy"``.
 
     Examples
     --------
@@ -215,7 +224,13 @@ def encode_rna(
     >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
-    # handle single protein input
+    _VALID_RETURN_TYPES = ("tensor", "numpy")
+    if return_type not in _VALID_RETURN_TYPES:
+        raise ValueError(
+            f"return_type must be one of {_VALID_RETURN_TYPES}, got {return_type!r}."
+        )
+
+    # handle single sequence input
     if isinstance(sequences, str):
         sequences = [sequences]
 
