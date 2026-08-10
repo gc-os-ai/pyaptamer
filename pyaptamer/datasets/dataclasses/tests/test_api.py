@@ -1,5 +1,7 @@
 """Tests for APIDataset."""
 
+__author__ = ["Elimartain"]
+
 import numpy as np
 import pytest
 import torch
