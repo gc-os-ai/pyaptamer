@@ -1,223 +1,126 @@
-"""Transformation class for SELEX data"""
+"""Removal of the constant primer regions from SELEX reads."""
 
-from collections import Counter, defaultdict
-from typing import Literal
+__author__ = ["aditi-dsi", "siddharth7113"]
+__all__ = ["PrimerTrimmer"]
 
-import numpy as np
+import warnings
+
 import pandas as pd
 
 from pyaptamer import logger
-from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.base import BaseTransform
 
 
-def _infer_adapter(
-    read_counts: Counter,
-    total_reads: int,
-    target_length: int,
-    is_forward: bool = True,
-    verbose: bool = False,
-) -> str:
-    """Estimate one primer from the reads, using the AptaDiff heuristic.
+class PrimerTrimmer(BaseTransform):
+    """Remove the constant primer regions from SELEX reads.
 
-    Extends the primer one base at a time, taking the most common prefix
-    or suffix at each length. Stops when that candidate covers less than
-    half the reads, or much less than the previous length did.
+    A SELEX library is built to a fixed design. Every read should be a
+    constant 5' region, then a random region of a known length, then a
+    constant 3' region::
 
-    Parameters
-    ----------
-    read_counts : Counter
-        Count of each unique read, indexed by sequence.
-    total_reads : int
-        Number of reads, used for the 50% cutoff.
-    target_length : int
-        Longest primer to try.
-    is_forward : bool, default=True
-        If True, use read prefixes. If False, use suffixes.
-    verbose : bool, default=False
-        If True, log the estimated primer.
+        TAATACG...CAGAAG  NNNNNNNNNN...NNN  TATGTG...GATCCTC
+        |-- start_primer --|-- variable_length --|-- end_primer --|
 
-    Returns
-    -------
-    est_adapter : str
-        The estimated primer, or an empty string if none was found.
+    Only the random region carries the candidate aptamer. The constant regions
+    are the primer binding sites used to amplify the library and are identical
+    in every read. This transformer strips them and returns the random region.
 
-    References
-    ----------
-    [1] https://github.com/wz-create/AptaDiff
-
-    """
-    max_count = None
-    est_adapter = ""
-
-    for i in range(1, target_length):
-        freq = defaultdict(int)
-
-        for seq, count in read_counts.most_common():
-            if len(seq) < i:
-                continue
-
-            sub_seq = seq[:i] if is_forward else seq[-i:]
-            if len(freq) > 100 and sub_seq not in freq:
-                continue
-
-            freq[sub_seq] += count
-
-        if not freq:
-            break
-
-        top_seq, top_count = max(freq.items(), key=lambda x: x[1])
-
-        if max_count is not None and top_count < max_count * 0.5:
-            if verbose:
-                direction = "forward" if is_forward else "reverse"
-                logger.info(
-                    f"Estimated {direction} adapter len is {i - 1} : {est_adapter}"
-                )
-            break
-
-        max_count = top_count
-
-        if max_count < total_reads * 0.5:
-            if verbose:
-                logger.info("No match found covering >50% of reads.")
-            break
-
-        est_adapter = top_seq
-
-    return est_adapter
-
-
-class SELEXTransform(BaseTransform):
-    """Remove the primer regions from SELEX reads.
-
-    Keeps only the variable region of each read. Primers are either given by
-    the user or estimated from the reads. Reads that do not start and end
-    with the primers, or whose length differs from the target length
-    by more than ``tolerance``, are set to ``pd.NA``.
+    A read is dropped if it does not begin with ``start_primer``, does not end
+    with ``end_primer``, or its random region is not exactly
+    ``variable_length`` long. A random region of the wrong length means the
+    read carries an insertion, a deletion, or a truncation, so the aptamer
+    candidate it holds is not one the library was built to produce.
 
     Parameters
     ----------
-    method : {"explicit", "heuristic"}, default="explicit"
-        With ``"explicit"``, both primers must be given. With ``"heuristic"``,
-        any primer not given is estimated from the reads.
-    max_len : int, optional
-        Maximum length of the variable region. Longer regions are cropped from
-        the centre.
-    start_primer : str, optional
-        The primer at the start of each read or forward_adapter.
-    end_primer : str, optional
-        The primer at the end of each read or reverse_adapter.
-    tolerance : int, default=0
-        How far a read length may differ from the target length and still be
-        kept. The default keeps only reads of exactly the target length.
-    verbose : bool, default=False
-        If True, log the estimated primers.
+    start_primer : str
+        The constant 5' region, matched as a literal prefix of each read.
+    end_primer : str
+        The constant 3' region, matched as a literal suffix of each read,
+        given in the orientation in which it appears in the read.
+    variable_length : int
+        The designed length of the random region, for example 40 for an N40
+        library.
 
-    Attributes
-    ----------
-    start_primer_ : str
-        The start primer used by ``transform``.
-    end_primer_ : str
-        The end primer used by ``transform``.
-    target_length_ : int
-        The most common read length seen during ``fit``.
+    Notes
+    -----
+    Estimating the constant regions or the library design from the reads is
+    not supported. See the AptaDiff project for prior art on inferring them.
+
+    Examples
+    --------
+    >>> from pyaptamer.datasets import load_sample_fastq
+    >>> from pyaptamer.trafos.transform import PrimerTrimmer
+    >>>
+    >>> transform = PrimerTrimmer(
+    ...     start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",
+    ...     end_primer="TATGTGCGCATACATGGATCCTC",
+    ...     variable_length=40,
+    ... )
+    >>> Xt = transform.fit_transform(load_sample_fastq())
+    >>> len(Xt)
+    6
+    >>> Xt["sequence"].str.len().unique().tolist()
+    [40]
     """
+
+    _tags = {
+        "authors": ["aditi-dsi", "siddharth7113"],
+        "maintainers": ["aditi-dsi"],
+        "property:fit_is_empty": True,
+        "capability:multivariate": False,
+    }
 
     def __init__(
         self,
-        method: Literal["explicit", "heuristic"] = "explicit",
-        max_len: int = None,
-        start_primer: str = None,
-        end_primer: str = None,
-        tolerance: int = 0,
-        verbose: bool = False,
+        start_primer: str,
+        end_primer: str,
+        variable_length: int,
     ):
-        self.method = method
-        self.max_len = max_len
         self.start_primer = start_primer
         self.end_primer = end_primer
-        self.tolerance = tolerance
-        self.verbose = verbose
+        self.variable_length = variable_length
 
-    def _check_X(self, X):  # noqa: N802
-        """Require a MoleculeLoader, then defer to the base coercion/checks."""
-        if not isinstance(X, MoleculeLoader):
-            raise TypeError(
-                f"{type(self).__name__} accepts only a MoleculeLoader as input, "
-                f"got {type(X).__name__}."
-            )
-        return super()._check_X(X)
+        super().__init__()
 
-    def fit(self, X, y=None):
-        """Set the primers to remove.
-
-        The target length is taken from the data by both methods. The
-        heuristic method also estimates any primer that was not given.
+    def _check_reads(self, X):
+        """Check that the first column of X holds one str read per row.
 
         Parameters
         ----------
-        X : MoleculeLoader
-            Input data to fit the transformer. Only the first column is read.
-        y : array-like, shape (n_samples,), optional
-            Target values. Only used if the transformer has
-            the tag ``capability:y`` set to True.
+        X : pd.DataFrame
+            Input data. Only the first column is read.
 
-        Returns
-        -------
-        self : object
-            Returns self.
+        Raises
+        ------
+        TypeError
+            If the first column of X does not hold str reads.
         """
-        if self.method not in ("explicit", "heuristic"):
-            raise ValueError(
-                f"method must be 'explicit' or 'heuristic', got {self.method}."
+        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=False)
+
+        if kind != "string":
+            raise TypeError(
+                f"{type(self).__name__} expects one str read per row, but the "
+                f"first column of X is {kind!r}. If it holds several reads per "
+                "cell, the MoleculeLoader was built with the default "
+                'tiling="bag" - use tiling="samples" so each read is one row.'
             )
 
-        X = self._check_X(X)
+    def _validate_params(self):
+        """Check the constructor arguments, raising ValueError if unusable."""
+        if not self.start_primer or not self.end_primer:
+            raise ValueError(
+                "start_primer and end_primer are both required and must be "
+                f"non-empty, got {self.start_primer!r} and {self.end_primer!r}."
+            )
 
-        X = X[X.columns[0]]
-
-        read_counts = Counter(X)
-        total_reads = len(X)
-
-        length_counts = defaultdict(int)
-
-        for seq, count in read_counts.items():
-            length_counts[len(seq)] += count
-
-        self.target_length_ = sorted(length_counts.items(), key=lambda x: -x[1])[0][0]
-
-        if self.method == "explicit":
-            if not self.start_primer or not self.end_primer:
-                raise ValueError("Both primers required for explicit method.")
-
-            self.start_primer_ = self.start_primer
-            self.end_primer_ = self.end_primer
-
-        else:
-            if self.start_primer:
-                self.start_primer_ = self.start_primer
-            else:
-                self.start_primer_ = _infer_adapter(
-                    read_counts, total_reads, self.target_length_, verbose=self.verbose
-                )
-
-            if self.end_primer:
-                self.end_primer_ = self.end_primer
-            else:
-                self.end_primer_ = _infer_adapter(
-                    read_counts,
-                    total_reads,
-                    self.target_length_,
-                    is_forward=False,
-                    verbose=self.verbose,
-                )
-
-        return self
+        if self.variable_length <= 0:
+            raise ValueError(
+                f"variable_length must be positive, got {self.variable_length}."
+            )
 
     def _transform(self, X):
-        """
-        Removes the primers from each read.
+        """Strip the constant regions, dropping reads that miss the design.
 
         Parameters
         ----------
@@ -227,43 +130,42 @@ class SELEXTransform(BaseTransform):
         Returns
         -------
         Xt : pd.DataFrame
-            Transformed data. One row per read, with the same index and column
-            name as the input. Each value is the variable region of the read,
-            or ``pd.NA`` if the primers did not match or the read length was
-            outside the tolerance.
+            One row per usable read, holding its random region, with the column
+            name of the input and the index entries of the reads kept.
         """
-        X = X[X.columns[0]]
+        self._validate_params()
+        self._check_reads(X)
 
-        fwd_len = len(self.start_primer_)
-        rev_len = len(self.end_primer_)
+        column = X.columns[0]
+        reads = X[column]
 
-        stop_idx = -rev_len if rev_len > 0 else None
+        start_len = len(self.start_primer)
+        read_length = start_len + self.variable_length + len(self.end_primer)
 
-        length_ok = (X.str.len() - self.target_length_).abs() <= self.tolerance
-
-        valid_mask = (
-            X.str.startswith(self.start_primer_)
-            & X.str.endswith(self.end_primer_)
-            & length_ok
+        keep = (
+            (reads.str.len() == read_length)
+            & reads.str.startswith(self.start_primer)
+            & reads.str.endswith(self.end_primer)
         )
 
-        X_transformed = pd.Series(
-            np.where(valid_mask, X.str.slice(start=fwd_len, stop=stop_idx), pd.NA),
-            index=X.index,
-            name=X.name,
-            dtype=object,
-        )
-
-        # Center crop if `max_len` is given
-        if self.max_len is not None:
-            X_transformed.loc[valid_mask] = X_transformed.loc[valid_mask].apply(
-                lambda seq: seq[
-                    len(seq) // 2 - self.max_len // 2 : len(seq) // 2
-                    - self.max_len // 2
-                    + self.max_len
-                ]
-                if len(seq) > self.max_len
-                else seq
+        dropped = len(X) - int(keep.sum())
+        if dropped and dropped == len(X):
+            warnings.warn(
+                f"{type(self).__name__} dropped all {len(X)} reads: none of them "
+                f"start with {self.start_primer!r}, end with {self.end_primer!r}, "
+                f"and hold a {self.variable_length} nt random region in between. "
+                "Check the primers against the library design, including the "
+                "orientation of end_primer.",
+                UserWarning,
+                stacklevel=2,
+            )
+        elif dropped:
+            logger.info(
+                f"{type(self).__name__} dropped {dropped} of {len(X)} reads "
+                "that did not fit the library design."
             )
 
-        return X_transformed.to_frame()
+        Xt = X.loc[keep, [column]].copy()
+        Xt[column] = Xt[column].str.slice(start_len, start_len + self.variable_length)
+
+        return Xt

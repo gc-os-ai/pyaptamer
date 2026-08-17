@@ -1,5 +1,5 @@
 """Transformation of data from files"""
 
-from pyaptamer.trafos.transform._selex import SELEXTransform
+from pyaptamer.trafos.transform._primer_trimmer import PrimerTrimmer
 
-__all__ = ["SELEXTransform"]
+__all__ = ["PrimerTrimmer"]

@@ -1,140 +1,155 @@
-"""Tests for the SELEXTransform transformations."""
+"""Tests for the PrimerTrimmer transformation."""
 
-__author__ = ["aditi-dsi"]
+__author__ = ["aditi-dsi", "siddharth7113"]
+
+import warnings
 
 import pandas as pd
 import pytest
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.datasets import load_sample_fastq
-from pyaptamer.trafos.transform import SELEXTransform
+from pyaptamer.trafos.transform import PrimerTrimmer
 
 START_PRIMER = "TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG"
 END_PRIMER = "TATGTGCGCATACATGGATCCTC"
-TARGET_LENGTH = 100
+VARIABLE_LENGTH = 40
 
 
-@pytest.mark.parametrize("start,end", [(None, "ACGT"), ("ACGT", None), (None, None)])
-def test_selex_explicit_requires_both_primers(start, end):
-    """The explicit method cannot run without providing both primers."""
-    with pytest.raises(ValueError, match="Both primers required"):
-        SELEXTransform(start_primer=start, end_primer=end).fit(load_sample_fastq())
+def make_read(region):
+    """Build a read with the sample primers around region."""
+    return START_PRIMER + region + END_PRIMER
 
 
-def test_selex_rejects_unknown_method():
-    """A method outside the accepted ones is rejected."""
-    with pytest.raises(ValueError, match="method must be"):
-        SELEXTransform(method="heuristics").fit(load_sample_fastq())
-
-
-def test_selex_explicit_strips_primers():
-    """Matching reads lose exactly their primers, leaving the variable region."""
-    X = load_sample_fastq()
-    sequences = X.to_dataframe().iloc[:, 0]
-
-    transform = SELEXTransform(start_primer=START_PRIMER, end_primer=END_PRIMER)
-    Xt = transform.fit_transform(X)
-
-    matched = (
-        sequences.str.startswith(START_PRIMER)
-        & sequences.str.endswith(END_PRIMER)
-        & (sequences.str.len() == transform.target_length_)
+def test_strips_primers():
+    """A well formed read loses exactly its two constant regions."""
+    region = "ACGT" * 10
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(
+        MoleculeLoader(data={"sequence": [make_read(region)]})
     )
 
-    assert matched.any()
-    assert Xt.iloc[:, 0][matched].notna().all()
-    for original, trimmed in zip(
-        sequences[matched], Xt.iloc[:, 0][matched], strict=False
-    ):
-        assert original == START_PRIMER + trimmed + END_PRIMER
+    assert Xt["sequence"].tolist() == [region]
 
 
-def test_selex_output_aligns_with_input():
-    """The output is a single-column frame keeping one row per input read."""
+def test_output_is_a_single_column_frame():
+    """The output is a DataFrame keeping the column name and index of the input."""
     X = load_sample_fastq()
-    sequences = X.to_dataframe().iloc[:, 0]
-
-    Xt = SELEXTransform(start_primer=START_PRIMER, end_primer=END_PRIMER).fit_transform(
-        X
-    )
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(X)
 
     assert isinstance(Xt, pd.DataFrame)
-    assert Xt.shape == (len(sequences), 1)
-    assert Xt.index.equals(sequences.index)
+    assert list(Xt.columns) == ["sequence"]
+    assert Xt.index.isin(X.to_dataframe().index).all()
 
 
-def test_selex_unmatched_reads_become_na():
-    """Reads not carrying the given primers are replaced with NA rather than trimmed."""
-    Xt = SELEXTransform(start_primer="ZZZZ", end_primer="ZZZZ").fit_transform(
+def test_keeps_only_reads_matching_the_design():
+    """Reads are kept only if both primers and the region length match."""
+    reads = {
+        "good": make_read("ACGT" * 10),
+        "short_region": make_read("ACGT" * 9),
+        "long_region": make_read("ACGT" * 11),
+        "no_start": "GGGG" + "ACGT" * 10 + END_PRIMER,
+        "no_end": START_PRIMER + "ACGT" * 10 + "GGGG",
+    }
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(
+        MoleculeLoader(data={"sequence": list(reads.values())})
+    )
+
+    assert Xt["sequence"].tolist() == ["ACGT" * 10]
+
+
+def test_sample_fastq_yields_fixed_length_regions():
+    """Every surviving read of the sample data is exactly one random region."""
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(
         load_sample_fastq()
     )
 
-    assert Xt.iloc[:, 0].isna().all()
+    assert len(Xt) == 6
+    assert Xt["sequence"].str.len().unique().tolist() == [VARIABLE_LENGTH]
+    assert not Xt["sequence"].isna().any()
 
 
-def test_selex_drops_reads_outside_tolerance():
-    """Reads away from the target length are dropped unless tolerance allows them."""
-    reads = [START_PRIMER + "A" * 40 + END_PRIMER] * 3
-    reads.append(START_PRIMER + "A" * 41 + END_PRIMER)
+def test_no_matching_read_warns_and_gives_an_empty_frame():
+    """Primers matching nothing warn rather than silently returning nothing."""
+    with pytest.warns(UserWarning, match="dropped all"):
+        Xt = PrimerTrimmer("ZZZZ", "ZZZZ", VARIABLE_LENGTH).fit_transform(
+            load_sample_fastq()
+        )
+
+    assert Xt.empty
+    assert list(Xt.columns) == ["sequence"]
+
+
+def test_partial_drop_does_not_warn():
+    """Dropping some reads is the expected filtering, so it stays quiet."""
+    reads = [make_read("ACGT" * 10), make_read("ACGT" * 9)]
     X = MoleculeLoader(data={"sequence": reads})
 
-    strict = SELEXTransform(start_primer=START_PRIMER, end_primer=END_PRIMER)
-    lenient = SELEXTransform(
-        start_primer=START_PRIMER, end_primer=END_PRIMER, tolerance=1
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(X)
 
-    assert strict.fit_transform(X).iloc[:, 0].notna().sum() == 3
-    assert lenient.fit_transform(X).iloc[:, 0].notna().sum() == 4
+    assert len(Xt) == 1
 
 
-def test_selex_max_len_center_crops():
-    """Given max_len, the variable region is cropped from the centre, as in AptaDiff."""
-    X = load_sample_fastq()
-    max_len = 5
+def test_accepts_a_dataframe():
+    """A DataFrame is accepted, as the base class contract allows."""
+    X = load_sample_fastq().to_dataframe()
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(X)
 
-    full = (
-        SELEXTransform(start_primer=START_PRIMER, end_primer=END_PRIMER)
-        .fit_transform(X)
-        .iloc[:, 0]
-        .dropna()
-    )
-    cropped = (
-        SELEXTransform(
-            start_primer=START_PRIMER, end_primer=END_PRIMER, max_len=max_len
+    assert len(Xt) == 6
+
+
+def test_missing_cells_are_dropped_not_fatal():
+    """A missing read is dropped, as it cannot match the design."""
+    X = MoleculeLoader(data={"sequence": [make_read("ACGT" * 10), None]})
+    Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(X)
+
+    assert Xt["sequence"].tolist() == ["ACGT" * 10]
+
+
+def test_bag_tiling_names_the_fix():
+    """Multi-read cells are rejected with a message naming the tiling to use."""
+    X = MoleculeLoader(data={"sequence": ["pyaptamer/datasets/data/sample.fastq"]})
+
+    with pytest.raises(TypeError, match='tiling="samples"'):
+        PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(X)
+
+
+@pytest.mark.parametrize("start,end", [("", END_PRIMER), (START_PRIMER, ""), ("", "")])
+def test_empty_primers_are_rejected(start, end):
+    """Both constant regions are required."""
+    with pytest.raises(ValueError, match="must be"):
+        PrimerTrimmer(start, end, VARIABLE_LENGTH).fit_transform(load_sample_fastq())
+
+
+@pytest.mark.parametrize("variable_length", [0, -1])
+def test_non_positive_variable_length_is_rejected(variable_length):
+    """A random region must have a positive designed length."""
+    with pytest.raises(ValueError, match="variable_length must be positive"):
+        PrimerTrimmer(START_PRIMER, END_PRIMER, variable_length).fit_transform(
+            load_sample_fastq()
         )
-        .fit_transform(X)
-        .iloc[:, 0]
-        .dropna()
+
+
+def test_overlapping_primers_drop_rather_than_return_empty_strings():
+    """Primers that cannot both fit leave no read, rather than empty strings."""
+    X = MoleculeLoader(data={"sequence": ["ACGTACG"] * 4})
+
+    with pytest.warns(UserWarning, match="dropped all"):
+        Xt = PrimerTrimmer("ACGTA", "GTACG", 2).fit_transform(X)
+
+    assert Xt.empty
+
+
+def test_output_can_be_fed_back_in():
+    """The output carries no missing values, so it chains into another trim."""
+    core = "ACGT" * 8
+    X = MoleculeLoader(data={"sequence": [make_read("AAA" + core + "TTT")]})
+
+    once = PrimerTrimmer(START_PRIMER, END_PRIMER, len(core) + 6).fit_transform(X)
+    twice = PrimerTrimmer("AAA", "TTT", len(core)).fit_transform(
+        MoleculeLoader(data=once)
     )
 
-    assert full.index.equals(cropped.index)
-    for original, crop in zip(full, cropped, strict=False):
-        offset = len(original) // 2 - max_len // 2
-        assert crop == original[offset : offset + max_len]
-
-
-def test_selex_heuristic_infers_primers():
-    """The heuristic recovers the primers and target length of the sample data."""
-    transform = SELEXTransform(method="heuristic").fit(load_sample_fastq())
-
-    assert transform.start_primer_ == START_PRIMER
-    assert transform.end_primer_ == END_PRIMER
-    assert transform.target_length_ == TARGET_LENGTH
-
-
-def test_selex_heuristic_keeps_supplied_primer():
-    """A primer given explicitly is kept as-is, only the missing one is inferred."""
-    transform = SELEXTransform(method="heuristic", start_primer="ACGT").fit(
-        load_sample_fastq()
-    )
-
-    assert transform.start_primer_ == "ACGT"
-    assert isinstance(transform.end_primer_, str)
-
-
-def test_selex_rejects_non_moleculeloader():
-    """Only a MoleculeLoader is accepted, a plain DataFrame is rejected."""
-    X = pd.DataFrame({"sequence": ["ACGTACGTACGT"]})
-
-    with pytest.raises(TypeError, match="only a MoleculeLoader"):
-        SELEXTransform(start_primer="ACGT", end_primer="ACGT").fit(X)
+    assert once["sequence"].tolist() == ["AAA" + core + "TTT"]
+    assert twice["sequence"].tolist() == [core]
