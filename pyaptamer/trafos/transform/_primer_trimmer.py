@@ -86,6 +86,9 @@ class PrimerTrimmer(BaseTransform):
     def _check_reads(self, X):
         """Check that the first column of X holds one str read per row.
 
+        Missing cells are ignored here. They cannot match the library design,
+        so ``_transform`` drops them like any other unusable read.
+
         Parameters
         ----------
         X : pd.DataFrame
@@ -96,7 +99,7 @@ class PrimerTrimmer(BaseTransform):
         TypeError
             If the first column of X does not hold str reads.
         """
-        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=False)
+        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=True)
 
         if kind != "string":
             raise TypeError(
