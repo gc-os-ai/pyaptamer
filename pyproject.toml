@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=83.0.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,8 +13,8 @@ authors = [
 ]
 
 dependencies = [
-    "biopython>=1.87",
-    "datasets>=5.0.0",
+    "biopython>=1.88",
+    "datasets>=5.0.1",
     "lightning>=2.6.5",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.16.0",
+    "ruff>=0.16.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",
