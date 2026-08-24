@@ -2,7 +2,7 @@
 
 __author__ = ["NoorMajdoub"]
 __all__ = [
-    "Bottleneck",
+    "Inverted_Bottleneck",
     "EncoderCNN",
     "DecoderPHMM",
     "DecoderPHMM_fast",
@@ -18,7 +18,7 @@ __all__ = [
     "kld_loss",
 ]
 
-from pyaptamer.raptgen.layers._conv import Bottleneck
+from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import (
