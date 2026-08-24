@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import torch
 
-from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
+from pyaptamer.raptgen.layers._utils import State, Transition, seq_to_indices
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class ProfileHMMSampler:
         """
         Compute the log-probability that this profile HMM generates the given seq.
         """
-        one_hot_seq = torch.tensor(one_hot_index(seq))
+        one_hot_seq = torch.tensor(seq_to_indices(seq))
         model_len = self.e.shape[0]
         random_len = len(seq)
 

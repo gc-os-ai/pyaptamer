@@ -6,6 +6,8 @@ __all__ = ["DecoderPHMM", "DecoderPHMM_fast"]
 import torch
 from torch import nn
 
+from pyaptamer.raptgen.layers._utils import View
+
 
 class DecoderPHMM(nn.Module):
     """
@@ -15,6 +17,7 @@ class DecoderPHMM(nn.Module):
     parameters of a profile Hidden Markov Model (HMM), per-position transition and
     emission probabilities of the nucleotides for the entire
     sequence in a forward pass.
+
     Parameters
     ----------
     motif_len : int
@@ -42,14 +45,6 @@ class DecoderPHMM(nn.Module):
 
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
-
-        class View(nn.Module):
-            def __init__(self, shape):
-                super().__init__()
-                self.shape = shape
-
-            def forward(self, x):
-                return x.view(*self.shape)
 
         self.fc1 = nn.Sequential(
             nn.Linear(embed_size, hidden_size),
@@ -121,14 +116,6 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
 
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
-
-        class View(nn.Module):
-            def __init__(self, shape):
-                super().__init__()
-                self.shape = shape
-
-            def forward(self, x):
-                return x.view(*self.shape)
 
         self.fc = nn.Sequential(
             nn.Linear(embed_size, hidden_size),

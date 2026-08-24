@@ -1,14 +1,14 @@
 """Utility functions and classes for RaptGen layers"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["View", "nt_index", "State", "Transition"]
+__all__ = ["View", "nt_index", "State", "Transition", "seq_to_indices"]
 
 from enum import IntEnum
 
 from torch import nn
 
 
-def one_hot_index(seq):
+def seq_to_indices(seq):
     """Convert a nucleotide sequence string into a list of integer indices."""
     return [int(nt_index[char]) for char in seq]
 
