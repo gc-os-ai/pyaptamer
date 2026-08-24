@@ -8,18 +8,19 @@ import torch
 import torch.nn as nn
 
 from pyaptamer.raptgen._model import CNN_PHMM_VAE
-from pyaptamer.raptgen.layers._conv import Bottleneck
+from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 
 
 @pytest.mark.parametrize("init_dim, window_size", [(8, 3), (16, 5), (32, 7)])
-def test_bottleneck_layers(init_dim, window_size):
+def test_inverted_bottleneck_layers(init_dim, window_size):
     """
-    Checks that `Bottleneck` initializes its conv and batchnorm layers correctly.
+    Checks that `Inverted_Bottleneck` initializes its conv
+    and batchnorm layers correctly.
     """
-    block = Bottleneck(init_dim=init_dim, window_size=window_size)
+    block = Inverted_Bottleneck(init_dim=init_dim, window_size=window_size)
 
     assert isinstance(block.conv1, nn.Conv1d)
     assert block.conv1.in_channels == init_dim
@@ -49,21 +50,22 @@ def test_bottleneck_layers(init_dim, window_size):
         (32, 7, torch.randn(1, 32, 200)),
     ],
 )
-def test_bottleneck_forward(init_dim, window_size, x):
+def test_inverted_bottleneck_forward(init_dim, window_size, x):
     """
-    Tests the forward pass of the `Bottleneck` residual block (Shape must not change).
+    Tests the forward pass of the `Inverted_Bottleneck` residual block
+    (Shape must not change).
     """
-    block = Bottleneck(init_dim=init_dim, window_size=window_size)
+    block = Inverted_Bottleneck(init_dim=init_dim, window_size=window_size)
     out = block(x)
     assert out.shape == x.shape
 
 
-def test_bottleneck_rejects_even_window_size():
+def test_inverted_bottleneck_rejects_even_window_size():
     """
-    Check that Bottleneck enforces odd window_size
+    Check that Inverted_Bottleneck enforces odd window_size
     """
-    with pytest.raises(AssertionError):
-        Bottleneck(init_dim=8, window_size=4)
+    with pytest.raises(ValueError):
+        Inverted_Bottleneck(init_dim=8, window_size=4)
 
 
 @pytest.mark.parametrize(
@@ -81,9 +83,9 @@ def test_encodercnn_layers(embedding_dim, window_size, num_layers):
     assert encoder.embed.num_embeddings == 4
     assert encoder.embed.embedding_dim == embedding_dim
 
-    assert isinstance(encoder.resnet, nn.Sequential)
-    assert len(encoder.resnet) == num_layers
-    assert all(isinstance(layer, Bottleneck) for layer in encoder.resnet)
+    assert isinstance(encoder.blocks, nn.Sequential)
+    assert len(encoder.blocks) == num_layers
+    assert all(isinstance(layer, Inverted_Bottleneck) for layer in encoder.blocks)
 
 
 @pytest.mark.parametrize(
