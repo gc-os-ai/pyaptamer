@@ -80,7 +80,7 @@ def test_encodercnn_layers(embedding_dim, window_size, num_layers):
     )
 
     assert isinstance(encoder.embed, nn.Embedding)
-    assert encoder.embed.num_embeddings == 4
+    assert encoder.embed.num_embeddings == 7
     assert encoder.embed.embedding_dim == embedding_dim
 
     assert isinstance(encoder.blocks, nn.Sequential)
