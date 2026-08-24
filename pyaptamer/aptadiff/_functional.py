@@ -1,3 +1,5 @@
+"""Core diffusion mechanisms for AptaDiff."""
+
 __author__ = ["aditi-dsi"]
 
 import math
@@ -86,7 +88,6 @@ def q_forward_one_step(
     log_x_prev: torch.Tensor,
     t: torch.Tensor,
     log_alpha: torch.Tensor,
-    num_classes: int = 4,
 ) -> torch.Tensor:
     """
     Calculates the forward transition probability from step t-1 to t.
@@ -103,14 +104,13 @@ def q_forward_one_step(
         A 1D tensor of time step indices for the current batch.
     log_alpha : torch.Tensor
         The 1D schedule array containing the log alpha values.
-    num_classes : int
-        The number of unique nucleotides in the sequence. Default is 4.
 
     Returns
     -------
     torch.Tensor
         The log probability distribution of the sequence at step t.
     """
+    num_classes = log_x_prev.shape[1]
     log_alpha_t = extract(log_alpha, t, log_x_prev.shape)
     log_beta_t = log_one_minus_exp(log_alpha_t)
 
@@ -125,7 +125,6 @@ def q_forward(
     log_x0: torch.Tensor,
     t: torch.Tensor,
     log_alphabar: torch.Tensor,
-    num_classes: int = 4,
 ) -> torch.Tensor:
     """
     Calculates the forward probability distribution going directly to step t.
@@ -142,14 +141,13 @@ def q_forward(
         A 1D tensor of time step indices for the current batch.
     log_alphabar : torch.Tensor
         The 1D schedule array containing cumulative log alpha values.
-    num_classes : int
-        The number of unique nucleotides in the sequence. Default is 4.
 
     Returns
     -------
     torch.Tensor
         The log probability distribution of the noisy sequence at step t.
     """
+    num_classes = log_x0.shape[1]
     log_alphabar_t = extract(log_alphabar, t, log_x0.shape)
     log_1m_alphabar_t = log_one_minus_exp(log_alphabar_t)
 
@@ -187,20 +185,20 @@ def q_posterior(
     Returns
     -------
     torch.Tensor
-        Normalized log posterior for x_{t-1}. For t == 0, returns log_x0.
+        Normalized log posterior for x_{t-1}. For t == 0, the prior term
+        is replaced by log_x0 before combining with the likelihood and
+        renormalizing.
     """
     t_prev = torch.clamp(t - 1, min=0)
-
-    log_prior = q_forward(log_x0, t_prev, log_alphabar)
-    log_likelihood = q_forward_one_step(log_xt, t, log_alpha)
-    log_posterior = log_prior + log_likelihood
-    normalized_log_posterior = log_posterior - torch.logsumexp(
-        log_posterior, dim=1, keepdim=True
-    )
-
     t_broadcast = t.view(-1, 1, 1)
 
-    return torch.where(t_broadcast == 0, log_x0, normalized_log_posterior)
+    log_prior = q_forward(log_x0, t_prev, log_alphabar)
+    log_prior = torch.where(t_broadcast == 0, log_x0, log_prior)
+
+    log_likelihood = q_forward_one_step(log_xt, t, log_alpha)
+    log_posterior = log_prior + log_likelihood
+
+    return log_posterior - torch.logsumexp(log_posterior, dim=1, keepdim=True)
 
 
 def multinomial_kl(log_q: torch.Tensor, log_pred: torch.Tensor) -> torch.Tensor:
