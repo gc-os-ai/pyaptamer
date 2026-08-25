@@ -1,10 +1,19 @@
-__author__ = ["lucidrains"]
+# Copyright (c) 2020 Phil Wang (lucidrains).
+# Licensed under the MIT license.
+
+"""Local windowed attention, vendored from lucidrains/local-attention.
+
+Source: https://github.com/lucidrains/local-attention
+See pyaptamer/aptadiff/layers/_libs/README.md and LICENSE for the full
+attribution and license text.
+"""
+
+__author__ = ["aditi-dsi"]
 __all__ = ["LocalAttention"]
 
 import torch
 import torch.nn.functional as F
 from torch import einsum, nn
-from torch.nn import Module
 
 # helper functions
 
@@ -23,7 +32,7 @@ def look_around(x, backward=1, forward=0, pad_value=-1, dim=2):
 # main class
 
 
-class LocalAttention(Module):
+class LocalAttention(nn.Module):
     def __init__(self, window_size, dropout=0.0):
         super().__init__()
         self.window_size = window_size

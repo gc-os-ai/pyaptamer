@@ -1,4 +1,14 @@
-__author__ = ["lucidrains"]
+# Copyright (c) 2020 Phil Wang (lucidrains).
+# Licensed under the MIT license.
+
+"""Linear attention transformer, vendored from lucidrains/linear-attention-transformer.
+
+Source: https://github.com/lucidrains/linear-attention-transformer
+See pyaptamer/aptadiff/layers/_libs/README.md and LICENSE for the full
+attribution and license text.
+"""
+
+__author__ = ["aditi-dsi"]
 __all__ = ["LinearAttentionTransformer"]
 
 from functools import partial
@@ -6,7 +16,7 @@ from functools import partial
 import torch
 from torch import einsum, nn
 
-from pyaptamer.aptadiff.layers._local_attention import LocalAttention
+from pyaptamer.aptadiff.layers._libs._local_attention import LocalAttention
 
 # helper functions
 

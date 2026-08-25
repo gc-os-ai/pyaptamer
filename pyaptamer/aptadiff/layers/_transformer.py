@@ -7,10 +7,10 @@ import warnings
 import torch
 import torch.nn as nn
 
-from pyaptamer.aptadiff.layers._axial_positional_embedding import (
+from pyaptamer.aptadiff.layers._libs._axial_positional_embedding import (
     AxialPositionalEmbedding,
 )
-from pyaptamer.aptadiff.layers._linear_attention_transformer import (
+from pyaptamer.aptadiff.layers._libs._linear_attention_transformer import (
     LinearAttentionTransformer,
 )
 

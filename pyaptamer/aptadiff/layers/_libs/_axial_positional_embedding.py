@@ -1,6 +1,16 @@
+# Copyright (c) 2020 Phil Wang (lucidrains).
+# Licensed under the MIT license.
+
+"""Axial positional embeddings, vendored from lucidrains/axial-positional-embedding.
+
+Source: https://github.com/lucidrains/axial-positional-embedding
+See pyaptamer/aptadiff/layers/_libs/README.md and LICENSE for the full
+attribution and license text.
+"""
+
 from __future__ import annotations
 
-__author__ = ["lucidrains"]
+__author__ = ["aditi-dsi"]
 __all__ = ["AxialPositionalEmbedding"]
 
 from functools import reduce
