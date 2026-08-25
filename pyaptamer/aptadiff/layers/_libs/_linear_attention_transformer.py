@@ -77,9 +77,8 @@ class SelfAttention(nn.Module):
     ):
         super().__init__()
 
-        assert (dim % heads) == 0, (
-            "embedding dimension must be divisible by number of heads"
-        )
+        if (dim % heads) != 0:
+            raise ValueError("embedding dimension must be divisible by number of heads")
 
         d_heads = dim // heads
 
@@ -141,6 +140,15 @@ class LinearAttentionTransformer(nn.Module):
 
         if type(n_local_attn_heads) is not tuple:
             n_local_attn_heads = tuple([n_local_attn_heads] * depth)
+
+        if len(n_local_attn_heads) != depth:
+            raise ValueError(
+                "n_local_attn_heads tuple must have the same length as depth"
+            )
+        if any(local_heads > heads for local_heads in n_local_attn_heads):
+            raise ValueError(
+                "number of local attn heads must not exceed the total number of heads"
+            )
 
         self.layers = nn.ModuleList([])
 

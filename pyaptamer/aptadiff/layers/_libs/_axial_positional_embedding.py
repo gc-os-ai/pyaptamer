@@ -46,12 +46,15 @@ class AxialPositionalEmbedding(Module):
         self.summed = not exists(axial_dims)
         axial_dims = ((dim,) * len(axial_shape)) if self.summed else axial_dims
 
-        assert len(self.shape) == len(axial_dims), """
-            number of axial dimensions must equal the number of dimensions in the shape
-            """
-        assert self.summed or not self.summed and sum(axial_dims) == dim, (
-            f"axial dimensions must sum up to the target dimension {dim}"
-        )
+        if len(self.shape) != len(axial_dims):
+            raise ValueError(
+                "number of axial dimensions must equal the number of "
+                "dimensions in the shape"
+            )
+        if not self.summed and sum(axial_dims) != dim:
+            raise ValueError(
+                f"axial dimensions must sum up to the target dimension {dim}"
+            )
 
         self.weights = nn.ParameterList([])
 
@@ -66,10 +69,11 @@ class AxialPositionalEmbedding(Module):
 
     def forward(self, x):
         batch, seq_len, _ = x.shape
-        assert seq_len <= self.max_seq_len, f"""
-            Sequence length ({seq_len}) must be less than the maximum sequence 
-            length allowed ({self.max_seq_len})
-            """
+        if seq_len > self.max_seq_len:
+            raise ValueError(
+                f"sequence length ({seq_len}) must be less than the maximum "
+                f"sequence length allowed ({self.max_seq_len})"
+            )
 
         embs = []
 

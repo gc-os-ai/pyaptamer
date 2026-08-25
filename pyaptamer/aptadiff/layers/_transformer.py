@@ -98,8 +98,6 @@ class AptaDiffTransformerEmbedding(nn.Module):
           attention math and maximum hardware acceleration.
         - "linear": Uses the linear attention approximation from the original
           AptaDiff paper. Set to this for strict reproducibility.
-    **kwargs
-        Absorbs additional keyword parameters for API backward compatibility.
 
     Notes
     -----
@@ -130,7 +128,6 @@ class AptaDiffTransformerEmbedding(nn.Module):
         n_local_attn_heads=0,
         local_attn_window_size=128,
         transformer_type="native",
-        **kwargs,
     ):
         super().__init__()
 
@@ -207,7 +204,7 @@ class AptaDiffTransformerEmbedding(nn.Module):
         self.norm = nn.LayerNorm(self.emb_dim)
         self.out = nn.Linear(self.emb_dim, output_dim)
 
-    def forward(self, x, t, z, **kwargs):
+    def forward(self, x, t, z):
         """Pass inputs through the embedding and conditioned transformer layers.
 
         Parameters

@@ -51,6 +51,13 @@ class LocalAttention(nn.Module):
 
         scale = dim_head**-0.5
         window_size = self.window_size
+
+        if n % window_size != 0:
+            raise ValueError(
+                f"sequence length ({n}) must be evenly divisible by "
+                f"window_size ({window_size}) for local attention."
+            )
+
         windows = n // window_size
 
         seq = torch.arange(n, device=q.device)
