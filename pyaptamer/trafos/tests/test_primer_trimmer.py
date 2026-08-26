@@ -153,3 +153,77 @@ def test_output_can_be_fed_back_in():
 
     assert once["sequence"].tolist() == ["AAA" + core + "TTT"]
     assert twice["sequence"].tolist() == [core]
+
+
+@pytest.mark.parametrize("on_unmatched", ["some", "error"])
+def test_invalid_on_unmatched_is_rejected(on_unmatched):
+    """on_unmatched only accepts 'drop', 'na', or 'raise'."""
+    with pytest.raises(ValueError, match="on_unmatched must be one of"):
+        PrimerTrimmer(
+            START_PRIMER, END_PRIMER, VARIABLE_LENGTH, on_unmatched=on_unmatched
+        ).fit_transform(load_sample_fastq())
+
+
+def test_on_unmatched_raise_aborts_on_unmatched_reads():
+    """raise stops on the first unmatched read."""
+    reads = [make_read("ACGT" * 10), make_read("ACGT" * 9)]
+    X = MoleculeLoader(data={"sequence": reads})
+
+    with pytest.raises(ValueError, match=r"1 of 2"):
+        PrimerTrimmer(
+            START_PRIMER, END_PRIMER, VARIABLE_LENGTH, on_unmatched="raise"
+        ).fit_transform(X)
+
+
+def test_on_unmatched_raise_passes_when_all_reads_match():
+    """raise is a no-op when every read fits the library design."""
+    region = "ACGT" * 10
+    X = MoleculeLoader(data={"sequence": [make_read(region)]})
+
+    Xt = PrimerTrimmer(
+        START_PRIMER, END_PRIMER, VARIABLE_LENGTH, on_unmatched="raise"
+    ).fit_transform(X)
+
+    assert Xt["sequence"].tolist() == [region]
+
+
+def test_on_unmatched_na_preserves_input_length_and_marks_unmatched_reads():
+    """na keeps every row, replacing an unmatched read's sequence with None."""
+    region = "ACGT" * 10
+    reads = [make_read(region), make_read("ACGT" * 9)]
+    X = MoleculeLoader(data={"sequence": reads})
+
+    Xt = PrimerTrimmer(
+        START_PRIMER, END_PRIMER, VARIABLE_LENGTH, on_unmatched="na"
+    ).fit_transform(X)
+
+    assert Xt.index.equals(X.to_dataframe().index)
+    assert Xt["sequence"].isna().tolist() == [False, True]
+    assert Xt.loc[Xt["sequence"].notna(), "sequence"].tolist() == [region]
+
+
+def test_on_unmatched_na_all_unmatched_warns_but_keeps_every_row():
+    """na warns when every read fails, but keeps the frame's full shape."""
+    X = load_sample_fastq()
+
+    with pytest.warns(UserWarning, match="set all"):
+        Xt = PrimerTrimmer(
+            "ZZZZ", "ZZZZ", VARIABLE_LENGTH, on_unmatched="na"
+        ).fit_transform(X)
+
+    assert len(Xt) == len(X.to_dataframe())
+    assert Xt["sequence"].isna().all()
+
+
+def test_on_unmatched_na_partial_does_not_warn():
+    """Marking some reads as unmatched is expected filtering, so it stays quiet."""
+    reads = [make_read("ACGT" * 10), make_read("ACGT" * 9)]
+    X = MoleculeLoader(data={"sequence": reads})
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        Xt = PrimerTrimmer(
+            START_PRIMER, END_PRIMER, VARIABLE_LENGTH, on_unmatched="na"
+        ).fit_transform(X)
+
+    assert len(Xt) == 2
