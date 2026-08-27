@@ -91,6 +91,7 @@ Scoring functions that connect a model to the search.
    load_1gnh
    load_5nu7
    load_li2014
+   load_sample_fastq
 ```
 
 ## Benchmarking

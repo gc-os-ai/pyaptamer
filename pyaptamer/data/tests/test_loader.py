@@ -286,3 +286,135 @@ def test_no_seqres_pdb_raises():
     loader = MoleculeLoader(data={"target": [PDB_NO_SEQRES]})
     with pytest.raises(ValueError, match="No sequences found"):
         loader.to_dataframe()
+
+
+# --------------------------------------------------------------------------- #
+# iter_dataframe: chunked loading
+# --------------------------------------------------------------------------- #
+SAMPLE_FASTQ = str(DATA_DIR / "sample.fastq")  # 10 reads
+
+
+@pytest.mark.parametrize("indexing", ["preserve", "new", "keep_as_column"])
+def test_iter_dataframe_chunks_equal_eager_result(indexing):
+    """samples: concatenated chunks equal to_dataframe for every indexing."""
+    kwargs = {
+        "data": {"selex": [SAMPLE_FASTQ], "binding": [0.5]},
+        "tiling": "samples",
+        "indexing": indexing,
+    }
+
+    eager = MoleculeLoader(**kwargs).to_dataframe()
+    chunks = list(MoleculeLoader(**kwargs).iter_dataframe(chunksize=4))
+
+    assert [len(c) for c in chunks] == [4, 4, 2]
+    pd.testing.assert_frame_equal(pd.concat(chunks), eager)
+
+
+def test_iter_dataframe_multiindex_chunks():
+    """samples + multiindex: chunks carry the two-level index and match eager."""
+    kwargs = {
+        "data": {"selex": [SAMPLE_FASTQ]},
+        "tiling": "samples",
+        "multiindex": "multiindex",
+    }
+
+    eager = MoleculeLoader(**kwargs).to_dataframe()
+    chunks = list(MoleculeLoader(**kwargs).iter_dataframe(chunksize=4))
+
+    assert all(isinstance(c.index, pd.MultiIndex) for c in chunks)
+    pd.testing.assert_frame_equal(pd.concat(chunks), eager)
+
+
+def test_iter_dataframe_on_load_sample_fastq():
+    """The packaged sample FASTQ loader chunks and matches its eager result."""
+    from pyaptamer.datasets import load_sample_fastq
+
+    eager = load_sample_fastq().to_dataframe()
+    chunks = list(load_sample_fastq().iter_dataframe(chunksize=5))
+
+    assert [len(c) for c in chunks] == [5, 5]
+    pd.testing.assert_frame_equal(pd.concat(chunks), eager)
+
+
+def test_iter_dataframe_samples_product():
+    """samples_product: chunks cover the full cartesian product."""
+    kwargs = {
+        "data": {"a": [PDB_MULTI], "b": [PDB_MULTI]},
+        "tiling": "samples_product",
+        "indexing": "new",
+    }
+
+    eager = MoleculeLoader(**kwargs).to_dataframe()
+    chunks = list(MoleculeLoader(**kwargs).iter_dataframe(chunksize=30))
+
+    assert [len(c) for c in chunks] == [30, 30, 30, 10]
+    pd.testing.assert_frame_equal(pd.concat(chunks), eager)
+
+
+@pytest.mark.parametrize("tiling", ["bag", "concat", "first"])
+def test_iter_dataframe_per_cell_tilings(tiling):
+    """bag/concat/first: chunks split by input row and match eager."""
+    kwargs = {"data": {"target": [PDB_MULTI, PDB_SINGLE]}, "tiling": tiling}
+
+    eager = MoleculeLoader(**kwargs).to_dataframe()
+    chunks = list(MoleculeLoader(**kwargs).iter_dataframe(chunksize=1))
+
+    assert len(chunks) == 2
+    pd.testing.assert_frame_equal(pd.concat(chunks), eager)
+
+
+def test_iter_dataframe_in_memory_data():
+    """In-memory columns chunk without touching any file."""
+    loader = MoleculeLoader(
+        data={"target": ["ACGT", "TTGG", "CCAA"], "binding": [1, 2, 3]}
+    )
+    chunks = list(loader.iter_dataframe(chunksize=2))
+
+    assert [len(c) for c in chunks] == [2, 1]
+
+
+def test_iter_dataframe_reads_rows_lazily(tmp_path):
+    """The first chunk arrives before a later, missing file is opened."""
+    loader = MoleculeLoader(
+        data={"selex": [SAMPLE_FASTQ, str(tmp_path / "missing.fastq")]},
+        tiling="samples",
+    )
+
+    chunks = loader.iter_dataframe(chunksize=10)
+    first = next(chunks)
+
+    assert len(first) == 10
+    with pytest.raises(FileNotFoundError):
+        next(chunks)
+
+
+def test_iter_dataframe_features_raises():
+    """features needs the whole table at once, so iter_dataframe rejects it."""
+    loader = MoleculeLoader(data={"target": [PDB_MULTI]}, tiling="features")
+    with pytest.raises(ValueError, match="features"):
+        loader.iter_dataframe(chunksize=2)
+
+
+def test_iter_dataframe_auto_multiindex_raises():
+    """multiindex='auto' cannot be decided per chunk, so it is rejected."""
+    loader = MoleculeLoader(
+        data={"target": [PDB_MULTI]}, tiling="samples", multiindex="auto"
+    )
+    with pytest.raises(ValueError, match="auto"):
+        loader.iter_dataframe(chunksize=2)
+
+
+def test_iter_dataframe_invalid_chunksize_raises():
+    """chunksize must be a positive integer."""
+    loader = MoleculeLoader(data={"target": ["ACGT"]})
+    with pytest.raises(ValueError, match="chunksize"):
+        loader.iter_dataframe(chunksize=0)
+
+
+def test_iter_dataframe_samples_two_file_columns_raise():
+    """samples: two file columns raise the same error as to_dataframe."""
+    loader = MoleculeLoader(
+        data={"target": [PDB_MULTI], "ligand": [PDB_SINGLE]}, tiling="samples"
+    )
+    with pytest.raises(ValueError, match="more than one file column"):
+        list(loader.iter_dataframe(chunksize=5))
