@@ -1,21 +1,9 @@
-"""Contract tests for BaseTransform descendants.
+"""Test collection for all BaseTransform transformers in pyaptamer.
 
-Checks the fitted-state contract against every transformer in the package:
-
-    test_scenario_applies             - every transformer is matched by a scenario
-    test_not_fitted_before_fit        - is_fitted is False before fit
-    test_raises_not_fitted_error      - transform before fit raises NotFittedError
-    test_fit_sets_is_fitted           - fit sets is_fitted and returns self
-    test_fit_transform_sets_is_fitted - fit_transform leaves the state fitted
-
-Transformers are discovered with ``all_objects``, and the input each is checked
-against comes from a scenario, after sktime's test design: a scenario supplies
-the ``args`` for ``fit`` and ``transform``, and declares in ``is_applicable``
-which transformers it applies to, by reading their tags.
-
-Adding a transformer therefore needs no change here, as long as a scenario
-applies to it - ``test_scenario_applies`` fails if none does. A transformer
-taking a new kind of input needs a new scenario class.
+skbase's ``BaseFixtureGenerator`` finds the transformers and builds one test
+instance per ``get_test_params`` entry; ``TestAllObjects`` adds the skbase
+tests, and the fitted-state tests below run with them.
+Scenarios give each transformer its fit/transform input data, matched by tags.
 """
 
 __author__ = ["siddharth7113"]
@@ -23,7 +11,7 @@ __author__ = ["siddharth7113"]
 import pandas as pd
 import pytest
 from skbase._exceptions import NotFittedError
-from skbase.lookup import all_objects
+from skbase.testing import BaseFixtureGenerator, TestAllObjects
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.base import BaseTransform
@@ -32,8 +20,8 @@ from pyaptamer.trafos.base import BaseTransform
 class _RowCounter(BaseTransform):
     """Transformer with fitted state, covering the non-empty ``_fit`` branch.
 
-    No transformer in the package currently has fitted state, so the branch of
-    ``fit`` dispatching to ``_fit`` would otherwise go untested.
+    No transformer in the package currently has fitted state, so the branch
+    of ``fit`` that calls ``_fit`` would otherwise go untested.
 
     Note: Remove this when a transformer covering this case is present.
     """
@@ -81,69 +69,79 @@ class _MoleculePairsScenario:
         return {"fit": {"X": loader()}, "transform": {"X": loader()}}
 
 
-def _transformers():
-    """Every transformer in the package, plus the local stateful one."""
-    found = all_objects(
-        package_name="pyaptamer",
-        object_types=BaseTransform,
-        return_names=False,
-    )
-    return found + [_RowCounter]
-
-
 def _scenarios():
-    """Every transformer scenario known to the contract tests."""
+    """All scenarios the tests can use."""
     return [_SequenceFrameScenario(), _MoleculePairsScenario()]
 
 
-def _cases():
-    """(transformer, scenario) pairs the contract is checked on."""
-    return [
-        pytest.param(cls, scenario, id=f"{cls.__name__}-{type(scenario).__name__}")
-        for cls in _transformers()
-        for scenario in _scenarios()
-        if scenario.is_applicable(cls)
+def _scenario_for(obj):
+    """The first scenario that fits obj's class; test_scenario_applies checks one exists."""  # noqa: E501
+    return next(s for s in _scenarios() if s.is_applicable(type(obj)))
+
+
+class PackageConfig:
+    """Config that the skbase test classes read."""
+
+    package_name = "pyaptamer"
+
+    # all tags used in the package; test_object_tags fails on unlisted tags
+    valid_tags = [
+        "object_type",
+        "authors",
+        "maintainers",
+        "capability:y",
+        "capability:multivariate",
+        "property:fit_is_empty",
+        "property:elementwise",
+        "output_type",
     ]
 
 
-@pytest.mark.parametrize("cls", _transformers(), ids=lambda cls: cls.__name__)
-def test_scenario_applies(cls):
-    """Every transformer is matched by at least one scenario, so none goes unchecked."""
-    assert any(scenario.is_applicable(cls) for scenario in _scenarios())
+class TransformerFixtureGenerator(PackageConfig, BaseFixtureGenerator):
+    """Creates the object_class and object_instance test arguments.
+
+    Classes come from searching pyaptamer for BaseTransform subclasses, plus
+    the local _RowCounter, which the search cannot find. Instances are built
+    fresh for every test, one per get_test_params entry.
+    """
+
+    object_type_filter = BaseTransform
+
+    def _all_objects(self):
+        return super()._all_objects() + [_RowCounter]
 
 
-@pytest.mark.parametrize("cls", _transformers(), ids=lambda cls: cls.__name__)
-def test_not_fitted_before_fit(cls):
-    """A freshly constructed transformer reports itself as not fitted."""
-    est = cls.create_test_instance()
-    assert est.is_fitted is False
-    with pytest.raises(NotFittedError, match="has not been fitted"):
-        est.check_is_fitted()
+class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
+    """The fitted-state tests, plus the standard skbase tests by inheritance."""
 
+    def test_scenario_applies(self, object_class):
+        """Every transformer is matched by at least one scenario, so none goes unchecked."""  # noqa: E501
+        assert any(s.is_applicable(object_class) for s in _scenarios())
 
-@pytest.mark.parametrize("cls, scenario", _cases())
-def test_raises_not_fitted_error(cls, scenario):
-    """transform before fit raises NotFittedError"""
-    est = cls.create_test_instance()
-    with pytest.raises(NotFittedError, match="has not been fitted"):
-        est.transform(**scenario.args["transform"])
+    def test_not_fitted_before_fit(self, object_instance):
+        """A freshly constructed transformer reports itself as not fitted."""
+        assert object_instance.is_fitted is False
+        with pytest.raises(NotFittedError, match="has not been fitted"):
+            object_instance.check_is_fitted()
 
+    def test_raises_not_fitted_error(self, object_instance):
+        """transform before fit raises NotFittedError"""
+        scenario = _scenario_for(object_instance)
+        with pytest.raises(NotFittedError, match="has not been fitted"):
+            object_instance.transform(**scenario.args["transform"])
 
-@pytest.mark.parametrize("cls, scenario", _cases())
-def test_fit_sets_is_fitted(cls, scenario):
-    """fit returns self and marks the transformer fitted, even if fit_is_empty."""
-    est = cls.create_test_instance()
-    assert est.fit(**scenario.args["fit"]) is est
-    assert est.is_fitted is True
-    est.check_is_fitted()
+    def test_fit_sets_is_fitted(self, object_instance):
+        """fit returns self and marks the transformer fitted, even if fit_is_empty."""
+        scenario = _scenario_for(object_instance)
+        assert object_instance.fit(**scenario.args["fit"]) is object_instance
+        assert object_instance.is_fitted is True
+        object_instance.check_is_fitted()
 
-
-@pytest.mark.parametrize("cls, scenario", _cases())
-def test_fit_transform_sets_is_fitted(cls, scenario):
-    """fit_transform leaves the transformer in a fitted state."""
-    est = cls.create_test_instance()
-    est.fit_transform(**scenario.args["fit"])
-    assert est.is_fitted is True
+    def test_fit_transform_sets_is_fitted(self, object_instance):
+        """fit_transform leaves the transformer in a fitted state."""
+        scenario = _scenario_for(object_instance)
+        object_instance.fit_transform(**scenario.args["fit"])
+        assert object_instance.is_fitted is True
 
 
 def test_stateful_transform_uses_fitted_state():
