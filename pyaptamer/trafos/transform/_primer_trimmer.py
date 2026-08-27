@@ -172,8 +172,8 @@ class PrimerTrimmer(BaseTransform):
         Returns
         -------
         Xt : pd.DataFrame
-            The random region of each read,same index and column name as
-            input are returned. `on_unmatched` decides the shape of output
+            The random region of each read, same index and column name as
+            input are returned. ``on_unmatched`` decides the shape of output
             dataframe.
 
         Raises
