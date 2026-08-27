@@ -4,6 +4,7 @@ __author__ = ["aditi-dsi", "siddharth7113"]
 __all__ = ["PrimerTrimmer"]
 
 import warnings
+from typing import Literal
 
 import pandas as pd
 
@@ -14,24 +15,23 @@ from pyaptamer.trafos.base import BaseTransform
 class PrimerTrimmer(BaseTransform):
     """Remove the constant primer regions from SELEX reads.
 
-    A SELEX library is built to a fixed design. Every read should be a
+    A SELEX library is built with a fixed design. Every read should have a
     constant 5' region, then a random region of a known length, then a
     constant 3' region::
 
-        TAATACG...CAGAAG  NNNNNNNNNN...NNN  TATGTG...GATCCTC
+        TAATACG...CAGAAG     NNNNNNNNNN...NNN     TATGTG...GATCCTC
         |-- start_primer --|-- variable_length --|-- end_primer --|
 
-    Only the random region carries the candidate aptamer. The constant regions
-    are the primer binding sites used to amplify the library and are identical
-    in every read. This transformer strips them and returns the random region.
+    Only the random region is considered a candidate aptamer. The constant
+    regions are the primer binding sites used to amplify the SELEX library and
+    are identical in every read. This transformer strips them and returns the
+    random region.
 
-    A read fails to match the design if it does not begin with
-    ``start_primer``, does not end with ``end_primer``, or its random region
-    is not exactly ``variable_length`` long. A random region of the wrong
-    length means the read carries an insertion, a deletion, or a truncation,
-    so the aptamer candidate it holds is not one the library was built to
-    produce. What happens to a read that fails to match is controlled by
-    ``on_unmatched``.
+    A read is considered corrupted if it fails any part of that design: it does
+    not begin with ``start_primer``, does not end with ``end_primer``, or its
+    random region is not exactly ``variable_length`` long. A random region of
+    the wrong length means the read carries an insertion, a deletion, or a
+    truncation. ``on_unmatched`` decides what happens to a corrupted read.
 
     Parameters
     ----------
@@ -44,21 +44,26 @@ class PrimerTrimmer(BaseTransform):
         The designed length of the random region, for example 40 for an N40
         library.
     on_unmatched : {"drop", "na", "raise"}, default="drop"
-        What to do with a read that fails to match the design.
+        What to do with a corrupted read.
 
-        - "drop" : omit the read from the output. ``Xt`` holds only the
-          reads that matched, indexed by the reads kept.
-        - "na" : keep the read in the output, with its sequence value set to
-          ``None``. ``Xt`` holds one row per input read.
-        - "raise" : raise a ``ValueError`` if any read fails to match.
+        - "drop" : leave it out, so ``Xt`` has one row per surviving read.
+        - "na" : keep its row but mark the sequence as missing, so ``Xt`` has
+          one row per input read. Find those rows with ``isna``: the exact
+          missing value differs between pandas versions, so comparing against
+          ``None`` is not reliable.
+        - "raise" : raise a ``ValueError`` saying how many reads are corrupted.
 
     Notes
     -----
-    Estimating the constant regions or the library design from the reads is
-    not supported. See the AptaDiff project for prior art on inferring them.
+    Both primers are matched exactly, and the random region length must be
+    given. Approximate matching, which would tolerate sequencing errors inside
+    a primer, and inferring the random region length, which would allow
+    libraries of mixed design, are not supported.
 
     Examples
     --------
+    Corrupted reads are dropped, leaving 6 of the 10 sample reads:
+
     >>> from pyaptamer.datasets import load_sample_fastq
     >>> from pyaptamer.trafos.transform import PrimerTrimmer
     >>>
@@ -72,6 +77,21 @@ class PrimerTrimmer(BaseTransform):
     6
     >>> Xt["sequence"].str.len().unique().tolist()
     [40]
+
+    With ``on_unmatched="na"`` every row is kept, and the corrupted ones
+    are marked as missing:
+
+    >>> transform = PrimerTrimmer(
+    ...     start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",
+    ...     end_primer="TATGTGCGCATACATGGATCCTC",
+    ...     variable_length=40,
+    ...     on_unmatched="na",
+    ... )
+    >>> Xt = transform.fit_transform(load_sample_fastq())
+    >>> len(Xt)
+    10
+    >>> int(Xt["sequence"].isna().sum())
+    4
     """
 
     _tags = {
@@ -86,7 +106,7 @@ class PrimerTrimmer(BaseTransform):
         start_primer: str,
         end_primer: str,
         variable_length: int,
-        on_unmatched: str = "drop",
+        on_unmatched: Literal["drop", "na", "raise"] = "drop",
     ):
         self.start_primer = start_primer
         self.end_primer = end_primer
@@ -142,12 +162,7 @@ class PrimerTrimmer(BaseTransform):
             )
 
     def _transform(self, X):
-        """Strip the constant regions, handling reads that miss the design.
-
-        What happens to a read that fails to match the design is controlled
-        by ``on_unmatched``: it is omitted (``"drop"``), kept with its value
-        set to ``None`` (``"na"``), or turned into a raised exception
-        (``"raise"``).
+        """Strip the constant regions from every read that fits the design.
 
         Parameters
         ----------
@@ -157,18 +172,14 @@ class PrimerTrimmer(BaseTransform):
         Returns
         -------
         Xt : pd.DataFrame
-            Holds the random region of each read that matched the design.
-            Under ``on_unmatched="drop"``, one row per matched read, indexed
-            by the reads kept. Under ``on_unmatched="raise"``, this is only
-            reached if every read matched, so it is one row per input read.
-            Under ``on_unmatched="na"``, one row per input read, with
-            unmatched reads holding ``None``.
+            The random region of each read,same index and column name as
+            input are returned. `on_unmatched` decides the shape of output
+            dataframe.
 
         Raises
         ------
         ValueError
-            If ``on_unmatched="raise"`` and at least one read fails to match
-            the design.
+            If ``on_unmatched="raise"`` and any read is corrupted.
         """
         self._validate_params()
         self._check_reads(X)
@@ -185,50 +196,36 @@ class PrimerTrimmer(BaseTransform):
             & reads.str.endswith(self.end_primer)
         )
 
-        unmatched_count = len(X) - int(keep.sum())
+        corrupted = len(X) - int(keep.sum())
+        # a corrupted read fails at least one part of the design, not all of it
+        design = (
+            f"start_primer + {self.variable_length} nt + end_primer, "
+            f"{read_length} nt in total"
+        )
 
-        if self.on_unmatched == "raise" and unmatched_count:
+        if self.on_unmatched == "raise" and corrupted:
             raise ValueError(
-                f"{type(self).__name__} found {unmatched_count} of {len(X)} "
-                "reads that do not fit the library design: they do not start "
-                f"with {self.start_primer!r}, end with {self.end_primer!r}, and "
-                f"hold a {self.variable_length} nt random region in between. "
-                "Check the primers against the library design, including the "
-                'orientation of end_primer, or set on_unmatched="drop" or '
-                '"na" to tolerate unmatched reads.'
+                f"{corrupted} of {len(X)} reads do not match the library design "
+                f"({design}). Check both primers, including the orientation of "
+                'end_primer, or use on_unmatched="drop" or "na".'
             )
 
-        if unmatched_count and unmatched_count == len(X):
-            if self.on_unmatched == "na":
+        if corrupted:
+            verb = "marked" if self.on_unmatched == "na" else "dropped"
+            tail = " as missing" if self.on_unmatched == "na" else ""
+
+            if corrupted == len(X):
                 warnings.warn(
-                    f"{type(self).__name__} set all {len(X)} reads to None: "
-                    f"none of them start with {self.start_primer!r}, end with "
-                    f"{self.end_primer!r}, and hold a {self.variable_length} nt "
-                    "random region in between. Check the primers against the "
-                    "library design, including the orientation of end_primer.",
+                    f"{type(self).__name__} {verb} all {len(X)} reads{tail}: none "
+                    f"match the library design ({design}). Check both primers, "
+                    "including the orientation of end_primer.",
                     UserWarning,
                     stacklevel=2,
                 )
             else:
-                warnings.warn(
-                    f"{type(self).__name__} dropped all {len(X)} reads: none of "
-                    f"them start with {self.start_primer!r}, end with "
-                    f"{self.end_primer!r}, and hold a {self.variable_length} nt "
-                    "random region in between. Check the primers against the "
-                    "library design, including the orientation of end_primer.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-        elif unmatched_count:
-            if self.on_unmatched == "na":
                 logger.info(
-                    f"{type(self).__name__} set {unmatched_count} of {len(X)} "
-                    "reads to None because they did not fit the library design."
-                )
-            else:
-                logger.info(
-                    f"{type(self).__name__} dropped {unmatched_count} of "
-                    f"{len(X)} reads that did not fit the library design."
+                    f"{type(self).__name__} {verb} {corrupted} of {len(X)} "
+                    f"reads{tail} that do not match the library design."
                 )
 
         if self.on_unmatched == "na":
