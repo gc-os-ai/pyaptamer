@@ -93,5 +93,4 @@ The package is maintained in collaboration between [ecoSPECS](https://ecospecs.d
     * Siddharth ([@siddharth7113](https://www.github.com/siddharth7113))
 * European Summer of Code contributors 2026
     * Aditi Bindal ([@aditi-dsi](https://github.com/aditi-dsi))
-    * Allen Y ([@Alleny244](https://github.com/Alleny244)))
     * Nour Majdoub ([@NoorMajdoub](https://github.com/NoorMajdoub))

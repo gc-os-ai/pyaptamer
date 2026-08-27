@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,14 +13,14 @@ authors = [
 ]
 
 dependencies = [
-    "biopython>=1.87",
-    "datasets>=5.0.0",
+    "biopython>=1.88",
+    "datasets>=5.0.1",
     "lightning>=2.6.5",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.12.1",
-    # <1.8.0: transformers lack __sklearn_tags__ (extend skbase); 1.8 errors. #735
+    "torch>=2.13,
+    # <1.8.0: see issue #735 for sklearn upperbound #TODO: fix it later
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.15.22",
+    "ruff>=0.16.4",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",
@@ -68,6 +68,7 @@ pyaptamer = ["datasets/data/*.csv", "datasets/data/*.pdb"]
 
 [tool.ruff.lint.per-file-ignores]
 "examples/*.ipynb" = ["T201"]
+"scripts/*.py" = ["T201"]
 
 [tool.coverage.run]
 source = ["pyaptamer"]
