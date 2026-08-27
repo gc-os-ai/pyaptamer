@@ -47,8 +47,8 @@ def test_keeps_only_reads_matching_the_design():
         "good": make_read("ACGT" * 10),
         "short_region": make_read("ACGT" * 9),
         "long_region": make_read("ACGT" * 11),
-        "no_start": "GGGG" + "ACGT" * 10 + END_PRIMER,
-        "no_end": START_PRIMER + "ACGT" * 10 + "GGGG",
+        "no_start": "G" * len(START_PRIMER) + "ACGT" * 10 + END_PRIMER,
+        "no_end": START_PRIMER + "ACGT" * 10 + "G" * len(END_PRIMER),
     }
     Xt = PrimerTrimmer(START_PRIMER, END_PRIMER, VARIABLE_LENGTH).fit_transform(
         MoleculeLoader(data={"sequence": list(reads.values())})
@@ -206,7 +206,7 @@ def test_on_unmatched_na_all_unmatched_warns_but_keeps_every_row():
     """na warns when every read fails, but keeps the frame's full shape."""
     X = load_sample_fastq()
 
-    with pytest.warns(UserWarning, match="set all"):
+    with pytest.warns(UserWarning, match="marked all"):
         Xt = PrimerTrimmer(
             "ZZZZ", "ZZZZ", VARIABLE_LENGTH, on_unmatched="na"
         ).fit_transform(X)
