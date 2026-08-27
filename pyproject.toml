@@ -19,7 +19,8 @@ dependencies = [
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.13.0",
+    "torch>=2.13",
+    # <1.8.0: see issue #735 for sklearn upperbound #TODO: fix it later
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
     "imblearn",
@@ -78,3 +79,9 @@ omit = [
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # transformers lack __sklearn_tags__; deferred, sklearn<1.8.0 pin guards. #735
+    "ignore:.*__sklearn_tags__.*:DeprecationWarning",
+]
