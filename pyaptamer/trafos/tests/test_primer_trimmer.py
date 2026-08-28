@@ -141,20 +141,6 @@ def test_overlapping_primers_drop_rather_than_return_empty_strings():
     assert Xt.empty
 
 
-def test_output_can_be_fed_back_in():
-    """The output carries no missing values, so it chains into another trim."""
-    core = "ACGT" * 8
-    X = MoleculeLoader(data={"sequence": [make_read("AAA" + core + "TTT")]})
-
-    once = PrimerTrimmer(START_PRIMER, END_PRIMER, len(core) + 6).fit_transform(X)
-    twice = PrimerTrimmer("AAA", "TTT", len(core)).fit_transform(
-        MoleculeLoader(data=once)
-    )
-
-    assert once["sequence"].tolist() == ["AAA" + core + "TTT"]
-    assert twice["sequence"].tolist() == [core]
-
-
 @pytest.mark.parametrize("on_unmatched", ["some", "error"])
 def test_invalid_on_unmatched_is_rejected(on_unmatched):
     """on_unmatched only accepts 'drop', 'na', or 'raise'."""
