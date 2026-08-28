@@ -241,3 +241,25 @@ class PrimerTrimmer(BaseTransform):
             )
 
         return Xt
+
+    @classmethod
+    def get_test_params(cls):
+        """Get test parameters for PrimerTrimmer.
+
+        Returns
+        -------
+        params : list of dict
+            Test parameters for PrimerTrimmer.
+        """
+        param0 = {
+            "start_primer": "AAA",
+            "end_primer": "TTT",
+            "variable_length": 4,
+        }
+        param1 = {
+            "start_primer": "AAA",
+            "end_primer": "TTT",
+            "variable_length": 4,
+            "on_unmatched": "na",
+        }
+        return [param0, param1]
