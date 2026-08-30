@@ -20,6 +20,7 @@ def test_inverted_bottleneck_layers(init_dim, window_size):
     Checks that `Inverted_Bottleneck` initializes its conv
     and batchnorm layers correctly.
     """
+
     block = Inverted_Bottleneck(init_dim=init_dim, window_size=window_size)
 
     assert isinstance(block.conv1, nn.Conv1d)
