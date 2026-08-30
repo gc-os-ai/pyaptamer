@@ -6,8 +6,6 @@ __all__ = ["DecoderPHMM", "DecoderPHMM_fast"]
 import torch
 from torch import nn
 
-from pyaptamer.raptgen.layers._utils import View
-
 
 class DecoderPHMM(nn.Module):
     """
@@ -57,7 +55,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 3),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 3)),
+            nn.Unflatten(1, (motif_len + 1, 3)),
             nn.LogSoftmax(dim=2),
         )
         self.tr_from_I = nn.Sequential(
@@ -65,7 +63,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 2)),
+            nn.Unflatten(1, (motif_len + 1, 2)),
             nn.LogSoftmax(dim=2),
         )
         self.tr_from_D = nn.Sequential(
@@ -73,7 +71,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 2)),
+            nn.Unflatten(1, (motif_len + 1, 2)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -82,7 +80,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len, 4)),
+            nn.Unflatten(1, (motif_len, 4)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -127,7 +125,7 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, 3 * 3 * (motif_len + 1)),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, 3, 3, motif_len + 1)),
+            nn.Unflatten(1, (3, 3, motif_len + 1)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -136,7 +134,7 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len, 4)),
+            nn.Unflatten(1, (motif_len, 4)),
             nn.LogSoftmax(dim=2),
         )
 
