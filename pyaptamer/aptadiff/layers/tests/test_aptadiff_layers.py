@@ -67,12 +67,12 @@ def test_transformer_native_warning_on_local_heads(default_transformer_kwargs):
         )
 
 
-@pytest.mark.parametrize("seq_len, window_size", [(100, 30), (128, 50), (64, 10)])
-def test_transformer_invalid_seq_len_window_ratio(
-    default_transformer_kwargs, seq_len, window_size
+@pytest.mark.parametrize("max_seq_len, window_size", [(100, 30), (128, 50), (64, 10)])
+def test_transformer_invalid_max_seq_len_window_ratio(
+    default_transformer_kwargs, max_seq_len, window_size
 ):
     """Test that max_seq_len must be divisible by local_attn_window_size."""
-    default_transformer_kwargs["max_seq_len"] = seq_len
+    default_transformer_kwargs["max_seq_len"] = max_seq_len
     default_transformer_kwargs["local_attn_window_size"] = window_size
 
     with pytest.raises(
@@ -118,3 +118,41 @@ def test_transformer_forward_pass(
 
     expected_shape = (batch_size, seq_len, default_transformer_kwargs["output_dim"])
     assert out.shape == expected_shape
+
+
+def test_transformer_forward_invalid_seq_len_local_attention(
+    default_transformer_kwargs,
+):
+    """Test that forward raises ValueError when seq_len not divisible by the window
+    once local attention heads are active."""
+    default_transformer_kwargs["n_local_attn_heads"] = 2
+    model = AptaDiffTransformerEmbedding(
+        **default_transformer_kwargs, transformer_type="linear"
+    )
+
+    vocab_size = default_transformer_kwargs["input_dim"]
+    batch_size, bad_seq_len = 2, 100
+    x = torch.randint(0, vocab_size, (batch_size, bad_seq_len))
+    t = torch.randint(0, 100, (batch_size,))
+    z = torch.randn(batch_size, default_transformer_kwargs["enc_embed_size"])
+
+    with pytest.raises(ValueError, match="must be evenly divisible by window_size"):
+        model(x, t, z)
+
+
+def test_transformer_forward_exceeds_max_seq_len(default_transformer_kwargs):
+    """Test that forward raises ValueError when seq_len exceeds max_seq_len."""
+    model = AptaDiffTransformerEmbedding(**default_transformer_kwargs)
+
+    vocab_size = default_transformer_kwargs["input_dim"]
+    batch_size = 2
+    long_seq_len = default_transformer_kwargs["max_seq_len"] + 10
+
+    x = torch.randint(0, vocab_size, (batch_size, long_seq_len))
+    t = torch.randint(0, 100, (batch_size,))
+    z = torch.randn(batch_size, default_transformer_kwargs["enc_embed_size"])
+
+    with pytest.raises(
+        ValueError, match="must be less than the maximum sequence length"
+    ):
+        model(x, t, z)
