@@ -198,7 +198,8 @@ def encode_rna(
     word_max_len : int, optional, default=3
         Maximum length of amino acid patterns to consider during tokenization.
     return_type : str, optional, default="tensor"
-        The type of the returned encoded sequences.
+        The type of the returned encoded sequences. Must be ``"tensor"`` or
+        ``"numpy"``.
 
         * "tensor": returns a PyTorch Tensor
         * "numpy": returns a NumPy ndarray
@@ -215,6 +216,13 @@ def encode_rna(
     >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
+    _VALID_RETURN_TYPES = ("tensor", "numpy")
+    if return_type not in _VALID_RETURN_TYPES:
+        raise ValueError(
+            f"Invalid return_type '{return_type}'. "
+            f"Must be one of {_VALID_RETURN_TYPES}."
+        )
+
     # handle single protein input
     if isinstance(sequences, str):
         sequences = [sequences]
