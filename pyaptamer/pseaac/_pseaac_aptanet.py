@@ -101,7 +101,7 @@ class AptaNetPSeAAC:
         self.weight = weight
 
         # Load normalized property matrix (20x21, rows=AA, cols=NP1-NP21)
-        self.np_matrix = aa_props(type="numpy", normalize=True)
+        self.np_matrix = aa_props(output_type="numpy", normalize=True)
         # Each prop_group is a tuple of 3 columns (property indices)
         self.prop_groups = [
             (0, 1, 2),
