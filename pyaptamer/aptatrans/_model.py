@@ -107,12 +107,12 @@ class AptaTrans(nn.Module):
         """
         Raises
         -------
-        AssertionError
+        ValueError
             If the input dimension is not divisible by the number of heads.
         """
         super().__init__()
         if in_dim % n_heads != 0:
-            raise AssertionError(
+            raise ValueError(
                 f"Input dimension {in_dim} must be divisible by number of heads "
                 f"{n_heads}."
             )
