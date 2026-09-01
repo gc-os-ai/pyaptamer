@@ -441,6 +441,80 @@ class TestAptaTransPipeline:
         assert len(candidates) == n_candidates  # should be exactly n_candidates
 
     @pytest.mark.parametrize(
+        "score_threshold, n_candidates",
+        [
+            (0.5, 3),
+            (0.8, 2),
+        ],
+    )
+    def test_recommend_score_threshold(
+        self, score_threshold, n_candidates, monkeypatch
+    ):
+        """Check recommend() only returns candidates at or above score_threshold."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
+        pipeline = AptaTransPipeline(
+            device=device, model=model, prot_words=prot_words, depth=5
+        )
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: None,
+        )
+
+        class MockMCTS:
+            def __init__(self, **kwargs):
+                self.counter = 0
+
+            def run(self, verbose=False):
+                i = self.counter % 10
+                self.counter += 1
+                return {
+                    "candidate": f"APTA{i:03d}",
+                    "sequence": f"sequence_{i}",
+                    "score": torch.tensor(i) / 10,
+                }
+
+        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
+
+        candidates = pipeline.recommend(
+            target="AUGCAUGC",
+            n_candidates=n_candidates,
+            score_threshold=score_threshold,
+            verbose=False,
+        )
+
+        assert isinstance(candidates, set)
+        assert len(candidates) == n_candidates
+        assert all(score >= score_threshold for _, _, score in candidates)
+
+    @pytest.mark.parametrize("score_threshold", [-0.1, 1.1, 2.0])
+    def test_recommend_score_threshold_invalid(self, score_threshold, monkeypatch):
+        """Check recommend() raises ValueError for out-of-range score_threshold."""
+        device = torch.device("cpu")
+        model = MockAptaTransNeuralNet(device)
+        pipeline = AptaTransPipeline(
+            device=device,
+            model=model,
+            prot_words={"AUG": 0.8, "GCA": 0.6},
+            depth=5,
+        )
+
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans",
+            lambda **kwargs: None,
+        )
+
+        with pytest.raises(ValueError, match="`score_threshold` must be between"):
+            pipeline.recommend(
+                target="AUGCAUGC",
+                n_candidates=1,
+                score_threshold=score_threshold,
+                verbose=False,
+            )
+
+    @pytest.mark.parametrize(
         "device, candidate, target",
         [
             (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
