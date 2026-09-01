@@ -22,7 +22,7 @@ def test_aptamer_one_hot_encoder_accepts_moleculeloader():
     A MoleculeLoader of aptamers is correctly encoded into a tensor
     of shape (batch_size, num_classes, seq_len).
     """
-    X = MoleculeLoader(data={"aptamer": [APTAMER, APTAMER.lower()]})
+    X = MoleculeLoader(data={"seq": [APTAMER, APTAMER.lower()]})
 
     encoder = AptamerOneHotEncoder()
     Xt = encoder.fit_transform(X)
@@ -34,7 +34,7 @@ def test_aptamer_one_hot_encoder_accepts_moleculeloader():
 
 
 def test_aptamer_one_hot_encoder_custom_columns():
-    """Column names are configurable, not hardcoded to aptamer."""
+    """Column names are configurable, not hardcoded to seq."""
     X = MoleculeLoader(data={"custom_seq": [APTAMER] * 2})
     encoder = AptamerOneHotEncoder(aptamer_col="custom_seq")
     Xt = encoder.fit_transform(X)
@@ -54,7 +54,7 @@ def test_aptamer_one_hot_encoder_inverse_transform():
     decoded_df = encoder.inverse_transform(dummy_indices)
 
     assert isinstance(decoded_df, pd.DataFrame)
-    assert decoded_df["aptamer"].iloc[0] == APTAMER
+    assert decoded_df["seq"].iloc[0] == APTAMER
 
 
 def test_aptamer_one_hot_encoder_inverse_transform_unknown_token():
@@ -71,11 +71,11 @@ def test_aptamer_one_hot_encoder_inverse_transform_unknown_token():
     decoded_df = encoder.inverse_transform(dummy_indices)
 
     expected_mutated = APTAMER[:10] + "X" + APTAMER[11:]
-    assert decoded_df["aptamer"].iloc[0] == expected_mutated
+    assert decoded_df["seq"].iloc[0] == expected_mutated
 
 
 def test_aptamer_one_hot_encoder_accepts_primer_trimmer_output():
-    """Encoder accepts PrimerTrimmer's dataframe output directly"""
+    """Encoder accepts PrimerTrimmer's DataFrame output directly"""
     loader = load_sample_fastq()
     trimmed = PrimerTrimmer(START_PRIMER, END_PRIMER, TRIMMED_LENGTH).fit_transform(
         loader
@@ -94,34 +94,36 @@ def test_aptamer_one_hot_encoder_accepts_primer_trimmer_output():
 
 def test_aptamer_one_hot_encoder_handle_unknown_raise_on_unsupported_character():
     """handle_unknown='raise' (default) rejects a sequence containing 'N'."""
-    X = MoleculeLoader(data={"aptamer": ["ACGTN"]})
+    X = MoleculeLoader(data={"seq": ["ACGTN"]})
     with pytest.raises(ValueError, match="unsupported character"):
         AptamerOneHotEncoder().fit_transform(X)
 
 
-def test_aptamer_one_hot_encoder_handle_unknown_raise_on_missing_value():
+@pytest.mark.parametrize("missing_value", [None, float("nan")])
+def test_aptamer_one_hot_encoder_handle_unknown_raise_on_missing_value(missing_value):
     """handle_unknown='raise' (default) rejects a missing sequence value."""
-    X = pd.DataFrame({"aptamer": ["ACGT", None]})
+    X = pd.DataFrame({"seq": ["ACGT", missing_value]})
     with pytest.raises(ValueError, match="missing value"):
         AptamerOneHotEncoder().fit_transform(X)
 
 
 def test_aptamer_one_hot_encoder_handle_unknown_drop_unsupported_character():
     """handle_unknown='drop' skips only the row containing 'N'."""
-    X = MoleculeLoader(data={"aptamer": ["ACGT", "ACGN"]})
+    X = MoleculeLoader(data={"seq": ["ACGT", "ACGN"]})
     Xt = AptamerOneHotEncoder(handle_unknown="drop").fit_transform(X)
     assert Xt.shape == (1, 4, 4)
 
 
-def test_aptamer_one_hot_encoder_handle_unknown_drop_missing_value():
+@pytest.mark.parametrize("missing_value", [None, float("nan")])
+def test_aptamer_one_hot_encoder_handle_unknown_drop_missing_value(missing_value):
     """handle_unknown='drop' skips only the row with a missing value."""
-    X = pd.DataFrame({"aptamer": ["ACGT", None]})
+    X = pd.DataFrame({"seq": ["ACGT", missing_value]})
     Xt = AptamerOneHotEncoder(handle_unknown="drop").fit_transform(X)
     assert Xt.shape == (1, 4, 4)
 
 
 def test_aptamer_one_hot_encoder_raises_on_variable_sequence_lengths():
     """Sequences of unequal length raise a ValueError pointing to PrimerTrimmer."""
-    X = MoleculeLoader(data={"aptamer": ["ACGT", "ACGTACGT"]})
+    X = MoleculeLoader(data={"seq": ["ACGT", "ACGTACGT"]})
     with pytest.raises(ValueError, match="same fixed length"):
         AptamerOneHotEncoder().fit_transform(X)
