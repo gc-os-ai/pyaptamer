@@ -24,7 +24,7 @@ class AptamerOneHotEncoder(BaseTransform):
 
     Parameters
     ----------
-    aptamer_col : str, default="aptamer"
+    aptamer_col : str, default="seq"
         Name of the column holding aptamer sequences.
     handle_unknown : {"raise", "drop"}, default="raise"
         What to do when a sequence is missing (``NaN``/``None``) or contains a
@@ -33,7 +33,6 @@ class AptamerOneHotEncoder(BaseTransform):
         - "raise" : raise a ``ValueError`` naming the problem.
         - "drop" : skip that row in the encoded output.
 
-
     Examples
     --------
     >>> import torch
@@ -41,7 +40,7 @@ class AptamerOneHotEncoder(BaseTransform):
     >>> from pyaptamer.data import MoleculeLoader
     >>> X = MoleculeLoader(
     ...     data={
-    ...         "aptamer": ["ATGC", "GCTA"],
+    ...         "seq": ["ATGC", "GCTA"],
     ...     }
     ... )
     >>> enc = AptamerOneHotEncoder()
@@ -49,7 +48,7 @@ class AptamerOneHotEncoder(BaseTransform):
     >>> Xt.shape
     torch.Size([2, 4, 4])
     >>> decoded = enc.inverse_transform(Xt)
-    >>> decoded["aptamer"].iloc[0]
+    >>> decoded["seq"].iloc[0]
     'ATGC'
     """
 
@@ -63,7 +62,7 @@ class AptamerOneHotEncoder(BaseTransform):
 
     def __init__(
         self,
-        aptamer_col: str = "aptamer",
+        aptamer_col: str = "seq",
         handle_unknown: Literal["raise", "drop"] = "raise",
     ):
         self.aptamer_col = aptamer_col
