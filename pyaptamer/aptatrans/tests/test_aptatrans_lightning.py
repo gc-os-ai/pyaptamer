@@ -74,12 +74,18 @@ class TestAptaTransLightning:
         "step_method",
         ["training_step", "test_step"],
     )
-    def test_step(self, lightning_model, batch_size, seq_len, step_method):
-        """Check training_step and test_step compute loss correctly."""
+    @pytest.mark.parametrize("y_shape", ["1d", "2d"])
+    def test_step(self, lightning_model, batch_size, seq_len, step_method, y_shape):
+        """Check training_step and test_step compute loss correctly with both
+        1D and 2D labels.
+        """
         # create dummy batch
         x_apta = torch.randint(0, 4, (batch_size, seq_len))
         x_prot = torch.randint(0, 20, (batch_size, seq_len))
-        y = torch.randint(0, 2, (batch_size,)).float()
+        if y_shape == "1d":
+            y = torch.randint(0, 2, (batch_size,)).float()
+        else:
+            y = torch.randint(0, 2, (batch_size, 1)).float()
         batch = (x_apta, x_prot, y)
 
         loss = getattr(lightning_model, step_method)(batch, batch_idx=0)
