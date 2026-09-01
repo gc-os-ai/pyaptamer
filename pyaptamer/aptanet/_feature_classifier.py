@@ -119,7 +119,6 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
             )
 
         if self.random_state is not None:
-            np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
         self.classes_, y = np.unique(y, return_inverse=True)
@@ -303,7 +302,6 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         y = y.reshape(-1, 1)
 
         if self.random_state is not None:
-            np.random.seed(self.random_state)
             torch.manual_seed(self.random_state)
 
         self.pipeline_ = self._build_pipeline()
