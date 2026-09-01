@@ -73,33 +73,62 @@ class Benchmarking:
     >>> summary = bench.run()  # doctest: +SKIP
     """
 
-    def __init__(self, estimators, metrics, X, y, cv=None):
+    def __init__(self, estimators, metrics):
         self.estimators = estimators if isinstance(estimators, list) else [estimators]
         self.metrics = metrics if isinstance(metrics, list) else [metrics]
-        self.X = X
-        self.y = y
-        self.cv = cv
         self.results = None
 
     def _to_scorers(self, metrics):
-        """Convert metric callables to a dict of scorers."""
+        """Convert metrics to a dict of scorers."""
+        from sklearn.metrics import get_scorer
+
         scorers = {}
         for metric in metrics:
-            if not callable(metric):
-                raise ValueError("Each metric should be a callable.")
-            name = (
-                metric.__name__
-                if hasattr(metric, "__name__")
-                else metric.__class__.__name__
-            )
-            scorers[name] = make_scorer(metric)
+            if isinstance(metric, str):
+                scorers[metric] = get_scorer(metric)
+            elif callable(metric):
+                name = (
+                    metric.__name__
+                    if hasattr(metric, "__name__")
+                    else metric.__class__.__name__
+                )
+                scorers[name] = make_scorer(metric)
+            else:
+                raise ValueError(f"Metric {metric} should be a callable or a string.")
         return scorers
+
+    def _get_estimator_names(self):
+        """Get or generate unique names for estimators."""
+        names = []
+        estimators = []
+
+        for item in self.estimators:
+            if isinstance(item, tuple) and len(item) == 2:
+                names.append(item[0])
+                estimators.append(item[1])
+            else:
+                names.append(item.__class__.__name__)
+                estimators.append(item)
+
+        # Handle duplicates by adding suffixes
+        final_names = []
+        counts = {}
+        for name in names:
+            if name not in counts:
+                counts[name] = 0
+                final_names.append(name)
+            else:
+                counts[name] += 1
+                final_names.append(f"{name}_{counts[name]}")
+
+        return list(zip(final_names, estimators, strict=False))
 
     def _to_df(self, results):
         """Convert nested results to a unified DataFrame."""
         records = []
         index = []
 
+        # Ensure consistent order by iterating over the results in processing order
         for est_name, est_scores in results.items():
             for metric_name, scores in est_scores.items():
                 records.append(scores)
@@ -108,34 +137,33 @@ class Benchmarking:
         index = pd.MultiIndex.from_tuples(index, names=["estimator", "metric"])
         return pd.DataFrame(records, index=index, columns=["train", "test"])
 
-    def run(self):
+    def run(self, X, y, cv=None):
         """
         Train each estimator and evaluate with cross-validation.
+
+        Parameters
+        ----------
+        X : array-like
+            Feature matrix.
+        y : array-like
+            Target vector.
+        cv : int, CV splitter, or None, default=None
+            Cross-validation strategy. If `None`, defaults to 5-fold CV.
 
         Returns
         -------
         results : pd.DataFrame
-
-            - Index: pandas.MultiIndex with two levels (names shown in parentheses)
-                - level 0 "estimator": estimator name
-                - level 1 "metric": evaluator name
-            - Columns: ["train", "test"] (both floats)
-            - Cell values: mean scores (float) computed across CV folds:
-                - "train" = mean of cross_validate(...)[f"train_{metric}"]
-                - "test"  = mean of cross_validate(...)[f"test_{metric}"]
-
         """
         self.scorers_ = self._to_scorers(self.metrics)
+        named_estimators = self._get_estimator_names()
         results = {}
 
-        for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
-
+        for est_name, estimator in named_estimators:
             cv_results = cross_validate(
                 estimator,
-                self.X,
-                self.y,
-                cv=self.cv,
+                X,
+                y,
+                cv=cv,
                 scoring=self.scorers_,
                 return_train_score=True,
             )
