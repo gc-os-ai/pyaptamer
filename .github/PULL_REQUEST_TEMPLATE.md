@@ -40,6 +40,7 @@ Please go through the checklist below. Please feel free to remove points if they
 -->
 
 - [ ] The PR title starts with either [ENH], [MNT], [DOC], or [BUG]. [BUG] - bugfix, [MNT] - CI, test framework, [ENH] - adding or improving code, [DOC] - writing or improving documentation or docstrings.
+- [ ] I have opened a corresponding issue describing the bug/feature before making this PR (as requested in README).
 - [ ] Added/modified tests
 - [ ] Used pre-commit hooks when committing to ensure that code is compliant with hooks. Install hooks with `pre-commit install`.
   To run hooks independent of commit, execute `pre-commit run --all-files`

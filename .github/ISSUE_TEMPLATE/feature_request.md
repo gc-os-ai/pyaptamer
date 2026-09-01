@@ -6,6 +6,9 @@ assignees: ''
 
 ---
 
+**Search existing issues**
+- [ ] I have searched existing issues to ensure this feature request is not a duplicate.
+
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is.
 
