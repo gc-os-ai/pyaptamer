@@ -336,3 +336,77 @@ def test_no_seqres_pdb_raises():
     loader = MoleculeLoader(data={"target": [PDB_NO_SEQRES]})
     with pytest.raises(ValueError, match="No sequences found"):
         loader.to_dataframe()
+
+
+# --------------------------------------------------------------------------- #
+# file readers: gzip, fast FASTA/FASTQ paths
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "name, content",
+    [
+        ("library.fasta.gz", ">apt1\nACGTACGT\n>apt2\nTTTT\nGGGG\n"),
+        ("selex.fastq.gz", "@r1\nACGTACGT\n+\nIIIIIIII\n@r2\nTTTTGGGG\n+\nIIIIIIII\n"),
+    ],
+    ids=["fasta", "fastq"],
+)
+def test_gzipped_file_is_read(tmp_path, name, content):
+    """A .gz file is decompressed and parsed by the format under the .gz."""
+    import gzip
+
+    path = tmp_path / name
+    with gzip.open(path, "wt") as handle:
+        handle.write(content)
+
+    df = MoleculeLoader(data={"seq": [str(path)]}, tiling="samples").to_dataframe()
+
+    assert df["seq"].tolist() == ["ACGTACGT", "TTTTGGGG"]
+
+
+def test_gz_without_format_suffix_raises(tmp_path):
+    """reads.gz has no format under the .gz, so the suffix error is raised."""
+    path = tmp_path / "reads.gz"
+    path.write_bytes(b"")
+
+    with pytest.raises(ValueError, match="picks the parser from the file suffix"):
+        MoleculeLoader(data={"seq": [str(path)]}).to_dataframe()
+
+
+def test_fasta_id_is_first_word_of_header(tmp_path):
+    """FASTA chain_id is the first word of the header, as in SeqIO record.id."""
+    fasta = tmp_path / "library.fasta"
+    fasta.write_text(
+        ">apt1 first aptamer\nACGTACGT\n>apt2 second aptamer\nTTTT\nGGGG\n"
+    )
+
+    df = MoleculeLoader(
+        data={"seq": [str(fasta)]}, tiling="samples", indexing="keep_as_column"
+    ).to_dataframe()
+
+    assert df["seq_chain_id"].tolist() == ["apt1", "apt2"]
+    assert df["seq"].tolist() == ["ACGTACGT", "TTTTGGGG"]
+
+
+def test_tricky_fastq_parses(tmp_path):
+    """Quality lines starting with '@' and repeated '+' titles do not split reads."""
+    fastq = tmp_path / "tricky.fastq"
+    fastq.write_text("@r1 desc\nACGT\n+r1 desc\n@III\n@r2\nTTTT\n+\n@@@@\n")
+
+    df = MoleculeLoader(
+        data={"seq": [str(fastq)]}, tiling="samples", indexing="keep_as_column"
+    ).to_dataframe()
+
+    assert df["seq"].tolist() == ["ACGT", "TTTT"]
+    assert df["seq_chain_id"].tolist() == ["r1", "r2"]
+
+
+def test_samples_literal_column_keeps_dtype(tmp_path):
+    """A numeric literal column stays numeric after a file column explodes."""
+    fastq = tmp_path / "selex.fastq"
+    fastq.write_text("@r1\nACGTACGT\n+\nIIIIIIII\n@r2\nTTTTGGGG\n+\nIIIIIIII\n")
+
+    df = MoleculeLoader(
+        data={"seq": [str(fastq)], "binding": [0.5]}, tiling="samples"
+    ).to_dataframe()
+
+    assert df["binding"].dtype == "float64"
+    assert df["binding"].tolist() == [0.5, 0.5]

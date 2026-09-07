@@ -3,12 +3,14 @@
 __all__ = ["MoleculeLoader"]
 __author__ = ["fkiraly", "satvshr", "siddharth7113"]
 
+import gzip
 import os
 from itertools import product
 from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 
 class MoleculeLoader:
@@ -45,6 +47,8 @@ class MoleculeLoader:
     Supported file formats are anything :func:`Bio.SeqIO.parse` can read
     (FASTA, GenBank, EMBL, FASTQ, ...); PDB files are read through the
     ``pdb-seqres`` parser. The format is inferred from the file suffix.
+    Gzipped files are read directly: ``reads.fastq.gz`` is decompressed
+    and parsed as FASTQ.
 
     Examples
     --------
@@ -159,14 +163,9 @@ class MoleculeLoader:
         if not self._is_path_like(value):
             return False, [(None, value)]
 
-        loaded = self._load_dispatch(Path(value))
-        records = list(
-            zip(
-                loaded["chain_id"].tolist(),
-                loaded["sequence"].tolist(),
-                strict=True,
-            )
-        )
+        records = list(self._iter_records(Path(value)))
+        if not records:
+            raise ValueError(f"No sequences found in {value}")
 
         if self.ignore_duplicates:
             seen = set()
@@ -275,25 +274,29 @@ class MoleculeLoader:
         """Explode file cells into rows (``samples`` / ``samples_product``).
 
         Each file cell contributes one row per sequence. Literal columns are
-        repeated. With several file columns in a row, ``samples`` zips them
-        (and requires matching counts), while ``samples_product`` takes their
-        cartesian product.
+        repeated. With several file columns in a row, ``samples`` raises,
+        while ``samples_product`` takes their cartesian product.
+
+        The output is collected as one list per column and turned into a
+        DataFrame once at the end. Building a dict per row and letting pandas
+        take it apart again is many times slower for large files.
         """
-        rows = []
+        cols = list(df.columns)
+        columns = {col: [] for col in cols}
         parents = []
         seq_ids = []
-        chain_id_cols = {col: [] for col in df.columns}
+        chain_id_cols = {col: [] for col in cols}
         expanded = False
 
         for pos, (_, row) in enumerate(df.iterrows()):
-            col_recs = {col: self._cell_records(row[col]) for col in df.columns}
-            file_cols = [col for col in df.columns if col_recs[col][0]]
+            col_recs = {col: self._cell_records(row[col]) for col in cols}
+            file_cols = [col for col in cols if col_recs[col][0]]
 
             if not file_cols:
-                rows.append({col: row[col] for col in df.columns})
                 parents.append(pos)
                 seq_ids.append(None)
-                for col in df.columns:
+                for col in cols:
+                    columns[col].append(row[col])
                     chain_id_cols[col].append(None)
                 continue
 
@@ -316,26 +319,24 @@ class MoleculeLoader:
                 expanded = True
 
             for combo in combos:
-                new_row = {}
                 cid_map = {}
-                for col in df.columns:
+                for col in cols:
                     if col in file_cols:
                         chain_id, seq = combo[file_cols.index(col)]
-                        new_row[col] = seq
+                        columns[col].append(seq)
                         cid_map[col] = chain_id
                     else:
-                        new_row[col] = row[col]
+                        columns[col].append(row[col])
                         cid_map[col] = None
-                rows.append(new_row)
                 parents.append(pos)
                 if len(file_cols) == 1:
                     seq_ids.append(cid_map[file_cols[0]])
                 else:
                     seq_ids.append(tuple(cid_map[col] for col in file_cols))
-                for col in df.columns:
+                for col in cols:
                     chain_id_cols[col].append(cid_map[col])
 
-        out = pd.DataFrame(rows, columns=list(df.columns))
+        out = pd.DataFrame(columns, columns=cols)
         return self._finalize_index(
             out, df.index, parents, seq_ids, chain_id_cols, expanded
         )
@@ -384,6 +385,8 @@ class MoleculeLoader:
     def _determine_type(self, path):
         """Return the format string inferred from the file suffix.
 
+        A trailing ``.gz`` is skipped, so ``reads.fastq.gz`` is ``"fastq"``.
+
         Parameters
         ----------
         path : Path
@@ -393,18 +396,27 @@ class MoleculeLoader:
         -------
         str or None
             Format string such as "pdb", "fasta", "genbank"; ``None`` when the
-            path has no suffix.
+            path has no format suffix (``reads`` or ``reads.gz``).
         """
-        suffix = path.suffix.lower()
-        return suffix.lstrip(".") if suffix else None
+        suffixes = [s.lower() for s in path.suffixes]
+        if suffixes and suffixes[-1] == ".gz":
+            suffixes = suffixes[:-1]
+        if not suffixes:
+            return None
+        return suffixes[-1].lstrip(".")
 
-    def _load_dispatch(self, path):
-        """Dispatch the loader based on file type.
+    def _open_text(self, path):
+        """Open a plain or gzipped file as text; the caller closes it."""
+        if path.suffix.lower() == ".gz":
+            return gzip.open(path, "rt")
+        return open(path)
 
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+    def _iter_records(self, path):
+        """Yield ``(chain_id, sequence)`` records from a file, one at a time.
+
+        The file suffix gives the format, and the format picks the reader.
+        The file stays open until the last record is read, so the ``with``
+        wraps the ``yield from``.
         """
         fmt = self._determine_type(path)
 
@@ -418,65 +430,43 @@ class MoleculeLoader:
                 "suffix."
             )
 
-        if fmt == "pdb":
-            return self._load_pdb_seq(path)
+        # Formats with a dedicated reader; everything else goes through SeqIO.
+        readers = {"pdb": self._read_pdb, "fastq": self._read_fastq}
 
-        return self._load_seqio(path, fmt)
+        with self._open_text(path) as handle:
+            reader = readers.get(fmt)
+            if reader is None:
+                yield from self._read_seqio(handle, fmt)
+            else:
+                yield from reader(handle)
 
-    def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the amino-acid sequences.
+    def _read_pdb(self, handle):
+        """Yield ``(chain_id, sequence)`` from the SEQRES records of a PDB file.
 
-        Parameters
-        ----------
-        path : Path
-            path to PDB file
-
-        Returns
-        -------
-        pandas.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+        Biopython names each record ``<pdb_id>:<chain>``. Only the chain
+        part is kept as the chain ID.
         """
-        with open(path) as handle:
-            seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
+        for record in SeqIO.parse(handle, "pdb-seqres"):
+            chain_id = record.id.split(":")[1] if ":" in record.id else record.id
+            yield chain_id, str(record.seq)
 
-        records = [
-            {
-                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
-                "sequence": str(record.seq),
-            }
-            for record in seqres_records
-        ]
-        if not records:
-            raise ValueError(f"No sequences found in {path}")
+    def _read_seqio(self, handle, fmt):
+        """Yield ``(chain_id, sequence)`` from any format ``Bio.SeqIO`` parses.
 
-        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
-
-    def _load_seqio(self, path, fmt):
-        """Load any non-PDB file format supported by Biopython SeqIO.
-
-        Notes
-        -----
-        For non-PDB formats there is usually no literal chain concept.
-        To preserve the existing abstract datatype, ``record.id`` is stored
-        in the ``chain_id`` column.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+        Non-PDB formats have no chains, so ``record.id`` (the first word of
+        the header) is used as the chain ID.
         """
-        with open(path) as handle:
-            records = list(SeqIO.parse(handle, fmt))
+        for record in SeqIO.parse(handle, fmt):
+            yield record.id, str(record.seq)
 
-        rows = [
-            {
-                "chain_id": record.id,
-                "sequence": str(record.seq),
-            }
-            for record in records
-        ]
+    def _read_fastq(self, handle):
+        """Yield ``(chain_id, sequence)`` from a FASTQ file.
 
-        if not rows:
-            raise ValueError(f"No sequences found in {path}")
-
-        return pd.DataFrame.from_records(rows, columns=["chain_id", "sequence"])
+        Reads with ``FastqGeneralIterator``, which returns plain strings and
+        is much faster than building a ``SeqRecord`` per read. The chain ID
+        is the first word of the title line, the same as ``SeqRecord.id``.
+        The quality string is read but not used.
+        """
+        for title, sequence, _quality in FastqGeneralIterator(handle):
+            chain_id = title.split()[0]
+            yield chain_id, sequence
