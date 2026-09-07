@@ -34,7 +34,7 @@ class SequenceKHotEncoder(BaseTransform):
         Maps indices back to characters, for decoding. If None, uses the
         nucleotide default.
     handle_unknown : {"raise", "drop"}, default="raise"
-        What to do when a sequence is missing (``NaN``/``None``) or contains a
+        What to do when a sequence is ``NaN``/``None`` or contains a
         character outside ``{A, T, G, C, U}``.
 
         - "raise" : raise a ``ValueError`` naming the problem.
@@ -164,8 +164,8 @@ class SequenceKHotEncoder(BaseTransform):
         Raises
         ------
         ValueError
-            If sequences have differing lengths, or if
-            ``handle_unknown="raise"`` and a sequence is missing, or
+            If sequences have varying lengths, or if
+            ``handle_unknown="raise"`` and a sequence has None/NaN value, or
             contains a character outside ``{A, T, G, C, U}``.
         """
         self._validate_params()
@@ -189,7 +189,7 @@ class SequenceKHotEncoder(BaseTransform):
             if pd.isna(seq):
                 if self.handle_unknown == "raise":
                     raise ValueError(
-                        f"{type(self).__name__} found a missing value in "
+                        f"{type(self).__name__} found a None/NaN value in "
                         f"{self.sequence_col!r}. Set handle_unknown='drop' to "
                         "skip these rows instead."
                     )
@@ -250,8 +250,8 @@ class SequenceKHotEncoder(BaseTransform):
         Returns
         -------
         pandas.DataFrame
-            Decoded sequences in the ``sequence_col`` column, with a fresh
-            index. Rows dropped during ``transform`` cannot be mapped back to
+            Decoded sequences in the ``sequence_col`` column.
+            Rows dropped during ``transform`` cannot be mapped back to
             the index of the original input.
 
         Notes

@@ -18,14 +18,14 @@ TRIMMED_LENGTH = 40
 
 
 def test_sequence_k_hot_encoder_rejects_invalid_handle_unknown():
-    """An unsupported handle_unknown value raises a clear ValueError."""
+    """An unsupported handle_unknown value raises a ValueError."""
     X = pd.DataFrame({"seq": ["ACGT"]})
     with pytest.raises(ValueError, match="handle_unknown must be one of"):
-        SequenceKHotEncoder(sequence_col="seq", handle_unknown="bogus").fit_transform(X)
+        SequenceKHotEncoder(sequence_col="seq", handle_unknown="xyz").fit_transform(X)
 
 
 def test_sequence_k_hot_encoder_rejects_missing_column():
-    """A frame without the configured column raises a clear KeyError."""
+    """A DataFrame without the configured column raises a KeyError."""
     X = pd.DataFrame({"not_seq": ["ACGT"]})
     with pytest.raises(KeyError, match="expects a column named"):
         SequenceKHotEncoder(sequence_col="seq").fit_transform(X)
@@ -46,7 +46,7 @@ def test_sequence_k_hot_encoder_rejects_non_string_column(X):
 
 
 def test_sequence_k_hot_encoder_raises_on_variable_sequence_lengths():
-    """Sequences of unequal length raise a ValueError pointing to PrimerTrimmer."""
+    """Sequences of unequal length raise a ValueError."""
     X = MoleculeLoader(data={"seq": ["ACGT", "ACGTACGT"]})
     with pytest.raises(ValueError, match="same fixed length"):
         SequenceKHotEncoder(sequence_col="seq").fit_transform(X)
@@ -66,7 +66,7 @@ def test_sequence_k_hot_encoder_accepts_moleculeloader():
 
 
 def test_sequence_k_hot_encoder_custom_columns():
-    """Column names are configurable, not hardcoded to seq."""
+    """Column names are configurable, not hardcoded."""
     X = MoleculeLoader(data={"custom_seq": [SEQUENCE] * 2})
     encoder = SequenceKHotEncoder(sequence_col="custom_seq")
     Xt = encoder.fit_transform(X)
@@ -75,7 +75,7 @@ def test_sequence_k_hot_encoder_custom_columns():
 
 
 def test_sequence_k_hot_encoder_custom_vocab():
-    """A custom vocab sets the class count and round-trips."""
+    """A custom vocab sets the class count, and encodes and decodes correctly."""
     encoder = SequenceKHotEncoder(
         sequence_col="seq",
         vocab={"A": 0, "C": 1, "G": 2, "U": 3, "N": 4},
@@ -88,7 +88,7 @@ def test_sequence_k_hot_encoder_custom_vocab():
 
 
 def test_sequence_k_hot_encoder_empty_input():
-    """An empty frame encodes to an empty batch, not an error."""
+    """An empty frame encodes to an empty batch, doesn't throw an error."""
     X = pd.DataFrame({"seq": pd.Series([], dtype=object)})
     Xt = SequenceKHotEncoder(sequence_col="seq").fit_transform(X)
     assert Xt.shape == (0, 4, 0)
@@ -103,14 +103,14 @@ def test_sequence_k_hot_encoder_handle_unknown_raise_on_unsupported_character():
 
 @pytest.mark.parametrize("missing_value", [None, float("nan")])
 def test_sequence_k_hot_encoder_handle_unknown_raise_on_missing_value(missing_value):
-    """handle_unknown='raise' (default) rejects a missing sequence value."""
+    """handle_unknown='raise' (default) rejects a row containing None/NaN value."""
     X = pd.DataFrame({"seq": ["ACGT", missing_value]})
-    with pytest.raises(ValueError, match="missing value"):
+    with pytest.raises(ValueError, match="None/NaN value"):
         SequenceKHotEncoder(sequence_col="seq").fit_transform(X)
 
 
 def test_sequence_k_hot_encoder_handle_unknown_drop_unsupported_character():
-    """handle_unknown='drop' skips only the row containing 'N'."""
+    """handle_unknown='drop' skips only the sequence containing 'N'."""
     X = MoleculeLoader(data={"seq": ["ACGT", "ACGN"]})
     encoder = SequenceKHotEncoder(sequence_col="seq", handle_unknown="drop")
     Xt = encoder.fit_transform(X)
@@ -121,7 +121,7 @@ def test_sequence_k_hot_encoder_handle_unknown_drop_unsupported_character():
 
 @pytest.mark.parametrize("missing_value", [None, float("nan")])
 def test_sequence_k_hot_encoder_handle_unknown_drop_missing_value(missing_value):
-    """handle_unknown='drop' skips only the row with a missing value."""
+    """handle_unknown='drop' skips only the row containing None/NaN value."""
     X = pd.DataFrame({"seq": ["ACGT", missing_value]})
     encoder = SequenceKHotEncoder(sequence_col="seq", handle_unknown="drop")
     Xt = encoder.fit_transform(X)
