@@ -143,6 +143,15 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
         object_instance.fit_transform(**scenario.args["fit"])
         assert object_instance.is_fitted is True
 
+    def test_univariate_accepts_any_column_name(self, object_instance):
+        """A univariate transformer works on its one column whatever it is called."""
+        if object_instance.get_tag("capability:multivariate", False):
+            pytest.skip("only univariate transformers receive a single column")
+        args = _scenario_for(object_instance).args
+        X_fit = args["fit"]["X"].set_axis(["reads"], axis=1)
+        X_transform = args["transform"]["X"].set_axis(["reads"], axis=1)
+        object_instance.fit(X_fit).transform(X_transform)
+
 
 def test_stateful_transform_uses_fitted_state():
     """A transformer with fitted state can read that state back in transform."""
