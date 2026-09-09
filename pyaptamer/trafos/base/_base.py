@@ -53,8 +53,10 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to fit the transformer.
+        X : pd.DataFrame, shape (n_samples, n_features)
+            Input data to fit the transformer. If the tag
+            ``capability:multivariate`` is False, X has exactly one column.
+            Select it by position. Its name is not fixed.
         y : array-like, shape (n_samples,), optional
             Target values. Only used if the transformer has
             the tag ``capability:y`` set to True.
@@ -96,8 +98,10 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to transform.
+        X : pd.DataFrame, shape (n_samples, n_features)
+            Input data to transform. If the tag ``capability:multivariate``
+            is False, X has exactly one column. Select it by position. Its
+            name is not fixed.
 
         Returns
         -------
