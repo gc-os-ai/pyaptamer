@@ -27,6 +27,12 @@ dependencies = [
     "requests",
 ]
 
+[project.urls]
+Homepage = "https://github.com/gc-os-ai/pyaptamer"
+Documentation = "https://pyaptamer.readthedocs.io/en/latest/"
+Repository = "https://github.com/gc-os-ai/pyaptamer"
+Issues = "https://github.com/gc-os-ai/pyaptamer/issues"
+
 [project.optional-dependencies]
 dev = [
     "ruff>=0.16.5",
