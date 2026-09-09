@@ -114,6 +114,12 @@ class Rezero(nn.Module):
     `alpha` starts at zero, so the module's output is exactly zero for any
     input at initialization, and grows away from zero as `alpha` is
     updated during training.
+
+    Attributes
+    ----------
+    alpha : nn.Parameter
+        Learnable scalar of shape (1,), initialized to zero, that scales the
+        module's input.
     """
 
     def __init__(self):
@@ -137,7 +143,8 @@ class Rezero(nn.Module):
 
 
 class AptaDiffDenoiser(nn.Module):
-    """Denoising network for AptaDiff: a transformer backbone plus a Rezero gate.
+    """Denoising network for AptaDiff. Contains a transformer backbone and
+    a Rezero gate.
 
     Predicts per-position nucleotide logits from a noisy sequence, its
     diffusion timestep, and a latent conditioning vector.
@@ -145,7 +152,7 @@ class AptaDiffDenoiser(nn.Module):
     Parameters
     ----------
     enc_embed_size : int
-        Dimension of the input latent condition vector z.
+        Dimension of the input latent condition vector `z`.
     input_dim : int
         Size of the nucleotide vocabulary (number of unique input tokens).
     output_dim : int
@@ -160,16 +167,16 @@ class AptaDiffDenoiser(nn.Module):
         Maximum sequence length of input aptamers.
     num_timesteps : int
         Total number of diffusion timesteps.
-    heads : int, default=8
+    heads : int, optional, default=8
         Number of attention heads per transformer layer.
-    attn_layer_dropout : float, default=0.0
+    attn_layer_dropout : float, optional, default=0.0
         Dropout probability applied within attention blocks.
-    n_local_attn_heads : int, default=0
+    n_local_attn_heads : int, optional, default=0
         Number of heads dedicated to local windowed attention when using
         `transformer_type="linear"`. Ignored when using `"native"`.
-    local_attn_window_size : int, default=128
+    local_attn_window_size : int, optional, default=128
         Window size used for axial positional indexing and local attention.
-    transformer_type : {"native", "linear"}, default="native"
+    transformer_type : {"native", "linear"}, optional, default="native"
         The attention backend, passed through to
         `AptaDiffTransformerEmbedding`.
 
@@ -179,6 +186,15 @@ class AptaDiffDenoiser(nn.Module):
         - "linear" : the linear attention approximation used by the
             original AptaDiff paper. Use for strict reproducibility.
 
+    Attributes
+    ----------
+    transformer : AptaDiffTransformerEmbedding
+        Transformer backbone mapping token indices, timesteps, and the latent
+        condition to per-position sequence representations.
+    rezero : Rezero
+        Zero-initialized output gate applied to the permuted transformer
+        output, so the denoiser predicts a uniform distribution at
+        initialization.
     """
 
     def __init__(
@@ -228,7 +244,7 @@ class AptaDiffDenoiser(nn.Module):
         t : torch.Tensor
             Diffusion timesteps tensor of shape (batch_size,).
         z : torch.Tensor
-            Latent conditioning vector of shape (batch_size, enc_embed_size).
+            Latent conditioning vector of shape (batch_size, `enc_embed_size`).
 
         Returns
         -------
@@ -244,6 +260,11 @@ class AptaDiffDenoiser(nn.Module):
 class AptaDiffDiffusion(nn.Module):
     """Multinomial diffusion wrapper computing the training loss for a denoiser.
 
+    Implements the uniform-transition multinomial diffusion process of [1]_,
+    with the cosine noise schedule of [2]_.
+
+    Original implementation: https://github.com/wz-create/AptaDiff.
+
     Owns the noise schedule and the importance-sampling statistics, and exposes
     the training-loss path (`log_prob`) built around the VLB loss in
     `pyaptamer.aptadiff._functional`. Does not implement sampling/generation.
@@ -254,18 +275,18 @@ class AptaDiffDiffusion(nn.Module):
         The denoising network, e.g. an `AptaDiffDenoiser` instance. Must
         accept `(x, t, z)` and return logits of shape
         `(batch_size, num_classes, seq_len)`.
-    num_classes : int, default=4
+    num_classes : int, optional, default=4
         The number of unique nucleotides in the sequence.
-    num_timesteps : int, default=1000
+    num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
-    loss_type : {"vb_stochastic", "vb_all"}, default="vb_stochastic"
+    loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
         Which variational bound to optimize.
         - "vb_stochastic" : one importance-sampled timestep per training
           step. This is the default.
         - "vb_all" : the exact bound, summed over every timestep. Costs
           `num_timesteps` denoiser forward passes per step.
 
-    parametrization : {"x0", "direct"}, default="x0"
+    parametrization : {"x0", "direct"}, optional, default="x0"
         - "x0" : the denoiser predicts the clean sequence x0. That
           prediction is then turned into a reverse-step distribution by
           `q_posterior`.
@@ -298,6 +319,17 @@ class AptaDiffDiffusion(nn.Module):
     ValueError
         If `loss_type` is not one of `"vb_stochastic"` or `"vb_all"`, or if
         `parametrization` is not one of `"x0"` or `"direct"`.
+
+    References
+    ----------
+    .. [1] Hoogeboom, E., Nielsen, D., Jaini, P., Forré, P., & Welling, M.
+           "Argmax Flows and Multinomial Diffusion: Learning Categorical
+           Distributions." Advances in Neural Information Processing Systems
+           34 (2021). https://arxiv.org/abs/2102.05379
+    .. [2] Nichol, A. Q., & Dhariwal, P. "Improved denoising diffusion
+           probabilistic models." Proceedings of the 38th International
+           Conference on Machine Learning, PMLR 139:8162-8171 (2021).
+           https://arxiv.org/abs/2102.09672
     """
 
     def __init__(
@@ -390,13 +422,13 @@ class AptaDiffDiffusion(nn.Module):
         return log_pred
 
     def predict_reverse_step(
-        self, log_x: torch.Tensor, t: torch.Tensor, z: torch.Tensor
+        self, log_xt: torch.Tensor, t: torch.Tensor, z: torch.Tensor
     ) -> torch.Tensor:
         """Predict the reverse-step distribution, per `self.parametrization`.
 
         Parameters
         ----------
-        log_x : torch.Tensor
+        log_xt : torch.Tensor
             Log-one-hot noisy sequence at step t, shape
             (batch_size, num_classes, seq_len).
         t : torch.Tensor
@@ -420,16 +452,16 @@ class AptaDiffDiffusion(nn.Module):
             )
 
         if self.parametrization == "x0":
-            log_x_recon = self.predict_start(log_x, t, z)
+            log_x_recon = self.predict_start(log_xt, t, z)
             log_model_pred = q_posterior(
                 log_x0=log_x_recon,
-                log_xt=log_x,
+                log_xt=log_xt,
                 t=t,
                 log_alpha=self.log_alpha,
                 log_alphabar=self.log_alphabar,
             )
         else:
-            log_model_pred = self.predict_start(log_x, t, z)
+            log_model_pred = self.predict_start(log_xt, t, z)
 
         return log_model_pred
 
@@ -464,9 +496,9 @@ class AptaDiffDiffusion(nn.Module):
     def kl_prior(self, log_x0: torch.Tensor) -> torch.Tensor:
         """Compute the KL divergence between the noise prior and a uniform prior.
 
-        Evaluates q(x_t | x0) at the final timestep (t = num_timesteps - 1)
+        Evaluates q(x_t | x0) at the final timestep (t = `num_timesteps` - 1)
         and compares it against a uniform categorical distribution over
-        num_classes, which is what the forward process is designed to
+        `num_classes`, which is what the forward process is designed to
         converge to.
 
         Parameters
@@ -510,7 +542,7 @@ class AptaDiffDiffusion(nn.Module):
             Number of timesteps to sample.
         device : torch.device
             Device the returned tensors are placed on.
-        method : {"unform", "importance"}, default="uniform"
+        method : {"uniform", "importance"}, optional, default="uniform"
             - `"uniform"`: sample timesteps uniformly at random
             - `"importance"`: sample proportionally to the square root of
             each timestep's exponentially-averaged squared loss,
