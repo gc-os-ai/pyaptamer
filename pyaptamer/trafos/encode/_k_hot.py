@@ -21,12 +21,10 @@ class SequenceKHotEncoder(BaseTransform):
     entry per position, so ``L`` in total. Hence K-hot, with ``K = L``.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
-    ``pandas.DataFrame`` with a ``sequence_col`` column.
+    ``pandas.DataFrame`` with exactly one column of sequences.
 
     Parameters
     ----------
-    sequence_col : str
-        Name of the column holding the sequences.
     vocab : dict[str, int], optional, default=None
         Maps characters to integer indices. Several characters can share an
         index, e.g. ``U`` and ``T``. If None, uses the nucleotide default.
@@ -50,12 +48,12 @@ class SequenceKHotEncoder(BaseTransform):
     ...         "seq": ["ATGC", "GCTA"],
     ...     }
     ... )
-    >>> enc = SequenceKHotEncoder(sequence_col="seq")
+    >>> enc = SequenceKHotEncoder()
     >>> Xt = enc.fit_transform(X)
     >>> Xt.shape
     torch.Size([2, 4, 4])
     >>> decoded = enc.inverse_transform(Xt)
-    >>> decoded["seq"].iloc[0]
+    >>> decoded["sequence"].iloc[0]
     'ATGC'
     """
 
@@ -72,12 +70,10 @@ class SequenceKHotEncoder(BaseTransform):
 
     def __init__(
         self,
-        sequence_col: str,
         vocab: dict[str, int] | None = None,
         inverse_vocab: dict[int, str] | None = None,
         handle_unknown: Literal["raise", "drop"] = "raise",
     ):
-        self.sequence_col = sequence_col
         self.vocab = vocab
         self.inverse_vocab = inverse_vocab
         self.handle_unknown = handle_unknown
@@ -107,7 +103,7 @@ class SequenceKHotEncoder(BaseTransform):
             )
 
     def _check_X(self, X):  # noqa: N802
-        """Coerce X to a DataFrame and require the configured column.
+        """Coerce X to a DataFrame and check its column holds sequences.
 
         Parameters
         ----------
@@ -117,30 +113,21 @@ class SequenceKHotEncoder(BaseTransform):
         Returns
         -------
         pandas.DataFrame
-            ``X`` as a DataFrame, with the ``sequence_col`` column present.
+            ``X`` as a DataFrame.
 
         Raises
         ------
         TypeError
-            If ``X`` is not a MoleculeLoader or DataFrame, or if
-            ``sequence_col`` does not hold one str sequence per row.
-        KeyError
-            If ``sequence_col`` is not a column of ``X``.
+            If ``X`` is not a MoleculeLoader or DataFrame, or if its column
+            does not hold one sequence per row.
         """
         X = super()._check_X(X)
-        if self.sequence_col not in X.columns:
-            raise KeyError(
-                f"{type(self).__name__} expects a column named "
-                f"{self.sequence_col!r}, but X has columns {list(X.columns)}. "
-                "Pass sequence_col= to match the column produced by your "
-                "loader or upstream transform."
-            )
 
-        kind = pd.api.types.infer_dtype(X[self.sequence_col], skipna=True)
+        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=True)
         if kind not in ("string", "empty"):
             raise TypeError(
                 f"{type(self).__name__} expects one str sequence per row, but "
-                f"{self.sequence_col!r} is {kind!r}. If it holds several "
+                f"column {X.columns[0]!r} is {kind!r}. If it holds several "
                 "sequences per cell, the MoleculeLoader was built with the "
                 'default tiling="bag" - use tiling="samples" so each sequence '
                 "is one row."
@@ -153,7 +140,7 @@ class SequenceKHotEncoder(BaseTransform):
         Parameters
         ----------
         X : pandas.DataFrame
-            Contains the ``sequence_col`` column.
+            One column of sequences, selected by position.
 
         Returns
         -------
@@ -172,9 +159,9 @@ class SequenceKHotEncoder(BaseTransform):
 
         vocab = self._active_vocab
 
-        reads = X[self.sequence_col]
-
+        reads = X.iloc[:, 0]
         lengths = reads.dropna().str.len()
+
         if lengths.nunique() > 1:
             raise ValueError(
                 f"{type(self).__name__} requires all sequences to be the "
@@ -190,7 +177,7 @@ class SequenceKHotEncoder(BaseTransform):
                 if self.handle_unknown == "raise":
                     raise ValueError(
                         f"{type(self).__name__} found a None/NaN value in "
-                        f"{self.sequence_col!r}. Set handle_unknown='drop' to "
+                        f"{reads.name!r}. Set handle_unknown='drop' to "
                         "skip these rows instead."
                     )
                 continue
@@ -203,7 +190,7 @@ class SequenceKHotEncoder(BaseTransform):
                     raise ValueError(
                         f"{type(self).__name__} found unsupported "
                         f"character(s) {sorted(unknown)} in "
-                        f"{self.sequence_col!r}; expected only "
+                        f"{reads.name!r}; expected only "
                         f"{sorted(vocab)}. Set handle_unknown='drop' "
                         "to skip these rows instead."
                     )
@@ -250,7 +237,7 @@ class SequenceKHotEncoder(BaseTransform):
         Returns
         -------
         pandas.DataFrame
-            Decoded sequences in the ``sequence_col`` column.
+            Decoded sequences in a column named ``"sequence"``.
             Rows dropped during ``transform`` cannot be mapped back to
             the index of the original input.
 
@@ -272,7 +259,7 @@ class SequenceKHotEncoder(BaseTransform):
             seq = "".join([inverse_vocab.get(idx, "X") for idx in row])
             decoded_seqs.append(seq)
 
-        return pd.DataFrame({self.sequence_col: decoded_seqs})
+        return pd.DataFrame({"sequence": decoded_seqs})
 
     @classmethod
     def get_test_params(cls):
@@ -283,9 +270,8 @@ class SequenceKHotEncoder(BaseTransform):
         params : list of dict
             Test parameters for SequenceKHotEncoder.
         """
-        param0 = {"sequence_col": "seq"}
+        param0 = {}
         param1 = {
-            "sequence_col": "seq",
             "vocab": {"A": 0, "C": 1, "G": 2, "U": 3},
             "inverse_vocab": {0: "A", 1: "C", 2: "G", 3: "U"},
         }
