@@ -3,6 +3,30 @@
 This page documents the public API. Names not listed here are internal and may
 change without notice.
 
+## Data
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.data
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   MoleculeLoader
+```
+
+## Transformations
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.transform
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   PrimerTrimmer
+```
+
 ## AptaNet
 
 ```{eval-rst}
