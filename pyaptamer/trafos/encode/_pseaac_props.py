@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def aa_props(prop_indices=None, type="numpy", normalize=True):
+def aa_props(prop_indices=None, normalize=True):
     """
     Amino acid physicochemical property matrix for PSeAAC.
 
@@ -71,9 +71,6 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
     prop_indices : list of int, optional
         List of indices (0-based) of properties to include (e.g., [0, 4, 7]).
         If None, returns all 21 properties.
-    type : {'numpy', 'pandas'}, default='numpy'
-        If 'pandas', returns a DataFrame with amino acid and property labels.
-        If 'numpy', returns a numpy array.
     normalize : bool, default=True
         If True, each property column is standardized using z-score normalization:
         the mean value is subtracted and the result is divided by the standard
@@ -83,17 +80,19 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
 
     Returns
     -------
-    props : numpy.ndarray or pandas.DataFrame (depending on `type`)
+    props : pandas.DataFrame of shape (20, n_props)
 
-        - Rows: standard amino acids (A, C, D, ..., Y)
-        - Columns: physicochemical properties of the standard amino acids.
+        - Index: standard amino acids (A, C, D, ..., Y)
+        - Columns: names of the selected physicochemical properties.
         - Entries: raw or normalized property values depending on `normalize`.
 
     Examples
     --------
-    >>> from pyaptamer.pseaac._props import aa_props
-    >>> df = aa_props()
-    >>> arr = aa_props(type="numpy", normalize=True)
+    >>> from pyaptamer.trafos.encode._pseaac_props import aa_props
+    >>> aa_props().shape
+    (20, 21)
+    >>> aa_props(prop_indices=[0, 4], normalize=False).columns.tolist()
+    ['hydrophobicity', 'molecular_weight']
     """
     aa_order = [
         "A",
@@ -1082,9 +1081,4 @@ def aa_props(prop_indices=None, type="numpy", normalize=True):
     else:
         selected_names = prop_names
 
-    if type == "pandas":
-        return pd.DataFrame(props, index=aa_order, columns=selected_names)
-    elif type == "numpy":
-        return props
-    else:
-        raise ValueError("type must be 'numpy' or 'pandas'")
+    return pd.DataFrame(props, index=aa_order, columns=selected_names)

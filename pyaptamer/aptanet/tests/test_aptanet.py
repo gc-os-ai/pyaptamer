@@ -3,10 +3,12 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 
 import numpy as np
 import pytest
+from sklearn.compose import ColumnTransformer
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
 from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.encode import KMerFrequencies, PSeAAC
 
 params = [
     (
@@ -78,11 +80,19 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     assert np.issubdtype(preds.dtype, np.floating)
 
 
+def _aptanet_features():
+    """The feature step AptaNetPipeline builds, for use on its own."""
+    return ColumnTransformer(
+        [
+            ("aptamer", KMerFrequencies(), ["aptamer"]),
+            ("protein", PSeAAC(), ["protein"]),
+        ]
+    )
+
+
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_seq):
     """A FASTA-sourced loader yields the same features as the in-memory loader."""
-    from pyaptamer.aptanet._transforms import PairsToFeatures
-
     fasta = tmp_path / "library.fasta"
     fasta.write_text(f">apt1\n{aptamer_seq}\n>apt2\n{aptamer_seq}\n")
 
@@ -91,11 +101,31 @@ def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_s
     )
     in_memory = _make_loader(aptamer_seq, protein_seq, 2)
 
-    feats_file = PairsToFeatures().fit_transform(from_file)
-    feats_mem = PairsToFeatures().fit_transform(in_memory)
+    features = _aptanet_features()
+    feats_file = features.fit_transform(from_file.to_dataframe())
+    feats_mem = features.fit_transform(in_memory.to_dataframe())
 
-    assert feats_file.shape == feats_mem.shape
-    assert np.allclose(feats_file.to_numpy(), feats_mem.to_numpy())
+    assert feats_file.shape == feats_mem.shape == (2, 690)
+    assert np.allclose(feats_file, feats_mem)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_custom_column_names(aptamer_seq, protein_seq):
+    """aptamer_col and protein_col select the columns; nothing is hardcoded."""
+    X = MoleculeLoader(data={"apt": [aptamer_seq] * 40, "target": [protein_seq] * 40})
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+    pipe = AptaNetPipeline(aptamer_col="apt", protein_col="target").fit(X, y)
+    assert pipe.predict(X).shape == (40,)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_accepts_dataframe(aptamer_seq, protein_seq):
+    """A DataFrame with the aptamer and protein columns is accepted like a loader."""
+    X = _make_loader(aptamer_seq, protein_seq, 40).to_dataframe()
+    y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
+    pipe = AptaNetPipeline().fit(X, y)
+    assert pipe.predict(X).shape == (40,)
+    assert pipe.pipeline_["features"].transform(X).shape == (40, 690)
 
 
 @parametrize_with_checks(
