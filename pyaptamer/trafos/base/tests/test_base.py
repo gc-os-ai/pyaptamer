@@ -44,9 +44,11 @@ class _SequenceFrameScenario:
 
     @property
     def args(self):
+        first = "ACGTACGTTGCAAGCTTGCAGTACGATCGATCGTAGCTAG"
+        second = "TTGACCGGTAACGTTACGGATCCATGCATGCAAGTCCGTA"
         return {
-            "fit": {"X": pd.DataFrame({"seq": ["ACGU", "GUAC"]})},
-            "transform": {"X": pd.DataFrame({"seq": ["GUAC", "ACGU"]})},
+            "fit": {"X": pd.DataFrame({"seq": [first, second]})},
+            "transform": {"X": pd.DataFrame({"seq": [second, first]})},
         }
 
 
@@ -112,39 +114,103 @@ class TransformerFixtureGenerator(PackageConfig, BaseFixtureGenerator):
 
 
 class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
-    """The fitted-state tests, plus the standard skbase tests by inheritance."""
+    """Tests every BaseTransform subclass must pass.
+
+    The skbase tests come in through ``TestAllObjects``. The tests below
+    check the fit and transform contract of ``BaseTransform``: fitted-state
+    bookkeeping, input coercion, and the shape of the output.
+    """
 
     def test_scenario_applies(self, object_class):
-        """Every transformer is matched by at least one scenario, so none goes unchecked."""  # noqa: E501
+        """Every transformer class is matched by at least one scenario.
+
+        A class without a scenario would have no input data and the tests
+        below would fail with a StopIteration instead of a clear message.
+        """
         assert any(s.is_applicable(object_class) for s in _scenarios())
 
     def test_not_fitted_before_fit(self, object_instance):
-        """A freshly constructed transformer reports itself as not fitted."""
+        """A freshly constructed transformer reports itself as not fitted.
+
+        ``is_fitted`` is False and ``check_is_fitted`` raises NotFittedError.
+        """
         assert object_instance.is_fitted is False
         with pytest.raises(NotFittedError, match="has not been fitted"):
             object_instance.check_is_fitted()
 
     def test_raises_not_fitted_error(self, object_instance):
-        """transform before fit raises NotFittedError"""
+        """transform before fit raises NotFittedError.
+
+        This holds even for transformers with ``property:fit_is_empty``,
+        whose fit does nothing but set the fitted flag.
+        """
         scenario = _scenario_for(object_instance)
         with pytest.raises(NotFittedError, match="has not been fitted"):
             object_instance.transform(**scenario.args["transform"])
 
     def test_fit_sets_is_fitted(self, object_instance):
-        """fit returns self and marks the transformer fitted, even if fit_is_empty."""
+        """fit returns self and marks the transformer fitted.
+
+        Checks the return value for method chaining, the ``is_fitted`` flag,
+        and that ``check_is_fitted`` no longer raises. Holds for transformers
+        with ``property:fit_is_empty`` too.
+        """
         scenario = _scenario_for(object_instance)
         assert object_instance.fit(**scenario.args["fit"]) is object_instance
         assert object_instance.is_fitted is True
         object_instance.check_is_fitted()
 
     def test_fit_transform_sets_is_fitted(self, object_instance):
-        """fit_transform leaves the transformer in a fitted state."""
+        """fit_transform leaves the transformer in a fitted state.
+
+        Guards against a subclass overriding ``fit_transform`` without going
+        through ``fit``.
+        """
         scenario = _scenario_for(object_instance)
         object_instance.fit_transform(**scenario.args["fit"])
         assert object_instance.is_fitted is True
 
+    def test_output_is_frame_over_input_index(self, object_instance):
+        """transform returns a DataFrame whose rows are drawn from the input index.
+
+        Every transformer returns a DataFrame. Its index is a subset of the
+        input index rather than equal to it, because a transformer may drop
+        rows (PrimerTrimmer with ``on_unmatched="drop"``), but it may not
+        invent rows.
+        """
+        args = _scenario_for(object_instance).args
+        X = args["transform"]["X"]
+        Xt = object_instance.fit(**args["fit"]).transform(X)
+        assert isinstance(Xt, pd.DataFrame)
+        X_index = X.to_dataframe().index if isinstance(X, MoleculeLoader) else X.index
+        assert Xt.index.isin(X_index).all()
+
+    def test_moleculeloader_matches_dataframe(self, object_instance):
+        """A MoleculeLoader over a frame transforms the same as the frame.
+
+        ``BaseTransform._check_X_y`` coerces a MoleculeLoader with
+        ``to_dataframe()``. The scenario frame is wrapped in a loader and
+        both inputs must give identical output.
+
+        Skipped for multivariate transformers, whose scenario already feeds
+        a MoleculeLoader.
+        """
+        if object_instance.get_tag("capability:multivariate", False):
+            pytest.skip("the multivariate scenario already uses a MoleculeLoader")
+        args = _scenario_for(object_instance).args
+        X = args["transform"]["X"]
+        object_instance.fit(**args["fit"])
+        from_frame = object_instance.transform(X)
+        from_loader = object_instance.transform(MoleculeLoader(data=X))
+        pd.testing.assert_frame_equal(from_frame, from_loader)
+
     def test_univariate_accepts_any_column_name(self, object_instance):
-        """A univariate transformer works on its one column whatever it is called."""
+        """A univariate transformer works on its one column whatever it is called.
+
+        The transformer must read the column by position, not by a fixed
+        name, so the scenario frame is renamed to ``reads`` before fit and
+        transform.
+        """
         if object_instance.get_tag("capability:multivariate", False):
             pytest.skip("only univariate transformers receive a single column")
         args = _scenario_for(object_instance).args
@@ -154,6 +220,10 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
 
 
 def test_stateful_transform_uses_fitted_state():
-    """A transformer with fitted state can read that state back in transform."""
+    """A transformer with fitted state can read that state back in transform.
+
+    Uses the local ``_RowCounter``, which stores the number of rows seen in
+    fit and repeats it for every row in transform.
+    """
     Xt = _RowCounter().fit_transform(pd.DataFrame({"seq": ["ACGU", "GUAC"]}))
     assert Xt["n_rows"].tolist() == [2, 2]
