@@ -163,7 +163,7 @@ class MoleculeLoader:
         if not self._is_path_like(value):
             return False, [(None, value)]
 
-        records = list(self._iter_records(Path(value)))
+        records = list(self._load_dispatch(Path(value)))
         if not records:
             raise ValueError(f"No sequences found in {value}")
 
@@ -406,17 +406,49 @@ class MoleculeLoader:
         return suffixes[-1].lstrip(".")
 
     def _open_text(self, path):
-        """Open a plain or gzipped file as text; the caller closes it."""
+        """Open a plain or gzipped file for reading as text.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a file. A ``.gz`` suffix selects transparent decompression;
+            any other suffix opens the file as is.
+
+        Returns
+        -------
+        file object
+            Text-mode handle at the start of the file content, decompressed
+            if the file was gzipped. The caller closes it.
+        """
         if path.suffix.lower() == ".gz":
             return gzip.open(path, "rt")
         return open(path)
 
-    def _iter_records(self, path):
-        """Yield ``(chain_id, sequence)`` records from a file, one at a time.
+    def _load_dispatch(self, path):
+        """Dispatch to the reader for the file's format and yield its records.
 
-        The file suffix gives the format, and the format picks the reader.
-        The file stays open until the last record is read, so the ``with``
-        wraps the ``yield from``.
+        The format is inferred from the file suffix by ``_determine_type``.
+        ``pdb`` goes to ``_read_pdb``, ``fastq`` to ``_read_fastq``, and every
+        other format to ``_read_seqio``. Records are yielded one at a time,
+        so this method never holds the whole file in memory. The file is
+        opened on the first record and closed after the last one.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a sequence file, optionally gzipped.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each record, in file order.
+            ``chain_id`` is the chain letter for PDB files and the record ID
+            (first word of the header) for every other format.
+
+        Raises
+        ------
+        ValueError
+            If the path has no format suffix.
         """
         fmt = self._determine_type(path)
 
@@ -430,42 +462,80 @@ class MoleculeLoader:
                 "suffix."
             )
 
-        # Formats with a dedicated reader; everything else goes through SeqIO.
-        readers = {"pdb": self._read_pdb, "fastq": self._read_fastq}
-
         with self._open_text(path) as handle:
-            reader = readers.get(fmt)
-            if reader is None:
-                yield from self._read_seqio(handle, fmt)
+            if fmt == "pdb":
+                yield from self._read_pdb(handle)
+            elif fmt == "fastq":
+                yield from self._read_fastq(handle)
             else:
-                yield from reader(handle)
+                yield from self._read_seqio(handle, fmt)
 
     def _read_pdb(self, handle):
-        """Yield ``(chain_id, sequence)`` from the SEQRES records of a PDB file.
+        """Read the SEQRES records of a PDB file.
 
-        Biopython names each record ``<pdb_id>:<chain>``. Only the chain
-        part is kept as the chain ID.
+        Biopython names each SEQRES record ``<pdb_id>:<chain>``. Only the
+        chain part is kept as the chain ID; a record ID without a colon is
+        kept whole.
+
+        Parameters
+        ----------
+        handle : file object
+            Open text handle on a PDB file.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each SEQRES record, in file order.
+            Nothing is yielded for a file without SEQRES records.
         """
         for record in SeqIO.parse(handle, "pdb-seqres"):
             chain_id = record.id.split(":")[1] if ":" in record.id else record.id
             yield chain_id, str(record.seq)
 
     def _read_seqio(self, handle, fmt):
-        """Yield ``(chain_id, sequence)`` from any format ``Bio.SeqIO`` parses.
+        """Read any format that :func:`Bio.SeqIO.parse` supports.
 
-        Non-PDB formats have no chains, so ``record.id`` (the first word of
-        the header) is used as the chain ID.
+        Non-PDB formats have no chain concept, so ``record.id`` (the first
+        word of the header) is used as the chain ID.
+
+        Parameters
+        ----------
+        handle : file object
+            Open text handle on a sequence file.
+        fmt : str
+            Format name passed to :func:`Bio.SeqIO.parse`, such as
+            ``"fasta"`` or ``"genbank"``.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each record, in file order.
+
+        Raises
+        ------
+        ValueError
+            Raised by Biopython when ``fmt`` is not a format it knows.
         """
         for record in SeqIO.parse(handle, fmt):
             yield record.id, str(record.seq)
 
     def _read_fastq(self, handle):
-        """Yield ``(chain_id, sequence)`` from a FASTQ file.
+        """Read a FASTQ file.
 
-        Reads with ``FastqGeneralIterator``, which returns plain strings and
-        is much faster than building a ``SeqRecord`` per read. The chain ID
-        is the first word of the title line, the same as ``SeqRecord.id``.
-        The quality string is read but not used.
+        Uses :func:`Bio.SeqIO.QualityIO.FastqGeneralIterator`, which returns
+        plain strings and is much faster than building a ``SeqRecord`` per
+        read. The chain ID is the first word of the title line, the same
+        value ``SeqRecord.id`` would give. The quality string is not used.
+
+        Parameters
+        ----------
+        handle : file object
+            Open text handle on a FASTQ file.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each read, in file order.
         """
         for title, sequence, _quality in FastqGeneralIterator(handle):
             chain_id = title.split()[0]
