@@ -3,6 +3,7 @@
 __all__ = ["MoleculeLoader"]
 __author__ = ["fkiraly", "satvshr", "siddharth7113"]
 
+import os
 from itertools import product
 from pathlib import Path
 
@@ -22,6 +23,9 @@ class MoleculeLoader:
     data : dict, list of lists, or pandas.DataFrame
         2D data coercible by ``pandas.DataFrame``. Keys (or columns) become
         column names; cells hold file paths, sequence strings, or primitives.
+        A file path may be a ``str`` or any :class:`os.PathLike`. A
+        ``PathLike`` is always read as a file; a ``str`` is read as a file
+        only when it has a suffix, so that sequence strings stay literal.
     tiling : str, default="bag"
         How multi-sequence files are materialized. One of ``"bag"``,
         ``"features"``, ``"samples"``, ``"samples_product"``, ``"first"``,
@@ -212,18 +216,25 @@ class MoleculeLoader:
         return sequences[0] if len(sequences) == 1 else sequences
 
     def _is_path_like(self, value):
-        """Return True if ``value`` looks like a file reference.
+        """Return True if ``value`` is a file reference.
 
-        A cell is treated as a file when it is a string with a non-empty
-        suffix (e.g. ``"1gnh.pdb"``). Sequence strings such as ``"ACGT"`` have
-        no suffix and are left untouched.
+        An :class:`os.PathLike` is always one. Wrapping a value in ``Path``
+        states the intent, so nothing has to be guessed and a filename with no
+        suffix is still a filename.
+
+        A ``str`` is ambiguous, because a cell may equally hold a sequence such
+        as ``"ACGT"``. Strings are therefore read as files only when they carry
+        a non-empty suffix, for example ``"1gnh.pdb"``.
 
         Notes
         -----
-        Failure mode: a sequence string that happens to contain a dot would be
-        misread as a path. Biological sequences do not contain dots, so this
-        heuristic is acceptable for the initial implementation.
+        Failure mode of the string heuristic: a sequence that happens to
+        contain a dot would be misread as a path. Biological sequences do not
+        contain dots, so this is acceptable. Wrap the value in ``Path`` to
+        bypass the heuristic in either direction.
         """
+        if isinstance(value, os.PathLike):
+            return True
         return isinstance(value, str) and Path(value).suffix != ""
 
     def _tile_features(self, df):
@@ -398,7 +409,14 @@ class MoleculeLoader:
         fmt = self._determine_type(path)
 
         if fmt is None:
-            raise ValueError(f"Could not determine file format for '{path}'.")
+            raise ValueError(
+                f"{type(self).__name__} picks the parser from the file suffix, "
+                f"and '{path}' has none. Give the file the suffix of the format "
+                "it is in, such as .fasta, .fastq or .pdb. If this cell was "
+                "meant to hold a sequence and not a filename, pass it as a str: "
+                "a Path is always read as a file, a str only when it has a "
+                "suffix."
+            )
 
         if fmt == "pdb":
             return self._load_pdb_seq(path)

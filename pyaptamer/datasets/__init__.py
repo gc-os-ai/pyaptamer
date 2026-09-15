@@ -8,6 +8,7 @@ from pyaptamer.datasets._loaders._aptacom_loader import (
     load_aptacom_full,
 )
 from pyaptamer.datasets._loaders._csv_loader import load_csv_dataset
+from pyaptamer.datasets._loaders._fastq_loader import load_sample_fastq
 from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 from pyaptamer.datasets._loaders._li2014 import load_li2014
 from pyaptamer.datasets._loaders._online_databank import load_from_rcsb
@@ -22,4 +23,5 @@ __all__ = [
     "load_1gnh",
     "load_li2014",
     "load_hf_to_dataset",
+    "load_sample_fastq",
 ]

@@ -265,6 +265,56 @@ def test_fasta_path_broadcasts_against_in_memory_column(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# path-like cells
+#
+# Cells may hold a str or any os.PathLike. A Path used to fall through to the
+# literal branch and be returned unparsed, which was silent rather than an
+# error, so both forms are checked against each other.
+# --------------------------------------------------------------------------- #
+def test_path_object_parses_like_str():
+    """A Path cell is parsed, not passed through as a literal."""
+    as_str = MoleculeLoader(data={"target": [PDB_SINGLE]}).to_dataframe()
+    as_path = MoleculeLoader(data={"target": [Path(PDB_SINGLE)]}).to_dataframe()
+
+    assert as_path.equals(as_str)
+    assert isinstance(as_path["target"].iloc[0], str)
+
+
+def test_path_object_explodes_to_rows_under_samples():
+    """A Path FASTQ expands to one row per read, like its str equivalent."""
+    fastq = DATA_DIR / "sample.fastq"
+
+    as_str = MoleculeLoader(data={"seq": [str(fastq)]}, tiling="samples").to_dataframe()
+    as_path = MoleculeLoader(data={"seq": [fastq]}, tiling="samples").to_dataframe()
+
+    assert len(as_path) == 10
+    assert as_path.equals(as_str)
+
+
+def test_suffixless_path_is_still_a_file():
+    """A Path states intent, so it is read as a file even without a suffix."""
+    with pytest.raises(ValueError, match="picks the parser from the file suffix"):
+        MoleculeLoader(data={"seq": [Path("reads")]}).to_dataframe()
+
+
+def test_suffixless_str_stays_a_literal():
+    """A str without a suffix is a sequence, not a file."""
+    df = MoleculeLoader(data={"seq": ["ACGT"]}).to_dataframe()
+
+    assert df["seq"].iloc[0] == "ACGT"
+
+
+def test_str_and_path_mix_in_one_column():
+    """Both spellings can appear in the same column."""
+    fastq = DATA_DIR / "sample.fastq"
+
+    loader = MoleculeLoader(data={"seq": [str(fastq), fastq]}, tiling="samples")
+    df = loader.to_dataframe()
+
+    assert len(df) == 20
+
+
+# --------------------------------------------------------------------------- #
 # validation / errors
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(

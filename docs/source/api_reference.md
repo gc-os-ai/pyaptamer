@@ -3,6 +3,30 @@
 This page documents the public API. Names not listed here are internal and may
 change without notice.
 
+## Data
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.data
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   MoleculeLoader
+```
+
+## Transformations
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.transform
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   PrimerTrimmer
+```
+
 ## AptaNet
 
 ```{eval-rst}
@@ -91,6 +115,7 @@ Scoring functions that connect a model to the search.
    load_1gnh
    load_5nu7
    load_li2014
+   load_sample_fastq
 ```
 
 ## Benchmarking

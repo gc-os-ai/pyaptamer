@@ -9,8 +9,6 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
     types: [opened, synchronize]
 
   # Allows workflows to be manually triggered
@@ -29,7 +27,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: python environment step
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -70,6 +68,7 @@ jobs:
       pull-requests: read
     outputs:
       notebooks: ${{ steps.check.outputs.notebooks }}
+      code: ${{ steps.check-code.outputs.code }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -89,6 +88,17 @@ jobs:
             echo "notebooks=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check if anything outside docs changed
+        id: check-code
+        run: |
+          if git diff --quiet origin/main -- . ':(exclude)docs/**'; then
+            echo "Docs-only change, test matrix will be skipped"
+            echo "code=false" >> $GITHUB_OUTPUT
+          else
+            echo "Detected changes outside docs"
+            echo "code=true" >> $GITHUB_OUTPUT
+          fi
+
   run-jupyter-notebooks:
     needs: detect-notebooks-change
     if: ${{ needs.detect-notebooks-change.outputs.notebooks == 'true' }}
@@ -101,7 +111,7 @@ jobs:
       - run: git fetch --depth 1
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -126,7 +136,8 @@ jobs:
           bash build_tools/run_all_notebooks.sh
 
   run-tests-no-extras:
-    needs: code-quality
+    needs: detect-notebooks-change
+    if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +154,7 @@ jobs:
       - run: git fetch --depth 1
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
