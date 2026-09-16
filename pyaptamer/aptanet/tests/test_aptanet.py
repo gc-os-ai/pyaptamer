@@ -2,13 +2,16 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 
 
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.encode import KMerFrequencies, PSeAAC
+from pyaptamer.trafos.encode.tests._pseaac_solution import solution
 
 params = [
     (
@@ -116,6 +119,23 @@ def test_pipeline_custom_column_names(aptamer_seq, protein_seq):
     y = np.array([0] * 20 + [1] * 20, dtype=np.float32)
     pipe = AptaNetPipeline(aptamer_col="apt", protein_col="target").fit(X, y)
     assert pipe.predict(X).shape == (40,)
+
+
+@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
+def test_pipeline_pseaac_is_pinned_to_aptanet_reference(aptamer_seq, protein_seq):
+    """The protein step reproduces the AptaNet reference PSeAAC vector.
+
+    The pipeline is fitted with a DummyClassifier so that the test reaches the
+    fitted ColumnTransformer without training the network.
+    """
+    X = _make_loader(aptamer_seq, protein_seq, 4)
+    y = np.array([0, 0, 1, 1], dtype=np.float32)
+    pipe = AptaNetPipeline(estimator=DummyClassifier()).fit(X, y)
+    protein_step = pipe.pipeline_["features"].named_transformers_["protein"]
+    ref = pd.DataFrame({"protein": ["ACDFFKKIIKKLLMMNNPPQQQRRRRIIIIRRR"]})
+    np.testing.assert_allclose(
+        protein_step.transform(ref).to_numpy()[0], solution, atol=1e-3
+    )
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)

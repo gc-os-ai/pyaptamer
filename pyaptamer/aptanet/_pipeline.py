@@ -22,9 +22,10 @@ class AptaNetPipeline(BaseEstimator):
     (binary classification).
 
     The pipeline takes a MoleculeLoader or a DataFrame of aptamer/protein
-    pairs, encodes the aptamer column with `KMerFrequencies` and the protein
-    column with `PSeAAC` through a `ColumnTransformer`, and feeds the
-    concatenated features into the estimator.
+    pairs. The aptamer column is encoded with `KMerFrequencies` and the
+    protein column with `PSeAAC`, using the 21 physicochemical properties in
+    7 groups of 3 as in AptaNet. The two feature blocks are concatenated and
+    passed to the estimator.
 
     Parameters
     ----------
@@ -82,10 +83,13 @@ class AptaNetPipeline(BaseEstimator):
         super().__init__()
 
     def _build_pipeline(self):
+        pseaac = PSeAAC(
+            lambda_val=30, weight=0.05, prop_indices=list(range(21)), group_props=3
+        )
         features = ColumnTransformer(
             [
                 ("aptamer", KMerFrequencies(k=self.k), [self.aptamer_col]),
-                ("protein", PSeAAC(), [self.protein_col]),
+                ("protein", pseaac, [self.protein_col]),
             ]
         )
         self._estimator = self.estimator or AptaNetClassifier()
