@@ -12,6 +12,7 @@ The entry point is {class}`~pyaptamer.aptanet.AptaNetPipeline`.
 ```python
 import numpy as np
 from pyaptamer.aptanet import AptaNetPipeline
+from pyaptamer.data import MoleculeLoader
 
 aptamers = [
     "GGGAGGACGAAGACGACUCGAGACAGGCUAGGGAGGGA",
@@ -20,25 +21,39 @@ aptamers = [
 ]
 protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
 
-X = [(a, protein) for a in aptamers] * 10
+X = MoleculeLoader(data={"aptamer": aptamers * 10, "protein": [protein] * 30})
 y = np.array([0, 1, 0] * 10, dtype=np.float32)
 
 pipe = AptaNetPipeline()
 pipe.fit(X, y)
 
-labels = pipe.predict(X[:3])
-probabilities = pipe.predict_proba(X[:3])
+X_new = MoleculeLoader(data={"aptamer": aptamers, "protein": [protein] * 3})
+labels = pipe.predict(X_new)
+probabilities = pipe.predict_proba(X_new)
 ```
 
-`X` is a list of `(aptamer, protein)` string pairs. `y` is a float array of binary
-labels. `predict` returns class labels and `predict_proba` returns class
-probabilities.
+`X` is a {class}`~pyaptamer.data.MoleculeLoader` or a `pandas.DataFrame` with
+an aptamer column and a protein column. `y` is a float array of binary labels.
+`predict` returns class labels and `predict_proba` returns class probabilities.
 
-The `k` argument sets the aptamer k-mer size used for feature extraction:
+The column names default to `aptamer` and `protein` and can be changed:
+
+```python
+pipe = AptaNetPipeline(aptamer_col="apt", protein_col="target")
+```
+
+## Feature extraction
+
+The pipeline encodes the aptamer column with
+{class}`~pyaptamer.trafos.encode.KMerFrequencies` and the protein column with
+{class}`~pyaptamer.trafos.encode.PSeAAC`, joined by a `ColumnTransformer`.
+The `k` argument sets the longest aptamer k-mer:
 
 ```python
 pipe = AptaNetPipeline(k=5)
 ```
+
+See {doc}`encodings` to run the encoders on their own.
 
 ## Loading protein sequences
 
