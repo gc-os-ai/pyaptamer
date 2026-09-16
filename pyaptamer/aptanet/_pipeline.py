@@ -37,7 +37,9 @@ class AptaNetPipeline(BaseEstimator):
     protein_col : str, optional, default="protein"
         Name of the column holding protein sequences.
     estimator : sklearn-compatible estimator or None, default=None
-        Estimator applied to the features. If None, uses `AptaNetClassifier`.
+        Estimator applied to the features, which are passed as float64. A
+        raw torch network needs a wrapper that casts, such as
+        `AptaNetClassifier`. If None, uses `AptaNetClassifier`.
 
     Attributes
     ----------
