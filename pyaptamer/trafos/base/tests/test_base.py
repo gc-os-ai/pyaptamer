@@ -44,8 +44,8 @@ class _SequenceFrameScenario:
 
     @property
     def args(self):
-        first = "ACGTACGTTGCAAGCTTGCAGTACGATCGATCGTAGCTAG"
-        second = "TTGACCGGTAACGTTACGGATCCATGCATGCAAGTCCGTA"
+        first = "AAACGTACGTTGCAAGCTTGCAGTACGATCGATCGTATTT"
+        second = "AAAGACCGGTAACGTTACGGATCCATGCATGCAAGTCTTT"
         return {
             "fit": {"X": pd.DataFrame({"seq": [first, second]})},
             "transform": {"X": pd.DataFrame({"seq": [second, first]})},
@@ -117,8 +117,8 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
     """Tests every BaseTransform subclass must pass.
 
     The skbase tests come in through ``TestAllObjects``. The tests below
-    check the fit and transform contract of ``BaseTransform``: fitted-state
-    bookkeeping, input coercion, and the shape of the output.
+    check what ``BaseTransform`` promises for fit and transform: the fitted
+    flag, input coercion, and the output frame.
     """
 
     def test_scenario_applies(self, object_class):
@@ -151,9 +151,7 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
     def test_fit_sets_is_fitted(self, object_instance):
         """fit returns self and marks the transformer fitted.
 
-        Checks the return value for method chaining, the ``is_fitted`` flag,
-        and that ``check_is_fitted`` no longer raises. Holds for transformers
-        with ``property:fit_is_empty`` too.
+        Holds for transformers with ``property:fit_is_empty`` too.
         """
         scenario = _scenario_for(object_instance)
         assert object_instance.fit(**scenario.args["fit"]) is object_instance

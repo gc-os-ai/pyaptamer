@@ -142,7 +142,9 @@ class PSeAAC(BaseTransform):
         np_matrix = aa_props(prop_indices=self.prop_indices).to_numpy()
         n_cols = np_matrix.shape[1]
 
-        if self.custom_groups:
+        if self.custom_groups is not None:
+            if len(self.custom_groups) == 0:
+                raise ValueError("`custom_groups` must contain at least one group.")
             return np_matrix, self.custom_groups
 
         if self.group_props is None:

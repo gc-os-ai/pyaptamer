@@ -1,6 +1,6 @@
 """Normalized k-mer frequencies of sequences."""
 
-__author__ = ["satvshr"]
+__author__ = ["satvshr", "siddharth7113"]
 __all__ = ["KMerFrequencies"]
 
 from itertools import product
@@ -44,7 +44,7 @@ class KMerFrequencies(BaseTransform):
     """
 
     _tags = {
-        "authors": ["satvshr"],
+        "authors": ["satvshr", "siddharth7113"],
         "maintainers": ["siddharth7113"],
         "output_type": "numeric",
         "property:fit_is_empty": True,
@@ -82,7 +82,7 @@ class KMerFrequencies(BaseTransform):
         """Return the normalized k-mer frequency vector of one sequence."""
         counts = dict.fromkeys(kmers, 0)
         for i in range(len(sequence)):
-            for j in range(1, self.k + 1):
+            for j in range(1, min(self.k, len(sequence) - i) + 1):
                 kmer = sequence[i : i + j]
                 if kmer in counts:
                     counts[kmer] += 1

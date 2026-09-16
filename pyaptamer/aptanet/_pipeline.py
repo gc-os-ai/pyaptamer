@@ -2,6 +2,7 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
+import pandas as pd
 from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
@@ -99,6 +100,11 @@ class AptaNetPipeline(BaseEstimator):
     def _to_frame(X):
         if isinstance(X, MoleculeLoader):
             return X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
         return X
 
     def fit(self, X, y):

@@ -64,6 +64,12 @@ def test_group_props_and_custom_groups_conflict():
         PSeAAC(group_props=3, custom_groups=[[0, 1, 2]]).fit_transform(_frame(SEQ))
 
 
+def test_empty_custom_groups():
+    """An empty custom_groups list raises instead of falling back to the default groups."""  # noqa: E501
+    with pytest.raises(ValueError, match="at least one group"):
+        PSeAAC(custom_groups=[]).fit_transform(_frame(SEQ))
+
+
 def test_default_grouping_needs_multiple_of_three():
     """Without group_props, the selected property count must be divisible by 3."""
     with pytest.raises(ValueError, match="divisible by 3"):

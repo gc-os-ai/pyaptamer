@@ -143,6 +143,14 @@ def test_pipeline_accepts_dataframe(aptamer_seq, protein_seq):
     assert pipe.predict(X).shape == (4,)
 
 
+def test_pipeline_rejects_other_input():
+    """Input that is neither a MoleculeLoader nor a DataFrame raises TypeError."""
+    with pytest.raises(
+        TypeError, match="MoleculeLoader instance or a pandas DataFrame"
+    ):
+        AptaNetPipeline().fit([["ACGT", "ACDE"]], np.array([0.0]))
+
+
 @parametrize_with_checks(
     estimators=[AptaNetClassifier(), AptaNetRegressor()],
     expected_failed_checks={
