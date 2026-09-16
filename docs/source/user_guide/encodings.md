@@ -133,8 +133,8 @@ KMerFrequencies(k=4).fit_transform(X).iloc[:, :6]
 
 ```text
           0         1         2         3         4         5
-0  0.064516  0.088710  0.056452  0.064516  0.024194  0.008065
-1  0.011905  0.142857  0.071429  0.059524  0.000000  0.035714
+0  0.067797  0.067797  0.059322  0.067797  0.025424  0.008475
+1  0.012821  0.115385  0.076923  0.064103  0.000000  0.012821
 ```
 
 Substrings with a letter outside the alphabet are not counted. The default
@@ -193,7 +193,7 @@ Xt.shape, Xt[0, :4], Xt[0, 340:344]
 ```
 
 ```text
-((1, 690), array([0.054, 0.095, 0.06 , 0.06 ]), array([0.012, 0.012, 0.012, 0.012]))
+((1, 690), array([0.056, 0.08 , 0.062, 0.062]), array([0.012, 0.012, 0.012, 0.012]))
 ```
 
 `ColumnTransformer` takes a `DataFrame`, so call `to_dataframe()` on a loader
