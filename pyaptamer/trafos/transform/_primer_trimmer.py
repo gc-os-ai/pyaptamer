@@ -254,12 +254,12 @@ class PrimerTrimmer(BaseTransform):
         param0 = {
             "start_primer": "AAA",
             "end_primer": "TTT",
-            "variable_length": 4,
+            "variable_length": 34,
         }
         param1 = {
             "start_primer": "AAA",
             "end_primer": "TTT",
-            "variable_length": 4,
+            "variable_length": 34,
             "on_unmatched": "na",
         }
         return [param0, param1]
