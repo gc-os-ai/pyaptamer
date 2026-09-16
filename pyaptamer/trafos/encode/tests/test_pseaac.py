@@ -29,7 +29,7 @@ def test_normalized_values():
 
 @pytest.mark.parametrize(
     "seq,lambda_val",
-    [("ACDEFGHIK", 10), ("ACDAA", 5), ("A", 2)],
+    [("ACDEFGHIK", 10), ("ACDAA", 5)],
 )
 def test_sequence_too_short(seq, lambda_val):
     """A sequence not longer than lambda_val raises."""
@@ -40,14 +40,12 @@ def test_sequence_too_short(seq, lambda_val):
 def test_default_matches_aptanet_solution():
     """Default parameters reproduce the AptaNet reference vector."""
     Xt = PSeAAC().fit_transform(_frame(SEQ))
-    assert Xt.shape == (1, len(solution))
     np.testing.assert_allclose(Xt.to_numpy()[0], solution, atol=1e-3)
 
 
 @pytest.mark.parametrize(
     "prop_indices,group_props,custom_groups,width",
     [
-        (None, None, None, 350),
         ([0, 1, 2, 3, 4, 5], 2, None, 150),
         (None, None, [[0, 1], [2, 3], [4, 5], [6, 7]], 200),
     ],

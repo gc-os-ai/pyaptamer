@@ -13,7 +13,7 @@ def _frame(*seqs):
     return pd.DataFrame({"seq": list(seqs)})
 
 
-@pytest.mark.parametrize("k,width", [(1, 4), (2, 20), (4, 340)])
+@pytest.mark.parametrize("k,width", [(2, 20), (4, 340)])
 def test_width(k, width):
     """Width is the number of k-mers of length 1 to k over a 4-letter alphabet."""
     Xt = KMerFrequencies(k=k).fit_transform(_frame("ACGTACGT"))

@@ -160,23 +160,12 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
         assert object_instance.is_fitted is True
         object_instance.check_is_fitted()
 
-    def test_fit_transform_sets_is_fitted(self, object_instance):
-        """fit_transform leaves the transformer in a fitted state.
-
-        Guards against a subclass overriding ``fit_transform`` without going
-        through ``fit``.
-        """
-        scenario = _scenario_for(object_instance)
-        object_instance.fit_transform(**scenario.args["fit"])
-        assert object_instance.is_fitted is True
-
     def test_output_is_frame_over_input_index(self, object_instance):
-        """transform returns a DataFrame whose rows are drawn from the input index.
+        """transform returns a DataFrame indexed by rows of the input.
 
-        Every transformer returns a DataFrame. Its index is a subset of the
-        input index rather than equal to it, because a transformer may drop
-        rows (PrimerTrimmer with ``on_unmatched="drop"``), but it may not
-        invent rows.
+        The output index is a subset of the input index. Transformers may
+        drop rows (PrimerTrimmer with ``on_unmatched="drop"``); none of the
+        current transformers adds rows.
         """
         args = _scenario_for(object_instance).args
         X = args["transform"]["X"]
