@@ -27,7 +27,7 @@ jobs:
         run: sphinx-build -b html docs/source docs/build/html
 
       - name: Upload built docs as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-html
           path: docs/build/html
