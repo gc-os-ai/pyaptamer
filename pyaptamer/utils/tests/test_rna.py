@@ -242,3 +242,12 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+def test_encode_rna_invalid_return_type():
+    """Check that an invalid return_type raises a ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="`return_type` must be either 'tensor' or 'numpy'",
+    ):
+        encode_rna("ACG", {"A": 1, "C": 2, "G": 3}, max_len=3, return_type="invalid")
