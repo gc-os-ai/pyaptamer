@@ -1,19 +1,43 @@
 # User guide
 
-Sequences enter `pyaptamer` through {class}`~pyaptamer.data.MoleculeLoader`,
-a lazy table whose cells are files or in-memory values. The two algorithms
-cover the two ends of an aptamer workflow: scoring a known aptamer-protein
-pair, and generating new candidates for a target.
-
 ```{toctree}
+:hidden:
 :maxdepth: 1
 
 molecule_loader
+encodings
 aptanet
 aptatrans
 ```
 
-| Algorithm | Input | Output | API entry point |
-| --- | --- | --- | --- |
-| AptaNet | aptamer-protein sequence pairs | interaction label and probability | {class}`~pyaptamer.aptanet.AptaNetPipeline` |
-| AptaTrans | target protein sequence | interaction score, candidate aptamers | {class}`~pyaptamer.aptatrans.AptaTransPipeline` |
+## Data
+
+:::{list-table}
+:widths: 30 70
+
+* - {doc}`MoleculeLoader <molecule_loader>`
+  - Sequences and structure files as a lazy table. Tiling, indexing,
+    metadata columns, bundled datasets.
+:::
+
+## Transformers
+
+:::{list-table}
+:widths: 30 70
+
+* - {doc}`Feature encodings <encodings>`
+  - {class}`~pyaptamer.trafos.encode.PSeAAC` for proteins,
+    {class}`~pyaptamer.trafos.encode.KMerFrequencies` for nucleotides,
+    column-wise encoding with `ColumnTransformer`.
+:::
+
+## Algorithms
+
+:::{list-table}
+:widths: 30 70
+
+* - {doc}`AptaNet <aptanet>`
+  - Aptamer-protein interaction prediction.
+* - {doc}`AptaTrans <aptatrans>`
+  - Interaction scoring and candidate aptamer generation.
+:::
