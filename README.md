@@ -2,7 +2,7 @@
 
 ### AI for aptamer discovery
 
-*The python library for easy aptamer design.* **Sponsored by [ecoSPECS](https://ecospecs.de/en/).**
+*he python library for easy aptamer design.* **Sponsored by [ecoSPECS](https://ecospecs.de/en/).**
 
 ---
 
