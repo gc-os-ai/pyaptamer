@@ -2,6 +2,8 @@ import os
 
 from pyaptamer.datasets import load_hf_to_dataset
 
+from unittest.mock import patch
+
 
 def test_hf_hub_dataset_load():
     """Test loading a known Hugging Face Hub dataset (small)."""
@@ -18,3 +20,4 @@ def test_load_pdb_local_file():
     )
     ds = load_hf_to_dataset(pdb_file)
     assert "text" in ds.column_names
+    
