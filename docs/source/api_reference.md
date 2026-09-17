@@ -145,8 +145,5 @@ Scoring functions that connect a model to the search.
    encode_rna
    generate_nplets
    rna2vec
-   pdb_to_struct
-   struct_to_aaseq
    pdb_to_seq_uniprot
-   pdb_to_aaseq
 ```
