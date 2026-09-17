@@ -1,4 +1,4 @@
-# Load molecules with MoleculeLoader
+# MoleculeLoader
 
 {class}`~pyaptamer.data.MoleculeLoader` is a lazy 2D table of molecules. Each
 cell contains either a file path (PDB, FASTA, FASTQ, GenBank, EMBL, ...) or an
