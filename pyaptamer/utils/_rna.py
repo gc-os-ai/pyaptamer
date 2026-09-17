@@ -170,7 +170,14 @@ def rna2vec(
 
             result.append(padded_sequence)
 
-    return np.array(result)
+    if not result:
+        # Preserve the documented (n_sequences, max_sequence_length) shape
+        # when every input sequence was filtered out (or the input was empty).
+        # numpy cannot infer the inner dimension from an empty list, so build
+        # the empty 2-D array explicitly.
+        return np.empty((0, max_sequence_length), dtype=np.int64)
+
+    return np.stack(result)
 
 
 def encode_rna(
@@ -249,8 +256,12 @@ def encode_rna(
         padded_tokens = tokens + [0] * (max_len - len(tokens))
         encoded_sequences.append(padded_tokens)
 
-    # convert to numpy array first
-    result = np.array(encoded_sequences, dtype=np.int64)
+    # convert to numpy array, preserving the documented
+    # (n_sequences, max_len) shape even when the input is empty
+    if encoded_sequences:
+        result = np.array(encoded_sequences, dtype=np.int64)
+    else:
+        result = np.empty((0, max_len), dtype=np.int64)
 
     if return_type == "numpy":
         return result
