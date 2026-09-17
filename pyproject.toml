@@ -19,7 +19,7 @@ dependencies = [
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
-    "torch>=2.13",
+    "torch>=2.14.0",
     # <1.8.0: see issue #735 for sklearn upperbound #TODO: fix it later
     "scikit-learn>=1.7.2,<1.8.0",
     "skorch",
@@ -27,9 +27,15 @@ dependencies = [
     "requests",
 ]
 
+[project.urls]
+Homepage = "https://github.com/gc-os-ai/pyaptamer"
+Documentation = "https://pyaptamer.readthedocs.io/en/latest/"
+Repository = "https://github.com/gc-os-ai/pyaptamer"
+Issues = "https://github.com/gc-os-ai/pyaptamer/issues"
+
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.16.5",
+    "ruff>=0.16.7",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",

@@ -2,16 +2,18 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
-from skbase.base import BaseObject
-from sklearn.base import BaseEstimator, clone
+import pandas as pd
+from skbase.base import BaseEstimator
+from sklearn.base import clone
+from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptanet import AptaNetClassifier
-from pyaptamer.aptanet._transforms import PairsToFeatures
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.encode import KMerFrequencies, PSeAAC
 
 
-class AptaNetPipeline(BaseObject, BaseEstimator):
+class AptaNetPipeline(BaseEstimator):
     """
     AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
@@ -20,26 +22,29 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
     multi-layer perceptron to predict whether an aptamer and a protein interact
     (binary classification).
 
-    The pipeline takes a MoleculeLoader of aptamer/protein pairs, converts them
-    into numeric features (aptamer k-mer frequencies + protein PSeAAC), applies
-    tree-based feature selection, and feeds the result into the estimator.
+    The pipeline takes a MoleculeLoader or a DataFrame of aptamer/protein
+    pairs. The aptamer column is encoded with `KMerFrequencies` and the
+    protein column with `PSeAAC`, using the 21 physicochemical properties in
+    7 groups of 3 as in AptaNet. The two feature blocks are concatenated and
+    passed to the estimator.
 
     Parameters
     ----------
     k : int, optional, default=4
         The k-mer size used to generate aptamer k-mer vectors.
     aptamer_col : str, optional, default="aptamer"
-        Name of the MoleculeLoader column holding aptamer sequences.
+        Name of the column holding aptamer sequences.
     protein_col : str, optional, default="protein"
-        Name of the MoleculeLoader column holding protein sequences.
+        Name of the column holding protein sequences.
     estimator : sklearn-compatible estimator or None, default=None
-        Estimator applied after feature selection. If None, uses `AptaNetClassifier`.
+        Estimator applied to the features, which are passed as float64. A
+        raw torch network needs a wrapper that casts, such as
+        `AptaNetClassifier`. If None, uses `AptaNetClassifier`.
 
     Attributes
     ----------
     pipeline_ : sklearn.pipeline.Pipeline
-        The underlying sklearn Pipeline object that handles feature extraction,
-        feature selection, and classification.
+        Steps ``features`` (a ``ColumnTransformer``) and ``clf``.
 
     References
     ----------
@@ -78,25 +83,42 @@ class AptaNetPipeline(BaseObject, BaseEstimator):
         self.aptamer_col = aptamer_col
         self.protein_col = protein_col
         self.estimator = estimator
+        super().__init__()
 
     def _build_pipeline(self):
-        transformer = PairsToFeatures(
-            k=self.k,
-            aptamer_col=self.aptamer_col,
-            protein_col=self.protein_col,
+        pseaac = PSeAAC(
+            lambda_val=30, weight=0.05, prop_indices=list(range(21)), group_props=3
+        )
+        features = ColumnTransformer(
+            [
+                ("aptamer", KMerFrequencies(k=self.k), [self.aptamer_col]),
+                ("protein", pseaac, [self.protein_col]),
+            ]
         )
         self._estimator = self.estimator or AptaNetClassifier()
-        return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
+        return Pipeline([("features", features), ("clf", clone(self._estimator))])
+
+    @staticmethod
+    def _to_frame(X):
+        if isinstance(X, MoleculeLoader):
+            return X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
+        return X
 
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(X, y)
+        self.pipeline_.fit(self._to_frame(X), y)
+        self._is_fitted = True
         return self
 
     def predict_proba(self, X):
-        check_is_fitted(self)
-        return self.pipeline_.predict_proba(X)
+        self.check_is_fitted(method_name="predict_proba")
+        return self.pipeline_.predict_proba(self._to_frame(X))
 
     def predict(self, X):
-        check_is_fitted(self)
-        return self.pipeline_.predict(X)
+        self.check_is_fitted(method_name="predict")
+        return self.pipeline_.predict(self._to_frame(X))
