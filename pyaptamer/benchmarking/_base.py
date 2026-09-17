@@ -83,16 +83,34 @@ class Benchmarking:
 
     def _to_scorers(self, metrics):
         """Convert metric callables to a dict of scorers."""
-        scorers = {}
         for metric in metrics:
             if not callable(metric):
                 raise ValueError("Each metric should be a callable.")
-            name = (
-                metric.__name__
-                if hasattr(metric, "__name__")
-                else metric.__class__.__name__
-            )
-            scorers[name] = make_scorer(metric)
+
+        # resolve raw names first
+        raw_names = [
+            metric.__name__
+            if hasattr(metric, "__name__")
+            else metric.__class__.__name__
+            for metric in metrics
+        ]
+
+        # pre-count names to detect collisions
+        name_counts = {}
+        for name in raw_names:
+            name_counts[name] = name_counts.get(name, 0) + 1
+
+        name_indices = {}
+        scorers = {}
+        for metric, base in zip(metrics, raw_names, strict=False):
+            if name_counts[base] > 1:
+                idx = name_indices.get(base, 0)
+                scorer_name = f"{base}_{idx}"
+                name_indices[base] = idx + 1
+            else:
+                scorer_name = base
+            scorers[scorer_name] = make_scorer(metric)
+
         return scorers
 
     def _to_df(self, results):
