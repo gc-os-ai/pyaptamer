@@ -62,7 +62,7 @@ Protein sequences can come from a PDB structure through the dataset loaders:
 ```python
 from pyaptamer.datasets import load_1gnh
 
-protein = load_1gnh().to_dataframe()["sequence"].iloc[0]
+protein = load_1gnh(tiling="first").to_dataframe()["sequence"].iloc[0]
 ```
 
 See {doc}`molecule_loader` for the loader's options.

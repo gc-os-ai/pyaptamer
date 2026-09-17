@@ -27,10 +27,19 @@ def test_sequence_loader_materializes(loader):
     assert not mol.to_dataframe().empty
 
 
-def test_load_1gnh_to_dataframe():
-    """load_1gnh materializes to one row per chain (tiling='samples')."""
+def test_load_1gnh_default_is_bag():
+    """load_1gnh keeps the 10 chains of 1gnh in one list-valued cell."""
     df = load_1gnh().to_dataframe()
 
-    # 1gnh has 10 chains -> 10 rows, single sequence column
+    assert df.shape == (1, 1)
+    chains = df.iloc[0, 0]
+    assert len(chains) == 10
+    assert chains[0].startswith("QTDMSRK")
+
+
+def test_load_1gnh_samples():
+    """load_1gnh(tiling='samples') gives one row per chain."""
+    df = load_1gnh(tiling="samples").to_dataframe()
+
     assert df.shape == (10, 1)
     assert df.iloc[0, 0].startswith("QTDMSRK")
