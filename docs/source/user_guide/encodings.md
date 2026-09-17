@@ -57,15 +57,14 @@ features.iloc[:, 20:24]
 0  0.026  0.025  0.026  0.025
 ```
 
-From a PDB structure, through a loader. The dataset loaders return a
-`MoleculeLoader` with one row per chain, and the index carries the chain
-label:
+From a PDB structure, through a loader. With `tiling="samples"` the loader
+gives one row per chain, and the index carries the chain label:
 
 ```python
 from pyaptamer.datasets import load_1gnh
 from pyaptamer.trafos.encode import PSeAAC
 
-features = PSeAAC().fit_transform(load_1gnh())
+features = PSeAAC().fit_transform(load_1gnh(tiling="samples"))
 features.iloc[:3, :6]
 ```
 

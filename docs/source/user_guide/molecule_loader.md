@@ -151,14 +151,15 @@ loader.to_dataframe()  # one row
 
 The dataset loaders in {mod}`pyaptamer.datasets`, such as
 {func}`~pyaptamer.datasets.load_1gnh` and
-{func}`~pyaptamer.datasets.load_sample_fastq`, return a `MoleculeLoader` with
-`tiling="samples"`. Call `to_dataframe()` on the result, or read the `tiling`,
-`indexing` and `multiindex` attributes first.
+{func}`~pyaptamer.datasets.load_sample_fastq`, return a `MoleculeLoader`. The
+PDB loaders take a `tiling` argument with the default `"bag"`, so a
+multi-chain structure stays in one cell. Pass `tiling="samples"` for one row
+per chain, or `tiling="first"` for the first chain as a string.
 
 ```python
 from pyaptamer.datasets import load_1gnh
 
-protein = load_1gnh().to_dataframe()["sequence"].iloc[0]
+protein = load_1gnh(tiling="first").to_dataframe()["sequence"].iloc[0]
 ```
 
 ## Pass a loader to a transformer

@@ -4,8 +4,15 @@ __all__ = ["load_1gnh"]
 import os
 
 
-def load_1gnh():
+def load_1gnh(tiling="bag"):
     """Load the 1GNH molecule as a MoleculeLoader.
+
+    Parameters
+    ----------
+    tiling : str, default="bag"
+        Layout of the chains, passed to
+        :class:`~pyaptamer.data.loader.MoleculeLoader`. ``"bag"`` keeps all
+        chains in one cell, ``"samples"`` gives one row per chain.
 
     Returns
     -------
@@ -16,29 +23,4 @@ def load_1gnh():
 
     pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
 
-    return MoleculeLoader(data={"sequence": [pdb_path]}, tiling="samples")
-
-
-# This function is provided only to test struct_to_aaseq.
-def _load_1gnh_structure(pdb_path=None):
-    """
-    Load the 1gnh molecule from a PDB file using Biopython.
-
-    Parameters
-    ----------
-    pdb_path : str, optional
-        Path to the PDB file. If not provided, the function uses the default path
-        located in the '../data/1gnh.pdb' relative to the current file.
-
-    Returns
-    -------
-    structure : Bio.PDB.Structure.Structure
-        A Biopython Structure object representing the 1GNH molecule.
-    """
-    from Bio.PDB import PDBParser
-
-    pdb_path = os.path.join(os.path.dirname(__file__), "..", "data", "1gnh.pdb")
-
-    parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("1gnh", pdb_path)
-    return structure
+    return MoleculeLoader(data={"sequence": [pdb_path]}, tiling=tiling)
