@@ -87,14 +87,15 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.pseaac
+.. currentmodule:: pyaptamer.trafos.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   GreedyEncoder
+   KMerFrequencies
    PSeAAC
-   AptaNetPSeAAC
 ```
 
 ## Datasets
