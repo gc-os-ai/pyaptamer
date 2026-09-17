@@ -137,7 +137,6 @@ jobs:
 
   run-tests-no-extras:
     needs: detect-notebooks-change
-    if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -148,29 +147,38 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@v6
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
 
       - run: git remote set-branches origin 'main'
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
 
       - run: git fetch --depth 1
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
 
       - name: Set up Python
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Display Python version
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         run: python -c "import sys; print(sys.version)"
 
       - name: Install package and dependencies
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         run: |
           python -m pip install .[dev] --no-cache-dir
 
       - name: Show dependencies
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         run: python -m pip list
 
       - name: Show available branches
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         run: git branch -a
 
       - name: Run tests
+        if: ${{ needs.detect-notebooks-change.outputs.code == 'true' }}
         run: |
           python -m pytest pyaptamer -p no:warnings --cov=pyaptamer --cov-report=term-missing
