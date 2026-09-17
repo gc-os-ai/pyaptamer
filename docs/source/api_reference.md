@@ -3,6 +3,30 @@
 This page documents the public API. Names not listed here are internal and may
 change without notice.
 
+## Data
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.data
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   MoleculeLoader
+```
+
+## Transformations
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.transform
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   PrimerTrimmer
+```
+
 ## AptaNet
 
 ```{eval-rst}
@@ -63,14 +87,15 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.pseaac
+.. currentmodule:: pyaptamer.trafos.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   GreedyEncoder
+   KMerFrequencies
    PSeAAC
-   AptaNetPSeAAC
 ```
 
 ## Datasets
@@ -83,7 +108,7 @@ Scoring functions that connect a model to the search.
    :nosignatures:
 
    load_aptacom_full
-   load_aptacom_x_y
+   load_aptacom
    load_csv_dataset
    load_from_rcsb
    load_hf_to_dataset
@@ -91,7 +116,7 @@ Scoring functions that connect a model to the search.
    load_1gnh
    load_5nu7
    load_li2014
-   load_pfoa
+   load_sample_fastq
 ```
 
 ## Benchmarking

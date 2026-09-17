@@ -1,4 +1,4 @@
-__author__ = "satvshr"
+__author__ = ["satvshr", "siddharth7113"]
 __all__ = ["load_from_rcsb"]
 
 import os
@@ -40,4 +40,4 @@ def load_from_rcsb(pdb_id, overwrite=False):
             os.rename(pdb_file_path, pdb_path)
         pdb_file_path = pdb_path
 
-    return MoleculeLoader(pdb_file_path)
+    return MoleculeLoader(data={"sequence": [pdb_file_path]}, tiling="samples")
