@@ -21,26 +21,6 @@ from pyaptamer.aptadiff._functional import (
 from pyaptamer.aptadiff.layers import AptaDiffTransformerEmbedding
 
 
-def _log_onehot_to_index(log_x: torch.Tensor) -> torch.Tensor:
-    """Recover integer class indices from a log-one-hot tensor.
-
-    Parameters
-    ----------
-    log_x : torch.Tensor
-        Log-probabilities of shape (batch_size, num_classes, seq_len), such as
-        the output of :func:`_index_to_log_onehot` or the noisy sequence
-        returned by `AptaDiffDiffusion.q_sample`.
-
-    Returns
-    -------
-    torch.Tensor
-        Integer token IDs of shape (batch_size, seq_len), one class index in
-        ``[0, num_classes)`` per position, obtained by taking the argmax over
-        the class dimension.
-    """
-    return log_x.argmax(dim=1)
-
-
 def _log_sample_categorical(logits: torch.Tensor, num_classes: int) -> torch.Tensor:
     """Sample class indices from unnormalized logits via the Gumbel-max trick [1]_.
 
@@ -73,46 +53,9 @@ def _log_sample_categorical(logits: torch.Tensor, num_classes: int) -> torch.Ten
     eps = torch.finfo(logits.dtype).tiny
     gumbel_noise = -torch.log(-torch.log(uniform + eps) + eps)
     sample = (gumbel_noise + logits).argmax(dim=1)
+    sample_onehot = F.one_hot(sample, num_classes).permute(0, 2, 1).float()
 
-    return _index_to_log_onehot(sample, num_classes)
-
-
-def _index_to_log_onehot(x: torch.Tensor, num_classes: int) -> torch.Tensor:
-    """Convert integer class indices to a clamped log-one-hot tensor.
-
-    Parameters
-    ----------
-    x : torch.Tensor
-        Integer class indices of shape (batch_size, seq_len), with values
-        in ``[0, num_classes)``.
-    num_classes : int
-        The number of unique nucleotides in the sequence.
-
-    Returns
-    -------
-    torch.Tensor
-        Log-one-hot encoding of shape (batch_size, num_classes, seq_len),
-        computed in float32. Zero-probability classes are clamped to the
-        smallest representable positive float32 value before taking the
-        log, so the result is finite everywhere.
-
-    Raises
-    ------
-    ValueError
-        If `x` contains a class index greater than or equal to
-        `num_classes`.
-    """
-    if torch.any((x < 0) | (x >= num_classes)):
-        raise ValueError(
-            f"x must contain class indices in [0, {num_classes}), got range "
-            f"[{int(x.min())}, {int(x.max())}]."
-        )
-
-    x_onehot = F.one_hot(x, num_classes)
-    x_onehot = x_onehot.permute(0, 2, 1).float()
-    eps = torch.finfo(x_onehot.dtype).tiny
-
-    return torch.log(x_onehot.clamp(min=eps))
+    return sample_onehot.clamp(min=torch.finfo(torch.float32).tiny).log()
 
 
 class AptaDiffDenoiser(nn.Module):
@@ -309,6 +252,7 @@ class AptaDiffDiffusion(nn.Module):
     Examples
     --------
     >>> import torch
+    >>> import torch.nn.functional as F
     >>> from pyaptamer.aptadiff import AptaDiffDenoiser, AptaDiffDiffusion
     >>> denoiser = AptaDiffDenoiser(
     ...     enc_embed_size=16,
@@ -323,7 +267,8 @@ class AptaDiffDiffusion(nn.Module):
     ...     local_attn_window_size=8,
     ... )
     >>> diffusion = AptaDiffDiffusion(denoise_fn=denoiser, num_timesteps=50)
-    >>> x = torch.randint(0, 4, (2, 8))
+    >>> tokens = torch.randint(0, 4, (2, 8))
+    >>> x = F.one_hot(tokens, num_classes=4).permute(0, 2, 1).float()
     >>> z = torch.randn(2, 16)
     >>> log_prob = diffusion.log_prob(x, z)
     >>> log_prob.shape
@@ -401,7 +346,7 @@ class AptaDiffDiffusion(nn.Module):
             If `denoise_fn` returns logits whose shape is not
             (batch_size, num_classes, seq_len).
         """
-        xt = _log_onehot_to_index(log_xt)
+        xt = log_xt.argmax(dim=1)
         out = self.denoise_fn(xt, t, z)
 
         expected_shape = (xt.size(0), self.num_classes, *xt.shape[1:])
@@ -585,7 +530,7 @@ class AptaDiffDiffusion(nn.Module):
 
             return sampled_timesteps, sampled_probs
 
-    def compute_full_vlb(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+    def compute_full_vlb(self, log_x0: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Compute the full variational lower bound, summed over every timestep.
 
         Used by the `"vb_all"` loss type. Unlike the `"vb_stochastic"`
@@ -595,9 +540,9 @@ class AptaDiffDiffusion(nn.Module):
 
         Parameters
         ----------
-        x : torch.Tensor
-            Integer-encoded clean sequence, shape (batch_size, seq_len).
-            Converted internally to log-one-hot.
+        log_x0 : torch.Tensor
+            Log-one-hot clean sequence, shape
+            (batch_size, num_classes, seq_len).
         z : torch.Tensor
             Latent conditioning vector of shape (batch_size, enc_embed_size).
 
@@ -606,7 +551,6 @@ class AptaDiffDiffusion(nn.Module):
         torch.Tensor
             Per-sequence full VLB, shape (batch_size,).
         """
-        log_x0 = _index_to_log_onehot(x, self.num_classes)
         total_loss = 0
         for t_idx in range(0, self.num_timesteps):
             t_array = torch.full(
@@ -639,15 +583,16 @@ class AptaDiffDiffusion(nn.Module):
         return total_loss
 
     def _stochastic_vlb(
-        self, x: torch.Tensor, z: torch.Tensor, update_statistics: bool
+        self, log_x0: torch.Tensor, z: torch.Tensor, update_statistics: bool
     ) -> torch.Tensor:
         """Estimates the variational lower bound from a single timestep
         sampled via importance score.
 
         Parameters
         ----------
-        x : torch.Tensor
-            Integer-encoded clean sequence, shape (batch_size, seq_len).
+        log_x0 : torch.Tensor
+            Log-one-hot clean sequence, shape
+            (batch_size, num_classes, seq_len).
         z : torch.Tensor
             Latent conditioning vector of shape (batch_size, enc_embed_size).
         update_statistics : bool
@@ -660,9 +605,8 @@ class AptaDiffDiffusion(nn.Module):
             Per-sequence variational lower bound estimate, shape (batch_size,).
         """
         sampled_timesteps, sampled_probs = self.sample_time(
-            x.size(0), x.device, "importance"
+            log_x0.size(0), log_x0.device, "importance"
         )
-        log_x0 = _index_to_log_onehot(x, self.num_classes)
         log_xt = self.q_sample(log_x0, sampled_timesteps)
         log_pred = self.predict_reverse_step(log_xt, sampled_timesteps, z)
 
@@ -703,7 +647,7 @@ class AptaDiffDiffusion(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Integer-encoded sequence, shape (batch_size, seq_len).
+            One-hot encoded sequence, shape (batch_size, num_classes, seq_len).
         z : torch.Tensor
             Latent conditioning vector of shape (batch_size, enc_embed_size).
 
@@ -715,7 +659,8 @@ class AptaDiffDiffusion(nn.Module):
         Raises
         ------
         ValueError
-            If `x` and `z` have different batch sizes.
+            If `x` and `z` have different batch sizes, or if `x` is not of
+            shape (batch_size, num_classes, seq_len).
         """
         if x.size(0) != z.size(0):
             raise ValueError(
@@ -723,7 +668,17 @@ class AptaDiffDiffusion(nn.Module):
                 f"{z.size(0)}."
             )
 
-        if self.training and self.loss_type == "vb_all":
-            return -self.compute_full_vlb(x, z)
+        if x.dim() != 3 or x.size(1) != self.num_classes:
+            raise ValueError(
+                f"x must be one-hot of shape (batch_size, {self.num_classes}, "
+                f"seq_len), got {tuple(x.shape)}."
+            )
 
-        return -self._stochastic_vlb(x, z, update_statistics=self.training)
+        # normalize strides so seeded Gumbel noise does not depend on x's memory layout
+        x = x.float().transpose(1, 2).contiguous().transpose(1, 2)
+        log_x0 = x.clamp(min=torch.finfo(torch.float32).tiny).log()
+
+        if self.training and self.loss_type == "vb_all":
+            return -self.compute_full_vlb(log_x0, z)
+
+        return -self._stochastic_vlb(log_x0, z, update_statistics=self.training)
