@@ -1,7 +1,7 @@
 """AptaDiff model architecture and diffusion training wrapper."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["Rezero", "AptaDiffDenoiser", "AptaDiffDiffusion"]
+__all__ = ["AptaDiffDenoiser", "AptaDiffDiffusion"]
 
 import warnings
 from typing import Literal
@@ -14,7 +14,6 @@ from torch.utils.checkpoint import checkpoint
 from pyaptamer.aptadiff._functional import (
     compute_vlb_loss,
     cosine_alpha_schedule,
-    log_one_minus_exp,
     multinomial_kl,
     q_forward,
     q_posterior,
@@ -28,24 +27,26 @@ def _log_onehot_to_index(log_x: torch.Tensor) -> torch.Tensor:
     Parameters
     ----------
     log_x : torch.Tensor
-        Log-probabilities of shape (batch_size, num_classes, seq_len), as
-        produced by :func:`_index_to_log_onehot` or the forward diffusion
-        process.
+        Log-probabilities of shape (batch_size, num_classes, seq_len), such as
+        the output of :func:`_index_to_log_onehot` or the noisy sequence
+        returned by `AptaDiffDiffusion.q_sample`.
 
     Returns
     -------
     torch.Tensor
-        Integer class indices of shape (batch_size, seq_len), obtained by
-        taking the argmax over the class dimension.
+        Integer token IDs of shape (batch_size, seq_len), one class index in
+        ``[0, num_classes)`` per position, obtained by taking the argmax over
+        the class dimension.
     """
     return log_x.argmax(dim=1)
 
 
 def _log_sample_categorical(logits: torch.Tensor, num_classes: int) -> torch.Tensor:
-    """Sample class indices from unnormalized logits via the Gumbel-max trick.
+    """Sample class indices from unnormalized logits via the Gumbel-max trick [1]_.
 
-    Adds Gumbel noise to `logits` and takes the argmax, which is equivalent
-    to sampling from the categorical distribution defined by
+    Adds Gumbel noise, i.e. samples of ``-log(-log(u))`` with
+    ``u ~ Uniform(0, 1)``, to `logits` and takes the argmax, which is
+    equivalent to sampling from the categorical distribution defined by
     ``softmax(logits, dim=1)`` without computing that softmax.
 
     Parameters
@@ -61,6 +62,12 @@ def _log_sample_categorical(logits: torch.Tensor, num_classes: int) -> torch.Ten
     torch.Tensor
         The sampled classes, re-encoded as a log-one-hot tensor of shape
         (batch_size, num_classes, seq_len).
+
+    References
+    ----------
+    .. [1] Maddison, C. J., Mnih, A., & Teh, Y. W. "The Concrete Distribution:
+           A Continuous Relaxation of Discrete Random Variables." arXiv preprint
+           arXiv:1611.00712 (2016). https://arxiv.org/abs/1611.00712
     """
     uniform = torch.rand_like(logits)
     eps = torch.finfo(logits.dtype).tiny
@@ -108,43 +115,8 @@ def _index_to_log_onehot(x: torch.Tensor, num_classes: int) -> torch.Tensor:
     return torch.log(x_onehot.clamp(min=eps))
 
 
-class Rezero(nn.Module):
-    """Learnable scalar gate, initialized to zero, that scales its input.
-
-    `alpha` starts at zero, so the module's output is exactly zero for any
-    input at initialization, and grows away from zero as `alpha` is
-    updated during training.
-
-    Attributes
-    ----------
-    alpha : nn.Parameter
-        Learnable scalar of shape (1,), initialized to zero, that scales the
-        module's input.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.alpha = nn.Parameter(torch.zeros(size=(1,)))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Scale the input by the learnable alpha parameter.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            Input tensor of any shape.
-
-        Returns
-        -------
-        torch.Tensor
-            `x` scaled elementwise by `alpha`, same shape as `x`.
-        """
-        return self.alpha * x
-
-
 class AptaDiffDenoiser(nn.Module):
-    """Denoising network for AptaDiff. Contains a transformer backbone and
-    a Rezero gate.
+    """Denoising network for AptaDiff: a transformer with a learnable output scale.
 
     Predicts per-position nucleotide logits from a noisy sequence, its
     diffusion timestep, and a latent conditioning vector.
@@ -191,10 +163,17 @@ class AptaDiffDenoiser(nn.Module):
     transformer : AptaDiffTransformerEmbedding
         Transformer backbone mapping token indices, timesteps, and the latent
         condition to per-position sequence representations.
-    rezero : Rezero
-        Zero-initialized output gate applied to the permuted transformer
-        output, so the denoiser predicts a uniform distribution at
-        initialization.
+    scale : nn.Parameter
+        Learnable scalar of shape (1,) that scales the transformer output.
+        Initialized to zero to enforce a uniform distribution over nucleotides
+        at initialization, and unconstrained during training, so it grows away
+        from zero in either direction. Implements the ReZero mechanism [1]_.
+
+    References
+    ----------
+    .. [1] Bachlechner, T., et al. "ReZero is All You Need: Fast Convergence
+           at Deep Depths." arXiv preprint arXiv:2003.04887 (2020).
+           https://arxiv.org/abs/2003.04887
     """
 
     def __init__(
@@ -230,7 +209,7 @@ class AptaDiffDenoiser(nn.Module):
             local_attn_window_size=local_attn_window_size,
             transformer_type=transformer_type,
         )
-        self.rezero = Rezero()
+        self.scale = nn.Parameter(torch.zeros(size=(1,)))
 
     def forward(
         self, x: torch.Tensor, t: torch.Tensor, z: torch.Tensor
@@ -252,8 +231,8 @@ class AptaDiffDenoiser(nn.Module):
             Per-class logits of shape (batch_size, num_classes, seq_len).
         """
         out = self.transformer(x, t, z)
-        out = out.permute(0, 2, 1)  # (batch, num_classes, seq_len)
-        out = self.rezero(out)
+        out = out.permute(0, 2, 1)
+        out = self.scale * out
         return out
 
 
@@ -267,7 +246,7 @@ class AptaDiffDiffusion(nn.Module):
 
     Owns the noise schedule and the importance-sampling statistics, and exposes
     the training-loss path (`log_prob`) built around the VLB loss in
-    `pyaptamer.aptadiff._functional`. Does not implement sampling/generation.
+    `pyaptamer.aptadiff._functional`.
 
     Parameters
     ----------
@@ -280,7 +259,7 @@ class AptaDiffDiffusion(nn.Module):
     num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
     loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
-        Which variational bound to optimize.
+        Chooses which variational bound to optimize.
         - "vb_stochastic" : one importance-sampled timestep per training
           step. This is the default.
         - "vb_all" : the exact bound, summed over every timestep. Costs
@@ -298,13 +277,9 @@ class AptaDiffDiffusion(nn.Module):
     log_alpha : torch.Tensor
         Buffer of shape (num_timesteps,) holding log alpha_t, the per-step
         log probability that a token keeps its current class.
-    log_1m_alpha : torch.Tensor
-        Buffer of shape (num_timesteps,) holding log(1 - alpha_t).
     log_alphabar : torch.Tensor
         Buffer of shape (num_timesteps,) holding log alphabar_t, the
         cumulative sum of `log_alpha` through step t.
-    log_1m_alphabar : torch.Tensor
-        Buffer of shape (num_timesteps,) holding log(1 - alphabar_t).
     Lt_history : torch.Tensor
         Buffer of shape (num_timesteps,) holding an exponential moving
         average of the squared VLB term at each timestep. Used to build the
@@ -330,6 +305,30 @@ class AptaDiffDiffusion(nn.Module):
            probabilistic models." Proceedings of the 38th International
            Conference on Machine Learning, PMLR 139:8162-8171 (2021).
            https://arxiv.org/abs/2102.09672
+
+    Examples
+    --------
+    >>> import torch
+    >>> from pyaptamer.aptadiff import AptaDiffDenoiser, AptaDiffDiffusion
+    >>> denoiser = AptaDiffDenoiser(
+    ...     enc_embed_size=16,
+    ...     input_dim=4,
+    ...     output_dim=4,
+    ...     dim=32,
+    ...     depth=1,
+    ...     n_blocks=1,
+    ...     max_seq_len=8,
+    ...     num_timesteps=50,
+    ...     heads=2,
+    ...     local_attn_window_size=8,
+    ... )
+    >>> diffusion = AptaDiffDiffusion(denoise_fn=denoiser, num_timesteps=50)
+    >>> x = torch.randint(0, 4, (2, 8))
+    >>> z = torch.randn(2, 16)
+    >>> log_prob = diffusion.log_prob(x, z)
+    >>> log_prob.shape
+    torch.Size([2])
+    >>> loss = -log_prob.mean()
     """
 
     def __init__(
@@ -369,13 +368,8 @@ class AptaDiffDiffusion(nn.Module):
         log_alpha = torch.log(alphas)
         log_alphabar = torch.cumsum(log_alpha, dim=0)
 
-        log_1m_alpha = log_one_minus_exp(log_alpha)
-        log_1m_alphabar = log_one_minus_exp(log_alphabar)
-
         self.register_buffer("log_alpha", log_alpha)
-        self.register_buffer("log_1m_alpha", log_1m_alpha)
         self.register_buffer("log_alphabar", log_alphabar)
-        self.register_buffer("log_1m_alphabar", log_1m_alphabar)
 
         self.register_buffer("Lt_history", torch.zeros(num_timesteps))
         self.register_buffer("Lt_count", torch.zeros(num_timesteps))
@@ -569,9 +563,10 @@ class AptaDiffDiffusion(nn.Module):
                 return self.sample_time(batch_size, device, method="uniform")
 
             sampling_scores = torch.sqrt(self.Lt_history + 1e-10) + 0.0001
+
             sampling_scores[0] = sampling_scores[
                 1
-            ]  # match t=0 score to t=1 to prevent scale distortion
+            ]  # replace t=0 score with t=1 to prevent scale distortion
             all_probs = sampling_scores / sampling_scores.sum()
             sampled_timesteps = torch.multinomial(
                 all_probs, num_samples=batch_size, replacement=True
@@ -593,8 +588,8 @@ class AptaDiffDiffusion(nn.Module):
     def compute_full_vlb(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Compute the full variational lower bound, summed over every timestep.
 
-        Used by the `"vb_all"` loss type. Unlike `_train_loss`'s
-        `"vb_stochastic"` path, this evaluates every timestep from 0 to
+        Used by the `"vb_all"` loss type. Unlike the `"vb_stochastic"`
+        estimate, this evaluates every timestep from 0 to
         `self.num_timesteps - 1` rather than a single sampled one, so its
         cost scales linearly with `self.num_timesteps`.
 
@@ -643,8 +638,11 @@ class AptaDiffDiffusion(nn.Module):
         total_loss = total_loss + self.kl_prior(log_x0)
         return total_loss
 
-    def _train_loss(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
-        """Compute the training loss for one batch, per `self.loss_type`.
+    def _stochastic_vlb(
+        self, x: torch.Tensor, z: torch.Tensor, update_statistics: bool
+    ) -> torch.Tensor:
+        """Estimates the variational lower bound from a single timestep
+        sampled via importance score.
 
         Parameters
         ----------
@@ -652,30 +650,32 @@ class AptaDiffDiffusion(nn.Module):
             Integer-encoded clean sequence, shape (batch_size, seq_len).
         z : torch.Tensor
             Latent conditioning vector of shape (batch_size, enc_embed_size).
+        update_statistics : bool
+            Chooses whether to record the sampled bound terms in `Lt_history` and
+            `Lt_count`.
 
         Returns
         -------
         torch.Tensor
-            Per-sequence negative VLB (the training loss), shape
-            (batch_size,).
+            Per-sequence variational lower bound estimate, shape (batch_size,).
         """
-        if self.loss_type == "vb_stochastic":
-            sampled_timesteps, sampled_probs = self.sample_time(
-                x.size(0), x.device, "importance"
-            )
-            log_x0 = _index_to_log_onehot(x, self.num_classes)
-            log_xt = self.q_sample(log_x0, sampled_timesteps)
-            log_pred = self.predict_reverse_step(log_xt, sampled_timesteps, z)
+        sampled_timesteps, sampled_probs = self.sample_time(
+            x.size(0), x.device, "importance"
+        )
+        log_x0 = _index_to_log_onehot(x, self.num_classes)
+        log_xt = self.q_sample(log_x0, sampled_timesteps)
+        log_pred = self.predict_reverse_step(log_xt, sampled_timesteps, z)
 
-            loss = compute_vlb_loss(
-                log_x0=log_x0,
-                log_xt=log_xt,
-                t=sampled_timesteps,
-                log_alpha=self.log_alpha,
-                log_alphabar=self.log_alphabar,
-                log_pred=log_pred,
-            )
+        loss = compute_vlb_loss(
+            log_x0=log_x0,
+            log_xt=log_xt,
+            t=sampled_timesteps,
+            log_alpha=self.log_alpha,
+            log_alphabar=self.log_alphabar,
+            log_pred=log_pred,
+        )
 
+        if update_statistics:
             Lt_sqrd = loss.pow(2)
             Lt_sqrd_prev = self.Lt_history.gather(dim=0, index=sampled_timesteps)
             new_Lt_history = (0.1 * Lt_sqrd + 0.9 * Lt_sqrd_prev).detach()
@@ -685,23 +685,20 @@ class AptaDiffDiffusion(nn.Module):
                 dim=0, index=sampled_timesteps, src=torch.ones_like(Lt_sqrd)
             )
 
-            kl_prior = self.kl_prior(log_x0)
-            total_loss = (loss / sampled_probs) + kl_prior
+        kl_prior = self.kl_prior(log_x0)
+        total_loss = (loss / sampled_probs) + kl_prior
 
-            return -total_loss
-
-        else:
-            return -self.compute_full_vlb(x, z)
+        return total_loss
 
     def log_prob(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Returns a per-sequence lower bound on the log-probability of `x`.
 
-        This is the negated variational bound, i.e. an ELBO - higher is
-        better.
-
-        Dispatches to `_train_loss` in train mode. In eval mode, computes
-        the same single-sampled-timestep estimate but doesn't update the
-        `Lt_history`/`Lt_count` importance-sampling statistics.
+        Computes the negated variational bound (ELBO). In train mode with
+        `loss_type="vb_all"`, this function returns the exact bound from
+        `compute_full_vlb`. Otherwise it returns an estimate obtained from
+        single-sampled timestep, updating the `Lt_history`/`Lt_count`
+        importance-sampling statistics only in train mode.
+        In eval mode `loss_type` is ignored.
 
         Parameters
         ----------
@@ -726,28 +723,7 @@ class AptaDiffDiffusion(nn.Module):
                 f"{z.size(0)}."
             )
 
-        if self.training:
-            return self._train_loss(x, z)
+        if self.training and self.loss_type == "vb_all":
+            return -self.compute_full_vlb(x, z)
 
-        else:
-            log_x0 = _index_to_log_onehot(x, self.num_classes)
-            sampled_timesteps, sampled_probs = self.sample_time(
-                x.size(0), x.device, "importance"
-            )
-
-            log_xt = self.q_sample(log_x0, sampled_timesteps)
-            log_pred = self.predict_reverse_step(log_xt, sampled_timesteps, z)
-
-            loss = compute_vlb_loss(
-                log_x0=log_x0,
-                log_xt=log_xt,
-                t=sampled_timesteps,
-                log_alpha=self.log_alpha,
-                log_alphabar=self.log_alphabar,
-                log_pred=log_pred,
-            )
-
-            kl_prior = self.kl_prior(log_x0)
-            total_loss = (loss / sampled_probs) + kl_prior
-
-            return -total_loss
+        return -self._stochastic_vlb(x, z, update_statistics=self.training)
