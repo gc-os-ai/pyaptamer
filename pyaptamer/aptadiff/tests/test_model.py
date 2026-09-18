@@ -344,21 +344,22 @@ class TestAptaDiffDiffusion:
 
         assert torch.isfinite(log_prob).all()
 
-    @pytest.mark.parametrize("dtype", [torch.bfloat16])
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
     def test_log_prob_finite_under_autocast(
         self,
         diffusion: AptaDiffDiffusion,
         denoiser: AptaDiffDenoiser,
         batch: tuple[torch.Tensor, torch.Tensor],
-        dtype: torch.dtype,
     ) -> None:
-        """Check loss and gradients stay finite under CPU autocast."""
+        """Check loss and gradients stay finite under CUDA float16 autocast."""
         x, z = batch
 
         nn.init.ones_(denoiser.scale)
+        diffusion = diffusion.to("cuda")
+        x, z = x.to("cuda"), z.to("cuda")
         diffusion.train()
 
-        with torch.autocast(device_type="cpu", dtype=dtype):
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
             loss = diffusion.log_prob(x, z)
 
         assert torch.isfinite(loss).all()

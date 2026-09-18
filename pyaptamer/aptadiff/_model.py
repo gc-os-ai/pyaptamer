@@ -674,7 +674,6 @@ class AptaDiffDiffusion(nn.Module):
                 f"seq_len), got {tuple(x.shape)}."
             )
 
-        # normalize strides so seeded Gumbel noise does not depend on x's memory layout
         x = x.float().transpose(1, 2).contiguous().transpose(1, 2)
         log_x0 = x.clamp(min=torch.finfo(torch.float32).tiny).log()
 
