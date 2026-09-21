@@ -1,7 +1,7 @@
-"""K-hot encoding of fixed-length biological sequences."""
+"""One-hot encoding of fixed-length biological sequences."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["SequenceKHotEncoder"]
+__all__ = ["SequenceOneHotEncoder"]
 
 import warnings
 from typing import Literal
@@ -14,11 +14,12 @@ from pyaptamer import logger
 from pyaptamer.trafos.base import BaseTransform
 
 
-class SequenceKHotEncoder(BaseTransform):
-    """Encode fixed-length sequences as K-hot tensors.
+class SequenceOneHotEncoder(BaseTransform):
+    """Encode fixed-length sequences as one-hot tensors.
 
-    Each sequence of length ``L`` becomes a ``(V, L)`` matrix with one active
-    entry per position, so ``L`` in total. Hence K-hot, with ``K = L``.
+    Each sequence of length `L` and vocab length `V` becomes a matrix of shape
+    ``(V, L)``, so ``transform`` returns a 3D tensor of shape ``(batch, V, L)``.
+    This follows PyTorch's channel-first layout for sequence data.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
     ``pandas.DataFrame`` with exactly one column of sequences.
@@ -41,20 +42,20 @@ class SequenceKHotEncoder(BaseTransform):
     Examples
     --------
     >>> import torch
-    >>> from pyaptamer.trafos.encode import SequenceKHotEncoder
+    >>> from pyaptamer.trafos.encode import SequenceOneHotEncoder
     >>> from pyaptamer.data import MoleculeLoader
     >>> X = MoleculeLoader(
     ...     data={
-    ...         "seq": ["ATGC", "GCTA"],
+    ...         "seq": ["ATGCAT", "GCTAGC"],
     ...     }
     ... )
-    >>> enc = SequenceKHotEncoder()
+    >>> enc = SequenceOneHotEncoder()
     >>> Xt = enc.fit_transform(X)
     >>> Xt.shape
-    torch.Size([2, 4, 4])
+    torch.Size([2, 4, 6])
     >>> decoded = enc.inverse_transform(Xt)
     >>> decoded["sequence"].iloc[0]
-    'ATGC'
+    'ATGCAT'
     """
 
     _tags = {
@@ -135,7 +136,7 @@ class SequenceKHotEncoder(BaseTransform):
         return X
 
     def _transform(self, X):
-        """Validate and convert sequences to K-hot tensors.
+        """Validate and convert sequences to one-hot tensors.
 
         Parameters
         ----------
@@ -171,6 +172,7 @@ class SequenceKHotEncoder(BaseTransform):
             )
 
         encoded_seqs = []
+        vocab_chars = vocab.keys()
 
         for seq in reads:
             if pd.isna(seq):
@@ -183,13 +185,13 @@ class SequenceKHotEncoder(BaseTransform):
                 continue
 
             seq = seq.upper()
-            unknown = set(seq) - vocab.keys()
+            unknown = set(seq) - vocab_chars
 
             if unknown:
                 if self.handle_unknown == "raise":
                     raise ValueError(
                         f"{type(self).__name__} found unsupported "
-                        f"character(s) {sorted(unknown)} in "
+                        f"character(s) {sorted(vocab_chars)} in "
                         f"{reads.name!r}; expected only "
                         f"{sorted(vocab)}. Set handle_unknown='drop' "
                         "to skip these rows instead."
@@ -216,22 +218,21 @@ class SequenceKHotEncoder(BaseTransform):
         num_classes = max(vocab.values()) + 1
 
         if not encoded_seqs:
-            seq_len = int(lengths.iloc[0]) if len(lengths) else 0
+            seq_len = int(lengths.iloc[0]) if not lengths.empty else 0
             return torch.zeros((0, num_classes, seq_len), dtype=torch.float32)
 
         int_tensor = torch.tensor(encoded_seqs, dtype=torch.long)
-
-        one_hot = F.one_hot(int_tensor, num_classes=num_classes).float()
+        one_hot = F.one_hot(int_tensor, num_classes=num_classes).to(torch.float32)
 
         return one_hot.permute(0, 2, 1)
 
     def inverse_transform(self, X_tensor):
-        """Convert K-hot or index tensors back to sequences.
+        """Convert one-hot or index tensors back to sequences.
 
         Parameters
         ----------
         X_tensor : torch.Tensor
-            A 3D K-hot tensor of shape (batch_size, num_classes, sequence_length)
+            A 3D one-hot tensor of shape (batch_size, num_classes, sequence_length)
             or a 2D integer tensor of shape (batch_size, sequence_length).
 
         Returns
@@ -263,12 +264,12 @@ class SequenceKHotEncoder(BaseTransform):
 
     @classmethod
     def get_test_params(cls):
-        """Get test parameters for SequenceKHotEncoder.
+        """Get test parameters for SequenceOneHotEncoder.
 
         Returns
         -------
         params : list of dict
-            Test parameters for SequenceKHotEncoder.
+            Test parameters for SequenceOneHotEncoder.
         """
         param0 = {}
         param1 = {
