@@ -2,6 +2,7 @@
 
 __author__ = ["aditi-dsi"]
 
+import numpy as np
 import pandas as pd
 import pytest
 import torch
@@ -46,16 +47,16 @@ def test_sequence_one_hot_encoder_raises_on_variable_sequence_lengths():
 
 
 def test_sequence_one_hot_encoder_accepts_moleculeloader():
-    """A MoleculeLoader of sequences encodes to a tensor of the expected shape."""
+    """A MoleculeLoader of sequences encodes to a frame of the expected shape."""
     X = MoleculeLoader(data={"seq": [SEQUENCE, SEQUENCE.lower()]})
 
     encoder = SequenceOneHotEncoder()
     Xt = encoder.fit_transform(X)
 
-    assert isinstance(Xt, torch.Tensor)
-    assert Xt.shape == (2, 4, len(SEQUENCE))
-    assert Xt.dtype == torch.float32
-    assert torch.equal(Xt[0], Xt[1])
+    assert isinstance(Xt, pd.DataFrame)
+    assert Xt.shape == (2, 4 * len(SEQUENCE))
+    assert Xt.to_numpy().dtype == np.float32
+    assert Xt.iloc[0].equals(Xt.iloc[1])
 
 
 def test_sequence_one_hot_encoder_custom_columns():
@@ -64,7 +65,7 @@ def test_sequence_one_hot_encoder_custom_columns():
     encoder = SequenceOneHotEncoder()
     Xt = encoder.fit_transform(X)
 
-    assert Xt.shape == (2, 4, len(SEQUENCE))
+    assert Xt.shape == (2, 4 * len(SEQUENCE))
 
 
 def test_sequence_one_hot_encoder_custom_vocab():
@@ -75,7 +76,7 @@ def test_sequence_one_hot_encoder_custom_vocab():
     )
     Xt = encoder.fit_transform(pd.DataFrame({"seq": ["ACGN"]}))
 
-    assert Xt.shape == (1, 5, 4)
+    assert Xt.shape == (1, 20)
     assert encoder.inverse_transform(Xt)["sequence"].iloc[0] == "ACGN"
 
 
@@ -83,7 +84,7 @@ def test_sequence_one_hot_encoder_empty_input():
     """An empty frame encodes to an empty batch, doesn't throw an error."""
     X = pd.DataFrame({"seq": pd.Series([], dtype=object)})
     Xt = SequenceOneHotEncoder().fit_transform(X)
-    assert Xt.shape == (0, 4, 0)
+    assert Xt.shape == (0, 0)
 
 
 def test_sequence_one_hot_encoder_handle_unknown_raise_on_unsupported_character():
@@ -107,7 +108,7 @@ def test_sequence_one_hot_encoder_handle_unknown_drop_unsupported_character():
     encoder = SequenceOneHotEncoder(handle_unknown="drop")
     Xt = encoder.fit_transform(X)
 
-    assert Xt.shape == (1, 4, 4)
+    assert Xt.shape == (1, 16)
     assert encoder.inverse_transform(Xt)["sequence"].tolist() == ["ACGT"]
 
 
@@ -118,7 +119,7 @@ def test_sequence_one_hot_encoder_handle_unknown_drop_missing_value(missing_valu
     encoder = SequenceOneHotEncoder(handle_unknown="drop")
     Xt = encoder.fit_transform(X)
 
-    assert Xt.shape == (1, 4, 4)
+    assert Xt.shape == (1, 16)
     assert encoder.inverse_transform(Xt)["sequence"].tolist() == ["ACGT"]
 
 
@@ -130,7 +131,7 @@ def test_sequence_one_hot_encoder_warns_when_all_sequences_dropped():
     with pytest.warns(UserWarning, match="dropped all"):
         Xt = encoder.fit_transform(X)
 
-    assert Xt.shape == (0, 4, 4)
+    assert Xt.shape == (0, 16)
 
 
 def test_sequence_one_hot_encoder_inverse_transform():
@@ -161,6 +162,39 @@ def test_sequence_one_hot_encoder_inverse_transform_unknown_token():
     assert decoded_df["sequence"].iloc[0] == expected_mutated
 
 
+def test_sequence_one_hot_encoder_inverse_transform_3d_tensor():
+    """A (batch, num_classes, seq_len) tensor, as a model emits, decodes directly."""
+    encoder = SequenceOneHotEncoder()
+
+    vocab = {"A": 0, "T": 1, "G": 2, "C": 3}
+    indices = torch.tensor([[vocab[char] for char in "ACGTAC"]])
+    logits = torch.nn.functional.one_hot(indices, 4).float().permute(0, 2, 1)
+    logits = logits + 0.1 * torch.rand_like(logits)
+
+    assert logits.shape == (1, 4, 6)
+
+    decoded_df = encoder.inverse_transform(logits)
+    assert decoded_df["sequence"].iloc[0] == "ACGTAC"
+
+
+def test_sequence_one_hot_encoder_inverse_transform_rejects_bad_frame_width():
+    """A frame whose width is not a multiple of the vocab size raises a ValueError."""
+    X = pd.DataFrame(np.zeros((1, 10), dtype=np.float32))
+    with pytest.raises(ValueError, match="multiple of 4 columns"):
+        SequenceOneHotEncoder().inverse_transform(X)
+
+
+@pytest.mark.parametrize(
+    "X_tensor",
+    [torch.tensor([0, 1, 2, 3]), torch.zeros(1, 4, 4, 1)],
+    ids=["1d", "4d"],
+)
+def test_sequence_one_hot_encoder_inverse_transform_rejects_bad_tensor_dim(X_tensor):
+    """Tensors that are not 2D or 3D raise a ValueError naming the dimension."""
+    with pytest.raises(ValueError, match="expects a 2D index tensor or a 3D"):
+        SequenceOneHotEncoder().inverse_transform(X_tensor)
+
+
 def test_sequence_one_hot_encoder_accepts_primer_trimmer_output():
     """Encoder accepts PrimerTrimmer's DataFrame output directly."""
     loader = load_sample_fastq()
@@ -173,9 +207,9 @@ def test_sequence_one_hot_encoder_accepts_primer_trimmer_output():
     encoder = SequenceOneHotEncoder()
     Xt = encoder.fit_transform(trimmed)
 
-    assert isinstance(Xt, torch.Tensor)
-    assert Xt.shape == (len(trimmed), 4, TRIMMED_LENGTH)
-    assert Xt.dtype == torch.float32
+    assert isinstance(Xt, pd.DataFrame)
+    assert Xt.shape == (len(trimmed), 4 * TRIMMED_LENGTH)
+    assert Xt.to_numpy().dtype == np.float32
 
     decoded = encoder.inverse_transform(Xt)
     assert decoded["sequence"].tolist() == trimmed["sequence"].tolist()

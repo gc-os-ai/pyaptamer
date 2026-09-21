@@ -6,6 +6,7 @@ __all__ = ["SequenceOneHotEncoder"]
 import warnings
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -15,11 +16,12 @@ from pyaptamer.trafos.base import BaseTransform
 
 
 class SequenceOneHotEncoder(BaseTransform):
-    """Encode fixed-length sequences as one-hot tensors.
+    """Encode fixed-length sequences as one-hot frames.
 
-    Each sequence of length `L` and vocab length `V` becomes a matrix of shape
-    ``(V, L)``, so ``transform`` returns a 3D tensor of shape ``(batch, V, L)``.
-    This follows PyTorch's channel-first layout for sequence data.
+    Each sequence of length ``L`` over a vocab of size ``V`` becomes ``V * L``
+    one-hot columns, indexed like the input. Column ``v * L + l`` holds class
+    ``v`` at position ``l``. Reshape with ``.to_numpy().reshape(n, V, L)`` to
+    recover the ``(V, L)`` matrix per sequence.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
     ``pandas.DataFrame`` with exactly one column of sequences.
@@ -50,7 +52,6 @@ class SequenceOneHotEncoder(BaseTransform):
 
     Examples
     --------
-    >>> import torch
     >>> from pyaptamer.trafos.encode import SequenceOneHotEncoder
     >>> from pyaptamer.data import MoleculeLoader
     >>> X = MoleculeLoader(
@@ -61,7 +62,7 @@ class SequenceOneHotEncoder(BaseTransform):
     >>> enc = SequenceOneHotEncoder()
     >>> Xt = enc.fit_transform(X)
     >>> Xt.shape
-    torch.Size([2, 4, 6])
+    (2, 24)
     >>> decoded = enc.inverse_transform(Xt)
     >>> decoded["sequence"].iloc[0]
     'ATGCAT'
@@ -70,7 +71,7 @@ class SequenceOneHotEncoder(BaseTransform):
     _tags = {
         "authors": ["aditi-dsi"],
         "maintainers": ["aditi-dsi"],
-        "output_type": "tensor",
+        "output_type": "numeric",
         "property:fit_is_empty": True,
         "capability:multivariate": False,
     }
@@ -145,7 +146,7 @@ class SequenceOneHotEncoder(BaseTransform):
         return X
 
     def _transform(self, X):
-        """Validate and convert sequences to one-hot tensors.
+        """Validate and convert sequences to one-hot frames.
 
         Parameters
         ----------
@@ -154,9 +155,10 @@ class SequenceOneHotEncoder(BaseTransform):
 
         Returns
         -------
-        torch.Tensor
-            A 3D float32 tensor of shape (n_samples, num_classes, sequence_length).
-            Rows skipped by ``handle_unknown="drop"`` are not included.
+        pandas.DataFrame
+            Shape ``(n_samples, num_classes * sequence_length)``, float32,
+            indexed by the input rows that were encoded. Rows skipped by
+            ``handle_unknown="drop"`` are not included.
 
         Raises
         ------
@@ -180,10 +182,10 @@ class SequenceOneHotEncoder(BaseTransform):
                 "fixed-length regions."
             )
 
-        encoded_seqs = []
+        encoded_seqs, kept_pos = [], []
         vocab_chars = vocab.keys()
 
-        for seq in reads:
+        for pos, seq in enumerate(reads):
             if pd.isna(seq):
                 if self.handle_unknown == "raise":
                     raise ValueError(
@@ -201,13 +203,14 @@ class SequenceOneHotEncoder(BaseTransform):
                     raise ValueError(
                         f"{type(self).__name__} found unsupported "
                         f"character(s) {sorted(unknown)} in "
-                        f"{reads.name!r}; expected only "
+                        f"{reads.name!r}, expected only "
                         f"{sorted(vocab)}. Set handle_unknown='drop' "
                         "to skip these rows instead."
                     )
                 continue
 
             encoded_seqs.append([vocab[char] for char in seq])
+            kept_pos.append(pos)
 
         dropped = len(reads) - len(encoded_seqs)
         if dropped:
@@ -225,31 +228,42 @@ class SequenceOneHotEncoder(BaseTransform):
                 )
 
         num_classes = max(vocab.values()) + 1
+        index = reads.index[kept_pos]
 
         if not encoded_seqs:
             seq_len = int(lengths.iloc[0]) if not lengths.empty else 0
-            return torch.zeros((0, num_classes, seq_len), dtype=torch.float32)
+            return pd.DataFrame(
+                np.zeros((0, num_classes * seq_len), dtype=np.float32),
+                index=index,
+            )
 
         int_tensor = torch.tensor(encoded_seqs, dtype=torch.long)
         one_hot = F.one_hot(int_tensor, num_classes=num_classes).to(torch.float32)
+        flat = one_hot.permute(0, 2, 1).reshape(len(encoded_seqs), -1).numpy()
 
-        return one_hot.permute(0, 2, 1)
+        return pd.DataFrame(flat, index=index)
 
-    def inverse_transform(self, X_tensor):
-        """Convert one-hot or index tensors back to sequences.
+    def inverse_transform(self, X):
+        """Convert encoded frames, one-hot tensors or index tensors back to sequences.
 
         Parameters
         ----------
-        X_tensor : torch.Tensor
-            A 3D one-hot tensor of shape (batch_size, num_classes, sequence_length)
-            or a 2D integer tensor of shape (batch_size, sequence_length).
+        X : pandas.DataFrame or torch.Tensor
+            The frame returned by ``transform``, a 3D one-hot tensor of shape
+            (batch_size, num_classes, sequence_length), or a 2D integer tensor
+            of shape (batch_size, sequence_length).
 
         Returns
         -------
         pandas.DataFrame
-            Decoded sequences in a column named ``"sequence"``.
-            Rows dropped during ``transform`` cannot be mapped back to
-            the index of the original input.
+            Decoded sequences in a column named ``"sequence"``. A frame input
+            keeps its index and a tensor input gets a fresh one.
+
+        Raises
+        ------
+        ValueError
+            If a frame's column count is not a multiple of the vocab size, or
+            if a tensor is not 2D or 3D.
 
         Notes
         -----
@@ -259,17 +273,35 @@ class SequenceOneHotEncoder(BaseTransform):
         """
         inverse_vocab = self._active_inverse_vocab
 
-        if X_tensor.dim() == 3:
-            indices = X_tensor.argmax(dim=1)
+        index = None
+        if isinstance(X, pd.DataFrame):
+            num_classes = max(self._active_vocab.values()) + 1
+            if X.shape[1] % num_classes:
+                raise ValueError(
+                    f"{type(self).__name__} expects a frame with a multiple of "
+                    f"{num_classes} columns, got {X.shape[1]}."
+                )
+            index = X.index
+            seq_len = X.shape[1] // num_classes
+            X = torch.tensor(X.to_numpy()).reshape(len(X), num_classes, seq_len)
+
+        if X.dim() not in (2, 3):
+            raise ValueError(
+                f"{type(self).__name__}.inverse_transform expects a 2D index "
+                f"tensor or a 3D one-hot tensor, got {X.dim()}D."
+            )
+
+        if X.dim() == 3:
+            indices = X.argmax(dim=1)
         else:
-            indices = X_tensor
+            indices = X
 
         decoded_seqs = []
         for row in indices.tolist():
             seq = "".join([inverse_vocab.get(idx, "X") for idx in row])
             decoded_seqs.append(seq)
 
-        return pd.DataFrame({"sequence": decoded_seqs})
+        return pd.DataFrame({"sequence": decoded_seqs}, index=index)
 
     @classmethod
     def get_test_params(cls):
