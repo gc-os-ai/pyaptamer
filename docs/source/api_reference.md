@@ -3,6 +3,30 @@
 This page documents the public API. Names not listed here are internal and may
 change without notice.
 
+## Data
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.data
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   MoleculeLoader
+```
+
+## Transformations
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.transform
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   PrimerTrimmer
+```
+
 ## AptaNet
 
 ```{eval-rst}
@@ -63,14 +87,15 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.pseaac
+.. currentmodule:: pyaptamer.trafos.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   GreedyEncoder
+   KMerFrequencies
    PSeAAC
-   AptaNetPSeAAC
 ```
 
 ## Datasets
@@ -120,8 +145,5 @@ Scoring functions that connect a model to the search.
    encode_rna
    generate_nplets
    rna2vec
-   pdb_to_struct
-   struct_to_aaseq
    pdb_to_seq_uniprot
-   pdb_to_aaseq
 ```
