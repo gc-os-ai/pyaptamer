@@ -29,15 +29,24 @@ class SequenceOneHotEncoder(BaseTransform):
     vocab : dict[str, int], optional, default=None
         Maps characters to integer indices. Several characters can share an
         index, e.g. ``U`` and ``T``. If None, uses the nucleotide default.
+        The vocab must cover every character in the data and anything outside it
+        is handled by ``handle_unknown``.
     inverse_vocab : dict[int, str], optional, default=None
         Maps indices back to characters, for decoding. If None, uses the
         nucleotide default.
     handle_unknown : {"raise", "drop"}, default="raise"
         What to do when a sequence is ``NaN``/``None`` or contains a
-        character outside ``{A, T, G, C, U}``.
+        character outside the vocab.
 
         - "raise" : raise a ``ValueError`` naming the problem.
         - "drop" : skip that row in the encoded output.
+
+    Notes
+    -----
+    The default vocab maps ``T`` and ``U`` to the same index,
+    so DNA and RNA can be encoded without changing the vocab.
+    Decoding that index gives ``T``, so RNA in comes back
+    out as DNA.
 
     Examples
     --------
@@ -61,9 +70,9 @@ class SequenceOneHotEncoder(BaseTransform):
     _tags = {
         "authors": ["aditi-dsi"],
         "maintainers": ["aditi-dsi"],
+        "output_type": "tensor",
         "property:fit_is_empty": True,
         "capability:multivariate": False,
-        "output_type": "tensor",
     }
 
     _VOCAB = {"A": 0, "T": 1, "G": 2, "C": 3, "U": 1}
@@ -154,7 +163,7 @@ class SequenceOneHotEncoder(BaseTransform):
         ValueError
             If sequences have varying lengths, or if
             ``handle_unknown="raise"`` and a sequence has None/NaN value, or
-            contains a character outside ``{A, T, G, C, U}``.
+            contains a character outside the vocab.
         """
         self._validate_params()
 
@@ -191,7 +200,7 @@ class SequenceOneHotEncoder(BaseTransform):
                 if self.handle_unknown == "raise":
                     raise ValueError(
                         f"{type(self).__name__} found unsupported "
-                        f"character(s) {sorted(vocab_chars)} in "
+                        f"character(s) {sorted(unknown)} in "
                         f"{reads.name!r}; expected only "
                         f"{sorted(vocab)}. Set handle_unknown='drop' "
                         "to skip these rows instead."
@@ -273,7 +282,7 @@ class SequenceOneHotEncoder(BaseTransform):
         """
         param0 = {}
         param1 = {
-            "vocab": {"A": 0, "C": 1, "G": 2, "U": 3},
-            "inverse_vocab": {0: "A", 1: "C", 2: "G", 3: "U"},
+            "vocab": {"A": 0, "C": 1, "G": 2, "T": 3, "U": 3},
+            "inverse_vocab": {0: "A", 1: "C", 2: "G", 3: "T"},
         }
         return [param0, param1]
