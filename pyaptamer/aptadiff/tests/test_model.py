@@ -31,8 +31,7 @@ def denoiser_kwargs() -> dict:
     """Return keyword arguments for a small AptaDiffDenoiser."""
     return {
         "enc_embed_size": ENC_EMBED_SIZE,
-        "input_dim": NUM_CLASSES,
-        "output_dim": NUM_CLASSES,
+        "num_classes": NUM_CLASSES,
         "dim": 32,
         "depth": 1,
         "n_blocks": 1,
@@ -99,20 +98,29 @@ class TestAptaDiffDiffusion:
         )
 
     def test_predict_start_rejects_bad_denoiser_shape(
-        self, denoiser_kwargs: dict, batch: tuple[torch.Tensor, torch.Tensor]
+        self, batch: tuple[torch.Tensor, torch.Tensor]
     ) -> None:
-        """Check a denoiser whose output_dim is not num_classes raises a ValueError."""
+        """Check a denoiser whose output dim is not num_classes raises a ValueError."""
         x, z = batch
-        denoiser_kwargs = {**denoiser_kwargs, "output_dim": NUM_CLASSES + 1}
+
+        class BadDenoiser(nn.Module):
+            def forward(self, x, t, z):
+                return torch.zeros(
+                    x.size(0), NUM_CLASSES + 1, x.size(1), device=x.device
+                )
+
         diffusion = AptaDiffDiffusion(
-            denoise_fn=AptaDiffDenoiser(**denoiser_kwargs),
+            denoise_fn=BadDenoiser(),
             num_classes=NUM_CLASSES,
             num_timesteps=TIMESTEPS,
         )
-        log_x0 = x.clamp(min=torch.finfo(torch.float32).tiny).log()
-        t = torch.zeros(BATCH_SIZE, dtype=torch.long)
 
-        with pytest.raises(ValueError, match="denoise_fn must return logits"):
+        log_x0 = (
+            x.float().transpose(1, 2).clamp(min=torch.finfo(torch.float32).tiny).log()
+        )
+        t = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+
+        with pytest.raises(ValueError, match="denoise_fn must return logits of shape"):
             diffusion.predict_start(log_x0, t, z)
 
     def test_diffusion_construction_buffers(self, diffusion: AptaDiffDiffusion) -> None:
@@ -290,8 +298,7 @@ class TestAptaDiffDiffusion:
         num_classes = 6
         denoiser_kwargs = {
             **denoiser_kwargs,
-            "input_dim": num_classes,
-            "output_dim": num_classes,
+            "num_classes": num_classes,
         }
         diffusion = AptaDiffDiffusion(
             denoise_fn=AptaDiffDenoiser(**denoiser_kwargs),
@@ -367,3 +374,22 @@ class TestAptaDiffDiffusion:
         for param in denoiser.parameters():
             assert param.grad is not None
             assert torch.isfinite(param.grad).all()
+
+    def test_log_prob_boundary_timestep(
+        self, denoiser_kwargs: dict, batch: tuple[torch.Tensor, torch.Tensor]
+    ) -> None:
+        """Check that the diffusion model successfully runs at the
+        minimum num_timesteps=1.
+        """
+        x, z = batch
+        denoiser_kwargs = {**denoiser_kwargs, "num_timesteps": 1}
+        diffusion = AptaDiffDiffusion(
+            denoise_fn=AptaDiffDenoiser(**denoiser_kwargs),
+            num_classes=NUM_CLASSES,
+            num_timesteps=1,
+        )
+        diffusion.train()
+        loss = diffusion.log_prob(x, z)
+
+        assert loss.shape == (BATCH_SIZE,)
+        assert torch.isfinite(loss).all()

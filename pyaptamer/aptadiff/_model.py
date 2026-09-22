@@ -68,10 +68,6 @@ class AptaDiffDenoiser(nn.Module):
     ----------
     enc_embed_size : int
         Dimension of the input latent condition vector `z`.
-    input_dim : int
-        Size of the nucleotide vocabulary (number of unique input tokens).
-    output_dim : int
-        Dimension of the output sequence representations.
     dim : int
         Embedding and hidden dimension throughout the transformer blocks.
     depth : int
@@ -80,7 +76,9 @@ class AptaDiffDenoiser(nn.Module):
         Number of outer sequential transformer blocks.
     max_seq_len : int
         Maximum sequence length of input aptamers.
-    num_timesteps : int
+    num_classes : int, optional, default=4
+        The number of unique nucleotides in the sequence.
+    num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
     heads : int, optional, default=8
         Number of attention heads per transformer layer.
@@ -122,13 +120,12 @@ class AptaDiffDenoiser(nn.Module):
     def __init__(
         self,
         enc_embed_size: int,
-        input_dim: int,
-        output_dim: int,
         dim: int,
         depth: int,
         n_blocks: int,
         max_seq_len: int,
-        num_timesteps: int,
+        num_classes: int = 4,
+        num_timesteps: int = 1000,
         heads: int = 8,
         attn_layer_dropout: float = 0.0,
         n_local_attn_heads: int = 0,
@@ -139,8 +136,8 @@ class AptaDiffDenoiser(nn.Module):
 
         self.transformer = AptaDiffTransformerEmbedding(
             enc_embed_size=enc_embed_size,
-            input_dim=input_dim,
-            output_dim=output_dim,
+            input_dim=num_classes,
+            output_dim=num_classes,
             dim=dim,
             depth=depth,
             n_blocks=n_blocks,
@@ -199,14 +196,19 @@ class AptaDiffDiffusion(nn.Module):
         `(batch_size, num_classes, seq_len)`.
     num_classes : int, optional, default=4
         The number of unique nucleotides in the sequence.
+        Note: This must exactly match the `num_classes` of the provided `denoise_fn`.
     num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
+        Note: This must exactly match the `num_timesteps` of the provided `denoise_fn`.
     loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
         Chooses which variational bound to optimize.
         - "vb_stochastic" : one importance-sampled timestep per training
           step. This is the default.
         - "vb_all" : the exact bound, summed over every timestep. Costs
           `num_timesteps` denoiser forward passes per step.
+
+        Note: During evaluation, this parameter is ignored and the fast
+        stochastic estimate is used always.
 
     parametrization : {"x0", "direct"}, optional, default="x0"
         - "x0" : the denoiser predicts the clean sequence x0. That
@@ -256,8 +258,7 @@ class AptaDiffDiffusion(nn.Module):
     >>> from pyaptamer.aptadiff import AptaDiffDenoiser, AptaDiffDiffusion
     >>> denoiser = AptaDiffDenoiser(
     ...     enc_embed_size=16,
-    ...     input_dim=4,
-    ...     output_dim=4,
+    ...     num_classes=4,
     ...     dim=32,
     ...     depth=1,
     ...     n_blocks=1,
@@ -384,7 +385,7 @@ class AptaDiffDiffusion(nn.Module):
             q(x_{t-1} | x_t, predicted x0)
             If `"direct"`, this is the denoiser's raw prediction.
         """
-        if torch.any((t < 0) | (t >= self.num_timesteps)):
+        if ((t < 0) | (t >= self.num_timesteps)).any():
             raise ValueError(
                 f"t must contain timesteps in [0, {self.num_timesteps}), got range "
                 f"[{int(t.min())}, {int(t.max())}]."
@@ -421,7 +422,7 @@ class AptaDiffDiffusion(nn.Module):
             Log-one-hot noisy sequence at step t, shape
             (batch_size, num_classes, seq_len).
         """
-        if torch.any((t < 0) | (t >= self.num_timesteps)):
+        if ((t < 0) | (t >= self.num_timesteps)).any():
             raise ValueError(
                 f"t must contain timesteps in [0, {self.num_timesteps}), got range "
                 f"[{int(t.min())}, {int(t.max())}]."
