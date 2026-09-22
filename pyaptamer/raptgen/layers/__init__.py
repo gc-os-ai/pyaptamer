@@ -21,7 +21,6 @@ from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import (
-
     kld_loss,
     profile_hmm_loss,
     profile_hmm_loss_fn,
@@ -29,4 +28,4 @@ from pyaptamer.raptgen.layers._loss import (
     torch_multi_polytope_dp_log,
 )
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
-from pyaptamer.raptgen.layers._utils import nt_index, State, Transition
+from pyaptamer.raptgen.layers._utils import State, Transition, nt_index

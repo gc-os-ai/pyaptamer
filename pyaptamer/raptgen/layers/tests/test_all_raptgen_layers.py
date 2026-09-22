@@ -7,11 +7,9 @@ import pytest
 import torch
 import torch.nn as nn
 
-
 from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
-from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 
 
 @pytest.mark.parametrize("init_dim, window_size", [(8, 3), (16, 5), (32, 7)])

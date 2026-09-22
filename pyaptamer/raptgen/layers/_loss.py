@@ -62,9 +62,12 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
                 ] + torch.logsumexp(
                     torch.stack(
                         (
-                            a[:, j - 1, Transition.M2M] + alpha[:, State.M, j - 1, i - 1],
-                            a[:, j - 1, Transition.I2M] + alpha[:, State.I, j - 1, i - 1],
-                            a[:, j - 1, Transition.D2M] + alpha[:, State.D, j - 1, i - 1],
+                            a[:, j - 1, Transition.M2M]
+                            + alpha[:, State.M, j - 1, i - 1],
+                            a[:, j - 1, Transition.I2M]
+                            + alpha[:, State.I, j - 1, i - 1],
+                            a[:, j - 1, Transition.D2M]
+                            + alpha[:, State.D, j - 1, i - 1],
                         )
                     ),
                     dim=0,
@@ -111,7 +114,8 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
             + torch.sum((match_cost - 1) * a[:, :, Transition.M2M], dim=1).mean()
         )
         return (
-            -force_loss - torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
+            -force_loss
+            - torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
         )
     return -torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
 

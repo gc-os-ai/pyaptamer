@@ -5,10 +5,12 @@ __author__ = ["NoorMajdoub"]
 
 import pytest
 import torch
+
 from pyaptamer.raptgen._model import CNN_PHMM_VAE
-from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM
+from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
+
 
 @pytest.mark.parametrize(
     "motif_len, embed_size, hidden_size, kernel_size", [(4, 8, 16, 5), (10, 16, 32, 7)]
