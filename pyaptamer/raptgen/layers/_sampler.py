@@ -110,12 +110,15 @@ class ProfileHMMSampler:
 
     def most_probable(self, sequence_only=False):
         """
-        Generate the most likely step-wise sequence through the profile HMM state.
+        Generate a greedy step-wise sequence through the profile HMM.
         """
+        model_len = self.a.shape[0] - 1
+        max_steps = 3 * model_len
         idx, state = (0, State.M)
         states = [(idx, state)]
         seq = ""
-        while True:
+
+        for _ in range(max_steps):
             if state == State.M:
                 p = self.a[idx][
                     np.array(
@@ -126,14 +129,9 @@ class ProfileHMMSampler:
                         ]
                     )
                 ]
+                state = State(np.argmax(p))
             elif state == State.I:
-                p = np.array(
-                    [
-                        self.a[idx][Transition.I2M.value],
-                        self.a[idx][Transition.I2I.value],
-                        0,
-                    ]
-                )
+                state = State.M
             elif state == State.D:
                 p = np.array(
                     [
@@ -142,10 +140,10 @@ class ProfileHMMSampler:
                         self.a[idx][Transition.D2D.value],
                     ]
                 )
+                state = State(np.argmax(p))
             else:
                 logger.info("something wrong")
 
-            state = State(np.argmax(p))
             if state != State.I:
                 idx += 1
             states.append((idx, state))
@@ -159,6 +157,10 @@ class ProfileHMMSampler:
                 seq += "N"
             else:
                 seq += "_"
+        else:
+            raise RuntimeError(
+                f"most_probable() did not terminate within {max_steps} steps"
+            )
 
         if not sequence_only:
             return states, seq
