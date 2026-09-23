@@ -161,6 +161,64 @@ KMerFrequencies(k=1, alphabet="ACGU").fit_transform(X)
 0  0.315789  0.157895  0.473684  0.052632
 ```
 
+## Tables with more than one column
+
+A SELEX table usually has more than the sequence column, for example the
+round and a derived feature. An encoder works on such a table directly. It
+finds the one string column, encodes it, and returns the other columns
+unchanged. Encoded columns are named after the source column, for example
+`sequence__0`.
+
+```python
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.encode import GreedyEncoder
+
+X = MoleculeLoader(
+    data={"sequence": ["ACGT", "GGCC"], "round": [1, 1]},
+    tiling="samples",
+).to_dataframe()
+X["gc_content"] = X["sequence"].str.count("[GC]") / X["sequence"].str.len()
+
+words = {"A": 1, "C": 2, "G": 3, "T": 4}
+GreedyEncoder(words=words).fit_transform(X)
+```
+
+```text
+   sequence__0  sequence__1  sequence__2  sequence__3  round  gc_content
+0            1            2            3            4      1         0.5
+1            3            3            2            2      1         1.0
+```
+
+If the table has several string columns, the encoder cannot tell which one
+holds the sequences and raises:
+
+```python
+X["read_id"] = ["r1", "r2"]
+GreedyEncoder(words=words).fit_transform(X)
+```
+
+```text
+ValueError: GreedyEncoder works on one column of strings, but X has 2: ['sequence', 'read_id'].
+Pass one of them as cols to pyaptamer.trafos.compose.ApplyToCols, for example ApplyToCols(GreedyEncoder(...), cols='sequence').
+```
+
+Name the column with {class}`~pyaptamer.trafos.compose.ApplyToCols`:
+
+```python
+from pyaptamer.trafos.compose import ApplyToCols
+
+ApplyToCols(GreedyEncoder(words=words), cols="sequence").fit_transform(X)
+```
+
+```text
+   sequence__0  sequence__1  sequence__2  sequence__3  round  gc_content read_id
+0            1            2            3            4      1         0.5      r1
+1            3            3            2            2      1         1.0      r2
+```
+
+Both keep the row index. A transformer that drops rows, such as
+`PrimerTrimmer`, drops them from every column.
+
 ## Encode several columns at once
 
 Each encoder works on one column. To encode a table with an aptamer column and
