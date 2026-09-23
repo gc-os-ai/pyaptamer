@@ -118,34 +118,14 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
                 f"Only binary classification is supported. Got target type {y_type}."
             )
 
-        np_state = None
-        torch_state = None
-        torch_cuda_state = None
-
-        if self.random_state is not None:
-            np_state = np.random.get_state()
-            torch_state = torch.get_rng_state()
-
-            if torch.cuda.is_available():
-                torch_cuda_state = torch.cuda.get_rng_state_all()
-
-            np.random.seed(self.random_state)
-            torch.manual_seed(self.random_state)
-
-        try:
-            self.classes_, y = np.unique(y, return_inverse=True)
+        self.classes_, y = np.unique(y, return_inverse=True)
+        with torch.random.fork_rng(enabled=self.random_state is not None):
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
             self.pipeline_ = self._build_pipeline()
             self.pipeline_.fit(
                 X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
             )
-        finally:
-            if self.random_state is not None:
-                np.random.set_state(np_state)
-                torch.set_rng_state(torch_state)
-
-                if torch.cuda.is_available():
-                    torch.cuda.set_rng_state_all(torch_cuda_state)
-
         return self
 
     def predict_proba(self, X):
@@ -237,7 +217,8 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     estimator : sklearn estimator or None, default=None
         Estimator used for feature selection. If `None`, a `RandomForestRegressor`.
     random_state : int or None, default=None
-        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
+        Seed for the feature selector and for Torch during ``fit``. The global
+        NumPy and Torch random states are left unchanged.
     threshold : str or float, default="mean"
         Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
     verbose : int, default=0
@@ -321,33 +302,13 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         X, y = validate_data(self, X, y)
         y = y.reshape(-1, 1)
 
-        np_state = None
-        torch_state = None
-        torch_cuda_state = None
-
-        if self.random_state is not None:
-            np_state = np.random.get_state()
-            torch_state = torch.get_rng_state()
-
-            if torch.cuda.is_available():
-                torch_cuda_state = torch.cuda.get_rng_state_all()
-
-            np.random.seed(self.random_state)
-            torch.manual_seed(self.random_state)
-
-        try:
+        with torch.random.fork_rng(enabled=self.random_state is not None):
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
             self.pipeline_ = self._build_pipeline()
             self.pipeline_.fit(
                 X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
             )
-        finally:
-            if self.random_state is not None:
-                np.random.set_state(np_state)
-                torch.set_rng_state(torch_state)
-
-                if torch.cuda.is_available():
-                    torch.cuda.set_rng_state_all(torch_cuda_state)
-
         return self
 
     def predict(self, X):
