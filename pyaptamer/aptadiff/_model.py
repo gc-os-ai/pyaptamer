@@ -203,21 +203,27 @@ class AptaDiffDiffusion(nn.Module):
         `(batch_size, num_classes, seq_len)`.
     num_classes : int, optional, default=4
         The number of unique nucleotides in the sequence.
-        Note: If `denoise_fn` also exposes this attribute, it must exactly match,
-        otherwise a ValueError is raised.
+        Note: If `denoise_fn` has a `num_classes` attribute, it must equal this
+        value, otherwise a ValueError is raised.
     num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
-        Note: If `denoise_fn` also exposes this attribute, it must exactly match,
-        otherwise a ValueError is raised.
+        Note: If `denoise_fn` has a `num_timesteps` attribute, it must equal
+        this value, otherwise a ValueError is raised.
     loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
-        Chooses which variational bound to optimize.
+        Chooses which variational bound to optimize in training mode.
         - "vb_stochastic" : one importance-sampled timestep per training
           step. This is the default.
-        - "vb_all" : the exact bound, summed over every timestep. Costs
-          `num_timesteps` denoiser forward passes per step.
-
-        Note: During evaluation, this parameter is ignored and the fast
-        stochastic estimate is used always.
+        - "vb_all" : Computes the loss across all timesteps instead of
+          randomly sampling just one. This provides a more stable estimate,
+          but costs `num_timesteps` denoiser forward passes per training step.
+    eval_loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
+        Chooses which variational bound to compute in eval mode.
+        - "vb_stochastic" : one importance-sampled timestep per call. This is
+          the default. Original implementation strictly uses this always for eval mode.
+          So, choose it for strict reproducibility.
+        - "vb_all" : Computes the loss across all timesteps instead of
+          randomly sampling just one. This provides a more stable validation
+          metric, but costs `num_timesteps` denoiser forward passes per eval call.
 
     parametrization : {"x0", "direct"}, optional, default="x0"
         - "x0" : the denoiser predicts the clean sequence x0. That
@@ -247,6 +253,7 @@ class AptaDiffDiffusion(nn.Module):
     ------
     ValueError
         - If `loss_type` is not one of `"vb_stochastic"` or `"vb_all"`,
+        - If `eval_loss_type` is not one of `"vb_stochastic"` or `"vb_all"`,
         - If `parametrization` is not one of `"x0"` or `"direct"`,
         - If `denoise_fn` exposes `num_classes` and/or `num_timesteps` and either does
         not match the value passed here.
@@ -294,6 +301,7 @@ class AptaDiffDiffusion(nn.Module):
         num_classes: int = 4,
         num_timesteps: int = 1000,
         loss_type: Literal["vb_stochastic", "vb_all"] = "vb_stochastic",
+        eval_loss_type: Literal["vb_stochastic", "vb_all"] = "vb_stochastic",
         parametrization: Literal["x0", "direct"] = "x0",
     ):
         super().__init__()
@@ -301,6 +309,11 @@ class AptaDiffDiffusion(nn.Module):
         if loss_type not in ("vb_stochastic", "vb_all"):
             raise ValueError(
                 f"loss_type must be 'vb_stochastic' or 'vb_all', got: {loss_type}"
+            )
+        if eval_loss_type not in ("vb_stochastic", "vb_all"):
+            raise ValueError(
+                "eval_loss_type must be 'vb_stochastic' or 'vb_all', got: "
+                f"{eval_loss_type}"
             )
         if parametrization not in ("x0", "direct"):
             raise ValueError(
@@ -328,13 +341,21 @@ class AptaDiffDiffusion(nn.Module):
             warnings.warn(
                 "loss_type='vb_all' evaluates the bound on every timestep, so "
                 f"each step runs {num_timesteps} denoiser forward passes. Use "
-                "'vb_stochastic' unless you specifically need the exact bound.",
+                "'vb_stochastic' unless you need the lower-variance estimate.",
+                stacklevel=2,
+            )
+        if eval_loss_type == "vb_all":
+            warnings.warn(
+                "eval_loss_type='vb_all' evaluates the bound on every timestep, so "
+                f"each eval call runs {num_timesteps} denoiser forward passes. Use "
+                "'vb_stochastic' unless you need the lower-variance estimate.",
                 stacklevel=2,
             )
 
         self.num_classes = num_classes
         self.denoise_fn = denoise_fn
         self.loss_type = loss_type
+        self.eval_loss_type = eval_loss_type
         self.num_timesteps = num_timesteps
         self.parametrization = parametrization
 
@@ -666,12 +687,12 @@ class AptaDiffDiffusion(nn.Module):
     def log_prob(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Returns a per-sequence lower bound on the log-probability of `x`.
 
-        Computes the negated variational bound (ELBO). In train mode with
-        `loss_type="vb_all"`, this function returns the exact bound from
+        Computes the negated variational bound (ELBO). The bound is chosen by
+        `loss_type` in train mode and by `eval_loss_type` in eval mode. When
+        the chosen value is `"vb_all"`, this function returns the bound from
         `compute_full_vlb`. Otherwise it returns an estimate obtained from
         single-sampled timestep, updating the `Lt_history`/`Lt_count`
         importance-sampling statistics only in train mode.
-        In eval mode `loss_type` is ignored.
 
         Parameters
         ----------
@@ -706,7 +727,8 @@ class AptaDiffDiffusion(nn.Module):
         x = x.float().transpose(1, 2).contiguous().transpose(1, 2)
         log_x0 = x.clamp(min=torch.finfo(torch.float32).tiny).log()
 
-        if self.training and self.loss_type == "vb_all":
+        loss_type = self.loss_type if self.training else self.eval_loss_type
+        if loss_type == "vb_all":
             return -self.compute_full_vlb(log_x0, z)
 
         return -self._stochastic_vlb(log_x0, z, update_statistics=self.training)

@@ -131,12 +131,13 @@ class TestAptaDiffDiffusion:
         assert all(buffer.shape == (TIMESTEPS,) for buffer in buffers.values())
 
     @pytest.mark.parametrize(
-        "option", [{"loss_type": "vb"}, {"parametrization": "eps"}]
+        "option",
+        [{"loss_type": "vb"}, {"eval_loss_type": "vb"}, {"parametrization": "eps"}],
     )
     def test_diffusion_invalid_options(
         self, denoiser: AptaDiffDenoiser, option: dict
     ) -> None:
-        """Check an unsupported loss_type or parametrization raises a ValueError."""
+        """Check an unsupported loss or parametrization option raises a ValueError."""
         with pytest.raises(ValueError, match="must be"):
             AptaDiffDiffusion(denoise_fn=denoiser, **option)
 
@@ -296,6 +297,27 @@ class TestAptaDiffDiffusion:
         diffusion.log_prob(x, z)
 
         assert diffusion.ran_full_vlb is training
+
+    @pytest.mark.parametrize("training", [True, False])
+    def test_log_prob_uses_full_vlb_only_in_eval_mode(
+        self,
+        denoiser: AptaDiffDenoiser,
+        batch: tuple[torch.Tensor, torch.Tensor],
+        training: bool,
+    ) -> None:
+        """Check eval_loss_type="vb_all" uses compute_full_vlb in eval mode only."""
+        x, z = batch
+        diffusion = FullVLBRecorder(
+            denoise_fn=denoiser,
+            num_classes=NUM_CLASSES,
+            num_timesteps=TIMESTEPS,
+            eval_loss_type="vb_all",
+        )
+        diffusion.train(training)
+
+        diffusion.log_prob(x, z)
+
+        assert diffusion.ran_full_vlb is not training
 
     @pytest.mark.parametrize(
         "option", [{}, {"loss_type": "vb_all"}, {"parametrization": "direct"}]
