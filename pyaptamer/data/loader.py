@@ -3,202 +3,540 @@
 __all__ = ["MoleculeLoader"]
 __author__ = ["fkiraly", "satvshr", "siddharth7113"]
 
+import gzip
+import os
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 
 class MoleculeLoader:
-    """Molecule data connector.
+    """Lazy 2D container for molecule data and binding tables.
 
-    This loader extracts primary amino-acid sequences from molecule files.
+    Holds tabular data whose cells may be file references (FASTA, PDB,
+    FASTQ, ...) or in-memory values (sequence strings, numbers). Files are
+    not parsed until ``to_dataframe`` is called.
 
     Parameters
     ----------
-    path : str, Path, or list
-        File location(s) of molecule files. One row is returned per file.
-    index : list, or pandas.Index coercible, optional
-        Row index for the resulting DataFrame; if None, a MultiIndex of
-        (path, chain_id) is used.
-    columns : list, optional
-        column names for the structure; if None, defaults to ["sequence"]
+    data : dict, list of lists, or pandas.DataFrame
+        2D data coercible by ``pandas.DataFrame``. Keys (or columns) become
+        column names; cells hold file paths, sequence strings, or primitives.
+        A file path may be a ``str`` or any :class:`os.PathLike`. A
+        ``PathLike`` is always read as a file; a ``str`` is read as a file
+        only when it has a suffix, so that sequence strings stay literal.
+    tiling : str, default="bag"
+        How multi-sequence files are materialized. One of ``"bag"``,
+        ``"features"``, ``"samples"``, ``"samples_product"``, ``"first"``,
+        ``"concat"``.
+    indexing : str, default="preserve"
+        What happens to file-internal IDs (PDB chain IDs, FASTA headers).
+        One of ``"new"``, ``"preserve"``, ``"keep_as_column"``.
+    multiindex : str, default="flatten"
+        Row-index shape after sequences expand into rows. One of
+        ``"flatten"``, ``"multiindex"``, ``"auto"``.
+    ignore_duplicates : bool, default=False
+        If True, deduplicate identical sequences within each file before
+        tiling is applied.
 
-    ignore_duplicates : bool, optional, default=False
-        if True, removes duplicate sequences (keeping the first occurrence).
+    Notes
+    -----
+    Supported file formats are anything :func:`Bio.SeqIO.parse` can read
+    (FASTA, GenBank, EMBL, FASTQ, ...); PDB files are read through the
+    ``pdb-seqres`` parser. The format is inferred from the file suffix.
+    Gzipped files are read directly: ``reads.fastq.gz`` is decompressed
+    and parsed as FASTQ.
 
-    Supported file types
-    --------------------
-    The loader determines the type from the file extension by default, but a
-    format override can be provided to force a specific loader:
+    Examples
+    --------
+    Build a table from in-memory paired sequences and binding values. With
+    sequences already in memory, ``to_dataframe`` is a no-op:
 
-    - ``fmt="pdb"`` -> handled by :func:`pdb_to_aaseq` (PDB SEQRES extraction)
-    - any other format string (e.g. ``"fasta"``, ``"genbank"``) -> passed to
-      :mod:`Bio.SeqIO` for parsing
-
-    Thus, all formats supported by :func:`Bio.SeqIO.parse` are accepted,
-    including FASTA, GenBank, EMBL, FASTQ, and many more.
-
-    For the full list of supported formats, see:
-
-    - https://biopython.org/docs/latest/api/Bio.SeqIO.html#file-formats
-    - https://biopython.org/wiki/SeqIO
+    >>> from pyaptamer.data.loader import MoleculeLoader
+    >>> loader = MoleculeLoader(
+    ...     data={"target": ["ACGT", "TTGG"], "binding": [0.4, 0.6]}
+    ... )
+    >>> df = loader.to_dataframe()
+    >>> list(df.columns)
+    ['target', 'binding']
+    >>> df["target"].tolist()
+    ['ACGT', 'TTGG']
     """
 
     def __init__(
-        self, path, index=None, columns=None, ignore_duplicates=False, fmt=None
+        self,
+        data,
+        tiling="bag",
+        indexing="preserve",
+        multiindex="flatten",
+        ignore_duplicates=False,
     ):
-        self.path = path
-        self.index = index
-        self.columns = columns
-        self.ignore_duplicates = ignore_duplicates
-        self.fmt = fmt
-        if isinstance(path, str):
-            path = [Path(path)]
-            self._path = path
-        elif isinstance(path, Path):
-            self._path = [path]
-        elif isinstance(path, list):
-            self._path = [Path(p) if isinstance(p, str) else p for p in path]
-        else:
-            raise TypeError("path must be a str, Path, or list of str/Path")
+        valid_tilings = {
+            "bag",
+            "concat",
+            "first",
+            "features",
+            "samples",
+            "samples_product",
+        }
+        if tiling not in valid_tilings:
+            raise ValueError(
+                f"tiling must be one of {sorted(valid_tilings)}, got {tiling!r}"
+            )
 
-    def to_df_seq(self):
-        """Return a pd.DataFrame of sequences with MultiIndex (path, chain_id).
+        valid_indexings = {"new", "preserve", "keep_as_column"}
+        if indexing not in valid_indexings:
+            raise ValueError(
+                f"indexing must be one of {sorted(valid_indexings)}, got {indexing!r}"
+            )
+
+        valid_multiindex = {"flatten", "multiindex", "auto"}
+        if multiindex not in valid_multiindex:
+            raise ValueError(
+                f"multiindex must be one of {sorted(valid_multiindex)}, "
+                f"got {multiindex!r}"
+            )
+
+        self.data = data
+        self.tiling = tiling
+        self.indexing = indexing
+        self.multiindex = multiindex
+        self.ignore_duplicates = ignore_duplicates
+
+    def to_dataframe(self):
+        """Materialize the loader into a :class:`pandas.DataFrame`.
+
+        File-path cells are parsed and reshaped according to ``tiling``,
+        ``indexing`` and ``multiindex``.
 
         Returns
+        -------
+        pandas.DataFrame
+            The materialized table. Its exact shape depends on ``tiling``.
+
+        Examples
         --------
-        pd.DataFrame
-            sequences in self in a pd.DataFrame;
-            index is a MultiIndex (path, chain_id);
-            has single column "sequence";
-            each row contains one primary amino-acid sequence
+        A multi-chain PDB under ``tiling="bag"`` becomes a list-valued cell,
+        while a single-chain file stays a plain string:
+
+        >>> loader = MoleculeLoader(data={"target": ["1gnh.pdb"]})
+        >>> loader.to_dataframe()["target"].iloc[0]  # doctest: +SKIP
+        ['QTDMSRK...', 'QTDMSRK...', ...]
+
+        A SELEX FASTQ explodes to one row per read with ``tiling="samples"``:
+
+        >>> loader = MoleculeLoader(data={"selex": ["round5.fastq"]}, tiling="samples")
+        >>> loader.to_dataframe()  # doctest: +SKIP
+
+        For comprehensive, file-based walkthroughs across formats (PDB, FASTA,
+        FASTQ) and tilings, see the tutorial notebooks in ``examples/``.
         """
+        df = pd.DataFrame(self.data)
 
-        index_tuples = []
-        sequences = []
+        if self.tiling in {"bag", "concat", "first"}:
+            return df.map(self._materialize_cell)
+        if self.tiling == "features":
+            return self._tile_features(df)
+        return self._tile_samples(df, product_mode=self.tiling == "samples_product")
 
-        for path in self._path:
-            seq_df = self._load_dispatch(path)
+    def _cell_records(self, value):
+        """Normalize a cell to ``(is_file, [(chain_id, sequence), ...])``.
+
+        Non-path cells return ``(False, [(None, value)])`` so callers can
+        treat literals uniformly. Path cells are parsed and, when
+        ``ignore_duplicates`` is set, deduplicated by sequence (first
+        occurrence wins).
+
+        Parameters
+        ----------
+        value : object
+            A single DataFrame cell.
+
+        Returns
+        -------
+        tuple of (bool, list of (object, str))
+            Whether the cell was a file, and its (chain_id, sequence) records.
+        """
+        if not self._is_path_like(value):
+            return False, [(None, value)]
+
+        records = list(self._load_dispatch(Path(value)))
+        if not records:
+            raise ValueError(f"No sequences found in {value}")
+
+        if self.ignore_duplicates:
             seen = set()
-
-            for _, row in seq_df.iterrows():
-                seq = row["sequence"]
-                if self.ignore_duplicates and seq in seen:
+            unique = []
+            for chain_id, seq in records:
+                if seq in seen:
                     continue
                 seen.add(seq)
-                index_tuples.append((path, row["chain_id"]))
-                sequences.append(seq)
+                unique.append((chain_id, seq))
+            records = unique
 
-        index = pd.MultiIndex.from_tuples(index_tuples, names=["path", "chain_id"])
+        return True, records
 
-        columns = ["sequence"] if self.columns is None else self.columns
+    def _materialize_cell(self, value):
+        """Render one cell for the per-cell tilings ``bag``/``concat``/``first``.
 
-        df = pd.DataFrame(sequences, index=index, columns=columns)
+        Non-path values are returned unchanged. For path cells:
 
-        if self.index is not None:
-            df.index = self.index
+        - ``bag``: a plain ``str`` for a single-sequence file, else a
+          ``list[str]``.
+        - ``concat``: all sequences joined into one string, ordered
+          alphabetically by chain id (no separator).
+        - ``first``: the first sequence only.
 
-        return df
+        Parameters
+        ----------
+        value : object
+            A single DataFrame cell.
+
+        Returns
+        -------
+        object
+            The original value, or the rendered sequence(s).
+        """
+        is_file, records = self._cell_records(value)
+        if not is_file:
+            return value
+
+        sequences = [seq for _, seq in records]
+
+        if self.tiling == "first":
+            return sequences[0]
+        if self.tiling == "concat":
+            ordered = sorted(records, key=lambda rec: str(rec[0]))
+            return "".join(seq for _, seq in ordered)
+        # bag
+        return sequences[0] if len(sequences) == 1 else sequences
+
+    def _is_path_like(self, value):
+        """Return True if ``value`` is a file reference.
+
+        An :class:`os.PathLike` is always one. Wrapping a value in ``Path``
+        states the intent, so nothing has to be guessed and a filename with no
+        suffix is still a filename.
+
+        A ``str`` is ambiguous, because a cell may equally hold a sequence such
+        as ``"ACGT"``. Strings are therefore read as files only when they carry
+        a non-empty suffix, for example ``"1gnh.pdb"``.
+
+        Notes
+        -----
+        Failure mode of the string heuristic: a sequence that happens to
+        contain a dot would be misread as a path. Biological sequences do not
+        contain dots, so this is acceptable. Wrap the value in ``Path`` to
+        bypass the heuristic in either direction.
+        """
+        if isinstance(value, os.PathLike):
+            return True
+        return isinstance(value, str) and Path(value).suffix != ""
+
+    def _tile_features(self, df):
+        """Expand multi-sequence file cells into multiple columns.
+
+        A column whose cells hold multi-sequence files is spread into
+        ``<col>_0``, ``<col>_1``, ... (one column per sequence). Single-
+        sequence columns keep their name. Rows with fewer sequences are
+        padded with ``None``.
+        """
+        new_data = {}
+        for col in df.columns:
+            loaded = [self._cell_records(v) for v in df[col]]
+            if not any(is_file for is_file, _ in loaded):
+                new_data[col] = list(df[col])
+                continue
+
+            max_n = max((len(recs) for is_file, recs in loaded if is_file), default=1)
+            if max_n == 1:
+                new_data[col] = [
+                    recs[0][1] if is_file else value
+                    for (is_file, recs), value in zip(loaded, df[col], strict=True)
+                ]
+                continue
+
+            for i in range(max_n):
+                column = []
+                for (is_file, recs), value in zip(loaded, df[col], strict=True):
+                    if is_file:
+                        column.append(recs[i][1] if i < len(recs) else None)
+                    else:
+                        column.append(value if i == 0 else None)
+                new_data[f"{col}_{i}"] = column
+
+        return pd.DataFrame(new_data, index=df.index)
+
+    def _tile_samples(self, df, product_mode):
+        """Explode file cells into rows (``samples`` / ``samples_product``).
+
+        Each file cell contributes one row per sequence. Literal columns are
+        repeated. With several file columns in a row, ``samples`` raises,
+        while ``samples_product`` takes their cartesian product.
+
+        The output is collected as one list per column and turned into a
+        DataFrame once at the end. Building a dict per row and letting pandas
+        take it apart again is many times slower for large files.
+        """
+        cols = list(df.columns)
+        columns = {col: [] for col in cols}
+        parents = []
+        seq_ids = []
+        chain_id_cols = {col: [] for col in cols}
+        expanded = False
+
+        for pos, (_, row) in enumerate(df.iterrows()):
+            col_recs = {col: self._cell_records(row[col]) for col in cols}
+            file_cols = [col for col in cols if col_recs[col][0]]
+
+            if not file_cols:
+                parents.append(pos)
+                seq_ids.append(None)
+                for col in cols:
+                    columns[col].append(row[col])
+                    chain_id_cols[col].append(None)
+                continue
+
+            recs_per_col = [col_recs[col][1] for col in file_cols]
+            if product_mode:
+                combos = list(product(*recs_per_col))
+            elif len(file_cols) > 1:
+                raise ValueError(
+                    "tiling='samples' cannot expand more than one file column "
+                    f"in the same row (columns {file_cols}). A multi-sequence "
+                    "file such as a multi-chain PDB is one molecule, not parallel "
+                    "samples, so pairing columns by position would be meaningless. "
+                    "Combine such columns with tiling='concat' first, or use "
+                    "per-column tiling (planned)."
+                )
+            else:
+                combos = list(zip(*recs_per_col, strict=True))
+
+            if len(combos) > 1:
+                expanded = True
+
+            for combo in combos:
+                cid_map = {}
+                for col in cols:
+                    if col in file_cols:
+                        chain_id, seq = combo[file_cols.index(col)]
+                        columns[col].append(seq)
+                        cid_map[col] = chain_id
+                    else:
+                        columns[col].append(row[col])
+                        cid_map[col] = None
+                parents.append(pos)
+                if len(file_cols) == 1:
+                    seq_ids.append(cid_map[file_cols[0]])
+                else:
+                    seq_ids.append(tuple(cid_map[col] for col in file_cols))
+                for col in cols:
+                    chain_id_cols[col].append(cid_map[col])
+
+        out = pd.DataFrame(columns, columns=cols)
+        return self._finalize_index(
+            out, df.index, parents, seq_ids, chain_id_cols, expanded
+        )
+
+    def _finalize_index(
+        self, out, orig_index, parents, seq_ids, chain_id_cols, expanded
+    ):
+        """Apply ``indexing`` and ``multiindex`` to an exploded frame."""
+        if self.indexing == "keep_as_column":
+            for col, cids in chain_id_cols.items():
+                if any(cid is not None for cid in cids):
+                    out[f"{col}_chain_id"] = cids
+            out.index = pd.RangeIndex(len(out))
+            return out
+
+        if self.indexing == "new":
+            out.index = pd.RangeIndex(len(out))
+            return out
+
+        parent_labels = [orig_index[p] for p in parents]
+
+        norm_ids = []
+        for sid in seq_ids:
+            if sid is None:
+                norm_ids.append("")
+            elif isinstance(sid, tuple):
+                norm_ids.append("_".join(str(x) for x in sid))
+            else:
+                norm_ids.append(str(sid))
+
+        use_multi = self.multiindex == "multiindex" or (
+            self.multiindex == "auto" and expanded
+        )
+
+        if use_multi:
+            out.index = pd.MultiIndex.from_arrays(
+                [parent_labels, norm_ids], names=["row", "sequence"]
+            )
+        else:
+            out.index = [
+                f"{label}__{sid}" if sid != "" else f"{label}"
+                for label, sid in zip(parent_labels, norm_ids, strict=True)
+            ]
+        return out
 
     def _determine_type(self, path):
-        """Return file type inferred from suffix or from the instance `fmt` override.
+        """Return the format string inferred from the file suffix.
+
+        A trailing ``.gz`` is skipped, so ``reads.fastq.gz`` is ``"fastq"``.
 
         Parameters
         ----------
         path : Path
-            Path to a file (used only when no fmt override is provided).
+            Path to a file.
 
         Returns
         -------
-        str
-            Format string such as "pdb", "fasta", "genbank", etc.
+        str or None
+            Format string such as "pdb", "fasta", "genbank"; ``None`` when the
+            path has no format suffix (``reads`` or ``reads.gz``).
         """
-        # If user provided a format override, use it
-        if self.fmt is not None:
-            return self.fmt
+        suffixes = [s.lower() for s in path.suffixes]
+        if suffixes and suffixes[-1] == ".gz":
+            suffixes = suffixes[:-1]
+        if not suffixes:
+            return None
+        return suffixes[-1].lstrip(".")
 
-        # Fallback to suffix-based inference
-        suffix = path.suffix.lower()
-        # strip leading dot; if no suffix, return None to indicate unknown
-        return suffix.lstrip(".") if suffix else None
+    def _open_text(self, path):
+        """Open a plain or gzipped file for reading as text.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a file. A ``.gz`` suffix selects transparent decompression;
+            any other suffix opens the file as is.
+
+        Returns
+        -------
+        file object
+            Text-mode handle at the start of the file content, decompressed
+            if the file was gzipped. The caller closes it.
+        """
+        if path.suffix.lower() == ".gz":
+            return gzip.open(path, "rt")
+        return open(path)
 
     def _load_dispatch(self, path):
-        """Dispatch loader based on file type.
+        """Dispatch to the reader for the file's format and yield its records.
 
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+        The format is inferred from the file suffix by ``_determine_type``.
+        ``pdb`` goes to ``_read_pdb``, ``fastq`` to ``_read_fastq``, and every
+        other format to ``_read_seqio``. Records are yielded one at a time,
+        so this method never holds the whole file in memory. The file is
+        opened on the first record and closed after the last one.
+
+        Parameters
+        ----------
+        path : Path
+            Path to a sequence file, optionally gzipped.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each record, in file order.
+            ``chain_id`` is the chain letter for PDB files and the record ID
+            (first word of the header) for every other format.
+
+        Raises
+        ------
+        ValueError
+            If the path has no format suffix.
         """
         fmt = self._determine_type(path)
 
         if fmt is None:
-            # no suffix and no format override -> error
             raise ValueError(
-                f"Could not determine file format for '{path}'."
-                "Provide a 'fmt' argument."
+                f"{type(self).__name__} picks the parser from the file suffix, "
+                f"and '{path}' has none. Give the file the suffix of the format "
+                "it is in, such as .fasta, .fastq or .pdb. If this cell was "
+                "meant to hold a sequence and not a filename, pass it as a str: "
+                "a Path is always read as a file, a str only when it has a "
+                "suffix."
             )
 
-        if fmt == "pdb":
-            return self._load_pdb_seq(path)
+        with self._open_text(path) as handle:
+            if fmt == "pdb":
+                yield from self._read_pdb(handle)
+            elif fmt == "fastq":
+                yield from self._read_fastq(handle)
+            else:
+                yield from self._read_seqio(handle, fmt)
 
-        return self._load_seqio(path, fmt)
+    def _read_pdb(self, handle):
+        """Read the SEQRES records of a PDB file.
 
-    def _load_pdb_seq(self, path):
-        """Load a PDB file and extract the amino-acid sequences.
+        Biopython names each SEQRES record ``<pdb_id>:<chain>``. Only the
+        chain part is kept as the chain ID; a record ID without a colon is
+        kept whole.
 
         Parameters
-        -----------
-        path : Path
-            path to PDB file
+        ----------
+        handle : file object
+            Open text handle on a PDB file.
 
-        Returns
-        --------
-        pandas.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each SEQRES record, in file order.
+            Nothing is yielded for a file without SEQRES records.
         """
-        with open(path) as handle:
-            seqres_records = list(SeqIO.parse(handle, "pdb-seqres"))
+        for record in SeqIO.parse(handle, "pdb-seqres"):
+            chain_id = record.id.split(":")[1] if ":" in record.id else record.id
+            yield chain_id, str(record.seq)
 
-        records = [
-            {
-                "chain_id": record.id.split(":")[1] if ":" in record.id else record.id,
-                "sequence": str(record.seq),
-            }
-            for record in seqres_records
-        ]
-        if not records:
-            raise ValueError(f"No sequences found in {path}")
+    def _read_seqio(self, handle, fmt):
+        """Read any format that :func:`Bio.SeqIO.parse` supports.
 
-        return pd.DataFrame.from_records(records, columns=["chain_id", "sequence"])
+        Non-PDB formats have no chain concept, so ``record.id`` (the first
+        word of the header) is used as the chain ID.
 
-    def _load_seqio(self, path, fmt):
-        """Load any non-PDB file format supported by Biopython SeqIO.
+        Parameters
+        ----------
+        handle : file object
+            Open text handle on a sequence file.
+        fmt : str
+            Format name passed to :func:`Bio.SeqIO.parse`, such as
+            ``"fasta"`` or ``"genbank"``.
 
-        Notes
-        -----
-        For non-PDB formats there is usually no literal chain concept.
-        To preserve the existing abstract datatype, ``record.id`` is stored
-        in the ``chain_id`` column.
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each record, in file order.
 
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns ``["chain_id", "sequence"]``.
+        Raises
+        ------
+        ValueError
+            Raised by Biopython when ``fmt`` is not a format it knows.
         """
-        with open(path) as handle:
-            records = list(SeqIO.parse(handle, fmt))
+        for record in SeqIO.parse(handle, fmt):
+            yield record.id, str(record.seq)
 
-        rows = [
-            {
-                "chain_id": record.id,
-                "sequence": str(record.seq),
-            }
-            for record in records
-        ]
+    def _read_fastq(self, handle):
+        """Read a FASTQ file.
 
-        if not rows:
-            raise ValueError(f"No sequences found in {path}")
+        Uses :func:`Bio.SeqIO.QualityIO.FastqGeneralIterator`, which returns
+        plain strings and is much faster than building a ``SeqRecord`` per
+        read. The chain ID is the first word of the title line, the same
+        value ``SeqRecord.id`` would give. The quality string is not used.
 
-        return pd.DataFrame.from_records(rows, columns=["chain_id", "sequence"])
+        Parameters
+        ----------
+        handle : file object
+            Open text handle on a FASTQ file.
+
+        Yields
+        ------
+        tuple of (str, str)
+            ``(chain_id, sequence)`` for each read, in file order.
+        """
+        for title, sequence, _quality in FastqGeneralIterator(handle):
+            chain_id = title.split()[0]
+            yield chain_id, sequence

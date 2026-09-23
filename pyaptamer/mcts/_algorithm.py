@@ -14,8 +14,8 @@ from pyaptamer import logger
 
 class MCTS(BaseObject):
     """
-    MCTS algorithm implementation for string optimization, specifically for aptamr
-    generation as described in aptamer generation as described in [1]_, originally
+    MCTS algorithm implementation for string optimization, specifically for aptamer
+    generation as described in [1]_, originally
     introduced in [2]_.
 
     Adapted from:
@@ -70,6 +70,7 @@ class MCTS(BaseObject):
     >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
+    >>> seq = candidate["candidate"]  # the reconstructed aptamer string
     """
 
     def __init__(
@@ -111,6 +112,16 @@ class MCTS(BaseObject):
         )
         self.base = ""
         self.candidate = ""
+
+    def __repr__(self) -> str:
+        """Return a human-readable representation of the MCTS configuration."""
+        exp_name = self.experiment.__class__.__name__ if self.experiment else None
+        return (
+            f"MCTS(depth={self.depth}, "
+            f"n_iterations={self.n_iterations}, "
+            f"n_states={len(self.states)}, "
+            f"experiment={exp_name})"
+        )
 
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
@@ -281,18 +292,24 @@ class MCTS(BaseObject):
     def run(self, verbose: bool = True) -> dict:
         """
         Perform a full recommendation run consisting of `self.n_iterations` rounds of
-        (selection -> expansion -> simulation -> backpropagation)
+        (selection -> expansion -> simulation -> backpropagation).
 
         Parameters
         ----------
         verbose : bool, optional, default=True
-            Whether to print progress information.
+            Whether to log progress information via ``logger.debug``.
+            Messages are only emitted when the logger level is ``DEBUG``.
 
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
-            score (`score`).
+            A dictionary with the following keys:
+
+            - `candidate` (*str*) — The reconstructed aptamer sequence.
+            - `sequence` (*str*) — The raw encoded sequence with direction
+              markers (underscores), before reconstruction.
+            - `score` (*float*) — The score of the candidate as evaluated
+              by `self.experiment`.
         """
         self._reset()
 
@@ -381,7 +398,7 @@ class TreeNode:
     >>> print(node.uct_score())
     inf
     >>> print(child.uct_score())  # doctest: +SKIP
-    np.float64(0.6663)
+    np.float64(0.5)
     """
 
     def __init__(
@@ -402,7 +419,7 @@ class TreeNode:
         self.is_terminal = is_terminal
         self.exploitation_score = exploitation_score
 
-        self.n_visits = 1
+        self.n_visits = 0
         self.children = {}
 
     def is_fully_expanded(self) -> bool:
@@ -430,7 +447,8 @@ class TreeNode:
         float
             The UCT score for this node.
         """
-        if self.parent is None:
+        # unvisited nodes (including root) get infinite UCT to guarantee exploration
+        if self.parent is None or self.n_visits == 0:
             return float("inf")
 
         # exploration term

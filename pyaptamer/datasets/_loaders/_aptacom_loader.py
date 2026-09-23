@@ -1,7 +1,7 @@
-# file: aptacom_loader.py
+# Loading AptaCOM dataset developed by Rafael Vieria https://github.com/rpgv/AptaCom
 
-__author__ = "rpgv"
-__all__ = ["load_aptacom_full", "load_aptacom_x_y"]
+__author__ = ["rpgv", "siddharth7113"]
+__all__ = ["load_aptacom_full", "load_aptacom"]
 
 from pyaptamer.datasets._loaders._hf_to_dataset_loader import load_hf_to_dataset
 
@@ -129,34 +129,37 @@ def load_aptacom_full(select_columns=None):
     return dataset
 
 
-def load_aptacom_x_y(return_X_y=False):
+def load_aptacom(return_X_y=False):
     """
     Load the AptaCom dataset prepared for model training.
 
-    Depending on `return_X_y`, returns either a single DataFrame containing
-    the features and target, or a tuple of (X, y) DataFrames.
+    The molecule data is returned as a
+    :class:`~pyaptamer.data.loader.MoleculeLoader` so it plugs directly into
+    the transform pipeline; the affinity target stays a plain DataFrame.
 
     Parameters
     ----------
     return_X_y : bool, optional
         If True, return a tuple `(X, y)` where:
-          - `X` has columns ["aptamer_sequence", "target_sequence"]
-          - `y` has column ["new_affinity"]
-        If False (default), return a single DataFrame with all three columns.
+          - `X` is a MoleculeLoader over ["aptamer_sequence", "target_sequence"]
+          - `y` is a DataFrame with column ["new_affinity"]
+        If False (default), return a single MoleculeLoader over all three columns.
 
     Returns
     -------
-    pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
-        - If `return_X_y` is False: a DataFrame with columns
+    MoleculeLoader or tuple[MoleculeLoader, pandas.DataFrame]
+        - If `return_X_y` is False: a MoleculeLoader over the columns
           ["aptamer_sequence", "target_sequence", "new_affinity"].
-        - If `return_X_y` is True: a tuple `(X, y)` where `X` contains the two
-          feature columns and `y` contains the target column.
+        - If `return_X_y` is True: a tuple `(X, y)` where `X` is a MoleculeLoader
+          over the two feature columns and `y` is a DataFrame with the target.
     """
+    from pyaptamer.data.loader import MoleculeLoader
+
     aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
     aptacom = aptacom.to_pandas()
     dataset = prepare_x_y(aptacom)
     if return_X_y:
         X = dataset[["aptamer_sequence", "target_sequence"]]
         y = dataset[["new_affinity"]]
-        return X, y
-    return dataset
+        return MoleculeLoader(data=X), y
+    return MoleculeLoader(data=dataset)

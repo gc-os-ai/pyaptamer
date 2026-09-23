@@ -1,8 +1,9 @@
-__author__ = "satvshr"
+__author__ = "siddharth7113"
 
 import pandas as pd
 import pytest
 
+from pyaptamer.data.loader import MoleculeLoader
 from pyaptamer.datasets._loaders._li2014 import load_li2014
 
 
@@ -10,41 +11,43 @@ from pyaptamer.datasets._loaders._li2014 import load_li2014
     "split",
     [None, "train", "test"],
 )
-def test_load_li2014(split):
-    """
-    Test that load_li2014 returns a tuple (X, y) where:
-    - X is a DataFrame
-    - y is a DataFrame
-    - they have matching lengths
-    - they are non-empty
+def test_load_li2014_single_loader(split):
+    """Default returns one MoleculeLoader over aptamer, protein and label."""
+    loader = load_li2014(split=split)
 
-    Parameters
-    ----------
-    split : {None, 'train', 'test'}
-        Split to load and test.
-    """
-    X, y = load_li2014(split=split)
+    assert isinstance(loader, MoleculeLoader)
 
-    assert isinstance(X, pd.DataFrame), "X should be a pandas DataFrame"
-    assert isinstance(y, pd.DataFrame), "y should be a pandas DataFrame"
+    df = loader.to_dataframe()
+    assert list(df.columns) == ["aptamer", "protein", "label"]
+    assert df.shape[0] > 0
 
-    assert len(X) == len(y), "X and y must have the same number of rows"
-    assert X.shape[0] > 0, "X should not be empty"
-    assert y.shape[0] > 0, "y should not be empty"
+
+@pytest.mark.parametrize(
+    "split",
+    [None, "train", "test"],
+)
+def test_load_li2014_return_x_y(split):
+    """return_X_y=True splits into a MoleculeLoader X and a DataFrame y."""
+    X, y = load_li2014(split=split, return_X_y=True)
+
+    assert isinstance(X, MoleculeLoader)
+    assert isinstance(y, pd.DataFrame)
+
+    X_df = X.to_dataframe()
+    assert list(X_df.columns) == ["aptamer", "protein"]
+    assert list(y.columns) == ["label"]
+    assert len(X_df) == len(y) > 0
 
 
 def test_load_li2014_concatenation():
-    """
-    Test that loading with split=None returns the concatenation of train and test.
-    """
-    X_all, y_all = load_li2014(split=None)
-    X_train, y_train = load_li2014(split="train")
-    X_test, y_test = load_li2014(split="test")
+    """split=None concatenates the train and test splits."""
+    X_all, y_all = load_li2014(split=None, return_X_y=True)
+    X_train, y_train = load_li2014(split="train", return_X_y=True)
+    X_test, y_test = load_li2014(split="test", return_X_y=True)
 
-    # Total rows should equal sum of train and test
-    assert len(X_all) == len(X_train) + len(X_test), (
-        "Concatenated data should have rows equal to train + test"
-    )
-    assert len(y_all) == len(y_train) + len(y_test), (
-        "Concatenated labels should have length equal to train + test"
-    )
+    n_all = len(X_all.to_dataframe())
+    n_train = len(X_train.to_dataframe())
+    n_test = len(X_test.to_dataframe())
+
+    assert n_all == n_train + n_test
+    assert len(y_all) == len(y_train) + len(y_test)
