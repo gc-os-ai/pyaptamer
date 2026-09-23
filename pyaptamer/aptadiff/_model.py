@@ -101,6 +101,10 @@ class AptaDiffDenoiser(nn.Module):
 
     Attributes
     ----------
+    num_classes : int
+        The number of unique nucleotides in the sequence.
+    num_timesteps : int
+        Total number of diffusion timesteps.
     transformer : AptaDiffTransformerEmbedding
         Transformer backbone mapping token indices, timesteps, and the latent
         condition to per-position sequence representations.
@@ -133,6 +137,9 @@ class AptaDiffDenoiser(nn.Module):
         transformer_type: Literal["native", "linear"] = "native",
     ):
         super().__init__()
+
+        self.num_classes = num_classes
+        self.num_timesteps = num_timesteps
 
         self.transformer = AptaDiffTransformerEmbedding(
             enc_embed_size=enc_embed_size,
@@ -196,10 +203,12 @@ class AptaDiffDiffusion(nn.Module):
         `(batch_size, num_classes, seq_len)`.
     num_classes : int, optional, default=4
         The number of unique nucleotides in the sequence.
-        Note: This must exactly match the `num_classes` of the provided `denoise_fn`.
+        Note: If `denoise_fn` also exposes this attribute, it must exactly match,
+        otherwise a ValueError is raised.
     num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
-        Note: This must exactly match the `num_timesteps` of the provided `denoise_fn`.
+        Note: If `denoise_fn` also exposes this attribute, it must exactly match,
+        otherwise a ValueError is raised.
     loss_type : {"vb_stochastic", "vb_all"}, optional, default="vb_stochastic"
         Chooses which variational bound to optimize.
         - "vb_stochastic" : one importance-sampled timestep per training
@@ -237,8 +246,10 @@ class AptaDiffDiffusion(nn.Module):
     Raises
     ------
     ValueError
-        If `loss_type` is not one of `"vb_stochastic"` or `"vb_all"`, or if
-        `parametrization` is not one of `"x0"` or `"direct"`.
+        - If `loss_type` is not one of `"vb_stochastic"` or `"vb_all"`,
+        - If `parametrization` is not one of `"x0"` or `"direct"`,
+        - If `denoise_fn` exposes `num_classes` and/or `num_timesteps` and either does
+        not match the value passed here.
 
     References
     ----------
@@ -294,6 +305,23 @@ class AptaDiffDiffusion(nn.Module):
         if parametrization not in ("x0", "direct"):
             raise ValueError(
                 f"parametrization must be 'x0' or 'direct', got: {parametrization}"
+            )
+
+        denoiser_num_classes = getattr(denoise_fn, "num_classes", None)
+        if denoiser_num_classes is not None and denoiser_num_classes != num_classes:
+            raise ValueError(
+                f"num_classes must match denoise_fn.num_classes, got {num_classes} "
+                f"and {denoiser_num_classes}."
+            )
+
+        denoiser_num_timesteps = getattr(denoise_fn, "num_timesteps", None)
+        if (
+            denoiser_num_timesteps is not None
+            and denoiser_num_timesteps != num_timesteps
+        ):
+            raise ValueError(
+                f"num_timesteps must match denoise_fn.num_timesteps, got "
+                f"{num_timesteps} and {denoiser_num_timesteps}."
             )
 
         if loss_type == "vb_all":

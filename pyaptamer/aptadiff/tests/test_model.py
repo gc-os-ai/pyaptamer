@@ -140,6 +140,39 @@ class TestAptaDiffDiffusion:
         with pytest.raises(ValueError, match="must be"):
             AptaDiffDiffusion(denoise_fn=denoiser, **option)
 
+    def test_diffusion_rejects_mismatched_attributes(
+        self, denoiser_kwargs: dict
+    ) -> None:
+        """Check common args between denoise_fn and diffusion instance match."""
+        mismatched_classes = AptaDiffDenoiser(
+            **{**denoiser_kwargs, "num_classes": NUM_CLASSES + 1}
+        )
+        with pytest.raises(ValueError, match="num_classes must match"):
+            AptaDiffDiffusion(
+                denoise_fn=mismatched_classes,
+                num_classes=NUM_CLASSES,
+                num_timesteps=TIMESTEPS,
+            )
+
+        mismatched_timesteps = AptaDiffDenoiser(
+            **{**denoiser_kwargs, "num_timesteps": TIMESTEPS + 1}
+        )
+        with pytest.raises(ValueError, match="num_timesteps must match"):
+            AptaDiffDiffusion(
+                denoise_fn=mismatched_timesteps,
+                num_classes=NUM_CLASSES,
+                num_timesteps=TIMESTEPS,
+            )
+
+        diffusion = AptaDiffDiffusion(
+            denoise_fn=nn.Module(),
+            num_classes=NUM_CLASSES,
+            num_timesteps=TIMESTEPS,
+        )
+
+        assert diffusion.num_classes == NUM_CLASSES
+        assert diffusion.num_timesteps == TIMESTEPS
+
     def test_q_sample_rejects_out_of_range_timestep(
         self, diffusion: AptaDiffDiffusion, batch: tuple[torch.Tensor, torch.Tensor]
     ) -> None:
