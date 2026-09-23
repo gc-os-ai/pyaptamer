@@ -1,7 +1,7 @@
 """RaptGen training/generation pipeline"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["RaptGenPipeline"]
+__all__ = ["RaptGenModel"]
 
 
 import numpy as np
@@ -12,11 +12,10 @@ from sklearn.utils.validation import check_is_fitted
 from pyaptamer.raptgen._model import CNN_PHMM_VAE, CNN_PHMM_VAE_FAST
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
 
-# NOTE: `one_hot_index` is being renamed in #741
-from pyaptamer.raptgen.layers._utils import one_hot_index
 
 
-class RaptGenPipeline(BaseEstimator, TransformerMixin):
+
+class RaptGenModel(BaseEstimator, TransformerMixin):
     """
     RaptGen algorithm for unsupervised aptamer sequence generation.
 
@@ -148,7 +147,7 @@ class RaptGenPipeline(BaseEstimator, TransformerMixin):
         perm = torch.randperm(n)
         return perm[n_val:], perm[:n_val]
 
-    def fit(self, X, y=None):
+    def fit(self, X_idx, y=None):
         """Train the VAE on a collection of aptamer sequences."""
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
@@ -156,7 +155,6 @@ class RaptGenPipeline(BaseEstimator, TransformerMixin):
         self.device_ = self.device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model_ = self._build_model().to(self.device_)
 
-        X_idx = self._encode_sequences(X)
         train_idx, val_idx = self._train_val_split(len(X_idx))
         train_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(X_idx[train_idx]),
@@ -233,29 +231,20 @@ class RaptGenPipeline(BaseEstimator, TransformerMixin):
 
         return self
 
-    def _encode_sequences(self, X):
-        """Helper function to map from seqeunce to integer indices."""
-        lengths = {len(seq) for seq in X}
-        if len(lengths) > 1:
-            raise ValueError(
-                "All sequences passed in a single call must have the same "
-                f"length for batching, got lengths {sorted(lengths)}."
-            )
-        indices = [one_hot_index(seq) for seq in X]
-        return torch.tensor(indices, dtype=torch.long)
+    
 
     def transform(self, X):
         """Encode sequences into latent-space points.
 
         Parameters
         ----------
-        X : list of str
-            Aptamer sequences (A/T/G/C only), all the same length.
+        X : Integer mapping of the input sequences, shape (n_samples, seq_len)
+            Input sequences to encode.
         """
         check_is_fitted(self, "model_")
         self.model_.eval()
 
-        X_idx = self._encode_sequences(X).to(self.device_)
+        X_idx = torch.as_tensor(X, dtype=torch.long).to(self.device_)
         with torch.no_grad():
             h = self.model_.encoder(X_idx)
             mu = self.model_.h2mu(h)
