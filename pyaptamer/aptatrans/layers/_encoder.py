@@ -61,7 +61,9 @@ class PositionalEncoding(nn.Module):
         )
         pe = torch.zeros(1, max_len, d_model)  # Changed shape to (1, max_len, d_model)
         pe[0, :, 0::2] = torch.sin(position * div_term)  # Changed indexing
-        pe[0, :, 1::2] = torch.cos(position * div_term)  # Changed indexing
+        pe[0, :, 1::2] = torch.cos(
+            position * div_term[: d_model // 2]
+        )  # Changed indexing
         self.register_buffer("pe", pe)
 
     def forward(self, x: Tensor) -> Tensor:
