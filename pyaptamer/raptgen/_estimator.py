@@ -13,8 +13,6 @@ from pyaptamer.raptgen._model import CNN_PHMM_VAE, CNN_PHMM_VAE_FAST
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
 
 
-
-
 class RaptGenModel(BaseEstimator, TransformerMixin):
     """
     RaptGen algorithm for unsupervised aptamer sequence generation.
@@ -230,8 +228,6 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
             self.model_.load_state_dict(best_state)
 
         return self
-
-    
 
     def transform(self, X):
         """Encode sequences into latent-space points.
