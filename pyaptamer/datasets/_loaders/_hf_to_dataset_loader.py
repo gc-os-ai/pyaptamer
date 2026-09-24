@@ -2,14 +2,26 @@ __author__ = "satvshr"
 __all__ = ["load_hf_to_dataset"]
 
 import os
-
+import logging
 import requests
 from datasets import load_dataset
+from pyaptamer.utils._logging import get_logger
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 # File formats not natively supported by `datasets.load_dataset`
 FILE_FORMATS = ["fasta", "pdb"]
 
+# Creating a custom logger
+logger = get_logger(__name__)
 
+# Update function with retry upto 3 times
+@retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(requests.RequestException),
+        before_sleep=before_sleep_log(logger, logging.ERROR),
+        reraise=True,
+)
 def _download_to_cwd(url):
     """Download URL into ./hf_datasets/ preserving the filename."""
     os.makedirs("hf_datasets", exist_ok=True)
@@ -19,6 +31,7 @@ def _download_to_cwd(url):
 
     # Download only if file doesn't already exist
     if not os.path.exists(local_path):
+        # Catching if any exceptions occured during the network call
         r = requests.get(url)
         r.raise_for_status()
         with open(local_path, "wb") as f:

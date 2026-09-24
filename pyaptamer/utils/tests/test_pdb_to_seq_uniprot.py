@@ -1,6 +1,9 @@
+import logging
 from unittest.mock import MagicMock, patch
 
+import pytest
 import pandas as pd
+import requests
 
 from pyaptamer.utils import pdb_to_seq_uniprot
 
@@ -59,3 +62,27 @@ def test_pdb_to_seq_uniprot_returns_dataframe(mock_get):
     assert isinstance(df, pd.DataFrame)
     assert "sequence" in df.columns
     assert len(df.iloc[0]["sequence"]) > 0
+
+@patch("pyaptamer.utils._pdb_to_seq_uniprot.requests.get")
+def test_pdb_to_seq_uniprot_network_failures(mock_get, caplog):
+    """Check whether pdb_to_seq_uniprot retries the requests call upto 3 times when failed"""
+    
+    error = requests.RequestException("Network failure")
+    
+    mock_get.side_effect = [
+        error,
+        error,
+        _make_mock_response(json_data=_MAPPING_JSON),
+        _make_mock_response(text=_FASTA_TEXT),
+    ]
+
+    # Use caplog to capture logging at ERROR level (where tenacity logs before_sleep)
+    with caplog.at_level(logging.ERROR):
+        df = pdb_to_seq_uniprot("1a3n", return_type="pd.df")
+    
+    assert mock_get.call_count == 4
+    
+    assert "Retrying pyaptamer.utils._pdb_to_seq_uniprot.pdb_to_seq_uniprot" in caplog.text
+    assert "in 2 seconds" in caplog.text
+
+
