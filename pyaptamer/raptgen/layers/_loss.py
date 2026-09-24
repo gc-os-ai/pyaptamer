@@ -1,0 +1,315 @@
+"""Loss functions for RaptGen's variational autoencoder"""
+
+__author__ = ["NoorMajdoub"]
+__all__ = [
+    "kld_loss",
+    "ce_loss",
+    "profile_hmm_loss",
+    "profile_hmm_loss_fn",
+    "profile_hmm_loss_fn_fast",
+    "torch_multi_polytope_dp_log",
+    "multi_categorical_loss_fn",
+    "end_padded_multi_categorical_loss_fn",
+]
+
+import logging
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+from pyaptamer.raptgen.layers._utils import State, Transition
+
+logger = logging.getLogger(__name__)
+
+
+def kld_loss(mu, logvar):
+    """
+    Compute the KL-divergence loss term for a VAE's latent distribution.
+    """
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / mu.shape[0]
+    return KLD
+
+
+def ce_loss(recon_param, input):
+    """
+    Compute cross-entropy reconstruction loss.
+    """
+    CE = F.cross_entropy(recon_param, input, reduction="sum") / input.shape[0]
+    return CE
+
+
+def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
+    """
+    Compute the profile HMM reconstruction loss via the forward algorithm.
+    """
+    batch_size, random_len = input.shape
+    a, e_m = recon_param
+    motif_len = e_m.shape[1]
+
+    alpha = torch.ones(
+        (batch_size, 3, motif_len + 1, random_len + 1), device=input.device
+    ) * (-100)
+    # init
+    alpha[:, 0, 0, 0] = 0
+
+    for i in range(random_len + 1):
+        for j in range(motif_len + 1):
+            # State M
+            if j * i != 0:
+                alpha[:, State.M, j, i] = e_m[:, j - 1].gather(1, input[:, i - 1 : i])[
+                    :, 0
+                ] + torch.logsumexp(
+                    torch.stack(
+                        (
+                            a[:, j - 1, Transition.M2M]
+                            + alpha[:, State.M, j - 1, i - 1],
+                            a[:, j - 1, Transition.I2M]
+                            + alpha[:, State.I, j - 1, i - 1],
+                            a[:, j - 1, Transition.D2M]
+                            + alpha[:, State.D, j - 1, i - 1],
+                        )
+                    ),
+                    dim=0,
+                )
+
+            # State I
+            if i != 0:
+                alpha[:, State.I, j, i] = -1.3863 + torch.logsumexp(
+                    torch.stack(
+                        (
+                            a[:, j, Transition.M2I] + alpha[:, State.M, j, i - 1],
+                            # Removed D-to-I transition
+                            # a[:, j, Transition.D2I] +
+                            # alpha[:, State.D, j, i-1],
+                            a[:, j, Transition.I2I] + alpha[:, State.I, j, i - 1],
+                        )
+                    ),
+                    dim=0,
+                )
+
+            # State D
+            if j != 0:
+                alpha[:, State.D, j, i] = torch.logsumexp(
+                    torch.stack(
+                        (
+                            a[:, j - 1, Transition.M2D] + alpha[:, State.M, j - 1, i],
+                            # REMOVED I-to-D transition
+                            # a[:, j - 1, Transition.I2D] +
+                            # alpha[:, State.I, j - 1, i],
+                            a[:, j - 1, Transition.D2D] + alpha[:, State.D, j - 1, i],
+                        )
+                    ),
+                    dim=0,
+                )
+
+    # final I->M transition
+    alpha[:, State.M, motif_len, random_len] += a[:, motif_len, Transition.M2M]
+    alpha[:, State.I, motif_len, random_len] += a[:, motif_len, Transition.I2M]
+    alpha[:, State.D, motif_len, random_len] += a[:, motif_len, Transition.D2M]
+
+    if force_matching:
+        force_loss = (
+            np.log((match_cost + 1) * match_cost / 2)
+            + torch.sum((match_cost - 1) * a[:, :, Transition.M2M], dim=1).mean()
+        )
+        return (
+            -force_loss
+            - torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
+        )
+    return -torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
+
+
+def profile_hmm_loss_fn(
+    input,
+    recon_param,
+    mu,
+    logvar,
+    debug=False,
+    test=False,
+    beta=1,
+    force_matching=False,
+    match_cost=5,
+):
+    """
+    Combined VAE training loss for `CNN_PHMM_VAE`.
+    """
+    phmmloss = profile_hmm_loss(
+        recon_param, input, force_matching=force_matching, match_cost=match_cost
+    )
+    kld = kld_loss(mu, logvar)
+
+    if debug:
+        logger.info(f"phmm={phmmloss:.2f}, kld={kld:.2f}")
+    if test:
+        return phmmloss.item(), kld.item()
+    return phmmloss + beta * kld
+
+
+def profile_hmm_loss_fn_fast(
+    input,
+    recon_param,
+    mu,
+    logvar,
+    debug=False,
+    test=False,
+    beta=1,
+    force_matching=False,
+    match_cost=5,
+):
+    """
+    Combined VAE training loss for `CNN_PHMM_VAE_FAST`.
+    """
+    phmmloss = torch_multi_polytope_dp_log(
+        *recon_param, input, force_matching, match_cost
+    )
+    kld = kld_loss(mu, logvar)
+
+    if debug:
+        logger.info(f"phmm={phmmloss:.2f}, kld={kld:.2f}")
+    if test:
+        return phmmloss.item(), kld.item()
+    return phmmloss + beta * kld
+
+
+def torch_multi_polytope_dp_log(
+    transition_proba, emission_proba, output, force_matching=False, match_cost=5
+):
+    """
+    Given logarithmic parameters, the function calculates
+    the probability of the output sequence of a certain
+    Profile Hidden Markov Model (PHMM) by forward algorithm.
+
+    For the efficiency, this function is utilizing polytope
+    model which enables parallel dynamic programming (DP).
+
+    Parameters
+    ----------
+    transition_proba : torch.Tensor
+        the tensor which define the probability to transit
+        state to state. the tensor shape has to be
+        (`batch`, `from`=3, `to`=3, `model_length`+1) and
+        the tensor has to be logarithmic number
+
+    emission_proba : torch.Tensor
+        the tensor which emit characters. The tensor shape
+        has to be: (`batch`, `model_length`, `augc`=4)
+
+    output : torch.Tensor
+        the tensor of the output vector. the tensor shape
+        has to be (`batch`, `string_length`)
+
+    Returns
+    ------
+    probabilities : torch.Tensor
+        log-probabilities of the given output tensor with
+        shape (`batch`,)
+
+    """
+    model_length = emission_proba.shape[1]
+    batch_size, string_length = output.shape
+
+    alpha = (
+        torch.ones(
+            size=(batch_size, 3, model_length + string_length + 1, string_length + 1),
+            device=output.device,
+        )
+        * -200
+    )
+    alpha[:, State.M, 0, 0] = 0
+    log4 = torch.Tensor([4]).log().to(output.device)
+    arange = torch.arange(
+        start=0, end=model_length + string_length + 1, device=output.device
+    )
+    for model_index_pre in range(1, model_length + string_length + 1):
+        if max(1, model_index_pre - model_length) < min(
+            string_length + 1, model_index_pre
+        ):
+            m_slice = arange[
+                max(1, model_index_pre - model_length) : min(
+                    string_length + 1, model_index_pre
+                )
+            ]
+            alpha[:, State.M, model_index_pre, m_slice] = torch.gather(
+                emission_proba[:, model_index_pre - m_slice - 1],
+                2,
+                output[:, m_slice - 1, None],
+            ).reshape(batch_size, len(m_slice)) + torch.logsumexp(
+                transition_proba[:, :, State.M, model_index_pre - m_slice - 1]
+                + alpha[:, :, model_index_pre - 2, m_slice - 1],
+                axis=1,
+            )
+
+        if max(1, model_index_pre - model_length) < min(
+            string_length + 1, model_index_pre + 1
+        ):
+            i_slice = arange[
+                max(1, model_index_pre - model_length) : min(
+                    string_length + 1, model_index_pre + 1
+                )
+            ]
+            alpha[:, State.I, model_index_pre, i_slice] = (
+                torch.logsumexp(
+                    transition_proba[:, :, State.I, model_index_pre - i_slice]
+                    + alpha[:, :, model_index_pre - 1, i_slice - 1],
+                    axis=1,
+                )
+                - log4
+            )
+
+        if max(0, model_index_pre - model_length) < min(
+            string_length + 1, model_index_pre
+        ):
+            d_slice = arange[
+                max(1, model_index_pre - model_length) : min(
+                    string_length + 1, model_index_pre
+                )
+            ]
+            alpha[:, State.D, model_index_pre, d_slice] = torch.logsumexp(
+                transition_proba[:, :, State.D, model_index_pre - d_slice - 1]
+                + alpha[:, :, model_index_pre - 1, d_slice],
+                axis=1,
+            )
+    if force_matching:
+        return (
+            -torch.logsumexp(
+                alpha[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
+            ).mean()
+            - np.log((match_cost + 1) * match_cost / 2)
+            - torch.sum(
+                (match_cost - 1) * transition_proba[:, State.M, State.M, :], dim=1
+            ).mean()
+        )
+    return -torch.logsumexp(
+        alpha[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
+    ).mean()
+
+
+def end_padded_multi_categorical_loss_fn(
+    input, recon_param, mu, logvar, debug=False, test=False, beta=1
+):
+    from pyaptamer.raptgen.layers._utils import nt_index
+
+    loss = multi_categorical_loss_fn(
+        F.pad(input, (0, 1), "constant", nt_index.EOS),
+        recon_param,
+        mu,
+        logvar,
+        debug,
+        test,
+        beta,
+    )
+    return loss
+
+
+def multi_categorical_loss_fn(
+    input, recon_param, mu, logvar, debug=False, test=False, beta=1
+):
+    ce = ce_loss(recon_param, input)
+    kld = kld_loss(mu, logvar)
+
+    if debug:
+        logger.info(f"ce={ce:.2f}, kld={kld:.2f}")
+    if test:
+        return ce.item(), kld.item()
+    return ce + beta * kld
