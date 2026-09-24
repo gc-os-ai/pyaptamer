@@ -4,6 +4,7 @@ __author__ = ["NoorMajdoub"]
 __all__ = ["RaptGenModel"]
 
 import itertools
+
 import numpy as np
 import torch
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -11,6 +12,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.raptgen._model import CNN_PHMM_VAE, CNN_PHMM_VAE_FAST
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
+
 
 class RaptGenModel(BaseEstimator, TransformerMixin):
     """
@@ -54,7 +56,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     force_epochs : int, optional, default=50
         Number of epochs to apply `force_matching` for.
     device : str or None, optional, default=None
-        Torch device to train/run on. 
+        Torch device to train/run on.
     random_state : int or None, optional, default=None
         Seed for torch's RNG, for reproducible training/generation.
 
@@ -254,51 +256,58 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
                 proba_is_log=True,
             )
             if most_likely:
-                seq = self._decode_most_probable(sampler) #most probable is called in decode_most_probable, seq will be the direct full sequence 
+                seq = self._decode_most_probable(
+                    sampler
+                )  # most probable is called in decode_most_probable
             else:
-                seq = sampler.sample(sequence_only=True)  #sample alreadyreturn the full sequence 
+                seq = sampler.sample(
+                    sequence_only=True
+                )  # sample alreadyreturn the full sequence
             sequences.append(seq)
         return sequences
+
     def _decode_most_probable(self, sampler, eval_max=256):
-            """
-            Turn most_probable()'s raw skeleton into a final, fully-decoded
-            sequence.
+        """
+        Turn most_probable()'s raw skeleton into a final, fully-decoded
+        sequence.
 
-            most_probable() leaves "_" for deletions and "N" for insertions
-            (since the model has no letter preference at insert positions).
-            This strips the deletions, tries every possible real nucleotide
-            combination for the insert wildcards, scores each complete
-            candidate with calc_seq_proba, and keeps the best-scoring one.
+        most_probable() leaves "_" for deletions and "N" for insertions
+        (since the model has no letter preference at insert positions).
+        This strips the deletions, tries every possible real nucleotide
+        combination for the insert wildcards, scores each complete
+        candidate with calc_seq_proba, and keeps the best-scoring one.
 
-            Parameters
-            ----------
-            sampler : ProfileHMMSampler
-                The sampler to generate and score candidates with.
-            eval_max : int, optional, default=256
-                Number of possible generated candidates.
+        Parameters
+        ----------
+        sampler : ProfileHMMSampler
+            The sampler to generate and score candidates with.
+        eval_max : int, optional, default=256
+            Number of possible generated candidates.
 
-            Returns
-            -------
-            best_seq : str
-                The highest-scoring fully-decoded candidate sequence.
-            """
-            skeleton = sampler.most_probable(sequence_only=True) 
-            pattern = skeleton.replace("_", "").replace("N", "*")
+        Returns
+        -------
+        best_seq : str
+            The highest-scoring fully-decoded candidate sequence.
+        """
+        skeleton = sampler.most_probable(sequence_only=True)
+        pattern = skeleton.replace("_", "").replace("N", "*")
 
-            n_wildcards = pattern.count("*")
-            all_combos = list(itertools.product("ATGC", repeat=n_wildcards))
+        n_wildcards = pattern.count("*")
+        all_combos = list(itertools.product("ATGC", repeat=n_wildcards))
 
-            if len(all_combos) > eval_max: #if too many combinations, sample a subset of them
-                idx = np.random.choice(len(all_combos), size=eval_max, replace=False)
-                all_combos = [all_combos[i] for i in idx]
+        if (
+            len(all_combos) > eval_max
+        ):  # if too many combinations, sample a subset of them
+            idx = np.random.choice(len(all_combos), size=eval_max, replace=False)
+            all_combos = [all_combos[i] for i in idx]
 
-            candidates = []
-            for combo in all_combos:
-                combo_iter = iter(combo)
-                candidates.append(
-                    "".join(next(combo_iter) if ch == "*" else ch for ch in pattern)
-                )
+        candidates = []
+        for combo in all_combos:
+            combo_iter = iter(combo)
+            candidates.append(
+                "".join(next(combo_iter) if ch == "*" else ch for ch in pattern)
+            )
 
-            scored = [(c, sampler.calc_seq_proba(c)) for c in candidates]
-            best_seq, _ = max(scored, key=lambda x: x[1]) #reutnr just the best candidate
-            return best_seq
+        scored = [(c, sampler.calc_seq_proba(c)) for c in candidates]
+        best_seq, _ = max(scored, key=lambda x: x[1])  # reutnr just the best candidate
+        return best_seq

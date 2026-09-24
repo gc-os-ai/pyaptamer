@@ -8,8 +8,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.raptgen._estimator import RaptGenModel
-
-from pyaptamer.raptgen.layers._utils import seq_to_indices, nt_index
+from pyaptamer.raptgen.layers._utils import seq_to_indices
 
 
 class RaptgenGenerator(BaseEstimator):
