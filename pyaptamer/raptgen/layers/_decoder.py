@@ -15,6 +15,7 @@ class DecoderPHMM(nn.Module):
     parameters of a profile Hidden Markov Model (HMM), per-position transition and
     emission probabilities of the nucleotides for the entire
     sequence in a forward pass.
+
     Parameters
     ----------
     motif_len : int
@@ -43,14 +44,6 @@ class DecoderPHMM(nn.Module):
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
 
-        class View(nn.Module):
-            def __init__(self, shape):
-                super().__init__()
-                self.shape = shape
-
-            def forward(self, x):
-                return x.view(*self.shape)
-
         self.fc1 = nn.Sequential(
             nn.Linear(embed_size, hidden_size),
             nn.BatchNorm1d(hidden_size),
@@ -62,7 +55,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 3),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 3)),
+            nn.Unflatten(1, (motif_len + 1, 3)),
             nn.LogSoftmax(dim=2),
         )
         self.tr_from_I = nn.Sequential(
@@ -70,7 +63,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 2)),
+            nn.Unflatten(1, (motif_len + 1, 2)),
             nn.LogSoftmax(dim=2),
         )
         self.tr_from_D = nn.Sequential(
@@ -78,7 +71,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, (motif_len + 1) * 2),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len + 1, 2)),
+            nn.Unflatten(1, (motif_len + 1, 2)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -87,7 +80,7 @@ class DecoderPHMM(nn.Module):
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len, 4)),
+            nn.Unflatten(1, (motif_len, 4)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -122,14 +115,6 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
     def __init__(self, motif_len, embed_size, hidden_size=32):
         super().__init__()
 
-        class View(nn.Module):
-            def __init__(self, shape):
-                super().__init__()
-                self.shape = shape
-
-            def forward(self, x):
-                return x.view(*self.shape)
-
         self.fc = nn.Sequential(
             nn.Linear(embed_size, hidden_size),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
@@ -140,7 +125,7 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, 3 * 3 * (motif_len + 1)),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, 3, 3, motif_len + 1)),
+            nn.Unflatten(1, (3, 3, motif_len + 1)),
             nn.LogSoftmax(dim=2),
         )
 
@@ -149,7 +134,7 @@ class DecoderPHMM_fast(nn.Module):  # noqa: N801
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Linear(hidden_size, motif_len * 4),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
-            View((-1, motif_len, 4)),
+            nn.Unflatten(1, (motif_len, 4)),
             nn.LogSoftmax(dim=2),
         )
 

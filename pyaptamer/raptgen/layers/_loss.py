@@ -47,24 +47,27 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
     a, e_m = recon_param
     motif_len = e_m.shape[1]
 
-    F = torch.ones(
+    alpha = torch.ones(
         (batch_size, 3, motif_len + 1, random_len + 1), device=input.device
     ) * (-100)
     # init
-    F[:, 0, 0, 0] = 0
+    alpha[:, 0, 0, 0] = 0
 
     for i in range(random_len + 1):
         for j in range(motif_len + 1):
             # State M
             if j * i != 0:
-                F[:, State.M, j, i] = e_m[:, j - 1].gather(1, input[:, i - 1 : i])[
+                alpha[:, State.M, j, i] = e_m[:, j - 1].gather(1, input[:, i - 1 : i])[
                     :, 0
                 ] + torch.logsumexp(
                     torch.stack(
                         (
-                            a[:, j - 1, Transition.M2M] + F[:, State.M, j - 1, i - 1],
-                            a[:, j - 1, Transition.I2M] + F[:, State.I, j - 1, i - 1],
-                            a[:, j - 1, Transition.D2M] + F[:, State.D, j - 1, i - 1],
+                            a[:, j - 1, Transition.M2M]
+                            + alpha[:, State.M, j - 1, i - 1],
+                            a[:, j - 1, Transition.I2M]
+                            + alpha[:, State.I, j - 1, i - 1],
+                            a[:, j - 1, Transition.D2M]
+                            + alpha[:, State.D, j - 1, i - 1],
                         )
                     ),
                     dim=0,
@@ -72,14 +75,14 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
 
             # State I
             if i != 0:
-                F[:, State.I, j, i] = -1.3863 + torch.logsumexp(
+                alpha[:, State.I, j, i] = -1.3863 + torch.logsumexp(
                     torch.stack(
                         (
-                            a[:, j, Transition.M2I] + F[:, State.M, j, i - 1],
+                            a[:, j, Transition.M2I] + alpha[:, State.M, j, i - 1],
                             # Removed D-to-I transition
                             # a[:, j, Transition.D2I] +
-                            # F[:, State.D, j, i-1],
-                            a[:, j, Transition.I2I] + F[:, State.I, j, i - 1],
+                            # alpha[:, State.D, j, i-1],
+                            a[:, j, Transition.I2I] + alpha[:, State.I, j, i - 1],
                         )
                     ),
                     dim=0,
@@ -87,23 +90,23 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
 
             # State D
             if j != 0:
-                F[:, State.D, j, i] = torch.logsumexp(
+                alpha[:, State.D, j, i] = torch.logsumexp(
                     torch.stack(
                         (
-                            a[:, j - 1, Transition.M2D] + F[:, State.M, j - 1, i],
+                            a[:, j - 1, Transition.M2D] + alpha[:, State.M, j - 1, i],
                             # REMOVED I-to-D transition
                             # a[:, j - 1, Transition.I2D] +
-                            # F[:, State.I, j - 1, i],
-                            a[:, j - 1, Transition.D2D] + F[:, State.D, j - 1, i],
+                            # alpha[:, State.I, j - 1, i],
+                            a[:, j - 1, Transition.D2D] + alpha[:, State.D, j - 1, i],
                         )
                     ),
                     dim=0,
                 )
 
     # final I->M transition
-    F[:, State.M, motif_len, random_len] += a[:, motif_len, Transition.M2M]
-    F[:, State.I, motif_len, random_len] += a[:, motif_len, Transition.I2M]
-    F[:, State.D, motif_len, random_len] += a[:, motif_len, Transition.D2M]
+    alpha[:, State.M, motif_len, random_len] += a[:, motif_len, Transition.M2M]
+    alpha[:, State.I, motif_len, random_len] += a[:, motif_len, Transition.I2M]
+    alpha[:, State.D, motif_len, random_len] += a[:, motif_len, Transition.D2M]
 
     if force_matching:
         force_loss = (
@@ -111,9 +114,10 @@ def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
             + torch.sum((match_cost - 1) * a[:, :, Transition.M2M], dim=1).mean()
         )
         return (
-            -force_loss - torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
+            -force_loss
+            - torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
         )
-    return -torch.logsumexp(F[:, :, motif_len, random_len], dim=1).mean()
+    return -torch.logsumexp(alpha[:, :, motif_len, random_len], dim=1).mean()
 
 
 def profile_hmm_loss_fn(
@@ -205,14 +209,14 @@ def torch_multi_polytope_dp_log(
     model_length = emission_proba.shape[1]
     batch_size, string_length = output.shape
 
-    F = (
+    alpha = (
         torch.ones(
             size=(batch_size, 3, model_length + string_length + 1, string_length + 1),
             device=output.device,
         )
         * -200
     )
-    F[:, State.M, 0, 0] = 0
+    alpha[:, State.M, 0, 0] = 0
     log4 = torch.Tensor([4]).log().to(output.device)
     arange = torch.arange(
         start=0, end=model_length + string_length + 1, device=output.device
@@ -226,13 +230,13 @@ def torch_multi_polytope_dp_log(
                     string_length + 1, model_index_pre
                 )
             ]
-            F[:, State.M, model_index_pre, m_slice] = torch.gather(
+            alpha[:, State.M, model_index_pre, m_slice] = torch.gather(
                 emission_proba[:, model_index_pre - m_slice - 1],
                 2,
                 output[:, m_slice - 1, None],
             ).reshape(batch_size, len(m_slice)) + torch.logsumexp(
                 transition_proba[:, :, State.M, model_index_pre - m_slice - 1]
-                + F[:, :, model_index_pre - 2, m_slice - 1],
+                + alpha[:, :, model_index_pre - 2, m_slice - 1],
                 axis=1,
             )
 
@@ -244,10 +248,10 @@ def torch_multi_polytope_dp_log(
                     string_length + 1, model_index_pre + 1
                 )
             ]
-            F[:, State.I, model_index_pre, i_slice] = (
+            alpha[:, State.I, model_index_pre, i_slice] = (
                 torch.logsumexp(
                     transition_proba[:, :, State.I, model_index_pre - i_slice]
-                    + F[:, :, model_index_pre - 1, i_slice - 1],
+                    + alpha[:, :, model_index_pre - 1, i_slice - 1],
                     axis=1,
                 )
                 - log4
@@ -261,15 +265,15 @@ def torch_multi_polytope_dp_log(
                     string_length + 1, model_index_pre
                 )
             ]
-            F[:, State.D, model_index_pre, d_slice] = torch.logsumexp(
+            alpha[:, State.D, model_index_pre, d_slice] = torch.logsumexp(
                 transition_proba[:, :, State.D, model_index_pre - d_slice - 1]
-                + F[:, :, model_index_pre - 1, d_slice],
+                + alpha[:, :, model_index_pre - 1, d_slice],
                 axis=1,
             )
     if force_matching:
         return (
             -torch.logsumexp(
-                F[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
+                alpha[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
             ).mean()
             - np.log((match_cost + 1) * match_cost / 2)
             - torch.sum(
@@ -277,7 +281,7 @@ def torch_multi_polytope_dp_log(
             ).mean()
         )
     return -torch.logsumexp(
-        F[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
+        alpha[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
     ).mean()
 
 

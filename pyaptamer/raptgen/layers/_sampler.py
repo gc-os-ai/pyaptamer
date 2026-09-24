@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import torch
 
-from pyaptamer.raptgen.layers._utils import State, Transition, one_hot_index
+from pyaptamer.raptgen.layers._utils import State, Transition, seq_to_indices
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,19 @@ class ProfileHMMSampler:
     def sample(self, sequence_only=False, debug=False):
         """
         Randomly samples a sequence by going over the profile HMM's states.
+        Parameters
+        ----------
+        sequence_only : bool, optional, default=False
+                    If True, return only the generated sequence string. If False,
+                    also return the full list of (position, state) pairs visited.
+
+        Returns
+        -------
+        states : list of (int, State), only if sequence_only=False
+                    The (position, state) pair visited at each step of the walk.
+        seq : str
+                The generated skeleton sequence, with "_" for deletions and
+                "N" for insertions.
         """
         idx, state = (0, State.M)
         states = [(idx, state)]
@@ -95,8 +108,6 @@ class ProfileHMMSampler:
                 break
 
             if state == State.M:
-                # logger.info("{:.2f}, {:.2f}, {:.2f}, {:.2f}".format(*self.e[idx-1]))
-
                 seq += np.random.choice(list("ATGC"), p=self.e[idx - 1])
                 if debug:
                     logger.info(idx, state, self.e[idx - 1], seq[-1])
@@ -111,12 +122,33 @@ class ProfileHMMSampler:
 
     def most_probable(self, sequence_only=False):
         """
-        Generate the most likely sequence through the profile HMM.
+        Generate a greedy step-wise sequence through the profile HMM.
+        At each step , the next state (I/M/D) is chosen via argmax over the model
+        transition probabilities (self.a).
+        The returned sequence is the skeleton of the state to be selected but not
+        the nucleotide to insert in case of insert state.
+        Parameters
+        ----------
+        sequence_only : bool, optional, default=False
+            If True, return only the generated sequence string. If False,
+            also return the full list of (position, state) pairs visited.
+
+        Returns
+        -------
+        states : list of (int, State), only if sequence_only=False
+            The (position, state) pair visited at each step of the walk.
+        seq : str
+            The generated skeleton sequence, with "_" for deletions and
+            "N" for insertions.
+
         """
+        model_len = self.a.shape[0] - 1
+        max_steps = 3 * model_len
         idx, state = (0, State.M)
         states = [(idx, state)]
         seq = ""
-        while True:
+
+        for _ in range(max_steps):
             if state == State.M:
                 p = self.a[idx][
                     np.array(
@@ -127,18 +159,21 @@ class ProfileHMMSampler:
                         ]
                     )
                 ]
+                state = State(np.argmax(p))
             elif state == State.I:
-                p = [self.a[idx][Transition.I2M.value], 0, 0]
+                state = State.M
             elif state == State.D:
-                p = [
-                    self.a[idx][Transition.D2M.value],
-                    0,
-                    self.a[idx][Transition.D2D.value],
-                ]
+                p = np.array(
+                    [
+                        self.a[idx][Transition.D2M.value],
+                        0,
+                        self.a[idx][Transition.D2D.value],
+                    ]
+                )
+                state = State(np.argmax(p))
             else:
                 logger.info("something wrong")
-            p[np.argmax(p)] += 1000000
-            state = np.random.choice([State.M, State.I, State.D], p=p / sum(p))
+
             if state != State.I:
                 idx += 1
             states.append((idx, state))
@@ -147,14 +182,16 @@ class ProfileHMMSampler:
                 break
 
             if state == State.M:
-                # logger.info("{:.2f}, {:.2f}, {:.2f}, {:.2f}".format(*self.e[idx-1]))
-                p = np.copy(self.e[idx - 1])
-                p[np.argmax(p)] += 100000
-                seq += np.random.choice(list("ATGC"), p=p / sum(p))
+                seq += "ATGC"[np.argmax(self.e[idx - 1])]
             elif state == State.I:
                 seq += "N"
             else:
                 seq += "_"
+        else:
+            raise RuntimeError(
+                f"most_probable() did not terminate within {max_steps} steps"
+            )
+
         if not sequence_only:
             return states, seq
         else:
@@ -162,9 +199,21 @@ class ProfileHMMSampler:
 
     def calc_seq_proba(self, seq: str):
         """
-        Compute the log-probability that this profile HMM generates the given seq.
+        Score a complete nucleotide sequence under this profile HMM, via
+        the forward algorithm, used to chose the most probable sequence
+        from a set of generated candidates.
+        Parameters
+        ----------
+        seq : str
+            A complete A/T/G/C sequence to score.
+
+        Returns
+        -------
+        log_proba : Tensor
+            The log-probability the model assigns to `seq`, computed via
+            the profile HMM forward algorithm.
         """
-        one_hot_seq = torch.tensor(one_hot_index(seq))
+        one_hot_seq = torch.tensor(seq_to_indices(seq))
         model_len = self.e.shape[0]
         random_len = len(seq)
 

@@ -1,14 +1,12 @@
 """Utility functions and classes for RaptGen layers"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["View", "nt_index", "State", "Transition"]
+__all__ = ["nt_index", "State", "Transition", "seq_to_indices"]
 
 from enum import IntEnum
 
-from torch import nn
 
-
-def one_hot_index(seq):
+def seq_to_indices(seq):
     """Convert a nucleotide sequence string into a list of integer indices."""
     return [int(nt_index[char]) for char in seq]
 
@@ -44,21 +42,3 @@ class Transition(IntEnum):
     I2I = 4
     D2M = 5
     D2D = 6
-
-
-class View(nn.Module):
-    """
-    Helper class for nn.Sequential.
-    Reshapes input tensor to a given shape.
-    Attributes
-    ----------
-    shape : tuple
-      Target shape to reshape input to.
-    """
-
-    def __init__(self, shape):
-        super().__init__()
-        self.shape = (shape,)
-
-    def forward(self, x):
-        return x.view(*self.shape)
