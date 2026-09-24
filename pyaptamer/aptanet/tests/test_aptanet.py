@@ -4,6 +4,7 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from sklearn.dummy import DummyClassifier
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
@@ -162,3 +163,13 @@ def test_sklearn_compatible_estimator(estimator, check):
     Run scikit-learn's compatibility checks on the AptaNetClassifier.
     """
     check(estimator)
+
+
+@pytest.mark.parametrize("estimator", [AptaNetClassifier(), AptaNetRegressor()])
+def test_fit_leaves_global_torch_rng_untouched(estimator):
+    """fit with random_state does not change the global Torch RNG state."""
+    X = np.random.default_rng(0).random((40, 10)).astype(np.float32)
+    y = (np.arange(40) >= 20).astype(np.float32)
+    before = torch.get_rng_state()
+    estimator.set_params(random_state=0, max_epochs=1).fit(X, y)
+    assert torch.equal(before, torch.get_rng_state())
