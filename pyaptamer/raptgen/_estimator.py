@@ -3,7 +3,7 @@
 __author__ = ["NoorMajdoub"]
 __all__ = ["RaptGenModel"]
 
-
+import itertools
 import numpy as np
 import torch
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -11,7 +11,6 @@ from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.raptgen._model import CNN_PHMM_VAE, CNN_PHMM_VAE_FAST
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
-
 
 class RaptGenModel(BaseEstimator, TransformerMixin):
     """
@@ -27,11 +26,6 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     ----------
     motif_len : int, optional, default=12
         Length of the profile HMM template the decoder reconstructs against.
-        Input sequences passed to `fit`/`transform` do not need to be exactly
-        this length -- the profile HMM's Match/Insert/Delete states are what
-        let it align variable-length input against a fixed-length template.
-        They must, however, all be the *same* length as each other within a
-        single call, since they are batched into one tensor.
     embed_size : int, optional, default=10
         Dimensionality of the latent space.
     hidden_size : int, optional, default=32
@@ -42,40 +36,25 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         If True, use `CNN_PHMM_VAE_FAST` (faster decoder/loss) instead of
         `CNN_PHMM_VAE`.
     epochs : int, optional, default=1000
-        Maximum number of training epochs (early stopping usually ends
-        training sooner).
+        Maximum number of training epochs.
     batch_size : int, optional, default=64
         Minibatch size used during training.
     lr : float, optional, default=1e-3
         Learning rate for the Adam optimizer.
     validation_fraction : float, optional, default=0.1
         Fraction of `X` held out each `fit` call to drive early stopping.
-        Not present in the reference CLI (which takes pre-split loaders from
-        its own data-loading classes); this pipeline splits `X` internally
-        so `fit(X, y=None)` can stay a single call per the pipeline API.
     threshold : int, optional, default=50
-        Early-stopping patience: training stops if validation loss hasn't
-        improved for this many epochs. Also doubles as the beta-annealing
-        duration when `beta_schedule=True`, matching the reference
-        implementation.
-    beta_schedule : bool, optional, default=True
-        If True, linearly ramp the KL-divergence weight from 0 to `beta`
-        over the first `threshold` epochs instead of using `beta` from the
-        start.
+        Early-stopping patience.
+    beta_schedule : bool, optional, default=True.
     beta : float, optional, default=1.0
         Weight of the KL-divergence term in the VAE loss, used once past
         the annealing period (or throughout, if `beta_schedule=False`).
     force_matching : bool, optional, default=True
-        If True, apply profile-HMM "force matching" regularization (biases
-        the model toward Match transitions early in training) for the first
-        `force_epochs` epochs. Applied to the training loss only, never to
-        validation loss, matching the reference implementation.
+        If True, apply profile-HMM "force matching" regularization.
     force_epochs : int, optional, default=50
-        Number of epochs to apply `force_matching` for, with its
-        `match_cost` linearly decaying from 5 to 1 over this span.
+        Number of epochs to apply `force_matching` for.
     device : str or None, optional, default=None
-        Torch device to train/run on. If None, uses CUDA when available,
-        otherwise CPU.
+        Torch device to train/run on. 
     random_state : int or None, optional, default=None
         Seed for torch's RNG, for reproducible training/generation.
 
@@ -247,15 +226,18 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         return mu.cpu().numpy()
 
     def inverse_transform(self, Z, most_likely=True):
-        """Generate sequences from latent-space points.
+        """Generate full sequences from latent-space points.
 
         Parameters
         ----------
         Z : array of shape (n_points, embed_size)
             Latent-space points.
         most_likely : bool, optional, default=True
-            Sampling strategy.
-
+            To specify the sampling strategy.
+        Returns
+        -------
+        sequences : list of str
+            One fully-decoded sequence per latent-space point in `Z`.
         """
         check_is_fitted(self, "model_")
         self.model_.eval()
@@ -272,8 +254,51 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
                 proba_is_log=True,
             )
             if most_likely:
-                seq = sampler.most_probable(sequence_only=True)
+                seq = self._decode_most_probable(sampler) #most probable is called in decode_most_probable, seq will be the direct full sequence 
             else:
-                seq = sampler.sample(sequence_only=True)
+                seq = sampler.sample(sequence_only=True)  #sample alreadyreturn the full sequence 
             sequences.append(seq)
         return sequences
+    def _decode_most_probable(self, sampler, eval_max=256):
+            """
+            Turn most_probable()'s raw skeleton into a final, fully-decoded
+            sequence.
+
+            most_probable() leaves "_" for deletions and "N" for insertions
+            (since the model has no letter preference at insert positions).
+            This strips the deletions, tries every possible real nucleotide
+            combination for the insert wildcards, scores each complete
+            candidate with calc_seq_proba, and keeps the best-scoring one.
+
+            Parameters
+            ----------
+            sampler : ProfileHMMSampler
+                The sampler to generate and score candidates with.
+            eval_max : int, optional, default=256
+                Number of possible generated candidates.
+
+            Returns
+            -------
+            best_seq : str
+                The highest-scoring fully-decoded candidate sequence.
+            """
+            skeleton = sampler.most_probable(sequence_only=True) 
+            pattern = skeleton.replace("_", "").replace("N", "*")
+
+            n_wildcards = pattern.count("*")
+            all_combos = list(itertools.product("ATGC", repeat=n_wildcards))
+
+            if len(all_combos) > eval_max: #if too many combinations, sample a subset of them
+                idx = np.random.choice(len(all_combos), size=eval_max, replace=False)
+                all_combos = [all_combos[i] for i in idx]
+
+            candidates = []
+            for combo in all_combos:
+                combo_iter = iter(combo)
+                candidates.append(
+                    "".join(next(combo_iter) if ch == "*" else ch for ch in pattern)
+                )
+
+            scored = [(c, sampler.calc_seq_proba(c)) for c in candidates]
+            best_seq, _ = max(scored, key=lambda x: x[1]) #reutnr just the best candidate
+            return best_seq
