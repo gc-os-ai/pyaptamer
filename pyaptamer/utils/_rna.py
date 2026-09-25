@@ -219,35 +219,47 @@ def encode_rna(
     if isinstance(sequences, str):
         sequences = [sequences]
 
+    import re
+    valid_words = [w for w in words.keys() if len(w) <= word_max_len]
+    valid_words.sort(key=len, reverse=True)
+    
+    if valid_words:
+        pattern = re.compile("|".join(map(re.escape, valid_words)))
+    else:
+        pattern = None
+
     encoded_sequences = []
     for seq in sequences:
         tokens = []
-        i = 0
-
-        while i < len(seq):
-            # try to match the longest possible pattern first
-            matched = False
-            for pattern_len in range(min(word_max_len, len(seq) - i), 0, -1):
-                pattern = seq[i : i + pattern_len]
-                if pattern in words:
-                    tokens.append(words[pattern])
-                    i += pattern_len
-                    matched = True
+        last_end = 0
+        
+        if pattern:
+            for match in pattern.finditer(seq):
+                skipped = match.start() - last_end
+                if skipped > 0:
+                    tokens.extend([0] * skipped)
+                
+                if len(tokens) >= max_len:
                     break
-
-            # if no pattern matched, use unknown token (0) and advance by 1
-            if not matched:
-                tokens.append(0)
-                i += 1
-
-            # stop if we've reached max_len tokens
-            if len(tokens) >= max_len:
-                tokens = tokens[:max_len]
-                break
-
-        # pad sequence to max_len
-        padded_tokens = tokens + [0] * (max_len - len(tokens))
-        encoded_sequences.append(padded_tokens)
+                    
+                tokens.append(words[match.group()])
+                last_end = match.end()
+                
+                if len(tokens) >= max_len:
+                    break
+                    
+        # add remaining 0s for skipped characters at the end
+        if len(tokens) < max_len:
+            skipped = len(seq) - last_end
+            if skipped > 0:
+                tokens.extend([0] * skipped)
+                
+        # truncate or pad to exactly max_len
+        tokens = tokens[:max_len]
+        if len(tokens) < max_len:
+            tokens.extend([0] * (max_len - len(tokens)))
+            
+        encoded_sequences.append(tokens)
 
     # convert to numpy array first
     result = np.array(encoded_sequences, dtype=np.int64)
