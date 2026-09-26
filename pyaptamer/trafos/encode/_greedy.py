@@ -39,6 +39,11 @@ class GreedyEncoder(BaseTransform):
         Maximum length of words to consider during tokenization.
         If None, defaults to the length of the longest word in ``words``.
 
+    Raises
+    ------
+    ValueError
+        If ``words`` is empty.
+
     Examples
     --------
     >>> from pyaptamer.trafos.encode import GreedyEncoder
@@ -65,6 +70,8 @@ class GreedyEncoder(BaseTransform):
         max_len: int = None,
         word_max_len: int = None,
     ):
+        if not words:
+            raise ValueError("`words` must not be empty.")
         self.words = words
         self.max_len = max_len
         self.word_max_len = word_max_len
