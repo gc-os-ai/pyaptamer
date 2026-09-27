@@ -21,8 +21,9 @@ class AptaDiffGenerator(BaseEstimator):
         transformer_type="native",
         max_epochs=1000,
         batch_size=32,
+        optimizer_name="adam",
+        optimizer_kwargs=None,
         lr=1e-4,
-        betas=(0.9, 0.999),
         gamma=0.99,
         accumulate_grad_batches=1,
         validation_fraction=0.1,
@@ -42,8 +43,9 @@ class AptaDiffGenerator(BaseEstimator):
         self.transformer_type = transformer_type
         self.max_epochs = max_epochs
         self.batch_size = batch_size
+        self.optimizer_name = optimizer_name
+        self.optimizer_kwargs = optimizer_kwargs
         self.lr = lr
-        self.betas = betas
         self.gamma = gamma
         self.accumulate_grad_batches = accumulate_grad_batches
         self.validation_fraction = validation_fraction
