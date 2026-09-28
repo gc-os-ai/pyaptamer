@@ -30,9 +30,8 @@ class APIDataset(Dataset):
         sequences.
     split : str, optional, default="train"
         If "train", the dataset will augment aptamer sequences by adding their
-        reverse complements. If "test", the dataset will not augment the aptamer
+        reversed sequences. If "test", the dataset will not augment the aptamer
         sequences.
-        complements.
     """
 
     def __init__(
@@ -67,8 +66,8 @@ class APIDataset(Dataset):
         split: str,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Prepare the data by augmenting aptamer sequences with their reverse complements
-        and transforming them to vector numericla representations.
+        Prepare the data by augmenting aptamer sequences with their reversed sequences
+        and transforming them to vector numerical representations.
 
         Parameters
         ----------
@@ -78,9 +77,9 @@ class APIDataset(Dataset):
             Protein sequences.
         y : np.ndarray
             Laabels for the interactions.
-        split : bool
-            If True, the dataset will augment aptamer sequences by adding their reverse
-            complements.
+        split : str
+            If "train", the dataset will augment aptamer sequences by adding
+            their reversed sequences.
         """
         if split == "train":
             x_apta = augment_reverse(x_apta)[0]

@@ -3,7 +3,8 @@ __author__ = "rpgv"
 import pytest
 from pandas import DataFrame
 
-from pyaptamer.datasets import load_aptacom_full, load_aptacom_x_y
+from pyaptamer.data.loader import MoleculeLoader
+from pyaptamer.datasets import load_aptacom, load_aptacom_full
 
 
 @pytest.mark.parametrize(
@@ -32,11 +33,12 @@ def test_load_aptacom_full(select_columns):
 
 
 @pytest.mark.parametrize("return_X_y", [True, False])
-def test_download_aptacom_x_y(return_X_y):
-    """
-    The test_download_aptacom function
-    """
-    dataset = load_aptacom_x_y(return_X_y)
-    if not isinstance(dataset, tuple | DataFrame):
-        raise ValueError(f"""Dataset format {type(dataset)} 
-            is not X, y tuple or DataFrame""")
+def test_load_aptacom(return_X_y):
+    """x_y returns a MoleculeLoader for molecule data; y stays a DataFrame."""
+    result = load_aptacom(return_X_y)
+    if return_X_y:
+        X, y = result
+        assert isinstance(X, MoleculeLoader)
+        assert isinstance(y, DataFrame)
+    else:
+        assert isinstance(result, MoleculeLoader)

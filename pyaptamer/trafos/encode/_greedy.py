@@ -1,5 +1,7 @@
 """Base transformation class."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -42,11 +44,11 @@ class GreedyEncoder(BaseTransform):
     >>> from pyaptamer.trafos.encode import GreedyEncoder
     >>> from pyaptamer.datasets import load_1gnh
     >>>
-    >>> data = load_1gnh()
+    >>> data = load_1gnh(tiling="samples")
     >>> words = {"QT": 1, "QTA": 2, "S": 3, "G": 4}
     >>>
     >>> encoder = GreedyEncoder(words=words, max_len=5, word_max_len=2)
-    >>> encoded_data = encoder.fit_transform(data.to_df_seq())
+    >>> encoded_data = encoder.fit_transform(data)
     """
 
     _tags = {
@@ -116,6 +118,11 @@ class GreedyEncoder(BaseTransform):
                 # stop if we've reached max_len tokens
                 if max_len is not None and len(tokens) >= max_len:
                     tokens = tokens[:max_len]
+                    warnings.warn(
+                        "One or more sequence exceeds maximum length and was truncted ",
+                        UserWarning,
+                        stacklevel=2,
+                    )
                     break
 
             encoded_seqs.append(tokens)
@@ -132,7 +139,8 @@ class GreedyEncoder(BaseTransform):
 
         return result_df
 
-    def get_test_params(self):
+    @classmethod
+    def get_test_params(cls):
         """Get test parameters for GreedyEncoder.
 
         Returns

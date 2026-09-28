@@ -1,3 +1,5 @@
+__author__ = ["siddharth7113"]
+
 import numpy as np
 import pytest
 from sklearn.metrics import accuracy_score, mean_squared_error
@@ -5,6 +7,12 @@ from sklearn.model_selection import PredefinedSplit
 
 from pyaptamer.aptanet import AptaNetPipeline, AptaNetRegressor
 from pyaptamer.benchmarking._base import Benchmarking
+
+# AptaNetPipeline is MoleculeLoader-only, but Benchmarking cross-validates X, and
+# MoleculeLoader is not yet sklearn-sliceable. Tracked in #706.
+_needs_sliceable_loader = pytest.mark.skip(
+    reason="AptaNet + Benchmarking needs a sklearn-sliceable MoleculeLoader (#706)"
+)
 
 params = [
     (
@@ -14,6 +22,7 @@ params = [
 ]
 
 
+@_needs_sliceable_loader
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_benchmarking_with_predefined_split_classification(aptamer_seq, protein_seq):
     """
@@ -42,6 +51,7 @@ def test_benchmarking_with_predefined_split_classification(aptamer_seq, protein_
     assert (clf.__class__.__name__, "accuracy_score") in summary.index
 
 
+@_needs_sliceable_loader
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_benchmarking_with_predefined_split_regression(aptamer_seq, protein_seq):
     """

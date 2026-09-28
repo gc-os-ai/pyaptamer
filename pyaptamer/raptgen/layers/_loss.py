@@ -3,20 +3,16 @@
 __author__ = ["NoorMajdoub"]
 __all__ = [
     "kld_loss",
-    "ce_loss",
     "profile_hmm_loss",
     "profile_hmm_loss_fn",
     "profile_hmm_loss_fn_fast",
     "torch_multi_polytope_dp_log",
-    "multi_categorical_loss_fn",
-    "end_padded_multi_categorical_loss_fn",
 ]
 
 import logging
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from pyaptamer.raptgen.layers._utils import State, Transition
 
@@ -29,14 +25,6 @@ def kld_loss(mu, logvar):
     """
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / mu.shape[0]
     return KLD
-
-
-def ce_loss(recon_param, input):
-    """
-    Compute cross-entropy reconstruction loss.
-    """
-    CE = F.cross_entropy(recon_param, input, reduction="sum") / input.shape[0]
-    return CE
 
 
 def profile_hmm_loss(recon_param, input, force_matching=False, match_cost=5):
@@ -132,7 +120,7 @@ def profile_hmm_loss_fn(
     match_cost=5,
 ):
     """
-    Combined VAE training loss for `CNN_PHMM_VAE`.
+    Combined VAE training loss for `CNNPHMMVAE`.
     """
     phmmloss = profile_hmm_loss(
         recon_param, input, force_matching=force_matching, match_cost=match_cost
@@ -158,7 +146,7 @@ def profile_hmm_loss_fn_fast(
     match_cost=5,
 ):
     """
-    Combined VAE training loss for `CNN_PHMM_VAE_FAST`.
+    Combined VAE training loss for `CNNPHMMVAEFast`.
     """
     phmmloss = torch_multi_polytope_dp_log(
         *recon_param, input, force_matching, match_cost
@@ -283,33 +271,3 @@ def torch_multi_polytope_dp_log(
     return -torch.logsumexp(
         alpha[:, :, -1, -1] + transition_proba[:, :, State.M, -1], axis=1
     ).mean()
-
-
-def end_padded_multi_categorical_loss_fn(
-    input, recon_param, mu, logvar, debug=False, test=False, beta=1
-):
-    from pyaptamer.raptgen.layers._utils import nt_index
-
-    loss = multi_categorical_loss_fn(
-        F.pad(input, (0, 1), "constant", nt_index.EOS),
-        recon_param,
-        mu,
-        logvar,
-        debug,
-        test,
-        beta,
-    )
-    return loss
-
-
-def multi_categorical_loss_fn(
-    input, recon_param, mu, logvar, debug=False, test=False, beta=1
-):
-    ce = ce_loss(recon_param, input)
-    kld = kld_loss(mu, logvar)
-
-    if debug:
-        logger.info(f"ce={ce:.2f}, kld={kld:.2f}")
-    if test:
-        return ce.item(), kld.item()
-    return ce + beta * kld

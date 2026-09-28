@@ -10,7 +10,7 @@ import torch
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_is_fitted
 
-from pyaptamer.raptgen._model import CNN_PHMM_VAE, CNN_PHMM_VAE_FAST
+from pyaptamer.raptgen._model import CNNPHMMVAE, CNNPHMMVAEFast
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
 
 
@@ -18,7 +18,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     """
     RaptGen algorithm for unsupervised aptamer sequence generation.
 
-    Wraps `CNN_PHMM_VAE` (or its faster variant, `CNN_PHMM_VAE_FAST`) in a
+    Wraps `CNNPHMMVAE` (or its faster variant, `CNNPHMMVAEFast`) in a
     sklearn-style estimator.
     Generation works by taking a point in latent space,
     decoding it into profile HMM transition and emission
@@ -35,8 +35,8 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     kernel_size : int, optional, default=7
         Convolution kernel size used by the CNN encoder. Must be odd.
     fast : bool, optional, default=False
-        If True, use `CNN_PHMM_VAE_FAST` (faster decoder/loss) instead of
-        `CNN_PHMM_VAE`.
+        If True, use `CNNPHMMVAEFast` (faster decoder/loss) instead of
+        `CNNPHMMVAE`.
     epochs : int, optional, default=1000
         Maximum number of training epochs.
     batch_size : int, optional, default=64
@@ -62,7 +62,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
 
     Attributes
     ----------
-    model_ : CNN_PHMM_VAE or CNN_PHMM_VAE_FAST
+    model_ : CNNPHMMVAE or CNNPHMMVAEFast
         The fitted VAE model, holding the best-validation-loss weights seen
         during training (not necessarily the final epoch's). Only present
         after calling `fit`.
@@ -110,7 +110,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         """Helper function to instantiate an untrained VAE
         matching this pipeline's params.
         """
-        model_cls = CNN_PHMM_VAE_FAST if self.fast else CNN_PHMM_VAE
+        model_cls = CNNPHMMVAEFast if self.fast else CNNPHMMVAE
         return model_cls(
             motif_len=self.motif_len,
             embed_size=self.embed_size,

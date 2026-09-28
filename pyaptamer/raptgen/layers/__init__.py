@@ -2,12 +2,12 @@
 
 __author__ = ["NoorMajdoub"]
 __all__ = [
-    "Inverted_Bottleneck",
+    "InvertedBottleneck",
     "EncoderCNN",
     "DecoderPHMM",
-    "DecoderPHMM_fast",
+    "DecoderPHMMFast",
     "ProfileHMMSampler",
-    "nt_index",
+    "NucleotideIndex",
     "State",
     "Transition",
     "profile_hmm_loss",
@@ -17,8 +17,8 @@ __all__ = [
     "kld_loss",
 ]
 
-from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
-from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast
+from pyaptamer.raptgen.layers._conv import InvertedBottleneck
+from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMMFast
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import (
     kld_loss,
@@ -28,4 +28,4 @@ from pyaptamer.raptgen.layers._loss import (
     torch_multi_polytope_dp_log,
 )
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
-from pyaptamer.raptgen.layers._utils import State, Transition, nt_index
+from pyaptamer.raptgen.layers._utils import NucleotideIndex, State, Transition

@@ -14,12 +14,13 @@ logger = logging.getLogger(__name__)
 
 class ProfileHMMSampler:
     """
-    Sampler class for generation of aptamer sequences from the dcoder hmm probabilites
+    Sampler for aptamer sequences from the decoder's profile HMM probabilities.
+
     Takes the transition and emission probabilities produced by
-    `DecoderPHMM` and uses them to generate concrete A/T/G/C sequences.
-    Generation mechanisms are random sampling or the most likely path through the model.
-    Supports scoring how well a given sequence fits the model via the
-    profile HMM forward algorithm.
+    `DecoderPHMM` and uses them to generate concrete A/T/G/C sequences,
+    either by random sampling or by a greedy walk through the model.
+    Also scores a given sequence under the model via the profile HMM
+    forward algorithm.
 
     Parameters
     ----------
@@ -30,15 +31,16 @@ class ProfileHMMSampler:
 
     proba_is_log : bool, optional, default=False
         If True, `transition_proba`/`emission_proba` are given as
-        log-probabilities ( when recieved directly from the decoder).
-    Attributes:
+        log-probabilities, as received directly from the decoder.
+
+    Attributes
     ----------
     e : ndarray
-        Emission probabilites,stored as non-log probabilities and
+        Emission probabilities, stored as non-log probabilities and
         exponentiated if `proba_is_log` is True.
         Always renormalized so each row sums to 1.
     a : ndarray
-        Transition probabilities.stored as non-log probabilities and
+        Transition probabilities, stored as non-log probabilities and
         exponentiated if `proba_is_log` is True.
     """
 
@@ -52,20 +54,24 @@ class ProfileHMMSampler:
 
     def sample(self, sequence_only=False, debug=False):
         """
-        Randomly samples a sequence by going over the profile HMM's states.
+        Randomly sample a sequence by walking the profile HMM's states.
+
         Parameters
         ----------
         sequence_only : bool, optional, default=False
-                    If True, return only the generated sequence string. If False,
-                    also return the full list of (position, state) pairs visited.
+            If True, return only the generated sequence string. If False,
+            also return the full list of (position, state) pairs visited.
+        debug : bool, optional, default=False
+            If True, log the position, state, emission row and emitted
+            nucleotide at every match step.
 
         Returns
         -------
         states : list of (int, State), only if sequence_only=False
-                    The (position, state) pair visited at each step of the walk.
+            The (position, state) pair visited at each step of the walk.
         seq : str
-                The generated skeleton sequence, with "_" for deletions and
-                "N" for insertions.
+            The generated sequence. Matched nucleotides are upper case,
+            inserted nucleotides are lower case, deletions are "_".
         """
         idx, state = (0, State.M)
         states = [(idx, state)]
@@ -110,7 +116,7 @@ class ProfileHMMSampler:
             if state == State.M:
                 seq += np.random.choice(list("ATGC"), p=self.e[idx - 1])
                 if debug:
-                    logger.info(idx, state, self.e[idx - 1], seq[-1])
+                    logger.info("%d %s %s %s", idx, state, self.e[idx - 1], seq[-1])
             elif state == State.I:
                 seq += np.random.choice(list("atgc"))
             else:
@@ -122,11 +128,12 @@ class ProfileHMMSampler:
 
     def most_probable(self, sequence_only=False):
         """
-        Generate a greedy step-wise sequence through the profile HMM.
-        At each step , the next state (I/M/D) is chosen via argmax over the model
-        transition probabilities (self.a).
-        The returned sequence is the skeleton of the state to be selected but not
-        the nucleotide to insert in case of insert state.
+        Generate a sequence by a greedy step-wise walk through the profile HMM.
+
+        At each step the next state (M/I/D) is the argmax over the transition
+        probabilities in `self.a`. This is a greedy walk, not the Viterbi path.
+        Match states emit the argmax nucleotide, insert states emit "N".
+
         Parameters
         ----------
         sequence_only : bool, optional, default=False
@@ -140,10 +147,8 @@ class ProfileHMMSampler:
         seq : str
             The generated skeleton sequence, with "_" for deletions and
             "N" for insertions.
-
         """
-        model_len = self.a.shape[0] - 1
-        max_steps = 3 * model_len
+        max_steps = 2 * self.a.shape[0]
         idx, state = (0, State.M)
         states = [(idx, state)]
         seq = ""
@@ -199,13 +204,16 @@ class ProfileHMMSampler:
 
     def calc_seq_proba(self, seq: str):
         """
-        Score a complete nucleotide sequence under this profile HMM, via
-        the forward algorithm, used to chose the most probable sequence
-        from a set of generated candidates.
+        Score a complete nucleotide sequence under this profile HMM.
+
+        Runs the forward algorithm, summing over all state paths that can
+        produce `seq`. Use it to rank generated candidates.
+
         Parameters
         ----------
         seq : str
-            A complete A/T/G/C sequence to score.
+            A complete A/T/G/C sequence to score. Case is ignored, so the
+            output of `sample` can be passed directly.
 
         Returns
         -------
@@ -213,28 +221,30 @@ class ProfileHMMSampler:
             The log-probability the model assigns to `seq`, computed via
             the profile HMM forward algorithm.
         """
-        one_hot_seq = torch.tensor(seq_to_indices(seq))
+        one_hot_seq = torch.tensor(seq_to_indices(seq.upper()))
         model_len = self.e.shape[0]
         random_len = len(seq)
 
         e = np.log(self.e)
         a = np.log(self.a)
 
-        F = torch.ones((3, model_len + 2, random_len + 1)) * (-100)
+        alpha = torch.ones((3, model_len + 2, random_len + 1)) * (-100)
 
         # init
-        F[0, 0, 0] = 0
+        alpha[0, 0, 0] = 0
 
         for i in range(random_len + 1):
             for j in range(model_len + 1):
                 # State M
                 if j * i != 0:
-                    F[State.M, j, i] = e[j - 1][one_hot_seq[i - 1]] + torch.logsumexp(
+                    alpha[State.M, j, i] = e[j - 1][
+                        one_hot_seq[i - 1]
+                    ] + torch.logsumexp(
                         torch.stack(
                             (
-                                a[j - 1, Transition.M2M] + F[State.M, j - 1, i - 1],
-                                a[j - 1, Transition.I2M] + F[State.I, j - 1, i - 1],
-                                a[j - 1, Transition.D2M] + F[State.D, j - 1, i - 1],
+                                a[j - 1, Transition.M2M] + alpha[State.M, j - 1, i - 1],
+                                a[j - 1, Transition.I2M] + alpha[State.I, j - 1, i - 1],
+                                a[j - 1, Transition.D2M] + alpha[State.D, j - 1, i - 1],
                             )
                         ),
                         dim=0,
@@ -242,11 +252,11 @@ class ProfileHMMSampler:
 
                 # State I
                 if i != 0:
-                    F[State.I, j, i] = -1.3863 + torch.logsumexp(
+                    alpha[State.I, j, i] = -1.3863 + torch.logsumexp(
                         torch.stack(
                             (
-                                a[j, Transition.M2I] + F[State.M, j, i - 1],
-                                a[j, Transition.I2I] + F[State.I, j, i - 1],
+                                a[j, Transition.M2I] + alpha[State.M, j, i - 1],
+                                a[j, Transition.I2I] + alpha[State.I, j, i - 1],
                             )
                         ),
                         dim=0,
@@ -254,25 +264,28 @@ class ProfileHMMSampler:
 
                 # State D
                 if j != 0:
-                    F[State.D, j, i] = torch.logsumexp(
+                    alpha[State.D, j, i] = torch.logsumexp(
                         torch.stack(
                             (
-                                a[j - 1, Transition.M2D] + F[State.M, j - 1, i],
-                                a[j - 1, Transition.D2D] + F[State.D, j - 1, i],
+                                a[j - 1, Transition.M2D] + alpha[State.M, j - 1, i],
+                                a[j - 1, Transition.D2D] + alpha[State.D, j - 1, i],
                             )
                         ),
                         dim=0,
                     )
 
-        F[State.M, model_len + 1, random_len] = torch.logsumexp(
+        alpha[State.M, model_len + 1, random_len] = torch.logsumexp(
             torch.stack(
                 (
-                    a[model_len, Transition.M2M] + F[State.M, model_len, random_len],
-                    a[model_len, Transition.I2M] + F[State.I, model_len, random_len],
-                    a[model_len, Transition.D2M] + F[State.D, model_len, random_len],
+                    a[model_len, Transition.M2M]
+                    + alpha[State.M, model_len, random_len],
+                    a[model_len, Transition.I2M]
+                    + alpha[State.I, model_len, random_len],
+                    a[model_len, Transition.D2M]
+                    + alpha[State.D, model_len, random_len],
                 )
             ),
             dim=0,
         )
 
-        return F[State.M, model_len + 1, random_len]
+        return alpha[State.M, model_len + 1, random_len]
