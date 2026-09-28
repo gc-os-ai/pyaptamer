@@ -1,13 +1,13 @@
-"""Convolutional layers(Inverted_Bottleneck) for RaptGen's variational autoencoder"""
+"""Convolutional layers(InvertedBottleneck) for RaptGen's variational autoencoder"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["Inverted_Bottleneck"]
+__all__ = ["InvertedBottleneck"]
 
 from torch import nn
 from torch.nn import functional as F
 
 
-class Inverted_Bottleneck(nn.Module):  # noqa: N801
+class InvertedBottleneck(nn.Module):
     """
     1D convolutional residual inverted-bottleneck block.
 

@@ -1,13 +1,13 @@
-"""VAE and CNN_PHMM_VAE model composed from RaptGen layers"""
+"""VAE and CNNPHMMVAE model composed from RaptGen layers"""
 
-__author__ = ["nourmajdoub"]
-__all__ = ["VAE", "CNN_PHMM_VAE", "CNN_PHMM_VAE_FAST"]
+__author__ = ["NoorMajdoub"]
+__all__ = ["VAE", "CNNPHMMVAE", "CNNPHMMVAEFast"]
 
 
 import torch
 from torch import nn
 
-from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMM_fast
+from pyaptamer.raptgen.layers._decoder import DecoderPHMM, DecoderPHMMFast
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn, profile_hmm_loss_fn_fast
 
@@ -80,7 +80,7 @@ class VAE(nn.Module):
         return recon_param, mu, logvar
 
 
-class CNN_PHMM_VAE(VAE):  # noqa: N801
+class CNNPHMMVAE(VAE):
     """Raptgen algorithm for unsupervised aptamer sequences generation.
      Implements the raptGen main architecture via a CNN based encoder and profile HMM
      based decoder.
@@ -100,6 +100,11 @@ class CNN_PHMM_VAE(VAE):  # noqa: N801
     kernel_size: int optional, default=7
         Convolution kernel (window) size used by the CNN encoder, must be an odd number.
 
+    num_layers : int, optional, default=6
+        Number of `InvertedBottleneck` blocks in the CNN encoder.
+
+    The decoder uses BatchNorm1d, so training requires a batch of at least 2.
+
      Attributes
      ----------
      encoder : EncoderCNN
@@ -110,30 +115,34 @@ class CNN_PHMM_VAE(VAE):  # noqa: N801
          learned latent distribution.
     """
 
-    def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
-        encoder = EncoderCNN(hidden_size, kernel_size)
+    def __init__(
+        self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7, num_layers=6
+    ):
+        encoder = EncoderCNN(hidden_size, kernel_size, num_layers=num_layers)
         decoder = DecoderPHMM(motif_len, embed_size)
 
         super().__init__(encoder, decoder, embed_size, hidden_size)
         self.loss_fn = profile_hmm_loss_fn
 
 
-class CNN_PHMM_VAE_FAST(VAE):  # noqa: N801
+class CNNPHMMVAEFast(VAE):
     """RaptGen algorithm for unsupervised aptamer sequence generation (fast variant).
 
-     Same as `CNN_PHMM_VAE`, but uses `DecoderPHMM_fast` and its matching loss function
+     Same as `CNNPHMMVAE`, but uses `DecoderPHMMFast` and its matching loss function
     `profile_hmm_loss_fn_fast` for faster training.
 
     Attributes
     ----------
-    decoder : DecoderPHMM_fast
+    decoder : DecoderPHMMFast
         Faster profile HMM-based decoder that reconstructs aptamers from
         the learned latent distribution.
     """
 
-    def __init__(self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7):
-        encoder = EncoderCNN(hidden_size, kernel_size)
-        decoder = DecoderPHMM_fast(motif_len, embed_size, hidden_size=hidden_size)
+    def __init__(
+        self, motif_len=12, embed_size=10, hidden_size=32, kernel_size=7, num_layers=6
+    ):
+        encoder = EncoderCNN(hidden_size, kernel_size, num_layers=num_layers)
+        decoder = DecoderPHMMFast(motif_len, embed_size, hidden_size=hidden_size)
 
         super().__init__(encoder, decoder, embed_size, hidden_size)
         self.loss_fn = profile_hmm_loss_fn_fast

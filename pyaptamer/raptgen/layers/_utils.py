@@ -1,18 +1,21 @@
 """Utility functions and classes for RaptGen layers"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["nt_index", "State", "Transition", "seq_to_indices"]
+__all__ = ["NucleotideIndex", "State", "Transition", "seq_to_indices"]
 
 from enum import IntEnum
 
 
 def seq_to_indices(seq):
     """Convert a nucleotide sequence string into a list of integer indices."""
-    return [int(nt_index[char]) for char in seq]
+    return [int(NucleotideIndex[char]) for char in seq]
 
 
-class nt_index(IntEnum):  # noqa: N801
-    """Nucleotide-to-integer index mapping."""
+class NucleotideIndex(IntEnum):
+    """Nucleotide-to-integer index mapping.
+
+    U shares T's index so RNA and DNA sequences encode identically.
+    """
 
     A = 0
     T = 1

@@ -1,4 +1,4 @@
-"""Tests for the raptgen CNN_PHMM_VAE model"""
+"""Tests for the raptgen CNNPHMMVAE model"""
 
 __author__ = ["NoorMajdoub"]
 
@@ -6,7 +6,7 @@ __author__ = ["NoorMajdoub"]
 import pytest
 import torch
 
-from pyaptamer.raptgen._model import CNN_PHMM_VAE
+from pyaptamer.raptgen._model import CNNPHMMVAE, CNNPHMMVAEFast
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM
 from pyaptamer.raptgen.layers._encoder import EncoderCNN
 from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
@@ -17,9 +17,9 @@ from pyaptamer.raptgen.layers._loss import profile_hmm_loss_fn
 )
 def test_cnn_phmm_vae_layers(motif_len, embed_size, hidden_size, kernel_size):
     """
-    Checks that `CNN_PHMM_VAE` builds the correct encoder/decoder and loss function.
+    Checks that `CNNPHMMVAE` builds the correct encoder/decoder and loss function.
     """
-    model = CNN_PHMM_VAE(
+    model = CNNPHMMVAE(
         motif_len=motif_len,
         embed_size=embed_size,
         hidden_size=hidden_size,
@@ -42,9 +42,9 @@ def test_cnn_phmm_vae_forward(
     motif_len, embed_size, hidden_size, kernel_size, batch_size, seq_len
 ):
     """
-    Tests the forward pass of CNN_PHMM_VAE.
+    Tests the forward pass of CNNPHMMVAE.
     """
-    model = CNN_PHMM_VAE(
+    model = CNNPHMMVAE(
         motif_len=motif_len,
         embed_size=embed_size,
         hidden_size=hidden_size,
@@ -60,3 +60,20 @@ def test_cnn_phmm_vae_forward(
     assert logvar.shape == (batch_size, embed_size)
     assert transition_proba.shape == (batch_size, motif_len + 1, 7)
     assert emission_proba.shape == (batch_size, motif_len, 4)
+
+
+@pytest.mark.parametrize("model_cls", [CNNPHMMVAE, CNNPHMMVAEFast])
+def test_cnn_phmm_vae_training_step(model_cls):
+    """One forward, loss and backward pass yields a finite loss and gradients."""
+    torch.manual_seed(0)
+    model = model_cls(motif_len=4, embed_size=8, hidden_size=16, kernel_size=5)
+    x = torch.randint(low=0, high=4, size=(3, 12))
+
+    recon_param, mu, logvar = model(x)
+    loss = model.loss_fn(x, recon_param, mu, logvar)
+    loss.backward()
+
+    assert torch.isfinite(loss)
+    assert all(
+        p.grad is not None and torch.isfinite(p.grad).all() for p in model.parameters()
+    )

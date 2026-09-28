@@ -6,7 +6,7 @@ __all__ = ["EncoderCNN"]
 from torch import nn
 from torch.nn import functional as F
 
-from pyaptamer.raptgen.layers._conv import Inverted_Bottleneck
+from pyaptamer.raptgen.layers._conv import InvertedBottleneck
 
 
 class EncoderCNN(nn.Module):
@@ -14,7 +14,7 @@ class EncoderCNN(nn.Module):
     RaptGen CNN-based encoder for mapping aptamer sequences to a hidden representation.
     Embeds each nucleotide (A, T, G, C) into a learned vector using a
     learned embedding lookup table, passes the sequence through a stack of
-    residual `Inverted_Bottleneck` blocks to extract sequence motifs,
+    residual `InvertedBottleneck` blocks to extract sequence motifs,
     then max-pools over the sequence length to produce a single fixed-size
     hidden representation per sequence.
 
@@ -27,10 +27,10 @@ class EncoderCNN(nn.Module):
         Also the size of the output hidden representation.
 
     window_size : int, optional, default=7
-        Convolution kernel size passed to each `Inverted_Bottleneck` block. Must be odd.
+        Convolution kernel size passed to each `InvertedBottleneck` block. Must be odd.
 
     num_layers : int, optional, default=6
-        Number of stacked `Inverted_Bottleneck` residual blocks.
+        Number of stacked `InvertedBottleneck` residual blocks.
 
     Attributes
     ----------
@@ -39,7 +39,7 @@ class EncoderCNN(nn.Module):
             and the special tokens PAD, SOS, EOS.
 
         blocks : nn.Sequential
-            Stack of `num_layers` `Inverted_Bottleneck` blocks.
+            Stack of `num_layers` `InvertedBottleneck` blocks.
     """
 
     def __init__(self, embedding_dim=32, window_size=7, num_layers=6):
@@ -53,7 +53,7 @@ class EncoderCNN(nn.Module):
         )
 
         modules = [
-            Inverted_Bottleneck(embedding_dim, window_size) for _ in range(num_layers)
+            InvertedBottleneck(embedding_dim, window_size) for _ in range(num_layers)
         ]
         self.blocks = nn.Sequential(*modules)
 
