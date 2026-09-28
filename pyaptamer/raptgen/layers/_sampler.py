@@ -110,7 +110,7 @@ class ProfileHMMSampler:
             if state == State.M:
                 seq += np.random.choice(list("ATGC"), p=self.e[idx - 1])
                 if debug:
-                    logger.info(idx, state, self.e[idx - 1], seq[-1])
+                    logger.info("%d %s %s %s", idx, state, self.e[idx - 1], seq[-1])
             elif state == State.I:
                 seq += np.random.choice(list("atgc"))
             else:
