@@ -80,14 +80,14 @@ class AptaDiffDenoiser(nn.Module):
         The number of unique nucleotides in the sequence.
     num_timesteps : int, optional, default=1000
         Total number of diffusion timesteps.
-    heads : int, optional, default=8
+    heads : int, optional, default=16
         Number of attention heads per transformer layer.
     attn_layer_dropout : float, optional, default=0.0
         Dropout probability applied within attention blocks.
     n_local_attn_heads : int, optional, default=0
         Number of heads dedicated to local windowed attention when using
         `transformer_type="linear"`. Ignored when using `"native"`.
-    local_attn_window_size : int, optional, default=128
+    local_attn_window_size : int, optional, default=1
         Window size used for axial positional indexing and local attention.
     transformer_type : {"native", "linear"}, optional, default="native"
         The attention backend, passed through to
@@ -130,10 +130,10 @@ class AptaDiffDenoiser(nn.Module):
         max_seq_len: int,
         num_classes: int = 4,
         num_timesteps: int = 1000,
-        heads: int = 8,
+        heads: int = 16,
         attn_layer_dropout: float = 0.0,
         n_local_attn_heads: int = 0,
-        local_attn_window_size: int = 128,
+        local_attn_window_size: int = 1,
         transformer_type: Literal["native", "linear"] = "native",
     ):
         super().__init__()
