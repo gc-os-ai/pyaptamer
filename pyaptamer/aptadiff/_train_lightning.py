@@ -139,9 +139,7 @@ class AptaDiffLightning(L.LightningModule):
         does not accept a particular key, it raises `ValueError` at construction.
         This must not contain `lr` or `params`. PyTorch's defaults will be applied to
         anything omitted. With the default `"adam"`, `optimizer_kwargs=None`
-        reproduces the original configuration exactly, since torch's default
-        ``betas=(0.9, 0.999)`` equal the original implementation's
-        ``momentum=0.9`` and ``momentum_sqr=0.999``.
+        reproduces the original configuration exactly.
     lr : float, optional, default=1e-4
         Initial learning rate, as used by the original implementation.
         Overrides PyTorch's default learning rate for the chosen optimizer.
