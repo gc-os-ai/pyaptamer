@@ -246,6 +246,7 @@ class AptaDiffGenerator(BaseEstimator):
         Raises
         ------
         ValueError
+            - If `y` is not a 2D array.
             - If the number of columns of `y` is not a multiple of `num_classes`,
             - If y is not properly one-hot encoded (e.g., if raw sequences are
             passed instead of a flattened array of 1s and 0s).
@@ -253,6 +254,11 @@ class AptaDiffGenerator(BaseEstimator):
             model construction.
         """
         X, y = validate_data(self, X, y, multi_output=True, dtype=np.float32)
+        if y.ndim == 1:
+            raise ValueError(
+                "y must be a 2D array of shape (n_samples, num_classes * seq_len), "
+                f"got a 1D array of shape {y.shape}."
+            )
         y = y.astype(np.float32, copy=False)
 
         seq_len, remainder = divmod(y.shape[1], self.num_classes)
