@@ -16,7 +16,7 @@ from ._model import DNAModel
 from ._params import SCALE_PARAMS, ScaleParams
 
 _CONFIG = {
-    "hf_repo_id": "Alleny244/deepdnashape",
+    "hf_repo_id": "ecospecs/deepdnashape",
     "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
     "features": {
         # intrabase
