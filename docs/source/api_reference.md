@@ -36,7 +36,7 @@ change without notice.
    :toctree: generated
    :nosignatures:
 
-   deepDNAshape
+   DeepDNAShape
 ```
 
 ## AptaNet

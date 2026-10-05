@@ -1,1 +1,1 @@
-"""Tests for the deepDNAshape predictor."""
+"""Tests for DeepDNAShape."""

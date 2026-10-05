@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 import torch
 
-from pyaptamer.deepdnashape import deepDNAshape
+from pyaptamer.deepdnashape import DeepDNAShape
 from pyaptamer.deepdnashape._model import AvgFeatures
 
 # test sequence
@@ -95,14 +95,14 @@ def _values(Xt):
 def test_invalid_feature():
     """Test an unknown DNA shape feature raises ValueError."""
     with pytest.raises(ValueError, match="Unknown feature"):
-        deepDNAshape(feature="INVALID_FEATURE")
+        DeepDNAShape(feature="INVALID_FEATURE")
 
 
 @pytest.mark.parametrize("layer", [-1, 8, 10])
 def test_invalid_layer(layer):
     """Test out of bound layer number raises ValueError."""
     with pytest.raises(ValueError, match="layer must be between 0 and 7"):
-        deepDNAshape(feature="MGW", layer=layer)
+        DeepDNAShape(feature="MGW", layer=layer)
 
 
 def test_allowed_bases_pass_check():
@@ -126,12 +126,12 @@ def test_invalid_base(seq, bad, position):
         match=rf"Invalid base '{bad}' at position {position}\. "
         "Allowed bases are A, C, G, T, N.",
     ):
-        deepDNAshape(feature="MGW").fit_transform(_frame(seq))
+        DeepDNAShape(feature="MGW").fit_transform(_frame(seq))
 
 
 def test_fit_returns_self():
     """Empty fit follows the estimator contract and returns self."""
-    est = deepDNAshape(feature="MGW")
+    est = DeepDNAShape(feature="MGW")
     assert est.fit(_frame(TEST_SEQ)) is est
 
 
@@ -148,7 +148,7 @@ def test_fit_returns_self():
 )
 def test_output_shape(feature, layer, expected_len):
     """Output length matches feature kind; valid layers produce floats."""
-    Xt = deepDNAshape(feature=feature, layer=layer).fit_transform(_frame(TEST_SEQ))
+    Xt = DeepDNAShape(feature=feature, layer=layer).fit_transform(_frame(TEST_SEQ))
     preds = _values(Xt)
 
     assert isinstance(Xt, pd.DataFrame)
@@ -170,7 +170,7 @@ def test_reverse_complement(feature, sign):
     as ``MGW`` match directly. Antisymmetric features such as ``Shear``
     match only after negation.
     """
-    est = deepDNAshape(feature=feature)
+    est = DeepDNAShape(feature=feature)
     forward = _values(est.fit_transform(_frame("ATGC")))
     reverse = _values(est.fit_transform(_frame("GCAT")))
     np.testing.assert_allclose(forward, sign * reverse[::-1], atol=1e-5)
@@ -182,7 +182,7 @@ def test_batch_nan_padding():
     """Shorter sequences are right-padded with NaN in a batch."""
     short = "ATGC"
     long = TEST_SEQ
-    Xt = deepDNAshape(feature="MGW").fit_transform(_frame(short, long))
+    Xt = DeepDNAShape(feature="MGW").fit_transform(_frame(short, long))
 
     assert Xt.shape == (2, len(long))
     assert np.isnan(Xt.iloc[0, len(short) :]).all()
@@ -199,7 +199,7 @@ def test_reference_predictions(feature):
     """
     expected = _REF_PREDICTIONS[feature]
     actual = _values(
-        deepDNAshape(feature=feature, layer=4).fit_transform(_frame(REF_SEQ))
+        DeepDNAShape(feature=feature, layer=4).fit_transform(_frame(REF_SEQ))
     )
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
 

@@ -1,7 +1,7 @@
-"""DeepDNAshape transform for DNA shape feature prediction."""
+"""DeepDNAShape transform for DNA shape feature prediction."""
 
 __author__ = ["prashantpandeygit", "Alleny244"]
-__all__ = ["deepDNAshape"]
+__all__ = ["DeepDNAShape"]
 
 import itertools
 
@@ -143,7 +143,7 @@ def _check_sequence(seq):
             )
 
 
-class deepDNAshape(BaseTransform):  # noqa: N801
+class DeepDNAShape(BaseTransform):
     """Transform DNA sequences into structural shape feature values.
 
     Given DNA strings (A/T/C/G, optionally N), this transformer predicts
@@ -184,10 +184,10 @@ class deepDNAshape(BaseTransform):  # noqa: N801
     Examples
     --------
     >>> import pandas as pd
-    >>> from pyaptamer.deepdnashape import deepDNAshape
+    >>> from pyaptamer.deepdnashape import DeepDNAShape
     >>> X = pd.DataFrame({"seq": ["AAGGTAGT"]})
-    >>> mgw = deepDNAshape(feature="MGW").fit_transform(X)
-    >>> roll = deepDNAshape(feature="Roll").fit_transform(X)
+    >>> mgw = DeepDNAShape(feature="MGW").fit_transform(X)
+    >>> roll = DeepDNAShape(feature="Roll").fit_transform(X)
     """
 
     _tags = {

@@ -1,5 +1,5 @@
 """The deepDNAshape DNA shape prediction algorithm."""
 
-from pyaptamer.deepdnashape._predictor import deepDNAshape
+from pyaptamer.deepdnashape._predictor import DeepDNAShape
 
-__all__ = ["deepDNAshape"]
+__all__ = ["DeepDNAShape"]
