@@ -95,6 +95,9 @@ def _get_bases_mapping():
     return mono, di
 
 
+_MONO, _DI = _get_bases_mapping()
+
+
 def _rescale(predictions, params: ScaleParams):
     """Rescale raw model predictions to original value range.
 
@@ -208,7 +211,6 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         if not 0 <= self.layer <= 7:
             raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
 
-        self._mono, self._di = _get_bases_mapping()
         self._model = None
 
     def _load_model(self):
@@ -255,11 +257,11 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         if feature_meta["kind"] == "interbase":
 
             def encode(s):
-                return np.array([self._di[(s[i], s[i + 1])] for i in range(len(s) - 1)])
+                return np.array([_DI[(s[i], s[i + 1])] for i in range(len(s) - 1)])
         else:
 
             def encode(s):
-                return np.array([self._mono[b] for b in s])
+                return np.array([_MONO[b] for b in s])
 
         x_fwd = torch.tensor(encode(padded), dtype=torch.float32)
         x_rev = torch.tensor(encode(rev), dtype=torch.float32)
