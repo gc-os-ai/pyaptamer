@@ -4,6 +4,7 @@ __author__ = ["aditi-dsi"]
 __all__ = ["AptaDiffGenerator"]
 
 import tempfile
+from collections.abc import Callable
 from typing import Any, Literal
 
 import lightning as L
@@ -112,20 +113,20 @@ class AptaDiffGenerator(BaseEstimator):
     lr : float, optional, default=1e-4
         Initial learning rate, as used by the original implementation.
         Overrides PyTorch's default learning rate for the chosen optimizer.
-    optimizer_name : str, optional, default="adam"
-        Name of an optimizer class in `torch.optim`, in any case, e.g.
-        `"adam"`, `"AdamW"` or `"SGD"`. The default is `adam`, the optimizer
-        the original implementation trained with. This supports any optimizer available
-        in the current installed torch version that is compatible with dense gradients
-        and parameters of any number of dimensions.
+    optimizer : callable, optional, default=torch.optim.Adam
+        Optimizer class, e.g. `torch.optim.AdamW` or `torch.optim.SGD`, or any
+        callable that builds an optimizer from the model parameters and `lr`. The
+        default is the optimizer the original implementation trained with. The
+        optimizer must be compatible with dense gradients and parameters of any
+        number of dimensions.
     optimizer_kwargs : dict, optional, default=None
         Keyword arguments to be passed to the optimizer, for example
-        ``{"momentum": 0.9}`` for `"sgd"` or ``{"weight_decay": 0.01}`` for
-        `"adamw"`. Keys are checked against the optimizer's signature. If an optimizer
-        does not accept a particular key, it raises `ValueError` at construction.
-        This must not contain `lr` or `params`. PyTorch's defaults will be applied to
-        anything omitted. With the default `"adam"`, `optimizer_kwargs=None`
-        reproduces the original configuration exactly.
+        ``{"momentum": 0.9}`` for `torch.optim.SGD` or ``{"weight_decay": 0.01}``
+        for `torch.optim.AdamW`. The optimizer checks them when it is built, at the
+        start of training. This must not contain `lr` or `params`. PyTorch's
+        defaults will be applied to anything omitted. With the default
+        `torch.optim.Adam`, `optimizer_kwargs=None` reproduces the original
+        configuration exactly.
     gamma : float, optional, default=0.99
         Per-epoch decay factor of the `ExponentialLR` schedule. Must lie
         in (0.0, 1.0]. Value 1.0 keeps the learning rate constant. Because the decay
@@ -197,7 +198,7 @@ class AptaDiffGenerator(BaseEstimator):
         batch_size: int = 32,
         validation_fraction: float = 0.1,
         lr: float = 1e-4,
-        optimizer_name: str = "adam",
+        optimizer: Callable[..., torch.optim.Optimizer] = torch.optim.Adam,
         optimizer_kwargs: dict[str, Any] | None = None,
         gamma: float = 0.99,
         random_state: int | None = None,
@@ -220,7 +221,7 @@ class AptaDiffGenerator(BaseEstimator):
         self.batch_size = batch_size
         self.validation_fraction = validation_fraction
         self.lr = lr
-        self.optimizer_name = optimizer_name
+        self.optimizer = optimizer
         self.optimizer_kwargs = optimizer_kwargs
         self.gamma = gamma
         self.random_state = random_state
@@ -250,8 +251,11 @@ class AptaDiffGenerator(BaseEstimator):
             - If the number of columns of `y` is not a multiple of `num_classes`,
             - If y is not properly one-hot encoded (e.g., if raw sequences are
             passed instead of a flattened array of 1s and 0s).
-            - If the optimizer, loss or `gamma` settings are invalid during
-            model construction.
+            - If the loss or `gamma` settings, or the values in `optimizer_kwargs`,
+            are invalid.
+        TypeError
+            If `optimizer_kwargs` contains `lr`, `params`, or a key the optimizer
+            does not accept.
         """
         X, y = validate_data(self, X, y, multi_output=True, dtype=np.float32)
         if y.ndim == 1:
@@ -394,7 +398,7 @@ class AptaDiffGenerator(BaseEstimator):
         )
         model_lightning = AptaDiffLightning(
             diffusion=diffusion,
-            optimizer_name=self.optimizer_name,
+            optimizer=self.optimizer,
             optimizer_kwargs=self.optimizer_kwargs,
             lr=self.lr,
             gamma=self.gamma,

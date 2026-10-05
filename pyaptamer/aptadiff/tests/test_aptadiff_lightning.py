@@ -59,31 +59,8 @@ class TestAptaDiffLightning:
         assert loss.item() >= 0
 
     @pytest.mark.parametrize(
-        "optimizer_name, expected_cls",
-        [
-            ("adam", torch.optim.Adam),
-            ("ADAM", torch.optim.Adam),
-            ("sgd", torch.optim.SGD),
-        ],
-    )
-    def test_optimizer_name_is_case_insensitive(
-        self, optimizer_name: str, expected_cls: type[torch.optim.Optimizer]
-    ) -> None:
-        """Check optimizer_name selects the torch.optim class in any case."""
-        optimizer_cls, kwargs = AptaDiffLightning.get_optimizer_cls_and_kwargs(
-            optimizer_name, None, lr=1e-3
-        )
-
-        assert optimizer_cls is expected_cls
-        assert kwargs == {"lr": 1e-3}
-
-    @pytest.mark.parametrize(
         "kwargs",
         [
-            {"optimizer_name": "adamm"},
-            {"optimizer_name": "lr_scheduler"},
-            {"optimizer_kwargs": {"lr": 0.1}},
-            {"optimizer_name": "sgd", "optimizer_kwargs": {"betas": (0.9, 0.999)}},
             {"gamma": 0.0},
             {"gamma": 1.5},
         ],
@@ -91,7 +68,7 @@ class TestAptaDiffLightning:
     def test_invalid_params_raise(
         self, diffusion: AptaDiffDiffusion, kwargs: dict[str, Any]
     ) -> None:
-        """Check an invalid optimizer or gamma raises a ValueError."""
+        """Check a gamma outside (0.0, 1.0] raises a ValueError."""
         with pytest.raises(ValueError):
             AptaDiffLightning(diffusion, **kwargs)
 
@@ -99,7 +76,7 @@ class TestAptaDiffLightning:
         """Check custom optimizer settings and gamma are passed properly."""
         model_lightning = AptaDiffLightning(
             diffusion,
-            optimizer_name="sgd",
+            optimizer=torch.optim.SGD,
             optimizer_kwargs={"momentum": 0.9},
             lr=1e-2,
             gamma=1.0,

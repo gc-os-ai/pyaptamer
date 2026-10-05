@@ -3,108 +3,13 @@
 __author__ = ["aditi-dsi"]
 __all__ = ["AptaDiffLightning"]
 
-import inspect
 import math
-from collections.abc import Mapping
+from collections.abc import Callable
 from typing import Any
 
 import lightning as L
 import torch
 from torch import Tensor
-
-
-def _build_optimizer_registry() -> dict[str, type[torch.optim.Optimizer]]:
-    """Collect the optimizer classes exposed by `torch.optim`.
-
-    Returns
-    -------
-    dict[str, type[torch.optim.Optimizer]]
-        Mapping from each optimizer's class name, e.g. `"AdamW"`, to the class object.
-    """
-    registry = {}
-    for name in dir(torch.optim):
-        if name.startswith("_"):
-            continue
-        obj = getattr(torch.optim, name)
-        if (
-            isinstance(obj, type)
-            and issubclass(obj, torch.optim.Optimizer)
-            and obj is not torch.optim.Optimizer
-        ):
-            registry[name] = obj
-    return registry
-
-
-_OPTIMIZER_CLASSES = _build_optimizer_registry()
-
-
-def _resolve_optimizer_cls(optimizer_name: str) -> type[torch.optim.Optimizer]:
-    """Look up an optimizer class in `torch.optim` by name, case-insensitively.
-
-    Parameters
-    ----------
-    optimizer_name : str
-        Name of an optimizer class in `torch.optim`. This is case-insensitive.
-
-    Returns
-    -------
-    type[torch.optim.Optimizer]
-        The matching optimizer class.
-
-    Raises
-    ------
-    ValueError
-        If `optimizer_name` matches no optimizer, after ignoring the case.
-    """
-    for name, optimizer_cls in _OPTIMIZER_CLASSES.items():
-        if name.lower() == optimizer_name.lower():
-            return optimizer_cls
-
-    raise ValueError(
-        "optimizer_name must name an optimizer in torch.optim, in any case, got "
-        f"{optimizer_name!r}. Available optimizers: "
-        f"{list(_OPTIMIZER_CLASSES)}."
-    )
-
-
-def _check_optimizer_kwargs(
-    optimizer_cls: type[torch.optim.Optimizer], optimizer_kwargs: Mapping[str, Any]
-) -> None:
-    """Check that `optimizer_kwargs` contains only args that `optimizer_cls` accepts.
-
-    Only the argument names are checked. Their values are left to the optimizer,
-    which validates them when it is built.
-
-    Parameters
-    ----------
-    optimizer_cls : type[torch.optim.Optimizer]
-        The optimizer the arguments are meant for.
-    optimizer_kwargs : Mapping[str, Any]
-        Arguments for the optimizer other than the model weights (params) and the
-        learning rate (lr).
-
-    Raises
-    ------
-    ValueError
-        If `optimizer_kwargs` contains `lr` or `params`, or any other key that
-        `optimizer_cls` does not accept.
-    """
-    if "lr" in optimizer_kwargs or "params" in optimizer_kwargs:
-        raise ValueError(
-            "optimizer_kwargs must not contain 'lr' or 'params'. The model weights "
-            "are handled automatically by PyTorch Lightning, and the learning rate "
-            "is supplied by the `lr` argument."
-        )
-
-    signature = inspect.signature(optimizer_cls).parameters
-
-    accepted = [name for name in signature if name not in ("lr", "params")]
-    unknown = [key for key in optimizer_kwargs if key not in accepted]
-    if unknown:
-        raise ValueError(
-            f"{optimizer_cls.__name__} does not accept {unknown}. "
-            f"Accepted arguments: {accepted}."
-        )
 
 
 class AptaDiffLightning(L.LightningModule):
@@ -126,20 +31,20 @@ class AptaDiffLightning(L.LightningModule):
         The core diffusion model to train. It has a `log_prob(x, z)` that returns
         a loss. Once it is passed here, Lightning will automatically move its weights
         to the configured device during training.
-    optimizer_name : str, optional, default="adam"
-        Name of an optimizer class in `torch.optim`, in any case, e.g.
-        `"adam"`, `"AdamW"` or `"SGD"`. The default is `adam`, the optimizer
-        the original implementation trained with. This supports any optimizer available
-        in the current installed torch version that is compatible with dense gradients
-        and parameters of any number of dimensions.
+    optimizer : callable, optional, default=torch.optim.Adam
+        Optimizer class, e.g. `torch.optim.AdamW` or `torch.optim.SGD`, or any
+        callable that builds an optimizer from the model parameters and `lr`. The
+        default is the optimizer the original implementation trained with. The
+        optimizer must be compatible with dense gradients and parameters of any
+        number of dimensions.
     optimizer_kwargs : dict, optional, default=None
         Keyword arguments to be passed to the optimizer, for example
-        ``{"momentum": 0.9}`` for `"sgd"` or ``{"weight_decay": 0.01}`` for
-        `"adamw"`. Keys are checked against the optimizer's signature. If an optimizer
-        does not accept a particular key, it raises `ValueError` at construction.
-        This must not contain `lr` or `params`. PyTorch's defaults will be applied to
-        anything omitted. With the default `"adam"`, `optimizer_kwargs=None`
-        reproduces the original configuration exactly.
+        ``{"momentum": 0.9}`` for `torch.optim.SGD` or ``{"weight_decay": 0.01}``
+        for `torch.optim.AdamW`. The optimizer checks them when it is built, at the
+        start of training. This must not contain `lr` or `params`. PyTorch's
+        defaults will be applied to anything omitted. With the default
+        `torch.optim.Adam`, `optimizer_kwargs=None` reproduces the original
+        configuration exactly.
     lr : float, optional, default=1e-4
         Initial learning rate, as used by the original implementation.
         Overrides PyTorch's default learning rate for the chosen optimizer.
@@ -153,10 +58,7 @@ class AptaDiffLightning(L.LightningModule):
     Raises
     ------
     ValueError
-        - If `optimizer_name` doesn't matches any optimizer in `torch.optim`.
-        - If `optimizer_kwargs` contains `lr` or `params`, or a key the chosen
-          optimizer does not accept.
-        - If `gamma` lies outside (0.0, 1.0].
+        If `gamma` lies outside (0.0, 1.0].
 
     References
     ----------
@@ -188,7 +90,9 @@ class AptaDiffLightning(L.LightningModule):
     >>> diffusion = AptaDiffDiffusion(
     ...     denoise_fn=denoiser, num_classes=4, num_timesteps=50
     ... )
-    >>> model_lightning = AptaDiffLightning(diffusion, lr=1e-4, optimizer_name="adamw")
+    >>> model_lightning = AptaDiffLightning(
+    ...     diffusion, lr=1e-4, optimizer=torch.optim.AdamW
+    ... )
     >>> config = model_lightning.configure_optimizers()
     >>> type(config["optimizer"]).__name__
     'AdamW'
@@ -211,21 +115,19 @@ class AptaDiffLightning(L.LightningModule):
     def __init__(
         self,
         diffusion: torch.nn.Module,
-        optimizer_name: str = "adam",
+        optimizer: Callable[..., torch.optim.Optimizer] = torch.optim.Adam,
         optimizer_kwargs: dict[str, Any] | None = None,
         lr: float = 1e-4,
         gamma: float = 0.99,
     ) -> None:
         super().__init__()
-        self.get_optimizer_cls_and_kwargs(optimizer_name, optimizer_kwargs, lr)
-
         if not 0.0 < gamma <= 1.0:
             raise ValueError(f"gamma must be in (0.0, 1.0], got: {gamma}.")
 
         self.diffusion = diffusion
         self.lr = lr
         self.gamma = gamma
-        self.optimizer_name = optimizer_name
+        self.optimizer = optimizer
         self.optimizer_kwargs = optimizer_kwargs
 
     def _step(self, batch: tuple[Tensor, Tensor], stage: str) -> Tensor:
@@ -301,51 +203,6 @@ class AptaDiffLightning(L.LightningModule):
         """
         return self._step(batch, "val")
 
-    @staticmethod
-    def get_optimizer_cls_and_kwargs(
-        optimizer_name: str,
-        optimizer_kwargs: Mapping[str, Any] | None,
-        lr: float,
-    ) -> tuple[type[torch.optim.Optimizer], dict[str, Any]]:
-        """Resolve an optimizer name and arrange the arguments to build it.
-
-        Looks up for `optimizer_name` among the optimizers in `torch.optim`,
-        ignoring the case, and checks `optimizer_kwargs` against that optimizer's
-        signature. This can check a configuration independently before any model
-        or data exists.
-
-        Parameters
-        ----------
-        optimizer_name : str
-            Name of an optimizer class in `torch.optim`, in any case, e.g.
-            `"adam"`, `"AdamW"` or `"SGD"`.
-        optimizer_kwargs : Mapping[str, Any] or None
-            Arguments for the optimizer other than the model weights (params) and the
-            learning rate (lr).
-        lr : float
-            Learning rate.
-
-        Returns
-        -------
-        optimizer_cls : type[torch.optim.Optimizer]
-            The resolved optimizer class.
-        optimizer_kwargs : dict[str, Any]
-            A new dict holding `lr` followed by the entries of
-            `optimizer_kwargs`.
-
-        Raises
-        ------
-        ValueError
-            If `optimizer_name` doesn't matches any optimizer in `torch.optim`,
-            or if `optimizer_kwargs` contains `lr`, `params`, or a key the optimizer
-            does not accept.
-        """
-        optimizer_cls = _resolve_optimizer_cls(optimizer_name)
-        if optimizer_kwargs:
-            _check_optimizer_kwargs(optimizer_cls, optimizer_kwargs)
-            return optimizer_cls, {"lr": lr, **optimizer_kwargs}
-        return optimizer_cls, {"lr": lr}
-
     def configure_optimizers(self) -> dict[str, Any]:
         """Build the optimizer and its per-epoch learning-rate schedule.
 
@@ -359,10 +216,9 @@ class AptaDiffLightning(L.LightningModule):
             `"optimizer"` and the `ExponentialLR` schedule under
             `"lr_scheduler"`. The schedule steps once per epoch.
         """
-        optimizer_cls, optimizer_kwargs = self.get_optimizer_cls_and_kwargs(
-            self.optimizer_name, self.optimizer_kwargs, self.lr
+        optimizer = self.optimizer(
+            self.parameters(), lr=self.lr, **(self.optimizer_kwargs or {})
         )
-        optimizer = optimizer_cls(self.parameters(), **optimizer_kwargs)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.gamma)
 
         return {
