@@ -17,7 +17,7 @@ from pyaptamer.trafos.base import BaseTransform
 from ._model import DNAModel
 
 _CONFIG = {
-    "hf_repo_id": "parkneurals/deepdnashape",
+    "hf_repo_id": "Alleny244/deepdnashape",
     "params_path": os.path.join(os.path.dirname(__file__), "data", "params.json"),
     "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
     "features": {
