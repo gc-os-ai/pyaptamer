@@ -277,8 +277,7 @@ class deepDNAshape(BaseTransform):  # noqa: N801
             pred_rev = -pred_rev
 
         predictions = (pred_fwd + pred_rev[::-1]) / 2
-        predictions = predictions.T[layer]
-        return predictions[2:-2]
+        return predictions[2:-2, layer]
 
     def _transform(self, X):
         """Transform DNA sequences into shape feature rows.
