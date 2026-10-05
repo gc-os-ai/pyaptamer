@@ -267,10 +267,6 @@ class DNAModel(nn.Module):
     gru_layer : bool, optional
         If True, enable GRU refinement inside each
         `MessagePassingConv`. Default is True.
-    dropout_rate : float, optional
-        Dropout probability applied to node features before
-        the `AvgFeatures` reduction during training.
-        Default is 0.0.
     """
 
     def __init__(
@@ -286,7 +282,6 @@ class DNAModel(nn.Module):
         dual_weights=True,
         bn_layer=True,
         gru_layer=True,
-        dropout_rate=0.0,
     ):
         super().__init__()
         self.steps = mp_steps
@@ -308,18 +303,7 @@ class DNAModel(nn.Module):
             ]
         )
 
-        self.dropout = nn.Dropout(dropout_rate)
         self.avg_layer = AvgFeatures(base_features, filter_size)
-
-    def _call_avg(self, x):
-        """Apply optional dropout, then reduce channels with `AvgFeatures`.
-
-        Dropout runs only in training mode. At inference this is just the
-        average reduction used at multiple points in `forward`.
-        """
-        if self.training:
-            x = self.dropout(x)
-        return self.avg_layer(x)
 
     def forward(self, x):
         """Run the full forward pass of the graph neural network.
@@ -341,14 +325,14 @@ class DNAModel(nn.Module):
 
         results = []
         if self.selflayer:
-            results.append(self._call_avg(x))
+            results.append(self.avg_layer(x))
 
         for layer in self.mp:
             for _ in range(self.steps):
                 x = layer(x)
             if self.constraints:
-                results.append(self._call_avg(x))
+                results.append(self.avg_layer(x))
 
         if self.constraints:
             return torch.stack(results, dim=1)
-        return self._call_avg(x)
+        return self.avg_layer(x)
