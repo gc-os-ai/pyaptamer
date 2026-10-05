@@ -103,6 +103,30 @@ def test_invalid_layer(layer):
         deepDNAshape(feature="MGW", layer=layer)
 
 
+def test_allowed_bases_pass_check():
+    """A, C, G, T, and N are accepted without loading the model."""
+    from pyaptamer.deepdnashape._predictor import _check_sequence
+
+    _check_sequence("ACGTN")
+
+
+@pytest.mark.parametrize(
+    ("seq", "bad", "position"),
+    [
+        ("ATGX", "X", 3),
+        ("atgc", "a", 0),
+    ],
+)
+def test_invalid_base(seq, bad, position):
+    """A base outside A, C, G, T, N raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=rf"Invalid base '{bad}' at position {position}\. "
+        "Allowed bases are A, C, G, T, N.",
+    ):
+        deepDNAshape(feature="MGW").fit_transform(_frame(seq))
+
+
 def test_fit_returns_self():
     """Empty fit follows the estimator contract and returns self."""
     est = deepDNAshape(feature="MGW")
