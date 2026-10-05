@@ -154,29 +154,26 @@ def test_output_shape(feature, layer, expected_len):
     assert preds.shape == (expected_len,)
 
 
-def test_reverse_complement_invariance():
-    """
-    Verify that the transformer is invariant to DNA orientation due to its
-    internal reverse-complement logic.
-    """
-    est = deepDNAshape(feature="MGW")
-    res1 = _values(est.fit_transform(_frame("ATGC")))
-    res2 = _values(est.fit_transform(_frame("GCAT")))
-    np.testing.assert_allclose(res1, res2[::-1], atol=1e-5)
+@pytest.mark.parametrize(
+    ("feature", "sign"),
+    [
+        ("MGW", 1),
+        ("Shear", -1),
+    ],
+)
+def test_reverse_complement(feature, sign):
+    """A sequence matches its reverse complement, negated when flip_rev is set.
 
-
-def test_reverse_complement_sign_flip():
-    """Shear changes sign under reverse complement.
-
-    ``flip_rev`` features (Shear, Buckle, Shift, Tilt) are antisymmetric:
-    the shape of a sequence is the negation of its reverse complement,
-    read backwards. ``GCAT`` is the reverse complement of ``ATGC``.
+    ``GCAT`` is the reverse complement of ``ATGC``. Symmetric features such
+    as ``MGW`` match directly. Antisymmetric features such as ``Shear``
+    match only after negation.
     """
-    est = deepDNAshape(feature="Shear")
+    est = deepDNAshape(feature=feature)
     forward = _values(est.fit_transform(_frame("ATGC")))
     reverse = _values(est.fit_transform(_frame("GCAT")))
-    np.testing.assert_allclose(forward, -reverse[::-1], atol=1e-5)
-    assert not np.allclose(forward, reverse[::-1], atol=1e-5)
+    np.testing.assert_allclose(forward, sign * reverse[::-1], atol=1e-5)
+    if sign < 0:
+        assert not np.allclose(forward, reverse[::-1], atol=1e-5)
 
 
 def test_batch_nan_padding():
