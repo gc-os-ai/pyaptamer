@@ -129,6 +129,17 @@ def _as_sequence_str(value):
     return "".join(value)
 
 
+def _check_sequence(seq):
+    """Raise if ``seq`` contains a base outside A, C, G, T, and N."""
+    allowed = _CONFIG["rev_complement"]
+    for i, base in enumerate(seq):
+        if base not in allowed:
+            raise ValueError(
+                f"Invalid base {base!r} at position {i}. "
+                "Allowed bases are A, C, G, T, N."
+            )
+
+
 class deepDNAshape(BaseTransform):  # noqa: N801
     """Transform DNA sequences into structural shape feature values.
 
@@ -229,6 +240,7 @@ class deepDNAshape(BaseTransform):  # noqa: N801
     @torch.no_grad()
     def _predict_one(self, seq):
         """Predict shape values for a single DNA sequence string."""
+        _check_sequence(seq)
         if self._model is None:
             self._load_model()
         model = self._model
