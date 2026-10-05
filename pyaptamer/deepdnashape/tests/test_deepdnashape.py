@@ -3,8 +3,10 @@ __author__ = ["prashantpandeygit", "Alleny244"]
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from pyaptamer.deepdnashape import deepDNAshape
+from pyaptamer.deepdnashape._model import AvgFeatures
 
 # test sequence
 TEST_SEQ = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
@@ -204,10 +206,6 @@ def test_reference_predictions(feature):
 
 def test_avg_features_pads_to_next_multiple():
     """AvgFeatures pads up to the next multiple of target_features."""
-    import torch
-
-    from pyaptamer.deepdnashape._model import AvgFeatures
-
     layer = AvgFeatures(target_features=5, filter_size=64)
     assert layer.pad_amount == 1
     assert layer.group_size == 13
