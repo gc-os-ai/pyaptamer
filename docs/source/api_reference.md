@@ -27,6 +27,18 @@ change without notice.
    PrimerTrimmer
 ```
 
+## DNA shape
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepdnashape
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   deepDNAshape
+```
+
 ## AptaNet
 
 ```{eval-rst}
