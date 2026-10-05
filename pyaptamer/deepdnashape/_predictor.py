@@ -4,8 +4,6 @@ __author__ = ["prashantpandeygit", "Alleny244"]
 __all__ = ["deepDNAshape"]
 
 import itertools
-import json
-import os
 
 import numpy as np
 import pandas as pd
@@ -15,10 +13,10 @@ from huggingface_hub import hf_hub_download
 from pyaptamer.trafos.base import BaseTransform
 
 from ._model import DNAModel
+from ._params import SCALE_PARAMS, ScaleParams
 
 _CONFIG = {
     "hf_repo_id": "Alleny244/deepdnashape",
-    "params_path": os.path.join(os.path.dirname(__file__), "data", "params.json"),
     "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
     "features": {
         # intrabase
@@ -97,32 +95,31 @@ def _get_bases_mapping():
     return mono, di
 
 
-def _rescale(predictions, params):
+def _rescale(predictions, params: ScaleParams):
     """Rescale raw model predictions to original value range.
 
     Parameters
     ----------
     predictions : np.ndarray
         Raw normalized predictions from the model.
-    params : dict
-        Scaling parameters for this feature (keys depend on the
-        normalization method used during training).
+    params : ScaleParams
+        Scaling constants for this feature.
 
     Returns
     -------
     np.ndarray
         Predictions rescaled to the original value range.
     """
-    method = params["method"]
+    method = params.method
     if method == "minmax":
-        return predictions * (params["max"] - params["min"]) + params["min"]
+        return predictions * (params.max - params.min) + params.min
     if method == "minmax2":
-        return (predictions + 1) * (params["max"] - params["min"]) / 2 + params["min"]
+        return (predictions + 1) * (params.max - params.min) / 2 + params.min
     if method == "sin":
         return np.arcsin(predictions) / np.pi * 180.0
     if method == "standard":
-        return predictions * params["std"] + params["mean"]
-    return predictions * params["percentile_range"] + params["median"]
+        return predictions * params.std + params.mean
+    return predictions * params.percentile_range + params.median
 
 
 def _as_sequence_str(value):
@@ -201,8 +198,6 @@ class deepDNAshape(BaseTransform):  # noqa: N801
             raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
 
         self._mono, self._di = _get_bases_mapping()
-        with open(_CONFIG["params_path"]) as f:
-            self._params = json.load(f)
         self._model = None
 
     def _load_model(self):
@@ -260,7 +255,7 @@ class deepDNAshape(BaseTransform):  # noqa: N801
         pred_fwd = model(x_fwd).numpy()
         pred_rev = model(x_rev).numpy()
 
-        params = self._params[feature]
+        params = SCALE_PARAMS[feature]
         pred_fwd = _rescale(pred_fwd, params)
         pred_rev = _rescale(pred_rev, params)
 
