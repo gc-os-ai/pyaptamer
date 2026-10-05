@@ -165,6 +165,20 @@ def test_reverse_complement_invariance():
     np.testing.assert_allclose(res1, res2[::-1], atol=1e-5)
 
 
+def test_reverse_complement_sign_flip():
+    """Shear changes sign under reverse complement.
+
+    ``flip_rev`` features (Shear, Buckle, Shift, Tilt) are antisymmetric:
+    the shape of a sequence is the negation of its reverse complement,
+    read backwards. ``GCAT`` is the reverse complement of ``ATGC``.
+    """
+    est = deepDNAshape(feature="Shear")
+    forward = _values(est.fit_transform(_frame("ATGC")))
+    reverse = _values(est.fit_transform(_frame("GCAT")))
+    np.testing.assert_allclose(forward, -reverse[::-1], atol=1e-5)
+    assert not np.allclose(forward, reverse[::-1], atol=1e-5)
+
+
 def test_batch_nan_padding():
     """Shorter sequences are right-padded with NaN in a batch."""
     short = "ATGC"
