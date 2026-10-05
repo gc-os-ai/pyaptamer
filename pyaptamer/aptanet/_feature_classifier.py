@@ -118,15 +118,14 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
                 f"Only binary classification is supported. Got target type {y_type}."
             )
 
-        if self.random_state is not None:
-            np.random.seed(self.random_state)
-            torch.manual_seed(self.random_state)
-
         self.classes_, y = np.unique(y, return_inverse=True)
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
-        )
+        with torch.random.fork_rng(enabled=self.random_state is not None):
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
+            self.pipeline_ = self._build_pipeline()
+            self.pipeline_.fit(
+                X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+            )
         return self
 
     def predict_proba(self, X):
@@ -218,7 +217,8 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
     estimator : sklearn estimator or None, default=None
         Estimator used for feature selection. If `None`, a `RandomForestRegressor`.
     random_state : int or None, default=None
-        Random seed for reproducibility. When set, both NumPy and Torch seeds are fixed.
+        Seed for the feature selector and for Torch during ``fit``. The global
+        NumPy and Torch random states are left unchanged.
     threshold : str or float, default="mean"
         Threshold passed to `SelectFromModel` (e.g., "mean" or a float).
     verbose : int, default=0
@@ -302,14 +302,13 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
         X, y = validate_data(self, X, y)
         y = y.reshape(-1, 1)
 
-        if self.random_state is not None:
-            np.random.seed(self.random_state)
-            torch.manual_seed(self.random_state)
-
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(
-            X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
-        )
+        with torch.random.fork_rng(enabled=self.random_state is not None):
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
+            self.pipeline_ = self._build_pipeline()
+            self.pipeline_.fit(
+                X.astype(np.float32, copy=False), y.astype(np.float32, copy=False)
+            )
         return self
 
     def predict(self, X):

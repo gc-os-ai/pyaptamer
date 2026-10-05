@@ -5,10 +5,10 @@
 ## From PyPI
 
 ```bash
-pip install pyaptamer
+pip install --pre pyaptamer
 ```
 
-The current release is a prerelease. To pin it explicitly:
+The current release is a prerelease, so the `--pre` flag is required.
 
 ```bash
 pip install pyaptamer==0.1.0a1
@@ -24,7 +24,7 @@ cd pyaptamer
 pip install -e ".[dev]"
 ```
 
-The `dev` extra adds `ruff`, `pytest`, and `pre-commit`.
+The `dev` extra adds `ruff`, `pytest`, `pytest-cov`, and `pre-commit`.
 
 ## Building the documentation
 

@@ -23,10 +23,11 @@ between releases.
 ## Install
 
 ```bash
-pip install pyaptamer
+pip install --pre pyaptamer
 ```
 
-See {doc}`installation` for development installs and optional extras.
+The `--pre` flag is required while `pyaptamer` is a prerelease. See
+{doc}`installation` for development installs and optional extras.
 
 ## Quick start
 

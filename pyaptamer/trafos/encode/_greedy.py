@@ -44,7 +44,7 @@ class GreedyEncoder(BaseTransform):
     >>> from pyaptamer.trafos.encode import GreedyEncoder
     >>> from pyaptamer.datasets import load_1gnh
     >>>
-    >>> data = load_1gnh()
+    >>> data = load_1gnh(tiling="samples")
     >>> words = {"QT": 1, "QTA": 2, "S": 3, "G": 4}
     >>>
     >>> encoder = GreedyEncoder(words=words, max_len=5, word_max_len=2)
@@ -139,7 +139,8 @@ class GreedyEncoder(BaseTransform):
 
         return result_df
 
-    def get_test_params(self):
+    @classmethod
+    def get_test_params(cls):
         """Get test parameters for GreedyEncoder.
 
         Returns
