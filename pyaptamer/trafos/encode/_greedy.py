@@ -145,7 +145,7 @@ class GreedyEncoder(BaseTransform):
 
         Returns
         -------
-        params : dict
+        params : list of dict
             Test parameters for GreedyEncoder.
         """
         param0 = {
