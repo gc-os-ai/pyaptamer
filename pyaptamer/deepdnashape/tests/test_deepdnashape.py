@@ -1,0 +1,215 @@
+__author__ = ["prashantpandeygit", "Alleny244"]
+
+import numpy as np
+import pandas as pd
+import pytest
+import torch
+
+from pyaptamer.deepdnashape import DeepDNAShape
+from pyaptamer.deepdnashape._model import AvgFeatures
+
+# test sequence
+TEST_SEQ = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+
+# Short sequence used for numerical reference checks.
+REF_SEQ = "AGCTTAGCGT"
+
+# Frozen Torch-port outputs for REF_SEQ at layer=4.
+# These lock current numerical behavior in CI. Re-check against the
+# original TensorFlow deepDNAshape if model weights or rescaling change.
+_REF_PREDICTIONS = {
+    "MGW": np.array(
+        [
+            5.26707745,
+            4.5357666,
+            4.36672401,
+            4.82271385,
+            5.50648785,
+            5.84248638,
+            5.25734043,
+            5.0927515,
+            5.19374323,
+            5.48550797,
+        ],
+        dtype=np.float64,
+    ),
+    "ProT": np.array(
+        [
+            -9.56554794,
+            -1.1265204,
+            -1.65795779,
+            -8.57664871,
+            -10.11034775,
+            -6.49536705,
+            -1.33570004,
+            -4.47787857,
+            -11.63541126,
+            -15.03390121,
+        ],
+        dtype=np.float64,
+    ),
+    "Roll": np.array(
+        [
+            -0.99402332,
+            -3.35801697,
+            -2.87414646,
+            -3.15939999,
+            5.54953861,
+            -2.44367003,
+            -2.12901092,
+            4.13942862,
+            -2.05449367,
+        ],
+        dtype=np.float64,
+    ),
+    "HelT": np.array(
+        [
+            31.53108978,
+            37.94057465,
+            32.00387573,
+            34.9837265,
+            34.65808868,
+            31.51265907,
+            37.09857941,
+            33.07782745,
+            34.76763916,
+        ],
+        dtype=np.float64,
+    ),
+}
+
+
+def _frame(*seqs):
+    """Build a univariate DataFrame of DNA sequences."""
+    return pd.DataFrame({"seq": list(seqs)})
+
+
+def _values(Xt):
+    """Return the first row of a transform output without trailing NaNs."""
+    row = Xt.iloc[0].to_numpy(dtype=np.float64)
+    if np.isnan(row).any():
+        return row[~np.isnan(row)]
+    return row
+
+
+def test_invalid_feature():
+    """Test an unknown DNA shape feature raises ValueError."""
+    with pytest.raises(ValueError, match="Unknown feature"):
+        DeepDNAShape(feature="INVALID_FEATURE")
+
+
+@pytest.mark.parametrize("layer", [-1, 8, 10])
+def test_invalid_layer(layer):
+    """Test out of bound layer number raises ValueError."""
+    with pytest.raises(ValueError, match="layer must be between 0 and 7"):
+        DeepDNAShape(feature="MGW", layer=layer)
+
+
+def test_allowed_bases_pass_check():
+    """A, C, G, T, and N are accepted without loading the model."""
+    from pyaptamer.deepdnashape._predictor import _check_sequence
+
+    _check_sequence("ACGTN")
+
+
+@pytest.mark.parametrize(
+    ("seq", "bad", "position"),
+    [
+        ("ATGX", "X", 3),
+        ("atgc", "a", 0),
+    ],
+)
+def test_invalid_base(seq, bad, position):
+    """A base outside A, C, G, T, N raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=rf"Invalid base '{bad}' at position {position}\. "
+        "Allowed bases are A, C, G, T, N.",
+    ):
+        DeepDNAShape(feature="MGW").fit_transform(_frame(seq))
+
+
+def test_fit_returns_self():
+    """Empty fit follows the estimator contract and returns self."""
+    est = DeepDNAShape(feature="MGW")
+    assert est.fit(_frame(TEST_SEQ)) is est
+
+
+@pytest.mark.parametrize(
+    ("feature", "layer", "expected_len"),
+    [
+        ("MGW", 4, len(TEST_SEQ)),  # intrabase
+        ("ProT", 4, len(TEST_SEQ)),  # intrabase
+        ("Roll", 4, len(TEST_SEQ) - 1),  # interbase
+        ("HelT", 4, len(TEST_SEQ) - 1),  # interbase
+        ("MGW", 0, len(TEST_SEQ)),  # layer smoke
+        ("MGW", 7, len(TEST_SEQ)),  # layer smoke
+    ],
+)
+def test_output_shape(feature, layer, expected_len):
+    """Output length matches feature kind; valid layers produce floats."""
+    Xt = DeepDNAShape(feature=feature, layer=layer).fit_transform(_frame(TEST_SEQ))
+    preds = _values(Xt)
+
+    assert isinstance(Xt, pd.DataFrame)
+    assert np.issubdtype(preds.dtype, np.floating)
+    assert preds.shape == (expected_len,)
+
+
+@pytest.mark.parametrize(
+    ("feature", "sign"),
+    [
+        ("MGW", 1),
+        ("Shear", -1),
+    ],
+)
+def test_reverse_complement(feature, sign):
+    """A sequence matches its reverse complement, negated when flip_rev is set.
+
+    ``GCAT`` is the reverse complement of ``ATGC``. Symmetric features such
+    as ``MGW`` match directly. Antisymmetric features such as ``Shear``
+    match only after negation.
+    """
+    est = DeepDNAShape(feature=feature)
+    forward = _values(est.fit_transform(_frame("ATGC")))
+    reverse = _values(est.fit_transform(_frame("GCAT")))
+    np.testing.assert_allclose(forward, sign * reverse[::-1], atol=1e-5)
+    if sign < 0:
+        assert not np.allclose(forward, reverse[::-1], atol=1e-5)
+
+
+def test_batch_nan_padding():
+    """Shorter sequences are right-padded with NaN in a batch."""
+    short = "ATGC"
+    long = TEST_SEQ
+    Xt = DeepDNAShape(feature="MGW").fit_transform(_frame(short, long))
+
+    assert Xt.shape == (2, len(long))
+    assert np.isnan(Xt.iloc[0, len(short) :]).all()
+    assert not np.isnan(Xt.iloc[0, : len(short)]).any()
+    assert not np.isnan(Xt.iloc[1].to_numpy()).any()
+
+
+@pytest.mark.parametrize("feature", ["MGW", "ProT", "Roll", "HelT"])
+def test_reference_predictions(feature):
+    """Predictions match frozen numerical reference values.
+
+    Uses a short fixed sequence and layer=4. This catches accidental
+    changes to encoding, graph building, rescaling, or weight loading.
+    """
+    expected = _REF_PREDICTIONS[feature]
+    actual = _values(
+        DeepDNAShape(feature=feature, layer=4).fit_transform(_frame(REF_SEQ))
+    )
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
+
+
+def test_avg_features_pads_to_next_multiple():
+    """AvgFeatures pads up to the next multiple of target_features."""
+    layer = AvgFeatures(target_features=5, filter_size=64)
+    assert layer.pad_amount == 1
+    assert layer.group_size == 13
+
+    x = torch.randn(3, 64)
+    out = layer(x)
+    assert out.shape == (3 * 5,)
