@@ -3,7 +3,9 @@ __all__ = ["ohe", "pad_sequence", "run_deepdna_prediction", "remove_na"]
 
 
 import numpy as np
-from deepDNAshape import predictor
+import pandas as pd
+
+from pyaptamer.deepdnashape import DeepDNAShape
 
 
 def ohe(seq):
@@ -66,10 +68,10 @@ def pad_sequence(seq, seq_len=35):
     return seq.ljust(seq_len, "N")
 
 
-def run_deepdna_prediction(seq, mode="cpu"):
+def run_deepdna_prediction(seq, layer=2):
     """
-    Run deepDNAshape prediction for all DNA structural features (MGW, HelT, ProT, Roll)
-    on a single DNA sequence.
+    Run `DeepDNAShape` prediction for all DNA structural features (MGW, HelT, ProT,
+    Roll) on a single DNA sequence.
 
     The four DNA shape features are:
         - MGW: Minor Groove Width
@@ -81,23 +83,24 @@ def run_deepdna_prediction(seq, mode="cpu"):
     ----------
     seq : str
         DNA sequence (e.g., "AAGGTTCC") to predict structural features for.
-    mode : {"cpu", "gpu"}, optional
-        Compute mode for the predictor. Default is "cpu".
+    layer : int, optional, default=2
+        Message-passing layer of `DeepDNAShape` to read. Layer 2 corresponds to a
+        sliding window of 5 bases.
 
     Returns
     -------
     list of list of float
         A list of length 4, where each element is a list of floats containing
         predictions for one structural feature. The order is [MGW, HelT, ProT, Roll].
-        Lengths differ depending on the feature.
+        MGW and ProT have `len(seq)` values, HelT and Roll have `len(seq) - 1`.
     """
-    # Always use layer 2 (sliding window of 5)
-    layer = 2
-
-    model = predictor.predictor(mode=mode)
+    X = pd.DataFrame({"seq": [seq]})
     features = ["MGW", "HelT", "ProT", "Roll"]
 
-    results = [model.predict(feat, seq, layer).tolist() for feat in features]
+    results = [
+        DeepDNAShape(feature=feat, layer=layer).fit_transform(X).iloc[0].tolist()
+        for feat in features
+    ]
     return results
 
 
