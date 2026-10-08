@@ -14,7 +14,7 @@ class DeepAptamerNN(nn.Module):
     - A sequence branch using convolutional and fully-connected layers to
       process one-hot encoded aptamer sequences.
     - A structural (DNA shape) branch using convolution + pooling + dense layers to
-        extract shape features using `deepDNAshape` from the aptamer sequence.
+        extract shape features using `DeepDNAShape` from the aptamer sequence.
     - A BiLSTM for capturing sequential dependencies.
     - Multi-head self-attention for contextual feature refinement.
     - A final classification head for binary binding prediction.

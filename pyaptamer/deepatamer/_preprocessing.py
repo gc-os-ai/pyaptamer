@@ -55,7 +55,7 @@ def preprocess_seq_shape(seq, full_dna_shape=True):
     seq : str
         A DNA sequence to be processed.
     full_dna_shape : bool, optional, default=True
-        If True, uses the 138-length long `deepDNAshape` vector.
+        If True, uses the 138-length long `DeepDNAShape` vector.
         If False, uses the 126-length long `DNAshapeR` like vector.
 
     Returns
