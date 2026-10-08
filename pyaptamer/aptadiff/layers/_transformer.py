@@ -82,14 +82,14 @@ class AptaDiffTransformerEmbedding(nn.Module):
         Maximum sequence length of input aptamers.
     num_timesteps : int
         Total number of diffusion timesteps.
-    heads : int, default=8
+    heads : int, default=16
         Number of attention heads per transformer layer.
     attn_layer_dropout : float, default=0.0
         Dropout probability applied within attention blocks.
     n_local_attn_heads : int, default=0
         Number of heads dedicated to local windowed attention when using
         `transformer_type="linear"`. Ignored when using `"native"`.
-    local_attn_window_size : int, default=128
+    local_attn_window_size : int, default=1
         Window size used for axial positional indexing and local attention.
     transformer_type : str, default="native"
         The attention backend to use.
@@ -123,10 +123,10 @@ class AptaDiffTransformerEmbedding(nn.Module):
         n_blocks,
         max_seq_len,
         num_timesteps,
-        heads=8,
+        heads=16,
         attn_layer_dropout=0.0,
         n_local_attn_heads=0,
-        local_attn_window_size=128,
+        local_attn_window_size=1,
         transformer_type="native",
     ):
         super().__init__()
@@ -231,7 +231,7 @@ class AptaDiffTransformerEmbedding(nn.Module):
         time_embed = cond.view(x.size(0), 1, self.emb_dim, self.n_blocks, self.depth)
 
         x_emb = self.first(x)
-        x_embed_axial = x_emb + self.axial_pos_emb(x_emb).type(x_emb.type())
+        x_embed_axial = x_emb + self.axial_pos_emb(x_emb).to(x_emb.dtype)
 
         h = torch.zeros_like(x_embed_axial)
 
