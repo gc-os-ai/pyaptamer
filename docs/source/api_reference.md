@@ -69,6 +69,21 @@ change without notice.
    EncoderPredictorConfig
 ```
 
+## DeepAptamer
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepaptamer
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepAptamerPipeline
+   DeepAptamerClassifier
+   DeepAptamerFeatures
+   DeepAptamerNN
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
