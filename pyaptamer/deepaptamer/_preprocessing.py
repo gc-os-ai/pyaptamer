@@ -175,5 +175,8 @@ class DeepAptamerFeatures(BaseTransform):
 
     @classmethod
     def get_test_params(cls):
-        """Return parameter sets for the shared transformer tests."""
-        return [{}, {"seq_len": 20, "full_dna_shape": True}]
+        """Return parameter sets for the shared transformer tests.
+
+        ``seq_len`` must be at least the length of the test sequences (40).
+        """
+        return [{"seq_len": 40}, {"seq_len": 50, "full_dna_shape": True}]
