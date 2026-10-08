@@ -1,8 +1,10 @@
-__author__ = "satvshr"
+__author__ = ["satvshr", "geetu040"]
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
+from sklearn.dummy import DummyClassifier
 from sklearn.utils.estimator_checks import (
     check_get_params_invariance,
     check_no_attributes_set_in_init,
@@ -10,40 +12,96 @@ from sklearn.utils.estimator_checks import (
     check_set_params,
 )
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.deepaptamer import (
     DeepAptamerClassifier,
-    DeepAptamerNN,
+    DeepAptamerFeatures,
     DeepAptamerPipeline,
 )
 
+APTAMERS = [
+    "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC",
+    "TGCATGCTAGCTAGCTAGCTAGCTAGCTAGCGCTA",
+]
 
-@pytest.mark.parametrize(
-    "seqs",
-    [
-        "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTCCG",
-        [
-            "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC",
-            "TGCATGCTAGCTAGCTAGCTAGCTAGCTAGCGCTA",
-        ],
-    ],
-)
-def test_pipeline_predict_shapes(seqs):
-    """
-    Test if DeepAptamerPipeline outputs valid ranked predictions.
 
-    Raises
-    ------
-    AssertionError
-        If prediction scores are not sorted in descending order.
-    """
-    model = DeepAptamerNN()
-    pipe = DeepAptamerPipeline(model=model, device="cpu")
+def _make_loader(n, col="aptamer"):
+    """Build a MoleculeLoader of n aptamers, alternating between APTAMERS."""
+    return MoleculeLoader(data={col: [APTAMERS[i % 2] for i in range(n)]})
 
-    ranked = pipe.predict(seqs)
 
-    # Ensure sorted in descending order
-    scores = [item["score"] for item in ranked]
-    assert all(scores[i] >= scores[i + 1] for i in range(len(scores) - 1))
+@pytest.mark.parametrize("full_dna_shape, shape_len", [(False, 126), (True, 138)])
+def test_features_width(full_dna_shape, shape_len):
+    """The features are the flat one-hot matrix followed by the shape vector."""
+    X = pd.DataFrame({"aptamer": APTAMERS})
+    Xt = DeepAptamerFeatures(full_dna_shape=full_dna_shape).fit_transform(X)
+
+    assert Xt.shape == (2, 4 * 35 + shape_len)
+    assert Xt.index.equals(X.index)
+    # "A" -> [1, 0, 0, 0], "G" -> [0, 0, 0, 1]
+    assert Xt.iloc[0, :8].tolist() == [1, 0, 0, 0, 0, 0, 0, 1]
+
+
+def test_features_pad_shorter_sequences():
+    """Sequences shorter than seq_len are padded, so mixed lengths share a width."""
+    X = pd.DataFrame({"aptamer": [APTAMERS[0], APTAMERS[1][:20]]})
+    Xt = DeepAptamerFeatures().fit_transform(X)
+
+    assert Xt.shape == (2, 266)
+    assert not Xt.isna().any().any()
+    # padding "N" is encoded as all zeros
+    assert (Xt.iloc[1, 4 * 20 : 4 * 35] == 0).all()
+
+
+def test_features_reject_too_long_sequences():
+    """Sequences longer than seq_len raise ValueError."""
+    X = pd.DataFrame({"aptamer": [APTAMERS[0]]})
+    with pytest.raises(ValueError, match="exceeds"):
+        DeepAptamerFeatures(seq_len=20).fit_transform(X)
+
+
+def test_pipeline_fit_and_predict():
+    """Pipeline predictions are valid labels and probabilities with matching shape."""
+    X = _make_loader(20)
+    y = np.array([0, 1] * 10)
+    pipe = DeepAptamerPipeline(
+        estimator=DeepAptamerClassifier(max_epochs=2, random_state=0)
+    ).fit(X, y)
+
+    preds = pipe.predict(X)
+    proba = pipe.predict_proba(X)
+
+    assert preds.shape == (20,)
+    assert set(preds).issubset({0, 1})
+    assert proba.shape == (20, 2)
+    assert np.allclose(proba.sum(axis=1), 1, atol=1e-5)
+
+
+def test_pipeline_full_dna_shape_reaches_features():
+    """full_dna_shape is passed on to the features step."""
+    X = _make_loader(4)
+    y = np.array([0, 1] * 2)
+    pipe = DeepAptamerPipeline(full_dna_shape=True, estimator=DummyClassifier())
+    pipe.fit(X, y)
+
+    features = pipe.pipeline_["features"]
+    assert features.transform(X.to_dataframe()).shape == (4, 4 * 35 + 138)
+
+
+def test_pipeline_accepts_dataframe_and_custom_column():
+    """A DataFrame is accepted like a loader and aptamer_col selects the column."""
+    X = _make_loader(4, col="apt").to_dataframe()
+    y = np.array([0, 1] * 2)
+    pipe = DeepAptamerPipeline(aptamer_col="apt", estimator=DummyClassifier())
+    assert pipe.fit(X, y).predict(X).shape == (4,)
+
+
+def test_pipeline_rejects_other_input():
+    """Input that is neither a MoleculeLoader nor a DataFrame raises TypeError."""
+    with pytest.raises(
+        TypeError, match="MoleculeLoader instance or a pandas DataFrame"
+    ):
+        DeepAptamerPipeline().fit([APTAMERS[0]], np.array([0]))
 
 
 SEQ_LEN = 35
