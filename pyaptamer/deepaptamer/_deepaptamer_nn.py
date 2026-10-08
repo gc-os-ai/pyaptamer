@@ -61,9 +61,6 @@ class DeepAptamerNN(nn.Module):
     dropout : float, optional, default=0.1
         Dropout probability applied after the BiLSTM.
 
-    optimizer : torch.optim.Optimizer or None, optional, default=None
-        Optimizer for training. If None, defaults to Adam with lr=0.001.
-
     Attributes
     ----------
     seq_conv : nn.Conv1d
@@ -107,7 +104,6 @@ class DeepAptamerNN(nn.Module):
         bilstm_hidden_size=100,
         bilstm_num_layers=2,
         dropout=0.1,
-        optimizer=None,
     ):
         super().__init__()
         self.seq_conv_in = seq_conv_in
@@ -123,7 +119,6 @@ class DeepAptamerNN(nn.Module):
         self.bilstm_hidden_size = bilstm_hidden_size
         self.bilstm_num_layers = bilstm_num_layers
         self.dropout_val = dropout
-        self.optimizer = optimizer
 
         # Sequence branch (B, seq_len, 4)
         self.seq_conv = nn.Conv1d(
@@ -168,8 +163,6 @@ class DeepAptamerNN(nn.Module):
         )
 
         self.head = nn.Linear(2 * bilstm_hidden_size, 2)
-
-        self.optimizer = self.optimizer or torch.optim.Adam(self.parameters(), lr=0.001)
 
     def forward(self, x_ohe, x_shape):
         """
