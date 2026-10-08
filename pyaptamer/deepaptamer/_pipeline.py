@@ -1,117 +1,167 @@
-__author__ = "satvshr"
+__author__ = ["satvshr", "geetu040"]
 __all__ = ["DeepAptamerPipeline"]
 
-import numpy as np
-import torch
+import pandas as pd
+from skbase.base import BaseEstimator
+from sklearn.base import clone
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 
-from pyaptamer.deepaptamer._preprocessing import (
-    preprocess_seq_ohe,
-    preprocess_seq_shape,
-)
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.deepaptamer._classifier import DeepAptamerClassifier
+from pyaptamer.deepaptamer._preprocessing import DeepAptamerFeatures
 
 
-class DeepAptamerPipeline:
+class DeepAptamerPipeline(BaseEstimator):
     """
-    DeepAptamer algorithm for aptamer–protein interaction prediction [1]_
+    DeepAptamer algorithm for aptamer binding prediction [1]_
 
-    This class encapsulates preprocessing (sequence one-hot encoding and DNAshape
-    feature extraction) together with inference on a trained `DeepAptamerNN` model.
-    It provides a `predict` method that accepts one or more DNA sequences and returns
-    ranked binding affinity scores.
+    Implements DeepAptamer, a hybrid deep learning model that combines the one-hot
+    encoded aptamer sequence with its predicted DNA shape (MGW, HelT, ProT, Roll)
+    to predict whether an aptamer binds its target (binary classification).
+
+    The pipeline takes a MoleculeLoader or a DataFrame with an aptamer column. The
+    aptamers are encoded with `DeepAptamerFeatures` and passed to the estimator.
 
     Parameters
     ----------
-    model : DeepAptamerNN
-        A trained DeepAptamer neural network model.
-    full_dna_shape : bool, optional, default=True
-        If True, use the trimmed 126-length DNAshape representation
-        (MGW=31, HelT=32, ProT=31, Roll=32).
-        If False, keep the full 138-length DeepDNAshape representation.
-        (MGW=35, HelT=34, ProT=35, Roll=34).
-    device : {"cpu", "cuda"}, default="cpu"
-        Device to run inference on.
+    seq_len : int, optional, default=35
+        Length the aptamer sequences are padded to. Longer sequences raise an error.
+    full_dna_shape : bool, optional, default=False
+        If True, keep the full `DeepDNAShape` output (138 values for a 35-mer).
+        If False, drop the edge positions that are NA in `DNAshapeR`, as in the
+        DeepAptamer paper (126 values for a 35-mer).
+    aptamer_col : str, optional, default="aptamer"
+        Name of the column holding aptamer sequences.
+    estimator : sklearn-compatible estimator or None, default=None
+        Estimator applied to the features. If None, uses `DeepAptamerClassifier`
+        with the same ``seq_len``. A custom `DeepAptamerClassifier` must use the
+        same ``seq_len`` as the pipeline.
 
-    Methods
-    -------
-    predict(seqs)
-        Compute ranked binding affinity scores for one or more DNA
-        sequences. Returns a list of dictionaries with each sequence
-        and its predicted binding probability.
+    Attributes
+    ----------
+    pipeline_ : sklearn.pipeline.Pipeline
+        Steps ``features`` (a ``ColumnTransformer``) and ``clf``.
 
     References
     ----------
     .. [1] Yang X, Chan CH, Yao S, Chu HY, Lyu M, Chen Z, Xiao H, Ma Y, Yu S, Li F,
-    Liu J, Wang L, Zhang Z, Zhang BT, Zhang L, Lu A, Wang Y, Zhang G, Yu Y.
-    DeepAptamer: Advancing high-affinity aptamer discovery with a hybrid deep learning
-    model. Mol Ther Nucleic Acids. 2024 Dec 21;36(1):102436.
-    doi: 10.1016/j.omtn.2024.102436. PMID: 39897584; PMCID: PMC11787022.
-    https://www.cell.com/molecular-therapy-family/nucleic-acids/pdf/S2162-2531(24)00323-8.pdf
+       Liu J, Wang L, Zhang Z, Zhang BT, Zhang L, Lu A, Wang Y, Zhang G, Yu Y.
+       DeepAptamer: Advancing high-affinity aptamer discovery with a hybrid deep
+       learning model. Mol Ther Nucleic Acids. 2024 Dec 21;36(1):102436.
+       doi: 10.1016/j.omtn.2024.102436. PMID: 39897584; PMCID: PMC11787022.
+       https://www.cell.com/molecular-therapy-family/nucleic-acids/pdf/S2162-2531(24)00323-8.pdf
     .. [2] deepDNAshape: a deep learning predictor for DNA shape features.
-    https://github.com/JinsenLi/deepDNAshape/blob/main/LICENSE
+       https://github.com/JinsenLi/deepDNAshape/blob/main/LICENSE
     .. [3] DeepAptamer: a deep learning framework for aptamer design and binding
-    prediction.
-    https://github.com/YangX-BIDD/DeepAptamer
+       prediction.
+       https://github.com/YangX-BIDD/DeepAptamer
 
     Examples
     --------
-    >>> from pyaptamer.deepaptamer import DeepAptamerPipeline, DeepAptamerNN
-    >>> model = DeepAptamerNN()
-    >>> model.predict("ACGTAGCTCGTAGCTAGCTAGCTAGCTAGCTCGTAGCTAGCTAGCTAG")
-
+    >>> import numpy as np
+    >>> from pyaptamer.data import MoleculeLoader
+    >>> from pyaptamer.deepaptamer import DeepAptamerClassifier, DeepAptamerPipeline
+    >>> aptamers = [
+    ...     "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC",
+    ...     "TGCATGCTAGCTAGCTAGCTAGCTAGCTAGCGCTA",
+    ... ]
+    >>> X_train = MoleculeLoader(data={"aptamer": aptamers * 10})
+    >>> y_train = np.array([0, 1] * 10)
+    >>> pipe = DeepAptamerPipeline(estimator=DeepAptamerClassifier(max_epochs=2))
+    >>> pipe.fit(X_train, y_train)  # doctest: +ELLIPSIS
+    DeepAptamerPipeline(...)
+    >>> preds = pipe.predict(X_train)
+    >>> proba = pipe.predict_proba(X_train)
     """
 
-    def __init__(self, model, full_dna_shape=True, device="cpu"):
-        self.model = model
+    def __init__(
+        self, seq_len=35, full_dna_shape=False, aptamer_col="aptamer", estimator=None
+    ):
+        self.seq_len = seq_len
         self.full_dna_shape = full_dna_shape
-        self.device = device
+        self.aptamer_col = aptamer_col
+        self.estimator = estimator
+        super().__init__()
 
-    def predict(self, seqs):
+    def _build_pipeline(self):
+        features = ColumnTransformer(
+            [
+                (
+                    "aptamer",
+                    DeepAptamerFeatures(
+                        seq_len=self.seq_len, full_dna_shape=self.full_dna_shape
+                    ),
+                    [self.aptamer_col],
+                ),
+            ]
+        )
+        estimator = self.estimator or DeepAptamerClassifier(seq_len=self.seq_len)
+        return Pipeline([("features", features), ("clf", clone(estimator))])
+
+    @staticmethod
+    def _to_frame(X):
+        if isinstance(X, MoleculeLoader):
+            return X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
+        return X
+
+    def fit(self, X, y):
         """
-        Predict binding affinity scores for one or more sequences.
+        Fit the pipeline on training data.
 
         Parameters
         ----------
-        seqs : str or list of str
-            DNA sequence(s), each length ≤ max sequence length in `seqs`.
+        X : MoleculeLoader or pd.DataFrame
+            Training data with the aptamer column.
+        y : array-like of shape (n_samples,)
+            Binary class labels.
 
         Returns
         -------
-        list of dict
-            Ranked list of dictionaries, each with:
-            {
-                "seq": sequence string,
-                "score": float (probability of binding, from [p_bind, p_not_bind])
-            }
-            Sorted from high to low by score.
+        self : object
+            Fitted pipeline.
         """
-        if isinstance(seqs, str):
-            seqs = [seqs]
+        self.pipeline_ = self._build_pipeline()
+        self.pipeline_.fit(self._to_frame(X), y)
+        self._is_fitted = True
+        return self
 
-        max_len = max(len(seq) for seq in seqs)
-        ohe_list = [preprocess_seq_ohe(seq, seq_len=max_len) for seq in seqs]
+    def predict_proba(self, X):
+        """
+        Predict class probabilities for the aptamers in `X`.
 
-        X_ohe = torch.tensor(
-            np.array(ohe_list), dtype=torch.float32, device=self.device
-        )
-        X_shape = torch.tensor(
-            preprocess_seq_shape(seqs), dtype=torch.float32, device=self.device
-        )
-        self.model.eval()
-        with torch.no_grad():
-            outputs = self.model(X_ohe, X_shape)
-            # convert to probabilities
-            probs = torch.softmax(outputs, dim=1).cpu().numpy()
+        Parameters
+        ----------
+        X : MoleculeLoader or pd.DataFrame
+            Data with the aptamer column.
 
-        bind_scores = probs[:, 0]
+        Returns
+        -------
+        ndarray of shape (n_samples, 2)
+            Probability estimates for each class, in the order of the estimator's
+            ``classes_``.
+        """
+        self.check_is_fitted(method_name="predict_proba")
+        return self.pipeline_.predict_proba(self._to_frame(X))
 
-        # Create ranked output
-        ranked = sorted(
-            [
-                {"seq": s, "score": float(sc)}
-                for s, sc in zip(seqs, bind_scores, strict=False)
-            ],
-            key=lambda x: x["score"],
-            reverse=True,
-        )
+    def predict(self, X):
+        """
+        Predict binary class labels for the aptamers in `X`.
 
-        return ranked
+        Parameters
+        ----------
+        X : MoleculeLoader or pd.DataFrame
+            Data with the aptamer column.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Predicted class labels.
+        """
+        self.check_is_fitted(method_name="predict")
+        return self.pipeline_.predict(self._to_frame(X))
