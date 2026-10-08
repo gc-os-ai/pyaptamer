@@ -27,6 +27,16 @@ change without notice.
    PrimerTrimmer
 ```
 
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.compose
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   ApplyToCols
+```
+
 ## AptaNet
 
 ```{eval-rst}

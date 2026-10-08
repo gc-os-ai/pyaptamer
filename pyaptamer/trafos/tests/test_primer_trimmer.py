@@ -213,3 +213,30 @@ def test_on_unmatched_na_partial_does_not_warn():
         ).fit_transform(X)
 
     assert len(Xt) == 2
+
+
+def test_drop_on_wide_frame_removes_the_row_everywhere():
+    """On a wide frame, a dropped read disappears from every column and the rest stays aligned."""  # noqa: E501
+    X = pd.DataFrame(
+        {
+            "round": [1, 2, 3],
+            "sequence": ["AAACGTTT", "GGGG", "AAAGGTTT"],
+            "gc": [0.1, 0.2, 0.3],
+        },
+        index=["a", "b", "c"],
+    )
+    trimmer = PrimerTrimmer(start_primer="AAA", end_primer="TTT", variable_length=2)
+    Xt = trimmer.fit_transform(X)
+    assert Xt.columns.tolist() == ["round", "sequence", "gc"]
+    assert Xt.index.tolist() == ["a", "c"]
+    assert Xt["sequence"].tolist() == ["CG", "GG"]
+    assert Xt["round"].tolist() == [1, 3]
+    assert Xt["gc"].tolist() == [0.1, 0.3]
+
+
+def test_drop_on_wide_frame_with_duplicate_index_raises():
+    """Dropping rows from a wide frame needs a unique row index to realign the rest."""
+    X = pd.DataFrame({"sequence": ["AAACGTTT", "GGGG"], "round": [1, 2]}, index=[0, 0])
+    trimmer = PrimerTrimmer(start_primer="AAA", end_primer="TTT", variable_length=2)
+    with pytest.raises(ValueError, match="unique"):
+        trimmer.fit_transform(X)

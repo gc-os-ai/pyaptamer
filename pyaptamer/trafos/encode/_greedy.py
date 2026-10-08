@@ -49,6 +49,17 @@ class GreedyEncoder(BaseTransform):
     >>>
     >>> encoder = GreedyEncoder(words=words, max_len=5, word_max_len=2)
     >>> encoded_data = encoder.fit_transform(data)
+
+    A frame with extra columns is fine when ``sequence`` is its only string
+    column. The extra columns are returned unchanged:
+
+    >>> import pandas as pd
+    >>> X = pd.DataFrame({"sequence": ["ACGT", "GGCC"], "round": [4, 4]})
+    >>> words = {"A": 1, "C": 2, "G": 3, "T": 4}
+    >>> GreedyEncoder(words=words).fit_transform(X)
+       sequence__0  sequence__1  sequence__2  sequence__3  round
+    0            1            2            3            4      4
+    1            3            3            2            2      4
     """
 
     _tags = {
