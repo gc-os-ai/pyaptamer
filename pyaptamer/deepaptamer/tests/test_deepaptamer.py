@@ -2,8 +2,8 @@ __author__ = "satvshr"
 
 import pytest
 
-from pyaptamer.deepatamer._deepaptamer_nn import DeepAptamerNN
-from pyaptamer.deepatamer._pipeline import DeepAptamerPipeline
+from pyaptamer.deepaptamer._deepaptamer_nn import DeepAptamerNN
+from pyaptamer.deepaptamer._pipeline import DeepAptamerPipeline
 
 
 @pytest.mark.parametrize(

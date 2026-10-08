@@ -4,7 +4,10 @@ __all__ = ["DeepAptamerPipeline"]
 import numpy as np
 import torch
 
-from pyaptamer.deepatamer._preprocessing import preprocess_seq_ohe, preprocess_seq_shape
+from pyaptamer.deepaptamer._preprocessing import (
+    preprocess_seq_ohe,
+    preprocess_seq_shape,
+)
 
 
 class DeepAptamerPipeline:
@@ -51,7 +54,7 @@ class DeepAptamerPipeline:
 
     Examples
     --------
-    >>> from pyaptamer.deepatamer import DeepAptamerPipeline, DeepAptamerNN
+    >>> from pyaptamer.deepaptamer import DeepAptamerPipeline, DeepAptamerNN
     >>> model = DeepAptamerNN()
     >>> model.predict("ACGTAGCTCGTAGCTAGCTAGCTAGCTAGCTCGTAGCTAGCTAGCTAG")
 
