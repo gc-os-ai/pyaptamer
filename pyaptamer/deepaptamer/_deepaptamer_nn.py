@@ -7,7 +7,7 @@ import torch.nn as nn
 
 class DeepAptamerNN(nn.Module):
     """
-    DeepAptamer neural network model for aptamer–protein interaction prediction.
+    DeepAptamer neural network model for aptamer–protein interaction prediction [1]_.
 
     This architecture integrates:
 
@@ -18,6 +18,8 @@ class DeepAptamerNN(nn.Module):
     - A BiLSTM for capturing sequential dependencies.
     - Multi-head self-attention for contextual feature refinement.
     - A final classification head for binary binding prediction.
+
+    This follows the original implementation [2]_.
 
     Parameters
     ----------
@@ -86,6 +88,16 @@ class DeepAptamerNN(nn.Module):
 
     head : nn.Linear
         Final classification layer (logits for 2 classes).
+
+    References
+    ----------
+    .. [1] Yang X, Chan CH, Yao S, Chu HY, Lyu M, Chen Z, Xiao H, Ma Y, Yu S, Li F,
+       Liu J, Wang L, Zhang Z, Zhang BT, Zhang L, Lu A, Wang Y, Zhang G, Yu Y.
+       DeepAptamer: Advancing high-affinity aptamer discovery with a hybrid deep
+       learning model. Mol Ther Nucleic Acids. 2024 Dec 21;36(1):102436.
+       doi: 10.1016/j.omtn.2024.102436.
+    .. [2] DeepAptamer original implementation.
+       https://github.com/YangX-BIDD/DeepAptamer
     """
 
     def __init__(

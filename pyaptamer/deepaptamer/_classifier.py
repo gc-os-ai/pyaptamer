@@ -19,6 +19,8 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
     This estimator trains a skorch-wrapped `DeepAptamerNN` with cross-entropy loss
     and the Adam optimizer. [1]_
 
+    This follows the original implementation [2]_.
+
     The network has two input branches, a one-hot encoded sequence and a DNA shape
     vector. Both are passed in a single feature matrix `X`: the first
     ``4 * seq_len`` columns hold the one-hot sequence, flattened row-wise from shape
@@ -59,7 +61,8 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
        DeepAptamer: Advancing high-affinity aptamer discovery with a hybrid deep
        learning model. Mol Ther Nucleic Acids. 2024 Dec 21;36(1):102436.
        doi: 10.1016/j.omtn.2024.102436.
-    .. [2] https://github.com/YangX-BIDD/DeepAptamer
+    .. [2] DeepAptamer original implementation.
+       https://github.com/YangX-BIDD/DeepAptamer
     """
 
     def __init__(

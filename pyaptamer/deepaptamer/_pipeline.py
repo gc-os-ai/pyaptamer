@@ -20,6 +20,8 @@ class DeepAptamerPipeline(BaseEstimator):
     encoded aptamer sequence with its predicted DNA shape (MGW, HelT, ProT, Roll)
     to predict whether an aptamer binds its target (binary classification).
 
+    This follows the original implementation [2]_.
+
     The pipeline takes a MoleculeLoader or a DataFrame with an aptamer column. The
     aptamers are encoded with `DeepAptamerFeatures` and passed to the estimator.
 
@@ -51,10 +53,7 @@ class DeepAptamerPipeline(BaseEstimator):
        learning model. Mol Ther Nucleic Acids. 2024 Dec 21;36(1):102436.
        doi: 10.1016/j.omtn.2024.102436. PMID: 39897584; PMCID: PMC11787022.
        https://www.cell.com/molecular-therapy-family/nucleic-acids/pdf/S2162-2531(24)00323-8.pdf
-    .. [2] deepDNAshape: a deep learning predictor for DNA shape features.
-       https://github.com/JinsenLi/deepDNAshape/blob/main/LICENSE
-    .. [3] DeepAptamer: a deep learning framework for aptamer design and binding
-       prediction.
+    .. [2] DeepAptamer original implementation.
        https://github.com/YangX-BIDD/DeepAptamer
 
     Examples
