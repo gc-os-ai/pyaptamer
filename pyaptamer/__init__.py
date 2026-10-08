@@ -1,3 +1,9 @@
 """pyaptamer: Python library for aptamer design."""
 
-__version__ = "0.0.1.dev0"
+from importlib.metadata import version
+
+from pyaptamer._logger import logger
+
+__version__ = version("pyaptamer")
+
+__all__ = ["__version__", "logger"]

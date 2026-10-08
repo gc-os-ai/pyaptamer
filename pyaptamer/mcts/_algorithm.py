@@ -3,16 +3,19 @@
 __author__ = ["nennomp"]
 __all__ = ["MCTS"]
 
+import logging
 import random
 
 import numpy as np
 from skbase.base import BaseObject
 
+from pyaptamer import logger
+
 
 class MCTS(BaseObject):
     """
-    MCTS algorithm implementation for string optimization, specifically for aptamr
-    generation as described in aptamer generation as described in [1]_, originally
+    MCTS algorithm implementation for string optimization, specifically for aptamer
+    generation as described in [1]_, originally
     introduced in [2]_.
 
     Adapted from:
@@ -22,24 +25,26 @@ class MCTS(BaseObject):
 
     Parameters
     ----------
-    states : list[str]
+    states : list[str], optional, default=None
         Possible values for the nodes. Underscores indicate whether the values are
-        supposed to be prepended or appended to the sequence.
-    depth : int, optional
-        Maximum depth of the search tree, also the length of the generated sequences.
-    n_iterations : int, optional
-        Number of iterations per round for the MCTS algorithm.
-    experiment : BaseExperiment, optional, default=None
+        supposed to be prepended or appended to the sequence. If None or empty,
+        defaults to the standard RNA nucleotide states. Must contain unique entries.
+    depth : int, optional, default=20
+        Maximum depth of the search tree, also the length of the generated
+        sequences. Must be >= 1.
+    n_iterations : int, optional, default=1000
+        Number of iterations per round for the MCTS algorithm. Must be >= 1.
+    experiment : BaseAptamerEval, optional, default=None
         An instance of an experiment class definingthe goal function for the algorithm.
 
     Attributes
     ----------
+    root : TreeNode
+        Root node of the MCTS tree.
     base : str
         Best sequence found so far.
     candidate : str
         Final candidate sequence.
-    root : TreeNode
-        Root node of the MCTS tree.
 
     References
     ----------
@@ -52,25 +57,20 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> import torch  # doctest: +SKIP
-    >>> from pyaptamer.experiments import Aptamer  # doctest: +SKIP
-    >>> from pyaptamer.mcts import MCTS  # doctest: +SKIP
-    >>> device = torch.device(
-    ...     "cuda" if torch.cuda.is_available() else "cpu"
-    ... )  # doctest: +SKIP
-    >>> target = "MCKY"  # doctest: +SKIP
-    >>> target_enc = torch.tensor([1, 0, 0, 1, 0, 1], dtype=torch.float32).to(
-    ...     device
-    ... )  # doctest: +SKIP
-    >>> experiment = Aptamer(target_enc, target, model, device)  # doctest: +SKIP
-    >>> mcts = MCTS(depth=10, experiment=experiment)  # doctest: +SKIP
-    >>> candidate = mcts.run()  # doctest: +SKIP
-    >>> print((candidate["candidate"], len(candidate["candidate"])))  # doctest: +SKIP
-    ('CUUUAUGUCA', 10)
-    >>> print((candidate["sequence"], len(candidate["sequence"])))  # doctest: +SKIP
-    ('_GU_A__U_CU__AU_U_C_', 20)
-    >>> print(candidate["score"])  # doctest: +SKIP
-    tensor([0.5000])
+    >>> import torch
+    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
+    >>> from pyaptamer.experiments import AptamerEvalAptaTrans
+    >>> from pyaptamer.mcts import MCTS
+    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
+    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
+    >>> target = "DHRNE"
+    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
+    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
+    >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
+    >>> candidate = mcts.run(verbose=False)
+    >>> seq = candidate["candidate"]  # the reconstructed aptamer string
     """
 
     def __init__(
@@ -81,26 +81,30 @@ class MCTS(BaseObject):
         experiment=None,
     ) -> None:
         """
-        Parameters
-        ----------
-        experiment : Aptamer
-            An instance of the Aptamer() class specifying the goal function.
-        states : list[str], optional
-            A list containing possible values for the nodes. Underscores indicate
-            whether the values are supposed to be prepended or appended to the sequence.
-        depth : int, optional
-            Maximum depth of the search tree.
-        n_iterations : int, optional
-            Number of iterations per round for the MCTS algorithm.
+        Raises
+        ------
+        ValueError
+            If `depth` is less than 1.
+        ValueError
+            If `n_iterations` is less than 1.
+        ValueError
+            If `states` contains duplicate entries.
         """
+        if depth < 1:
+            raise ValueError(f"`depth` must be >= 1, got {depth}.")
+        if n_iterations < 1:
+            raise ValueError(f"`n_iterations` must be >= 1, got {n_iterations}.")
+
+        if not states:
+            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+        elif len(states) != len(set(states)):
+            raise ValueError("`states` must contain unique entries.")
+
         self.experiment = experiment
         self.depth = depth
         self.n_iterations = n_iterations
 
         super().__init__()
-
-        if states is None:
-            states = ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
         self.states = states
 
         self.root = TreeNode(
@@ -109,6 +113,16 @@ class MCTS(BaseObject):
         self.base = ""
         self.candidate = ""
 
+    def __repr__(self) -> str:
+        """Return a human-readable representation of the MCTS configuration."""
+        exp_name = self.experiment.__class__.__name__ if self.experiment else None
+        return (
+            f"MCTS(depth={self.depth}, "
+            f"n_iterations={self.n_iterations}, "
+            f"n_states={len(self.states)}, "
+            f"experiment={exp_name})"
+        )
+
     def _reset(self) -> None:
         """Reset the MCTS algorithm to its initial state."""
         self.root = TreeNode(
@@ -116,6 +130,49 @@ class MCTS(BaseObject):
         )
         self.base = ""
         self.candidate = ""
+
+    def _reconstruct(self, sequence: str) -> str:
+        """Reconstruct the aptamer sequence.
+
+        The algorithms produces expects aptamer candidates in a specific format
+        involving pairs of nucleotide letters and direction markers (underscores). For
+        instance, 'A_' indicates adding 'A' to the left of the current sequence
+        (prepending), while '_A' indicates adding 'A' to the right (appending). As an
+        example, the input 'A_C__GU_' would be reconstructed to 'UCAG'.
+
+        Parameters
+        ----------
+        sequence : str
+            Encoded sequence with direction markers (underscores).
+
+        Returns
+        -------
+        str
+            The reconstructed sequence.
+        """
+        # already reconstructed
+        if "_" not in sequence:
+            return sequence
+
+        # if the sequence is not reconstructed yet, it should have an even length
+        # because it should consist of pairs such as 'A_' and '_A' (i.e., nucleotide +
+        # direction marker).
+        assert len(sequence) % 2 == 0, (
+            f"Encoded sequence must have even length, got {len(sequence)}."
+        )
+
+        # reconstruct
+        result = ""
+        for i in range(0, len(sequence), 2):
+            match sequence[i]:
+                case "_":
+                    # append the next values
+                    result = result + sequence[i + 1]
+                case _:
+                    # prepend the current value
+                    result = sequence[i] + result
+
+        return result
 
     def _selection(self, node: "TreeNode") -> "TreeNode":
         """Select a node for expansion.
@@ -200,9 +257,12 @@ class MCTS(BaseObject):
         sequence = self.base + sequence
 
         # fill the rest of the sequence with random possible values
-        remaining_length = (self.depth * 2) - len(sequence)
+        remaining_length = self.depth - (len(sequence) // 2)
         for _ in range(remaining_length):
             sequence += random.choice(self.states)
+
+        # reconstruct the encoded sequence (e.g., "A__C" -> "CA") before evaluation
+        sequence = self._reconstruct(sequence)
 
         # evaluate the candidate sequence with the goal function
         return self.experiment.evaluate(sequence)
@@ -219,7 +279,7 @@ class MCTS(BaseObject):
         subsequence = self.base
 
         # traverse the tree
-        max_steps = (self.depth * 2) - len(self.base)
+        max_steps = self.depth - (len(self.base) // 2)
         for _ in range(max_steps):
             if not curr.children:
                 break
@@ -232,26 +292,32 @@ class MCTS(BaseObject):
     def run(self, verbose: bool = True) -> dict:
         """
         Perform a full recommendation run consisting of `self.n_iterations` rounds of
-        (selection -> expansion -> simulation -> backpropagation)
+        (selection -> expansion -> simulation -> backpropagation).
 
         Parameters
         ----------
-        verbose : bool
-            Whether to print progress information.
+        verbose : bool, optional, default=True
+            Whether to log progress information via ``logger.debug``.
+            Messages are only emitted when the logger level is ``DEBUG``.
 
         Returns
         -------
         dict
-            Dictionary containing the final candidate sequence (`candidate`) and its
-            score (`score`).
+            A dictionary with the following keys:
+
+            - `candidate` (*str*) — The reconstructed aptamer sequence.
+            - `sequence` (*str*) — The raw encoded sequence with direction
+              markers (underscores), before reconstruction.
+            - `score` (*float*) — The score of the candidate as evaluated
+              by `self.experiment`.
         """
         self._reset()
 
         # continue until we reach the target sequence length (i.e, depth * 2)
         round_count = 0
         while len(self.base) < self.depth * 2:
-            if verbose:
-                print(f"\n ----- Round: {round_count + 1} -----")
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Round: %d", round_count + 1)
 
             for _ in range(self.n_iterations):
                 # selection
@@ -269,11 +335,12 @@ class MCTS(BaseObject):
 
             self.base = self._find_best_subsequence()
 
-            if verbose:
-                print("#" * 50)
-                print(f"Best subsequence: {self.base}")
-                print(f"Depth: {len(self.base) // 2}")
-                print("#" * 50)
+            if verbose and logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Best subsequence: %s | Depth: %d",
+                    self.base,
+                    len(self.base) // 2,
+                )
 
             # reset for next iteration
             self.root = TreeNode(
@@ -284,10 +351,11 @@ class MCTS(BaseObject):
             round_count += 1
 
         self.candidate = self.base
+        reconstructed_candidate = self._reconstruct(self.candidate)
         return {
-            "candidate": self.experiment.reconstruct(self.candidate)[0],
+            "candidate": reconstructed_candidate,
             "sequence": self.candidate,
-            "score": self.experiment.evaluate(self.candidate),
+            "score": self.experiment.evaluate(reconstructed_candidate),
         }
 
 
@@ -299,24 +367,24 @@ class TreeNode:
 
     Parameters
     ----------
-    val : str, optional
+    val : str, optional, default=""
         Value for this node.
-    parent : TreeNode, optional
+    parent : TreeNode, optional, default=None
         Reference to the parent node.
-    depth : int, optional
+    depth : int, optional, default=0
         Depth of the node in the tree.
-    states : int, optional
+    states : int, optional, default=8
         Number of possible children states.
-    is_root : bool, optional
+    is_root : bool, optional, default=True
         Whether this node is the root of the tree.
-    is_terminal : bool, optional
+    is_terminal : bool, optional, default=False
         Whether this node is the last one in the path.
-    exploitation_score : float, optional
+    exploitation_score : float, optional, default=0.0
         Accumulated exploitation score from simulations.
 
     Attributes
     ----------
-    visits : int
+    n_visits : int
         Counter tracking the umber of visits to this node.
     children : dict[str, TreeNode]
         Dictionary of child nodes indexed by value.
@@ -330,7 +398,7 @@ class TreeNode:
     >>> print(node.uct_score())
     inf
     >>> print(child.uct_score())  # doctest: +SKIP
-    np.float64(0.6663)
+    np.float64(0.5)
     """
 
     def __init__(
@@ -343,24 +411,6 @@ class TreeNode:
         is_terminal: bool = False,
         exploitation_score: float = 0.0,
     ) -> None:
-        """
-        Parameters
-        ----------
-        val : str, optional
-            Value for this node.
-        parent : TreeNode, optional
-            Reference to the parent node.
-        depth : int, optional
-            Depth of the node in the tree.
-        n_states : int, optional
-            Number of possible children states.
-        is_root : bool, optional
-            Whether this node is the root of the tree.
-        is_terminal : bool, optional
-            Whether this node is the last one in the path.
-        exploitation_score : float, optional
-            Accumulated exploitation score from simulations.
-        """
         self.val = val
         self.parent = parent
         self.depth = depth
@@ -369,7 +419,7 @@ class TreeNode:
         self.is_terminal = is_terminal
         self.exploitation_score = exploitation_score
 
-        self.n_visits = 1
+        self.n_visits = 0
         self.children = {}
 
     def is_fully_expanded(self) -> bool:
@@ -387,8 +437,8 @@ class TreeNode:
     def uct_score(self) -> float:
         """Compute upper confidence bound applied to trees (UCT) score.
 
-        UCT balances the trade-off between exploration (visting new paths) and
-        exploitation (visting known paths).
+        UCT balances the trade-off between exploration (visiting new paths) and
+        exploitation (visiting known paths).
         See:
         - https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
 
@@ -397,7 +447,8 @@ class TreeNode:
         float
             The UCT score for this node.
         """
-        if self.parent is None:
+        # unvisited nodes (including root) get infinite UCT to guarantee exploration
+        if self.parent is None or self.n_visits == 0:
             return float("inf")
 
         # exploration term
@@ -412,7 +463,7 @@ class TreeNode:
 
         Parameters
         ----------
-        val : str, optional
+        val : str
             Value used to find the child node.
 
         Returns
@@ -462,7 +513,7 @@ class TreeNode:
         ----------
         val : str
             Value to assign to the newly created node.
-        is_terminal : bool, optional
+        is_terminal : bool, optional, default=False
             Whether this child node is the last one in the path.
 
         Returns

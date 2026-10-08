@@ -1,13 +1,13 @@
-"""Test suite for the Monte Carlo Tree Search (MCTS) algorithm."""
+"""Test suite for the Monte Carlo Tree Search (MCTS) algorithm"""
 
 __author__ = ["nennomp"]
+
 
 import numpy as np
 import pytest
 import torch
-import torch.nn as nn
 
-from pyaptamer.experiments import Aptamer
+from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
 from pyaptamer.mcts._algorithm import TreeNode
 
@@ -58,7 +58,7 @@ class TestTreeNode:
         assert node2.is_root is False
         assert node2.is_terminal is True
         assert node2.exploitation_score == 0.1
-        assert node2.n_visits == 1
+        assert node2.n_visits == 0
         assert len(node2.children) == 0
 
     def test_is_fully_expanded(self, root):
@@ -77,7 +77,15 @@ class TestTreeNode:
         # check whether the correct value is returned
         child.backpropagate(score=0.5)
         new_uct_score = child.uct_score()
-        assert new_uct_score == pytest.approx(0.6663, rel=1e-4)
+        # after 1 backprop: exploitation = 0.5/1 = 0.5,
+        # exploration = sqrt(log(1)/(2*1)) = 0
+        assert new_uct_score == pytest.approx(0.5, rel=1e-4)
+
+    def test_uct_score_unvisited(self, root, val):
+        """Test that an unvisited node returns inf to guarantee first exploration."""
+        child = root.create_child(val=val, is_terminal=True)
+        assert child.n_visits == 0
+        assert child.uct_score() == float("inf")
 
     def test_uct_score_parent_none(self, root):
         """Test UCT score calculation when parent is None, should return inf."""
@@ -157,38 +165,42 @@ class TestTreeNode:
         child2.backpropagate(score=10.0)
 
         # check that visits are updated
-        assert root.n_visits == 2
-        assert child1.n_visits == 2
-        assert child2.n_visits == 2
+        assert root.n_visits == 1
+        assert child1.n_visits == 1
+        assert child2.n_visits == 1
         # check that (exploitation) scores are updated
         assert root.exploitation_score == 0.0
         assert child1.exploitation_score == 10.0
         assert child2.exploitation_score == 10.0
 
 
-class MockModel(nn.Module):
-    def __init__(self, fixed_score=0.5):
-        super().__init__()
-        self.fixed_score = fixed_score
-
-    def forward(self, x_apta, x_prot):
-        # return a fixed score for deterministic testing
-        return torch.tensor([self.fixed_score])
+class MockModel:
+    def __init__(self):
+        self.apta_embedding = type("obj", (object,), {"max_len": 128})
+        self.prot_embedding = type("obj", (object,), {"max_len": 128})
 
     def eval(self):
         pass
 
+    def __call__(self, *args, **kwargs):
+        return torch.tensor([0.5])
 
-class MockExperiment(Aptamer):
+
+class MockPipeline:
+    def predict_proba(self, X):
+        return np.array([[0.5, 0.5]])
+
+
+class MockExperimentAptaTrans(AptamerEvalAptaTrans):
     def __init__(
         self,
-        target_encoded,
         target,
         model,
         device,
+        prot_words,
         fixed_score=0.5,
     ):
-        super().__init__(target_encoded, target, model, device)
+        super().__init__(target, model, device, prot_words)
         self.fixed_score = fixed_score
 
     def evaluate(self, aptamer_candidate):
@@ -196,15 +208,35 @@ class MockExperiment(Aptamer):
         return torch.tensor([self.fixed_score])
 
 
-@pytest.fixture
-def mcts():
-    target_encoded = torch.randn(1, 20)
-    mock_model = MockModel()
-    device = torch.device("cpu")
+class MockExperimentAptaNet(AptamerEvalAptaNet):
+    def __init__(
+        self,
+        target,
+        pipeline,
+        fixed_score=0.5,
+    ):
+        super().__init__(target, pipeline)
+        self.fixed_score = fixed_score
 
-    experiment = MockExperiment(
-        target_encoded=target_encoded, target="ACGU", model=mock_model, device=device
-    )
+    def evaluate(self, aptamer_candidate):
+        # return a fixed score for deterministic testing
+        return np.float64(self.fixed_score)
+
+
+@pytest.fixture(params=["aptatrans", "aptanet"])
+def mcts(request):
+    if request.param == "aptatrans":
+        mock_model = MockModel()
+        device = torch.device("cpu")
+        prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
+
+        experiment = MockExperimentAptaTrans(
+            target="ACGU", model=mock_model, device=device, prot_words=prot_words
+        )
+    else:  # aptanet
+        mock_pipeline = MockPipeline()
+        experiment = MockExperimentAptaNet(target="ACGU", pipeline=mock_pipeline)
+
     mcts = MCTS(
         experiment=experiment,
         states=NUCLEOTIDES,
@@ -216,6 +248,29 @@ def mcts():
 
 class TestMCTS:
     """Tests for the MCTS() class."""
+
+    @pytest.mark.parametrize("depth", [0, -1])
+    def test_init_invalid_depth(self, depth):
+        """Check invalid depths are rejected early."""
+        with pytest.raises(ValueError, match=r"`depth` must be >= 1"):
+            MCTS(depth=depth)
+
+    @pytest.mark.parametrize("n_iterations", [0, -1])
+    def test_init_invalid_iterations(self, n_iterations):
+        """Check invalid iteration counts are rejected early."""
+        with pytest.raises(ValueError, match=r"`n_iterations` must be >= 1"):
+            MCTS(n_iterations=n_iterations)
+
+    @pytest.mark.parametrize("states", [None, []])
+    def test_init_empty_or_none_states_defaults(self, states):
+        """Check that None or empty states default to the standard nucleotide set."""
+        mcts = MCTS(states=states)
+        assert mcts.states == ["A_", "C_", "G_", "U_", "_A", "_C", "_G", "_U"]
+
+    def test_init_duplicate_states(self):
+        """Check duplicate states are rejected early."""
+        with pytest.raises(ValueError, match=r"`states` must contain unique entries"):
+            MCTS(states=["A_", "A_"])
 
     def test_reset(self, mcts):
         """Check correct reset of the inner state."""
@@ -229,6 +284,21 @@ class TestMCTS:
         assert mcts.base == ""
         assert mcts.candidate == ""
         assert len(mcts.root.children) == 0
+
+    def test_reconstruct(self, mcts):
+        """Check reconstruction of aptamer candidates."""
+
+        # empty sequence
+        assert mcts._reconstruct("") == ""
+
+        # already reconstructed (no underscores)
+        assert mcts._reconstruct("ACGU") == "ACGU"
+
+        # simple prepends
+        assert mcts._reconstruct("A_C_G_U_") == "UGCA"
+
+        # mixed prepend/append
+        assert mcts._reconstruct("A_C__GU_") == "UCAG"
 
     def test_selection_not_fully_expanded(self, mcts):
         """Check selection step when the node is not fully expanded."""
@@ -298,3 +368,27 @@ class TestMCTS:
         # length of sequence should be 2 * 5 (i.e., 2 * 5) as it still contains
         # the underscores
         assert len(candidate["sequence"]) == 10
+
+    def test_run_return_dict_keys(self, mcts):
+        """Verify that run() returns exactly the three documented keys."""
+        result = mcts.run(verbose=False)
+        assert set(result.keys()) == {"candidate", "sequence", "score"}
+        assert isinstance(result["candidate"], str)
+        assert isinstance(result["sequence"], str)
+
+    def test_repr(self, mcts):
+        """Verify __repr__ config details and handles experiment."""
+        # Test without experiment
+        mcts_no_exp = MCTS(depth=10, n_iterations=500)
+        r_no_exp = repr(mcts_no_exp)
+        assert "MCTS(" in r_no_exp
+        assert "depth=10" in r_no_exp
+        assert "n_iterations=500" in r_no_exp
+        assert "n_states=8" in r_no_exp
+        assert "experiment=None" in r_no_exp
+
+        # Test with experiment (using fixture)
+        r_with_exp = repr(mcts)
+        assert "MCTS(" in r_with_exp
+        assert "experiment=" in r_with_exp
+        assert "None" not in r_with_exp
