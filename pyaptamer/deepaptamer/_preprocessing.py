@@ -1,8 +1,10 @@
-__author__ = "satvshr"
-__all__ = ["preprocess_seq_ohe", "preprocess_seq_shape", "preprocess_y"]
+__author__ = ["satvshr", "geetu040"]
+__all__ = ["DeepAptamerFeatures", "preprocess_seq_ohe", "preprocess_seq_shape"]
 
 import numpy as np
+import pandas as pd
 
+from pyaptamer.trafos.base import BaseTransform
 from pyaptamer.utils._deepaptamer_utils import (
     ohe,
     pad_sequence,
@@ -41,7 +43,7 @@ def preprocess_seq_ohe(seq, seq_len=35):
     return seq_ohe
 
 
-def preprocess_seq_shape(seqs, full_dna_shape=True):
+def preprocess_seq_shape(seqs, full_dna_shape=False):
     """
     Preprocesses a batch of DNA sequences into normalized shape vectors.
 
@@ -53,9 +55,10 @@ def preprocess_seq_shape(seqs, full_dna_shape=True):
     ----------
     seqs : str or list of str
         DNA sequence(s) to be processed. All sequences must have the same length.
-    full_dna_shape : bool, optional, default=True
-        If True, uses the 138-length long `DeepDNAShape` vector.
-        If False, uses the 126-length long `DNAshapeR` like vector.
+    full_dna_shape : bool, optional, default=False
+        If True, keep the full `DeepDNAShape` output (138 values for a 35-mer).
+        If False, drop the edge positions that are NA in `DNAshapeR`, as in the
+        DeepAptamer paper (126 values for a 35-mer).
 
     Returns
     -------
@@ -70,7 +73,7 @@ def preprocess_seq_shape(seqs, full_dna_shape=True):
     )
 
 
-def _normalize_shape(seq_shape, full_dna_shape=True):
+def _normalize_shape(seq_shape, full_dna_shape=False):
     """
     Normalize and flatten the shape predictions of a single sequence.
 
@@ -78,7 +81,7 @@ def _normalize_shape(seq_shape, full_dna_shape=True):
     ----------
     seq_shape : list of list of float
         A list of 4 lists in order [MGW, HelT, ProT, Roll].
-    full_dna_shape : bool, optional, default=True
+    full_dna_shape : bool, optional, default=False
         Passed on from `preprocess_seq_shape`.
 
     Returns
@@ -86,7 +89,7 @@ def _normalize_shape(seq_shape, full_dna_shape=True):
     np.ndarray
         A 2D NumPy array of shape (1, new_length).
     """
-    if full_dna_shape:
+    if not full_dna_shape:
         seq_shape = remove_na(seq_shape)
 
     norm_features = []
@@ -106,25 +109,71 @@ def _normalize_shape(seq_shape, full_dna_shape=True):
     return seq_flat
 
 
-def preprocess_y(y):
-    """
-    Preprocess labels into one-hot vectors.
+class DeepAptamerFeatures(BaseTransform):
+    """DeepAptamer input features of aptamer sequences.
 
-    Converts:
-        1 -> [1, 0]  (binder)
-        0 -> [0, 1]  (non-binder)
+    Each sequence is padded with ``N`` to ``seq_len`` and encoded as its one-hot
+    matrix, flattened row-wise from shape (``seq_len``, 4), followed by its
+    normalized DNA shape vector (MGW, HelT, ProT, Roll) from `DeepDNAShape`.
+    This is the input layout expected by `DeepAptamerClassifier`.
+
+    The width is ``4 * seq_len + shape_len``, where ``shape_len`` is
+    ``4 * seq_len - 14`` if ``full_dna_shape`` is False and ``4 * seq_len - 2``
+    otherwise. With the defaults it is ``140 + 126 = 266``.
+
+    Input is a one-column DataFrame or a ``MoleculeLoader`` of DNA strings.
 
     Parameters
     ----------
-    y : np.ndarray
-        A 1D NumPy array of binary labels (0 or 1).
+    seq_len : int, default=35
+        Length the sequences are padded to. Longer sequences raise an error.
+    full_dna_shape : bool, default=False
+        If True, keep the full `DeepDNAShape` output. If False, drop the edge
+        positions that are NA in `DNAshapeR`, as in the DeepAptamer paper.
 
-    Returns
-    -------
-    np.ndarray
-        A 2D NumPy array of shape (len(y), 2) with one-hot encoded labels.
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> from pyaptamer.deepaptamer import DeepAptamerFeatures
+    >>> X = pd.DataFrame({"aptamer": ["AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC"]})
+    >>> DeepAptamerFeatures().fit_transform(X).shape
+    (1, 266)
     """
-    one_hot = np.zeros((len(y), 2), dtype=int)
-    one_hot[y == 1] = [1, 0]
-    one_hot[y == 0] = [0, 1]
-    return one_hot
+
+    _tags = {
+        "authors": ["satvshr", "geetu040"],
+        "maintainers": ["geetu040"],
+        "output_type": "numeric",
+        "property:fit_is_empty": True,
+        "capability:multivariate": False,
+    }
+
+    def __init__(self, seq_len=35, full_dna_shape=False):
+        self.seq_len = seq_len
+        self.full_dna_shape = full_dna_shape
+        super().__init__()
+
+    def _transform(self, X):
+        """Encode every sequence in the single column of X.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            One column of DNA strings.
+
+        Returns
+        -------
+        pd.DataFrame
+            Shape ``(len(X), 4 * seq_len + shape_len)``, indexed like X.
+        """
+        seqs = [pad_sequence(seq, self.seq_len) for seq in X.iloc[:, 0]]
+        X_ohe = np.stack(
+            [preprocess_seq_ohe(seq, self.seq_len).ravel() for seq in seqs]
+        )
+        X_shape = preprocess_seq_shape(seqs, self.full_dna_shape).reshape(len(seqs), -1)
+        return pd.DataFrame(np.hstack([X_ohe, X_shape]), index=X.index)
+
+    @classmethod
+    def get_test_params(cls):
+        """Return parameter sets for the shared transformer tests."""
+        return [{}, {"seq_len": 20, "full_dna_shape": True}]
