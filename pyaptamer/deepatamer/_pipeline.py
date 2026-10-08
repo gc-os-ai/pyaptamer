@@ -84,17 +84,14 @@ class DeepAptamerPipeline:
         if isinstance(seqs, str):
             seqs = [seqs]
 
-        ohe_list, shape_list = [], []
         max_len = max(len(seq) for seq in seqs)
-        for seq in seqs:
-            ohe_list.append(preprocess_seq_ohe(seq, seq_len=max_len))
-            shape_list.append(preprocess_seq_shape(seq))
+        ohe_list = [preprocess_seq_ohe(seq, seq_len=max_len) for seq in seqs]
 
         X_ohe = torch.tensor(
             np.array(ohe_list), dtype=torch.float32, device=self.device
         )
         X_shape = torch.tensor(
-            np.array(shape_list), dtype=torch.float32, device=self.device
+            preprocess_seq_shape(seqs), dtype=torch.float32, device=self.device
         )
         self.model.eval()
         with torch.no_grad():

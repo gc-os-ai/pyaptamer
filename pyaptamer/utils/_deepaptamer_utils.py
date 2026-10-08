@@ -68,10 +68,12 @@ def pad_sequence(seq, seq_len=35):
     return seq.ljust(seq_len, "N")
 
 
-def run_deepdna_prediction(seq, layer=2):
+def run_deepdna_prediction(seqs, layer=2):
     """
     Run `DeepDNAShape` prediction for all DNA structural features (MGW, HelT, ProT,
-    Roll) on a single DNA sequence.
+    Roll) on a batch of DNA sequences.
+
+    Each feature model is loaded once and applied to the whole batch.
 
     The four DNA shape features are:
         - MGW: Minor Groove Width
@@ -81,25 +83,35 @@ def run_deepdna_prediction(seq, layer=2):
 
     Parameters
     ----------
-    seq : str
-        DNA sequence (e.g., "AAGGTTCC") to predict structural features for.
+    seqs : str or list of str
+        DNA sequence(s) (e.g., "AAGGTTCC") to predict structural features for.
     layer : int, optional, default=2
         Message-passing layer of `DeepDNAShape` to read. Layer 2 corresponds to a
         sliding window of 5 bases.
 
     Returns
     -------
-    list of list of float
-        A list of length 4, where each element is a list of floats containing
-        predictions for one structural feature. The order is [MGW, HelT, ProT, Roll].
-        MGW and ProT have `len(seq)` values, HelT and Roll have `len(seq) - 1`.
+    list of list of list of float
+        One entry per sequence. Each entry is a list of length 4, where each element
+        is a list of floats containing predictions for one structural feature. The
+        order is [MGW, HelT, ProT, Roll]. MGW and ProT have `len(seq)` values, HelT
+        and Roll have `len(seq) - 1`.
     """
-    X = pd.DataFrame({"seq": [seq]})
+    if isinstance(seqs, str):
+        seqs = [seqs]
+
+    X = pd.DataFrame({"seq": seqs})
     features = ["MGW", "HelT", "ProT", "Roll"]
 
-    results = [
-        DeepDNAShape(feature=feat, layer=layer).fit_transform(X).iloc[0].tolist()
+    # (n_features, n_seqs, max_len), NaN padded for shorter sequences
+    preds = [
+        DeepDNAShape(feature=feat, layer=layer).fit_transform(X).to_numpy()
         for feat in features
+    ]
+
+    results = [
+        [feat_preds[i][~np.isnan(feat_preds[i])].tolist() for feat_preds in preds]
+        for i in range(len(seqs))
     ]
     return results
 

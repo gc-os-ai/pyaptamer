@@ -41,19 +41,18 @@ def preprocess_seq_ohe(seq, seq_len=35):
     return seq_ohe
 
 
-# input will be of size (n_shapes(4), shape_vector_size)
-def preprocess_seq_shape(seq, full_dna_shape=True):
+def preprocess_seq_shape(seqs, full_dna_shape=True):
     """
-    Preprocesses a single DNA sequence into a normalized shape vector.
+    Preprocesses a batch of DNA sequences into normalized shape vectors.
 
-    The function runs DeepDNA prediction on the input sequence, normalizes
-    the resulting feature matrix column-wise, flattens it into a single row
-    vector, and removes any "NA" values.
+    The function runs DeepDNA prediction on all input sequences at once,
+    normalizes each sequence's features, flattens them into a single row
+    vector per sequence, and removes any "NA" values.
 
     Parameters
     ----------
-    seq : str
-        A DNA sequence to be processed.
+    seqs : str or list of str
+        DNA sequence(s) to be processed. All sequences must have the same length.
     full_dna_shape : bool, optional, default=True
         If True, uses the 138-length long `DeepDNAShape` vector.
         If False, uses the 126-length long `DNAshapeR` like vector.
@@ -61,13 +60,32 @@ def preprocess_seq_shape(seq, full_dna_shape=True):
     Returns
     -------
     np.ndarray
-        A 2D NumPy array of shape (1, new_length), where `new_length`
+        A 3D NumPy array of shape (n_seqs, 1, new_length), where `new_length`
         depends on the DeepDNA prediction output after flattening and
         removing "NA" values.
     """
+    seq_shapes = run_deepdna_prediction(seqs)
+    return np.stack(
+        [_normalize_shape(seq_shape, full_dna_shape) for seq_shape in seq_shapes]
+    )
 
-    # Step 1: Get raw predictions
-    seq_shape = run_deepdna_prediction(seq)
+
+def _normalize_shape(seq_shape, full_dna_shape=True):
+    """
+    Normalize and flatten the shape predictions of a single sequence.
+
+    Parameters
+    ----------
+    seq_shape : list of list of float
+        A list of 4 lists in order [MGW, HelT, ProT, Roll].
+    full_dna_shape : bool, optional, default=True
+        Passed on from `preprocess_seq_shape`.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D NumPy array of shape (1, new_length).
+    """
     if full_dna_shape:
         seq_shape = remove_na(seq_shape)
 
@@ -82,7 +100,7 @@ def preprocess_seq_shape(seq, full_dna_shape=True):
 
         norm_features.append(arr_norm)
 
-    # Step 2: Concatenate all features into one flat vector
+    # Concatenate all features into one flat vector
     seq_flat = np.concatenate(norm_features).reshape(1, -1)
 
     return seq_flat
