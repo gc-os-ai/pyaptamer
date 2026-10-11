@@ -167,6 +167,22 @@ def test_rna2vec_edge_cases():
     assert len(result) == 0
 
 
+def test_rna2vec_empty_input_preserves_shape():
+    """Empty input must keep the documented (n_sequences, max_len) shape."""
+    # explicit empty input
+    result = rna2vec([], sequence_type="rna", max_sequence_length=275)
+    assert result.shape == (0, 275)
+    assert result.dtype == np.int64
+
+    # all sequences too short -> all dropped, must still be (0, max_len)
+    result = rna2vec(["A", "AA", ""], sequence_type="rna", max_sequence_length=10)
+    assert result.shape == (0, 10)
+
+    # secondary structure with empty input
+    result = rna2vec([], sequence_type="ss", max_sequence_length=42)
+    assert result.shape == (0, 42)
+
+
 def test_rna2vec_default_parameters():
     """Check that default parameters work correctly."""
     sequences = ["ACGU"]
@@ -242,3 +258,20 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+def test_encode_rna_empty_input_preserves_shape():
+    """Empty input must keep the documented (n_sequences, max_len) shape."""
+    words = {"A": 1, "C": 2, "G": 3, "U": 4}
+
+    # default tensor return
+    encoded = encode_rna([], words, max_len=10)
+    assert isinstance(encoded, torch.Tensor)
+    assert encoded.shape == (0, 10)
+    assert encoded.dtype == torch.int64
+
+    # explicit numpy return
+    encoded_np = encode_rna([], words, max_len=7, return_type="numpy")
+    assert isinstance(encoded_np, np.ndarray)
+    assert encoded_np.shape == (0, 7)
+    assert encoded_np.dtype == np.int64
