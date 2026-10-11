@@ -270,6 +270,13 @@ class AptaTransEncoderLightning(AptaTransLightning):
         weight_ssp: float = 1.0,
     ) -> None:
         super().__init__(model, lr, weight_decay, betas)
+
+        _valid_encoder_types = ("apta", "prot")
+        if encoder_type not in _valid_encoder_types:
+            raise ValueError(
+                f"`encoder_type` must be one of {_valid_encoder_types}, "
+                f"got {encoder_type!r}."
+            )
         self.encoder_type = encoder_type
         self.weight_mlm = weight_mlm
         self.weight_ssp = weight_ssp
@@ -319,6 +326,11 @@ class AptaTransEncoderLightning(AptaTransLightning):
         elif self.encoder_type == "prot":
             params = list(self.model.encoder_prot.parameters()) + list(
                 self.model.token_predictor_prot.parameters()
+            )
+        else:
+            raise ValueError(
+                f"`encoder_type` must be one of ('apta', 'prot'), "
+                f"got {self.encoder_type!r}."
             )
 
         optimizer = torch.optim.Adam(
