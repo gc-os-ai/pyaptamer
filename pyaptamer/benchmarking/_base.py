@@ -119,10 +119,12 @@ class Benchmarking:
             - Index: pandas.MultiIndex with two levels (names shown in parentheses)
                 - level 0 "estimator": estimator name
                 - level 1 "metric": evaluator name
-            - Columns: ["train", "test"] (both floats)
-            - Cell values: mean scores (float) computed across CV folds:
+            - Columns: ["train", "test", "train_std", "test_std"] (all floats)
+            - Cell values: scores (float) computed across CV folds:
                 - "train" = mean of cross_validate(...)[f"train_{metric}"]
                 - "test"  = mean of cross_validate(...)[f"test_{metric}"]
+                - "train_std" = std of cross_validate(...)[f"train_{metric}"]
+                - "test_std"  = std of cross_validate(...)[f"test_{metric}"]
 
         """
         self.scorers_ = self._to_scorers(self.metrics)
@@ -140,12 +142,14 @@ class Benchmarking:
                 return_train_score=True,
             )
 
-            # average across folds
+            # average and std across folds
             est_scores = {}
             for metric in self.scorers_.keys():
                 est_scores[metric] = {
                     "train": float(np.mean(cv_results[f"train_{metric}"])),
                     "test": float(np.mean(cv_results[f"test_{metric}"])),
+                    "train_std": float(np.std(cv_results[f"train_{metric}"])),
+                    "test_std": float(np.std(cv_results[f"test_{metric}"])),
                 }
 
             results[est_name] = est_scores
