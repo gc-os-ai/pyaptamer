@@ -3,6 +3,19 @@ import io
 import pandas as pd
 import requests
 from Bio import SeqIO
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import logging
+import requests
+
+logger = logging.getLogger(__name__)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
+    reraise=True
+)
 
 
 def pdb_to_seq_uniprot(pdb_id, return_type="list"):
@@ -27,7 +40,7 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
     pdb_id = pdb_id.lower()
 
     mapping_url = f"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{pdb_id}"
-    mapping_resp = requests.get(mapping_url)
+    mapping_resp = requests.get(mapping_url,timeout=10)
     mapping_resp.raise_for_status()
     mapping_data = mapping_resp.json()
 
@@ -38,7 +51,7 @@ def pdb_to_seq_uniprot(pdb_id, return_type="list"):
     uniprot_id = uniprot_ids[0]
 
     fasta_url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.fasta"
-    fasta_resp = requests.get(fasta_url)
+    fasta_resp = requests.get(fasta_url, timeout=10)
     fasta_resp.raise_for_status()
     fasta_data = fasta_resp.text
 
