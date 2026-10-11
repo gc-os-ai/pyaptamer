@@ -242,3 +242,18 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+@pytest.mark.parametrize("bad_type", ["list", "array", "", "TENSOR", "Numpy"])
+def test_encode_rna_invalid_return_type(bad_type):
+    """Invalid return_type values must raise ValueError."""
+    words = {"A": 1, "C": 2}
+    with pytest.raises(ValueError, match="Invalid return_type"):
+        encode_rna("AC", words, max_len=4, return_type=bad_type)
+
+
+def test_encode_rna_numpy_return_type():
+    """return_type='numpy' must return a NumPy ndarray."""
+    words = {"A": 1, "C": 2}
+    result = encode_rna("AC", words, max_len=4, return_type="numpy")
+    assert isinstance(result, np.ndarray)
