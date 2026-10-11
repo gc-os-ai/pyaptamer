@@ -1,6 +1,8 @@
 __author__ = "satvshr"
 __all__ = ["Benchmarking"]
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.metrics import make_scorer
@@ -22,8 +24,16 @@ class Benchmarking:
     ----------
     estimators : list[estimator] | estimator
         List of sklearn-like estimators implementing `fit` and `predict`.
-    metrics : list[callable] | callable
-        List of callables with signature `(y_true, y_pred) -> float`.
+    metrics : list[callable | dict] | callable | dict
+        Metrics to evaluate. Supported forms:
+        - callable with signature `(y_true, y_pred) -> float` (legacy behavior)
+        - dict with keys:
+            - `metric` (required): callable scoring function
+            - `name` (optional): custom metric name in output index
+            - `response_method` (optional): one of
+              {"predict", "predict_proba", "decision_function"}
+            - `greater_is_better` (optional): bool forwarded to `make_scorer`
+            - `kwargs` (optional): dict of extra kwargs for metric callable
     X : array-like
         Feature matrix.
     y : array-like
@@ -81,18 +91,114 @@ class Benchmarking:
         self.cv = cv
         self.results = None
 
+    @staticmethod
+    def _metric_name(metric):
+        """Return a stable display name for a metric callable."""
+        return (
+            metric.__name__
+            if hasattr(metric, "__name__")
+            else metric.__class__.__name__
+        )
+
+    def _normalize_metric_spec(self, metric_spec):
+        """Normalize metric spec into scorer-compatible metadata."""
+        if callable(metric_spec):
+            return {
+                "name": self._metric_name(metric_spec),
+                "metric": metric_spec,
+                "response_method": None,
+                "greater_is_better": None,
+                "kwargs": {},
+            }
+
+        if not isinstance(metric_spec, dict):
+            raise ValueError("Each metric should be a callable or a dict metric spec.")
+
+        metric = metric_spec.get("metric")
+        if not callable(metric):
+            raise ValueError("Metric spec requires a callable under key 'metric'.")
+
+        response_method = metric_spec.get("response_method")
+        if response_method is not None and response_method not in {
+            "predict",
+            "predict_proba",
+            "decision_function",
+        }:
+            raise ValueError(
+                "Metric spec key 'response_method' must be one of "
+                "{'predict', 'predict_proba', 'decision_function'}."
+            )
+
+        kwargs = metric_spec.get("kwargs", {})
+        if kwargs is None:
+            kwargs = {}
+        if not isinstance(kwargs, dict):
+            raise ValueError("Metric spec key 'kwargs' must be a dictionary.")
+
+        greater_is_better = metric_spec.get("greater_is_better")
+        if greater_is_better is not None and not isinstance(greater_is_better, bool):
+            raise ValueError("Metric spec key 'greater_is_better' must be boolean.")
+
+        return {
+            "name": metric_spec.get("name", self._metric_name(metric)),
+            "metric": metric,
+            "response_method": response_method,
+            "greater_is_better": greater_is_better,
+            "kwargs": kwargs,
+        }
+
+    def _build_scorer(
+        self, metric, response_method=None, greater_is_better=None, kwargs=None
+    ):
+        """Build sklearn scorer with version-compatible response handling."""
+        kwargs = kwargs or {}
+        scorer_kwargs = dict(kwargs)
+        if greater_is_better is not None:
+            scorer_kwargs["greater_is_better"] = greater_is_better
+
+        if response_method is None or response_method == "predict":
+            return make_scorer(metric, **scorer_kwargs)
+
+        try:
+            return make_scorer(metric, response_method=response_method, **scorer_kwargs)
+        except TypeError:
+            # sklearn<1.4 compatibility path
+            if response_method == "predict_proba":
+                return make_scorer(metric, needs_proba=True, **scorer_kwargs)
+            if response_method == "decision_function":
+                return make_scorer(metric, needs_threshold=True, **scorer_kwargs)
+            raise
+
     def _to_scorers(self, metrics):
         """Convert metric callables to a dict of scorers."""
         scorers = {}
-        for metric in metrics:
-            if not callable(metric):
-                raise ValueError("Each metric should be a callable.")
-            name = (
-                metric.__name__
-                if hasattr(metric, "__name__")
-                else metric.__class__.__name__
+        known_score_metrics = {
+            "roc_auc_score",
+            "average_precision_score",
+            "log_loss",
+            "brier_score_loss",
+        }
+
+        for metric_spec in metrics:
+            spec = self._normalize_metric_spec(metric_spec)
+
+            if (
+                spec["response_method"] is None
+                and self._metric_name(spec["metric"]) in known_score_metrics
+            ):
+                warnings.warn(
+                    f"Metric '{spec['name']}' typically expects continuous scores. "
+                    "Consider setting response_method='predict_proba' or "
+                    "'decision_function' in the metric spec.",
+                    stacklevel=2,
+                )
+
+            scorers[spec["name"]] = self._build_scorer(
+                spec["metric"],
+                response_method=spec["response_method"],
+                greater_is_better=spec["greater_is_better"],
+                kwargs=spec["kwargs"],
             )
-            scorers[name] = make_scorer(metric)
         return scorers
 
     def _to_df(self, results):
