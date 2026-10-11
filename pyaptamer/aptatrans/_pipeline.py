@@ -1,5 +1,5 @@
 """
-AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
+AptaTrans' complete pipeline for aptamer-protein interaction prediction and
 candidate aptamers recommendation.
 """
 
