@@ -29,6 +29,7 @@ class DeepAptamerPipeline(BaseEstimator):
     ----------
     seq_len : int, optional, default=35
         Length the aptamer sequences are padded to. Longer sequences raise an error.
+        Must be at least 34, or 31 if ``full_dna_shape`` is True.
     full_dna_shape : bool, optional, default=False
         If True, keep the full `DeepDNAShape` output (138 values for a 35-mer).
         If False, drop the edge positions that are NA in `DNAshapeR`, as in the
@@ -36,9 +37,9 @@ class DeepAptamerPipeline(BaseEstimator):
     aptamer_col : str, optional, default="aptamer"
         Name of the column holding aptamer sequences.
     estimator : sklearn-compatible estimator or None, default=None
-        Estimator applied to the features. If None, uses `DeepAptamerClassifier`
-        with the same ``seq_len``. A custom `DeepAptamerClassifier` must use the
-        same ``seq_len`` as the pipeline.
+        Estimator applied to the features. If None, uses `DeepAptamerClassifier`.
+        If the estimator has a ``seq_len`` parameter, it is set to the pipeline's
+        ``seq_len``.
 
     Attributes
     ----------
@@ -95,8 +96,13 @@ class DeepAptamerPipeline(BaseEstimator):
                 ),
             ]
         )
-        estimator = self.estimator or DeepAptamerClassifier(seq_len=self.seq_len)
-        return Pipeline([("features", features), ("clf", clone(estimator))])
+        if self.estimator is None:
+            estimator = DeepAptamerClassifier()
+        else:
+            estimator = clone(self.estimator)
+        if "seq_len" in estimator.get_params():
+            estimator.set_params(seq_len=self.seq_len)
+        return Pipeline([("features", features), ("clf", estimator)])
 
     @staticmethod
     def _to_frame(X):

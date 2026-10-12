@@ -25,18 +25,21 @@ APTAMERS = [
 ]
 
 
-def _make_loader(n, col="aptamer"):
-    """Build a MoleculeLoader of n aptamers, alternating between APTAMERS."""
-    return MoleculeLoader(data={col: [APTAMERS[i % 2] for i in range(n)]})
+def _make_features(n, seed=0):
+    """Random one-hot 35-mers followed by random 126-value shape vectors."""
+    rng = np.random.default_rng(seed)
+    ohe = np.eye(4)[rng.integers(0, 4, size=(n, 35))].reshape(n, -1)
+    shape = rng.standard_normal((n, 126))
+    return np.hstack([ohe, shape]).astype(np.float32)
 
 
-@pytest.mark.parametrize("full_dna_shape, shape_len", [(False, 126), (True, 138)])
-def test_features_width(full_dna_shape, shape_len):
-    """The features are the flat one-hot matrix followed by the shape vector."""
+@pytest.mark.parametrize("full_dna_shape, width", [(False, 266), (True, 278)])
+def test_features_width(full_dna_shape, width):
+    """The width is 4 * 35 one-hot values plus 126 shape values, or 138 if full."""
     X = pd.DataFrame({"aptamer": APTAMERS})
     Xt = DeepAptamerFeatures(full_dna_shape=full_dna_shape).fit_transform(X)
 
-    assert Xt.shape == (2, 4 * 35 + shape_len)
+    assert Xt.shape == (2, width)
     assert Xt.index.equals(X.index)
     # "A" -> [1, 0, 0, 0], "G" -> [0, 0, 0, 1]
     assert Xt.iloc[0, :8].tolist() == [1, 0, 0, 0, 0, 0, 0, 1]
@@ -55,15 +58,15 @@ def test_features_pad_shorter_sequences():
 
 def test_features_reject_too_long_sequences():
     """Sequences longer than seq_len raise ValueError."""
-    X = pd.DataFrame({"aptamer": [APTAMERS[0]]})
+    X = pd.DataFrame({"aptamer": APTAMERS})
     with pytest.raises(ValueError, match="exceeds"):
         DeepAptamerFeatures(seq_len=20).fit_transform(X)
 
 
 def test_pipeline_fit_and_predict():
     """Pipeline predictions are valid labels and probabilities with matching shape."""
-    X = _make_loader(20)
-    y = np.array([0, 1] * 10)
+    X = MoleculeLoader(data={"aptamer": APTAMERS * 2})
+    y = np.array([0, 1] * 2)
     pipe = DeepAptamerPipeline(
         estimator=DeepAptamerClassifier(max_epochs=2, random_state=0)
     ).fit(X, y)
@@ -71,28 +74,40 @@ def test_pipeline_fit_and_predict():
     preds = pipe.predict(X)
     proba = pipe.predict_proba(X)
 
-    assert preds.shape == (20,)
+    assert preds.shape == (4,)
     assert set(preds).issubset({0, 1})
-    assert proba.shape == (20, 2)
+    assert proba.shape == (4, 2)
     assert np.allclose(proba.sum(axis=1), 1, atol=1e-5)
 
 
 def test_pipeline_full_dna_shape_reaches_features():
-    """full_dna_shape is passed on to the features step."""
-    X = _make_loader(4)
+    """full_dna_shape is passed on to the features step, giving 4 * 35 + 138 values."""
+    X = MoleculeLoader(data={"aptamer": APTAMERS * 2})
     y = np.array([0, 1] * 2)
     pipe = DeepAptamerPipeline(full_dna_shape=True, estimator=DummyClassifier())
     pipe.fit(X, y)
 
     features = pipe.pipeline_["features"]
-    assert features.transform(X.to_dataframe()).shape == (4, 4 * 35 + 138)
+    assert features.transform(X.to_dataframe()).shape == (4, 278)
+
+
+def test_pipeline_sets_seq_len_on_estimator():
+    """The pipeline's seq_len overrides the seq_len of a custom estimator."""
+    X = MoleculeLoader(data={"aptamer": APTAMERS * 2})
+    y = np.array([0, 1] * 2)
+    pipe = DeepAptamerPipeline(
+        seq_len=40, estimator=DeepAptamerClassifier(max_epochs=1, random_state=0)
+    ).fit(X, y)
+
+    assert pipe.pipeline_["clf"].seq_len == 40
 
 
 def test_pipeline_accepts_dataframe_and_custom_column():
     """A DataFrame is accepted like a loader and aptamer_col selects the column."""
-    X = _make_loader(4, col="apt").to_dataframe()
+    X = pd.DataFrame({"apt": APTAMERS * 2})
     y = np.array([0, 1] * 2)
     pipe = DeepAptamerPipeline(aptamer_col="apt", estimator=DummyClassifier())
+
     assert pipe.fit(X, y).predict(X).shape == (4,)
 
 
@@ -101,19 +116,7 @@ def test_pipeline_rejects_other_input():
     with pytest.raises(
         TypeError, match="MoleculeLoader instance or a pandas DataFrame"
     ):
-        DeepAptamerPipeline().fit([APTAMERS[0]], np.array([0]))
-
-
-SEQ_LEN = 35
-SHAPE_LEN = 126
-
-
-def _make_features(n, seed=0):
-    """Random one-hot sequences followed by random shape vectors."""
-    rng = np.random.default_rng(seed)
-    ohe = np.eye(4)[rng.integers(0, 4, size=(n, SEQ_LEN))].reshape(n, -1)
-    shape = rng.standard_normal((n, SHAPE_LEN))
-    return np.hstack([ohe, shape]).astype(np.float32)
+        DeepAptamerPipeline().fit(APTAMERS, np.array([0, 1]))
 
 
 def test_classifier_fit_predict():
@@ -141,10 +144,10 @@ def test_classifier_rejects_multiclass():
 
 
 def test_classifier_rejects_too_few_features():
-    """X without room for the shape vector raises ValueError."""
-    X = np.zeros((10, 4 * SEQ_LEN), dtype=np.float32)
+    """A shape vector one value shorter than the 119 the network needs raises."""
+    X = np.zeros((10, 4 * 35 + 118), dtype=np.float32)
     y = np.array([0, 1] * 5)
-    with pytest.raises(ValueError, match="one-hot features"):
+    with pytest.raises(ValueError, match="at least 119 shape features"):
         DeepAptamerClassifier(max_epochs=1).fit(X, y)
 
 
@@ -154,6 +157,7 @@ def test_classifier_fit_leaves_global_torch_rng_untouched():
     y = np.array([0, 1] * 10)
     before = torch.get_rng_state()
     DeepAptamerClassifier(max_epochs=1, random_state=0).fit(X, y)
+
     assert torch.equal(before, torch.get_rng_state())
 
 

@@ -94,6 +94,7 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
             lr=self.lr,
             max_epochs=self.max_epochs,
             batch_size=self.batch_size,
+            train_split=None,
             device="cuda" if torch.cuda.is_available() else "cpu",
             verbose=self.verbose,
         )
@@ -101,11 +102,6 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
     def _split(self, X):
         """Split the flat feature matrix into the two network inputs."""
         n_ohe = 4 * self.seq_len
-        if X.shape[1] <= n_ohe:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but seq_len={self.seq_len} needs "
-                f"{n_ohe} one-hot features followed by the shape vector."
-            )
         X = X.astype(np.float32, copy=False)
         return {
             "x_ohe": X[:, :n_ohe].reshape(-1, self.seq_len, 4),
@@ -139,8 +135,16 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
         with torch.random.fork_rng(enabled=self.random_state is not None):
             if self.random_state is not None:
                 torch.manual_seed(self.random_state)
-            self.net_ = self._build_net()
-            self.net_.fit(self._split(X), y.astype(np.int64, copy=False))
+            self.net_ = self._build_net().initialize()
+            n_ohe = 4 * self.seq_len
+            min_shape_len = self.net_.module_.min_shape_len
+            if X.shape[1] - n_ohe < min_shape_len:
+                raise ValueError(
+                    f"X has {X.shape[1]} features, but seq_len={self.seq_len} needs "
+                    f"{n_ohe} one-hot features followed by at least "
+                    f"{min_shape_len} shape features."
+                )
+            self.net_.partial_fit(self._split(X), y.astype(np.int64, copy=False))
         return self
 
     def predict_proba(self, X):

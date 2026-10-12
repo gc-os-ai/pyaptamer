@@ -89,6 +89,10 @@ class DeepAptamerNN(nn.Module):
     head : nn.Linear
         Final classification layer (logits for 2 classes).
 
+    min_shape_len : int
+        Minimum length of the shape vector, equal to
+        ``shape_conv_kernel_size + shape_pool_kernel_size - 1``.
+
     References
     ----------
     .. [1] Yang X, Chan CH, Yao S, Chu HY, Lyu M, Chen Z, Xiao H, Ma Y, Yu S, Li F,
@@ -128,6 +132,7 @@ class DeepAptamerNN(nn.Module):
         self.shape_conv_kernel_size = shape_conv_kernel_size
         self.shape_pool_kernel_size = shape_pool_kernel_size
         self.shape_pool_stride = shape_pool_stride
+        self.min_shape_len = shape_conv_kernel_size + shape_pool_kernel_size - 1
         self.bilstm_hidden_size = bilstm_hidden_size
         self.bilstm_num_layers = bilstm_num_layers
         self.dropout_val = dropout
@@ -209,7 +214,8 @@ class DeepAptamerNN(nn.Module):
 
         x, _ = self.bilstm(x)
 
-        x = x[:, -1, :]
+        h = self.bilstm_hidden_size
+        x = torch.cat([x[:, -1, :h], x[:, 0, h:]], dim=1)
         x = self.dropout(x)
 
         x = x.unsqueeze(1)
