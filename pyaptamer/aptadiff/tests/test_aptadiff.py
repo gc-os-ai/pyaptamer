@@ -275,13 +275,12 @@ def test_transform_rejects_other_length() -> None:
 )
 def test_methods_require_fitting(reads: pd.DataFrame, method: str) -> None:
     """Every public method refuses to run before fit."""
-    argument = (
-        np.zeros((2, EMBED_SIZE))
-        if method == "inverse_transform"
-        else 1
-        if method == "sample"
-        else reads
-    )
+    if method == "inverse_transform":
+        argument = np.zeros((2, EMBED_SIZE))
+    elif method == "sample":
+        argument = 1
+    else:
+        argument = reads
 
     with pytest.raises(NotFittedError):
         getattr(_estimator(), method)(argument)
