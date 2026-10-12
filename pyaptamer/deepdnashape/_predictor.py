@@ -3,148 +3,44 @@
 __author__ = ["prashantpandeygit", "Alleny244"]
 __all__ = ["DeepDNAShape"]
 
-import itertools
-
 import numpy as np
 import pandas as pd
 import torch
 from huggingface_hub import hf_hub_download
 
+from pyaptamer.deepdnashape._model import DNAModel
+from pyaptamer.deepdnashape._params import BASE_VECTORS, FEATURES
 from pyaptamer.trafos.base import BaseTransform
 
-from ._model import DNAModel
-from ._params import SCALE_PARAMS, ScaleParams
 
-_CONFIG = {
-    "hf_repo_id": "ecospecs/deepdnashape",
-    "rev_complement": {"A": "T", "T": "A", "C": "G", "G": "C", "N": "N"},
-    "features": {
-        # intrabase
-        "Shear": {"kind": "intrabase", "flip_rev": True},
-        "Stretch": {"kind": "intrabase", "flip_rev": False},
-        "Stagger": {"kind": "intrabase", "flip_rev": False},
-        "Buckle": {"kind": "intrabase", "flip_rev": True},
-        "ProT": {"kind": "intrabase", "flip_rev": False},
-        "Opening": {"kind": "intrabase", "flip_rev": False},
-        "MGW": {"kind": "intrabase", "flip_rev": False},
-        "EP": {"kind": "intrabase", "flip_rev": False},
-        "Shear-FL": {"kind": "intrabase", "flip_rev": False},
-        "Stretch-FL": {"kind": "intrabase", "flip_rev": False},
-        "Stagger-FL": {"kind": "intrabase", "flip_rev": False},
-        "Buckle-FL": {"kind": "intrabase", "flip_rev": False},
-        "ProT-FL": {"kind": "intrabase", "flip_rev": False},
-        "Opening-FL": {"kind": "intrabase", "flip_rev": False},
-        "MGW-FL": {"kind": "intrabase", "flip_rev": False},
-        # interbase
-        "Shift": {"kind": "interbase", "flip_rev": True},
-        "Slide": {"kind": "interbase", "flip_rev": False},
-        "Rise": {"kind": "interbase", "flip_rev": False},
-        "Tilt": {"kind": "interbase", "flip_rev": True},
-        "Roll": {"kind": "interbase", "flip_rev": False},
-        "HelT": {"kind": "interbase", "flip_rev": False},
-        "Shift-FL": {"kind": "interbase", "flip_rev": False},
-        "Slide-FL": {"kind": "interbase", "flip_rev": False},
-        "Rise-FL": {"kind": "interbase", "flip_rev": False},
-        "Tilt-FL": {"kind": "interbase", "flip_rev": False},
-        "Roll-FL": {"kind": "interbase", "flip_rev": False},
-        "HelT-FL": {"kind": "interbase", "flip_rev": False},
-    },
-}
+def _encode(seq, interbase):
+    """Encode a DNA sequence as the model input.
 
+    Each base is a one-hot vector in the order T, G, C, A, the order the
+    pretrained weights expect. ``N`` is the average of the four bases.
 
-def _get_bases_mapping():
-    """Build one-hot encoding lookup tables for mono- and di-nucleotides.
-
-    Single bases (A, T, C, G) are mapped to length-4 one-hot vectors.
-    Di-nucleotide pairs are mapped to length-16 one-hot vectors (the
-    outer product of single-base encodings). Unknown bases (N)
-    are encoded as uniform distributions.
-
-    Returns
-    -------
-    tuple of (dict, dict)
-        (mono, di) where mono maps single-character bases to
-        np.ndarray of shape (4,) and di maps 2-tuples of
-        bases to np.ndarray of shape (16,).
-    """
-    bases = ["T", "G", "C", "A"]
-    n_bases = len(bases)
-
-    mono = {}
-    for i, base in enumerate(bases):
-        vec = np.zeros(n_bases)
-        vec[i] = 1
-        mono[base] = vec
-    mono["N"] = np.ones(n_bases, dtype=float) / n_bases
-
-    di = {("N", "N"): np.ones(n_bases * n_bases, dtype=float) / n_bases / n_bases}
-    for i, pair in enumerate(itertools.product(bases, repeat=2)):
-        vec = np.zeros(n_bases * n_bases)
-        vec[i] = 1
-        di[pair] = vec
-
-    for bp in bases:
-        di[(bp, "N")] = np.zeros(n_bases * n_bases)
-        di[("N", bp)] = np.zeros(n_bases * n_bases)
-        for bp2 in bases:
-            di[(bp, "N")] += di[(bp, bp2)]
-            di[("N", bp)] += di[(bp2, bp)]
-        di[(bp, "N")] /= n_bases
-        di[("N", bp)] /= n_bases
-
-    return mono, di
-
-
-_MONO, _DI = _get_bases_mapping()
-
-
-def _rescale(predictions, params: ScaleParams):
-    """Rescale raw model predictions to original value range.
+    Intrabase features use one vector per base, shape (``len(seq)``, 4).
+    Interbase features use one vector per step between two bases: the outer
+    product of the two base vectors, flattened to a one-hot over the 16 base
+    pairs, shape (``len(seq) - 1``, 16). A step with ``N`` is the average of
+    the pairs it could be.
 
     Parameters
     ----------
-    predictions : np.ndarray
-        Raw normalized predictions from the model.
-    params : ScaleParams
-        Scaling constants for this feature.
+    seq : str
+        DNA sequence over A, C, G, T and N.
+    interbase : bool
+        Whether to encode steps between bases instead of single bases.
 
     Returns
     -------
-    np.ndarray
-        Predictions rescaled to the original value range.
+    torch.Tensor
+        The encoded sequence.
     """
-    method = params.method
-    if method == "minmax":
-        return predictions * (params.max - params.min) + params.min
-    if method == "minmax2":
-        return (predictions + 1) * (params.max - params.min) / 2 + params.min
-    if method == "sin":
-        return np.arcsin(predictions) / np.pi * 180.0
-    if method == "standard":
-        return predictions * params.std + params.mean
-    return predictions * params.percentile_range + params.median
-
-
-def _as_sequence_str(value):
-    """Return a DataFrame cell as a DNA sequence string, raising if it is not one."""
-    if isinstance(value, str):
-        return value
-    raise TypeError(
-        f"DeepDNAShape expects one sequence string per row, got "
-        f"{type(value).__name__}. Build the MoleculeLoader with "
-        'tiling="samples" to get one sequence per row.'
-    )
-
-
-def _check_sequence(seq):
-    """Raise if ``seq`` contains a base outside A, C, G, T, and N."""
-    allowed = _CONFIG["rev_complement"]
-    for i, base in enumerate(seq):
-        if base not in allowed:
-            raise ValueError(
-                f"Invalid base {base!r} at position {i}. "
-                "Allowed bases are A, C, G, T, N."
-            )
+    bases = torch.tensor([BASE_VECTORS[b] for b in seq])
+    if not interbase:
+        return bases
+    return (bases[:-1, :, None] * bases[1:, None, :]).flatten(start_dim=1)
 
 
 class DeepDNAShape(BaseTransform):
@@ -196,7 +92,7 @@ class DeepDNAShape(BaseTransform):
 
     _tags = {
         "authors": ["prashantpandeygit", "Alleny244"],
-        "maintainers": ["Alleny244"],
+        "maintainers": ["siddharth7113"],
         "output_type": "numeric",
         "property:fit_is_empty": True,
         "capability:multivariate": False,
@@ -208,10 +104,8 @@ class DeepDNAShape(BaseTransform):
         self.layer = layer
         super().__init__()
 
-        if self.feature not in _CONFIG["features"]:
-            raise ValueError(
-                f"Unknown feature. Must be one of {sorted(_CONFIG['features'])}."
-            )
+        if self.feature not in FEATURES:
+            raise ValueError(f"Unknown feature. Must be one of {sorted(FEATURES)}.")
         if not 0 <= self.layer <= 7:
             raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
 
@@ -219,11 +113,8 @@ class DeepDNAShape(BaseTransform):
 
     def _load_model(self):
         """Load and cache the pretrained model for ``self.feature``."""
-        feature = self.feature
-        kind = _CONFIG["features"][feature]["kind"]
-        input_features = 4 if kind == "intrabase" else 16
         model = DNAModel(
-            input_features=input_features,
+            input_features=16 if FEATURES[self.feature].interbase else 4,
             filter_size=64,
             mp_layers=7,
             mp_steps=1,
@@ -236,8 +127,7 @@ class DeepDNAShape(BaseTransform):
             gru_layer=True,
         )
         weights_path = hf_hub_download(
-            repo_id=_CONFIG["hf_repo_id"],
-            filename=f"{feature}.pt",
+            repo_id="ecospecs/deepdnashape", filename=f"{self.feature}.pt"
         )
         model.load_state_dict(torch.load(weights_path, weights_only=True))
         model.eval()
@@ -245,43 +135,30 @@ class DeepDNAShape(BaseTransform):
 
     @torch.no_grad()
     def _predict_one(self, seq):
-        """Predict shape values for a single DNA sequence string."""
-        _check_sequence(seq)
+        """Predict shape values for a single DNA sequence string.
+
+        As in the original deepDNAshape, the sequence is flanked with two ``N``
+        on each side, and both strands are predicted. The reverse-strand
+        prediction is flipped back to forward order, negated for features with
+        ``flip_rev``, and averaged with the forward one. The flank positions are
+        then dropped and the column for ``layer`` is returned.
+        """
         if self._model is None:
             self._load_model()
-        model = self._model
-        feature = self.feature
-        layer = self.layer
-        feature_meta = _CONFIG["features"][feature]
-        rev_complement = _CONFIG["rev_complement"]
+        params = FEATURES[self.feature]
 
-        padded = "NN" + seq + "NN"
-        rev = "".join(rev_complement[b] for b in reversed(padded))
+        forward = "NN" + seq + "NN"
+        reverse = forward[::-1].translate(str.maketrans("ACGTN", "TGCAN"))
 
-        if feature_meta["kind"] == "interbase":
-
-            def encode(s):
-                return np.array([_DI[(s[i], s[i + 1])] for i in range(len(s) - 1)])
-        else:
-
-            def encode(s):
-                return np.array([_MONO[b] for b in s])
-
-        x_fwd = torch.tensor(encode(padded), dtype=torch.float32)
-        x_rev = torch.tensor(encode(rev), dtype=torch.float32)
-
-        pred_fwd = model(x_fwd).numpy()
-        pred_rev = model(x_rev).numpy()
-
-        params = SCALE_PARAMS[feature]
-        pred_fwd = _rescale(pred_fwd, params)
-        pred_rev = _rescale(pred_rev, params)
-
-        if feature_meta["flip_rev"]:
+        pred_fwd = self._model(_encode(forward, params.interbase)).numpy()
+        pred_rev = self._model(_encode(reverse, params.interbase)).numpy()
+        pred_fwd = pred_fwd * params.scale + params.offset
+        pred_rev = pred_rev * params.scale + params.offset
+        if params.flip_rev:
             pred_rev = -pred_rev
 
         predictions = (pred_fwd + pred_rev[::-1]) / 2
-        return predictions[2:-2, layer]
+        return predictions[2:-2, self.layer]
 
     def _transform(self, X):
         """Transform DNA sequences into shape feature rows.
@@ -297,16 +174,28 @@ class DeepDNAShape(BaseTransform):
             One row per input sequence. Columns are positional shape
             values, right-padded with ``NaN`` to the longest prediction
             in the batch.
+
+        Raises
+        ------
+        TypeError
+            If the first column of X does not hold one sequence string per row.
+        ValueError
+            If a sequence has a base other than A, C, G, T and N.
         """
-        sequences = [_as_sequence_str(v) for v in X.iloc[:, 0].tolist()]
-        preds = [
-            np.asarray(self._predict_one(seq), dtype=np.float64) for seq in sequences
-        ]
+        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=True)
+        if kind not in ("string", "empty"):
+            raise TypeError(
+                f"{type(self).__name__} needs one sequence string per row. A "
+                'MoleculeLoader built from a file with tiling="bag" holds several '
+                'sequences per row. Build it with tiling="samples".'
+            )
+        for seq in X.iloc[:, 0]:
+            invalid = set(seq) - set("ACGTN")
+            if invalid:
+                raise ValueError(
+                    f"Invalid bases {sorted(invalid)} in {seq!r}. "
+                    "Allowed bases are A, C, G, T, N."
+                )
 
-        max_len = max((len(p) for p in preds), default=0)
-        padded = np.full((len(preds), max_len), np.nan, dtype=np.float64)
-        for i, pred in enumerate(preds):
-            padded[i, : len(pred)] = pred
-
-        columns = [f"pos_{i}" for i in range(max_len)]
-        return pd.DataFrame(padded, index=X.index, columns=columns)
+        preds = [self._predict_one(seq) for seq in X.iloc[:, 0]]
+        return pd.DataFrame(preds, index=X.index, dtype=np.float64).add_prefix("pos_")
