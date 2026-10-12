@@ -12,9 +12,9 @@ def test_hf_hub_dataset_load():
 
 
 def test_load_pdb_local_file():
-    """Test parsing a local PDB file (pfoa.pdb) from the data folder."""
+    """Test parsing a local PDB file from the data folder."""
     pdb_file = os.path.join(
-        os.path.dirname(__file__), "..", "..", "datasets", "data", "pfoa.pdb"
+        os.path.dirname(__file__), "..", "..", "datasets", "data", "1brq.pdb"
     )
     ds = load_hf_to_dataset(pdb_file)
     assert "text" in ds.column_names

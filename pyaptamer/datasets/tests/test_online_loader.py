@@ -5,22 +5,20 @@ import os
 import pytest
 
 from pyaptamer.data.loader import MoleculeLoader
-from pyaptamer.datasets import load_from_rcsb
+from pyaptamer.datasets import load_1gnh, load_from_rcsb
 
 
 @pytest.mark.parametrize("pdb_id", ["1GNH"])
-def test_download_structure(pdb_id):
-    """
-    The download_structure function works correctly
-    for valid PDB IDs.
-    """
-    loader = load_from_rcsb(pdb_id)
-    assert isinstance(loader, MoleculeLoader), (
-        f"Expected a MoleculeLoader, got {type(loader)}"
-    )
+def test_download_structure(pdb_id, tmp_path):
+    """load_from_rcsb stores <id>.pdb in pdir and matches the bundled loader."""
+    loader = load_from_rcsb(pdb_id, pdir=tmp_path)
+    assert isinstance(loader, MoleculeLoader)
 
-    # Ensure the pdb file was downloaded to the expected path
-    assert os.path.exists(loader.path), f"PDB file not found at {loader.path}"
+    assert os.listdir(tmp_path) == ["1gnh.pdb"]
 
-    df_seq = loader.to_df_seq()
-    assert not df_seq.empty, "Expected to_df_seq() to return a non-empty DataFrame"
+    df = loader.to_dataframe()
+    assert not df.empty
+    assert df.equals(load_1gnh().to_dataframe())
+
+    df = load_from_rcsb(pdb_id, pdir=tmp_path, tiling="samples").to_dataframe()
+    assert df.equals(load_1gnh(tiling="samples").to_dataframe())
