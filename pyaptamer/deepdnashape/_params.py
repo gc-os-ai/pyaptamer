@@ -1,278 +1,208 @@
-"""Per-feature rescaling constants for deepDNAshape predictions.
+"""Constants of the pretrained deepDNAshape models.
 
-The network emits normalized scores. These constants convert a score back to
-the physical unit of that DNA shape feature. They are the training-set
-statistics published with the original deepDNAshape project:
+``BASE_VECTORS`` maps each base to its one-hot vector, in the order the
+pretrained weights expect. ``N`` is the average of the four bases.
+
+``FEATURES`` maps each DNA shape feature to its `FeatureParams`.
+
+The values come from the original deepDNAshape project:
 
 https://github.com/JinsenLi/deepDNAshape
 """
 
 from typing import NamedTuple
 
+BASE_VECTORS = {
+    "T": [1.0, 0.0, 0.0, 0.0],
+    "G": [0.0, 1.0, 0.0, 0.0],
+    "C": [0.0, 0.0, 1.0, 0.0],
+    "A": [0.0, 0.0, 0.0, 1.0],
+    "N": [0.25, 0.25, 0.25, 0.25],
+}
 
-class ScaleParams(NamedTuple):
-    """Inverse-normalization constants for one DNA shape feature.
 
-    ``method`` selects which fields are applied:
+class FeatureParams(NamedTuple):
+    """Settings of one DNA shape feature.
 
-    - ``"robust"`` uses ``percentile_range`` and ``median``
-    - ``"standard"`` uses ``std`` and ``mean``
-    - ``"minmax"`` uses ``min`` and ``max``
-    - ``"minmax2"`` uses ``min`` and ``max`` on a score in ``[-1, 1]``
-    - ``"sin"`` converts a sine-normalized angle and ignores the numbers
+    ``interbase`` is True for features with one value per step between two
+    bases, and False for features with one value per base.
+
+    ``flip_rev`` is True for features whose reverse-strand prediction is
+    negated before it is averaged with the forward one.
+
+    The network emits normalized scores. ``score * scale + offset`` converts a
+    score back to the physical unit of the feature. ``scale`` and ``offset`` are
+    the training-set percentile range and median from the original
+    ``params.json``, or its standard deviation and mean for ``EP``.
     """
 
-    method: str
-    min: float
-    max: float
-    mean: float
-    std: float
-    median: float
-    percentile_range: float
+    interbase: bool
+    flip_rev: bool
+    scale: float
+    offset: float
 
 
-SCALE_PARAMS: dict[str, ScaleParams] = {
-    "Shear": ScaleParams(
-        method="robust",
-        min=-1.24,
-        max=1.24,
-        mean=0.0,
-        std=0.21350787184077646,
-        median=0.0,
-        percentile_range=0.66,
+FEATURES = {
+    "Shear": FeatureParams(
+        interbase=False,
+        flip_rev=True,
+        scale=0.66,
+        offset=0.0,
     ),
-    "Stretch": ScaleParams(
-        method="robust",
-        min=-2.21,
-        max=0.57,
-        mean=-0.024233859129367177,
-        std=0.028817442686172562,
-        median=-0.03,
-        percentile_range=0.09669999999998254,
+    "Stretch": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=0.09669999999998254,
+        offset=-0.03,
     ),
-    "Stagger": ScaleParams(
-        method="robust",
-        min=-4.24,
-        max=1.41,
-        mean=-0.03942669549203299,
-        std=0.13204870837129684,
-        median=-0.03,
-        percentile_range=0.51,
+    "Stagger": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=0.51,
+        offset=-0.03,
     ),
-    "Buckle": ScaleParams(
-        method="robust",
-        min=-53.66,
-        max=53.66,
-        mean=9.102957620435265e-18,
-        std=4.434051738350997,
-        median=0.0,
-        percentile_range=19.21339999999998,
+    "Buckle": FeatureParams(
+        interbase=False,
+        flip_rev=True,
+        scale=19.21339999999998,
+        offset=0.0,
     ),
-    "ProT": ScaleParams(
-        method="robust",
-        min=-35.27,
-        max=9.26,
-        mean=-6.797539434702539,
-        std=3.9908852307995493,
-        median=-7.18,
-        percentile_range=18.2867,
+    "ProT": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=18.2867,
+        offset=-7.18,
     ),
-    "Opening": ScaleParams(
-        method="robust",
-        min=-16.38,
-        max=9.1,
-        mean=-0.19386126457949665,
-        std=0.8157472374566701,
-        median=0.19,
-        percentile_range=2.93,
+    "Opening": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=2.93,
+        offset=0.19,
     ),
-    "MGW": ScaleParams(
-        method="robust",
-        min=1.01,
-        max=6.913333333333334,
-        mean=4.982309040189524,
-        std=0.6352871842196891,
-        median=5.01,
-        percentile_range=3.116666666666667,
+    "MGW": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=3.116666666666667,
+        offset=5.01,
     ),
-    "EP": ScaleParams(
-        method="standard",
-        min=-142.2847,
-        max=189.16,
-        mean=-6.782113572103729,
-        std=6.022025377651401,
-        median=-7.17,
-        percentile_range=27.92035,
+    "EP": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=6.022025377651401,
+        offset=-6.782113572103729,
     ),
-    "Shear-FL": ScaleParams(
-        method="robust",
-        min=0.17,
-        max=3.07,
-        mean=0.2537409468806036,
-        std=0.08391295267245921,
-        median=0.25,
-        percentile_range=0.10999999999999999,
+    "Shear-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=0.10999999999999999,
+        offset=0.25,
     ),
-    "Stretch-FL": ScaleParams(
-        method="robust",
-        min=0.08,
-        max=3.53,
-        mean=0.1274697841224005,
-        std=0.06712241710568438,
-        median=0.12,
-        percentile_range=0.13,
+    "Stretch-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=0.13,
+        offset=0.12,
     ),
-    "Stagger-FL": ScaleParams(
-        method="robust",
-        min=0.17,
-        max=2.14,
-        mean=0.3190100370275495,
-        std=0.065081007372701,
-        median=0.32,
-        percentile_range=0.2,
+    "Stagger-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=0.2,
+        offset=0.32,
     ),
-    "Buckle-FL": ScaleParams(
-        method="robust",
-        min=4.48,
-        max=153.93,
-        mean=8.240416851028154,
-        std=4.820329155400036,
-        median=7.72,
-        percentile_range=7.74,
+    "Buckle-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=7.74,
+        offset=7.72,
     ),
-    "ProT-FL": ScaleParams(
-        method="robust",
-        min=4.86,
-        max=169.8,
-        mean=6.559122051186512,
-        std=5.918176509467125,
-        median=5.85,
-        percentile_range=9.31,
+    "ProT-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=9.31,
+        offset=5.85,
     ),
-    "Opening-FL": ScaleParams(
-        method="robust",
-        min=1.58,
-        max=137.75,
-        mean=3.417052700216576,
-        std=5.1468003686141435,
-        median=3.47,
-        percentile_range=8.28,
+    "Opening-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=8.28,
+        offset=3.47,
     ),
-    "MGW-FL": ScaleParams(
-        method="robust",
-        min=0.0,
-        max=5.71,
-        mean=1.0643126206914797,
-        std=0.304793577300888,
-        median=1.03,
-        percentile_range=2.08,
+    "MGW-FL": FeatureParams(
+        interbase=False,
+        flip_rev=False,
+        scale=2.08,
+        offset=1.03,
     ),
-    "Shift": ScaleParams(
-        method="robust",
-        min=-2.27,
-        max=2.27,
-        mean=4.0204987028806667e-19,
-        std=0.22387370010627808,
-        median=0.0,
-        percentile_range=1.0,
+    "Shift": FeatureParams(
+        interbase=True,
+        flip_rev=True,
+        scale=1.0,
+        offset=0.0,
     ),
-    "Slide": ScaleParams(
-        method="robust",
-        min=-2.38,
-        max=1.68,
-        mean=-1.5369620324789228,
-        std=0.24067666773048138,
-        median=-1.54,
-        percentile_range=1.0599999999999998,
+    "Slide": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=1.0599999999999998,
+        offset=-1.54,
     ),
-    "Rise": ScaleParams(
-        method="robust",
-        min=1.36,
-        max=4.48,
-        mean=3.3636513325411643,
-        std=0.14037240595218406,
-        median=3.37,
-        percentile_range=0.5800000000000001,
+    "Rise": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=0.5800000000000001,
+        offset=3.37,
     ),
-    "Tilt": ScaleParams(
-        method="robust",
-        min=-19.54,
-        max=19.54,
-        mean=4.8245984434568e-18,
-        std=1.4231056961195274,
-        median=0.0,
-        percentile_range=5.42,
+    "Tilt": FeatureParams(
+        interbase=True,
+        flip_rev=True,
+        scale=5.42,
+        offset=0.0,
     ),
-    "Roll": ScaleParams(
-        method="robust",
-        min=-19.9,
-        max=16.74,
-        mean=-0.5018712159791773,
-        std=3.7652038738372857,
-        median=-1.45,
-        percentile_range=16.71,
+    "Roll": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=16.71,
+        offset=-1.45,
     ),
-    "HelT": ScaleParams(
-        method="robust",
-        min=-2.26,
-        max=44.8,
-        mean=34.35988202342557,
-        std=1.7859284058148794,
-        median=34.49,
-        percentile_range=6.91,
+    "HelT": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=6.91,
+        offset=34.49,
     ),
-    "Shift-FL": ScaleParams(
-        method="robust",
-        min=0.19,
-        max=1.73,
-        mean=0.47669806900293477,
-        std=0.0667023226253512,
-        median=0.48,
-        percentile_range=0.32999999999999996,
+    "Shift-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=0.32999999999999996,
+        offset=0.48,
     ),
-    "Slide-FL": ScaleParams(
-        method="robust",
-        min=0.1,
-        max=1.96,
-        mean=0.42525487681570445,
-        std=0.05894555690495868,
-        median=0.42,
-        percentile_range=0.26999999999999996,
+    "Slide-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=0.26999999999999996,
+        offset=0.42,
     ),
-    "Rise-FL": ScaleParams(
-        method="robust",
-        min=0.05,
-        max=2.34,
-        mean=0.2780697427803398,
-        std=0.05655328599108093,
-        median=0.27,
-        percentile_range=0.21999999999999997,
+    "Rise-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=0.21999999999999997,
+        offset=0.27,
     ),
-    "Tilt-FL": ScaleParams(
-        method="robust",
-        min=1.93,
-        max=35.59,
-        mean=3.4087913388739546,
-        std=0.4497462426105603,
-        median=3.34,
-        percentile_range=1.7599999999999998,
+    "Tilt-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=1.7599999999999998,
+        offset=3.34,
     ),
-    "Roll-FL": ScaleParams(
-        method="robust",
-        min=1.51,
-        max=29.63,
-        mean=5.2340109497151595,
-        std=1.0979510134810668,
-        median=5.02,
-        percentile_range=4.629999999999999,
+    "Roll-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=4.629999999999999,
+        offset=5.02,
     ),
-    "HelT-FL": ScaleParams(
-        method="robust",
-        min=1.62,
-        max=49.83,
-        mean=3.800106784384326,
-        std=0.6095502291461872,
-        median=3.79,
-        percentile_range=1.8700000000000006,
+    "HelT-FL": FeatureParams(
+        interbase=True,
+        flip_rev=False,
+        scale=1.8700000000000006,
+        offset=3.79,
     ),
 }

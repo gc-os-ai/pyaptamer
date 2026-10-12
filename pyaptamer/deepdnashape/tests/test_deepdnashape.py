@@ -1,5 +1,7 @@
 __author__ = ["prashantpandeygit", "Alleny244"]
 
+import re
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -107,34 +109,34 @@ def test_invalid_layer(layer):
 
 
 def test_allowed_bases_pass_check():
-    """A, C, G, T, and N are accepted without loading the model."""
-    from pyaptamer.deepdnashape._predictor import _check_sequence
-
-    _check_sequence("ACGTN")
+    """A, C, G, T, and N are accepted."""
+    Xt = DeepDNAShape(feature="MGW").fit_transform(_frame("ACGTN"))
+    assert Xt.shape == (1, 5)
 
 
 @pytest.mark.parametrize(
-    ("seq", "bad", "position"),
+    ("seq", "bad"),
     [
-        ("ATGX", "X", 3),
-        ("atgc", "a", 0),
+        ("ATGX", "['X']"),
+        ("atgc", "['a', 'c', 'g', 't']"),
     ],
 )
-def test_invalid_base(seq, bad, position):
-    """A base outside A, C, G, T, N raises ValueError."""
+def test_invalid_base(seq, bad):
+    """Bases outside A, C, G, T, N raise ValueError naming them."""
     with pytest.raises(
         ValueError,
-        match=rf"Invalid base '{bad}' at position {position}\. "
-        "Allowed bases are A, C, G, T, N.",
+        match=re.escape(
+            f"Invalid bases {bad} in '{seq}'. Allowed bases are A, C, G, T, N."
+        ),
     ):
         DeepDNAShape(feature="MGW").fit_transform(_frame(seq))
 
 
-def test_multi_sequence_row_raises(tmp_path):
-    """A loader row holding several reads raises TypeError instead of joining them."""
+def test_bag_tiling_raises(tmp_path):
+    """A loader row holding several reads raises TypeError pointing to samples."""
     fasta = tmp_path / "reads.fasta"
     fasta.write_text(">a\nACGTACGTAC\n>b\nTTTTGGGGCC\n")
-    X = MoleculeLoader(data={"seq": [str(fasta)]})
+    X = MoleculeLoader(data={"seq": [str(fasta)]}, tiling="bag")
     with pytest.raises(TypeError, match='tiling="samples"'):
         DeepDNAShape(feature="MGW").fit_transform(X)
 
