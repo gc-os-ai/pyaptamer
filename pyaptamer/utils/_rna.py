@@ -79,13 +79,14 @@ def rna2vec(
     Convert a list of RNA sequence or RNA secondary structures into a numerical
     representation.
 
-    For RNA sequences, if not already in RNA format, the sequences are converted from
-    DNA to RNA. For both RNA and secondary structure sequences, all overlapping
-    triplets (3-nucleotide/character combinations) are extracted from each sequence and
-    mapped to unique indices. Finally, the sequences are zero padded to length
-    `max_sequence_length`. The result is a numpy array where each row corresponds to a
-    sequence, and each column corresponds to an integer representing the triplet's
-    index in the dictionary.
+    Sequences are converted to uppercase first, so lowercase and mixed-case input
+    give the same result as uppercase input. For RNA sequences, if not already in RNA
+    format, the sequences are converted from DNA to RNA. For both RNA and secondary
+    structure sequences, all overlapping triplets (3-nucleotide/character
+    combinations) are extracted from each sequence and mapped to unique indices.
+    Finally, the sequences are zero padded to length `max_sequence_length`. The result
+    is a numpy array where each row corresponds to a sequence, and each column
+    corresponds to an integer representing the triplet's index in the dictionary.
 
     If the number of extracted triplets is greater than `max_sequence_length`, the
     sequence is truncated to fit.
@@ -141,7 +142,7 @@ def rna2vec(
 
     result = []
     for sequence in sequence_list:
-        sequence = sequence.upper()  # ensure case-insensitivity
+        sequence = sequence.upper()
         # convert DNA to RNA only for RNA sequences
         if sequence_type == "rna":
             sequence = dna2rna(sequence)
