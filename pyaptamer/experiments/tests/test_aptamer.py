@@ -1,6 +1,6 @@
 """Test suite for the AptamerEval experiment classes."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 
 import numpy
 import pytest
@@ -41,9 +41,13 @@ class MockAptaNetPipeline:
         """
         Mock predict method that returns fixed scores for binary classification (no
         binding, binding).
+
+        ``X`` is a :class:`~pyaptamer.data.loader.MoleculeLoader`; materialize it
+        to learn how many pairs to score.
         """
+        n = len(X.to_dataframe())
         # return probability scores as a list
-        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
+        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * n)
 
     def fit(self, X, y):
         """Mock fit method."""

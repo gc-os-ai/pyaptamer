@@ -1,5 +1,8 @@
 """Base transformation class."""
 
+__author__ = ["fkiraly", "siddharth7113"]
+__all__ = ["BaseTransform"]
+
 import pandas as pd
 from skbase.base import BaseEstimator
 
@@ -38,11 +41,12 @@ class BaseTransform(BaseEstimator):
         self : object
             Returns self.
         """
-        if self.get_tag("property:fit_is_empty", False):
-            return self
-
         X_inner, y_inner = self._check_X_y(X, y)
-        self._fit(X=X_inner, y=y_inner)
+
+        if not self.get_tag("property:fit_is_empty", False):
+            self._fit(X=X_inner, y=y_inner)
+
+        self._is_fitted = True
         return self
 
     def _fit(self, X, y=None):
@@ -50,8 +54,10 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to fit the transformer.
+        X : pd.DataFrame, shape (n_samples, n_features)
+            Input data to fit the transformer. If the tag
+            ``capability:multivariate`` is False, X has exactly one column.
+            Select it by position. Its name is not fixed.
         y : array-like, shape (n_samples,), optional
             Target values. Only used if the transformer has
             the tag ``capability:y`` set to True.
@@ -61,7 +67,7 @@ class BaseTransform(BaseEstimator):
         self : object
             Returns self.
         """
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _fit called, this should be implemented in the subclass"
         )
 
@@ -77,7 +83,13 @@ class BaseTransform(BaseEstimator):
         -------
         X : array-like, shape (n_samples, n_features_transformed)
             Transformed data.
+
+        Raises
+        ------
+        NotFittedError
+            If ``fit`` has not been called before.
         """
+        self.check_is_fitted(method_name="transform")
         X_inner = self._check_X(X)
         Xt = self._transform(X=X_inner)
         return Xt
@@ -87,8 +99,10 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to transform.
+        X : pd.DataFrame, shape (n_samples, n_features)
+            Input data to transform. If the tag ``capability:multivariate``
+            is False, X has exactly one column. Select it by position. Its
+            name is not fixed.
 
         Returns
         -------
@@ -98,7 +112,7 @@ class BaseTransform(BaseEstimator):
         if self.get_tag("property:elementwise", False):
             return X.map(self._transform_element)
 
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _transform called, "
             "this should be implemented in the subclass"
         )
@@ -118,7 +132,7 @@ class BaseTransform(BaseEstimator):
         X : array-like, shape (n_samples, n_features_transformed)
             Transformed data.
         """
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _transform_element called, "
             "since tag 'property:elementwise' is True, "
             "this should be implemented in the subclass"
@@ -148,7 +162,7 @@ class BaseTransform(BaseEstimator):
         Coerces X to a pd.DataFrame.
         """
         if isinstance(X, MoleculeLoader):
-            X = X.to_df_seq()
+            X = X.to_dataframe()
         if not isinstance(X, pd.DataFrame):
             raise TypeError(
                 "X must be a MoleculeLoader instance"
