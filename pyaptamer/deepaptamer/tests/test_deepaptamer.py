@@ -52,8 +52,22 @@ def test_features_pad_shorter_sequences():
 
     assert Xt.shape == (2, 266)
     assert not Xt.isna().any().any()
-    # padding "N" is encoded as all zeros
+    # positions after the end of the sequence are all zeros
     assert (Xt.iloc[1, 4 * 20 : 4 * 35] == 0).all()
+
+
+def test_features_shape_ignores_padding():
+    """Padding a 20-mer to 35 appends 15 zeros to each shape feature.
+
+    Trimmed MGW, HelT, ProT and Roll of a 20-mer have 16, 17, 16 and 17 values.
+    """
+    X = pd.DataFrame({"aptamer": [APTAMERS[1][:20]]})
+    unpadded = DeepAptamerFeatures(seq_len=20).fit_transform(X).iloc[0, 4 * 20 :]
+    padded = DeepAptamerFeatures(seq_len=35).fit_transform(X).iloc[0, 4 * 35 :]
+
+    features = np.split(unpadded.to_numpy(), [16, 33, 49])
+    expected = np.concatenate([np.pad(feat, (0, 15)) for feat in features])
+    np.testing.assert_allclose(padded.to_numpy(), expected)
 
 
 def test_features_reject_too_long_sequences():

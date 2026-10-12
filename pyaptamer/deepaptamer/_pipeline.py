@@ -25,6 +25,9 @@ class DeepAptamerPipeline(BaseEstimator):
     The pipeline takes a MoleculeLoader or a DataFrame with an aptamer column. The
     aptamers are encoded with `DeepAptamerFeatures` and passed to the estimator.
 
+    Only DNA aptamers are supported. Sequences must be uppercase and contain only
+    A, C, G, T and N. Other characters, including U in RNA, raise a ValueError.
+
     Parameters
     ----------
     seq_len : int, optional, default=35

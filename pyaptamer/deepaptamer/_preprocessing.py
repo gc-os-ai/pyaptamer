@@ -1,127 +1,120 @@
 __author__ = ["satvshr", "geetu040"]
-__all__ = ["DeepAptamerFeatures", "preprocess_seq_ohe", "preprocess_seq_shape"]
+__all__ = ["DeepAptamerFeatures"]
 
 import numpy as np
 import pandas as pd
 
+from pyaptamer.deepdnashape import DeepDNAShape
 from pyaptamer.trafos.base import BaseTransform
-from pyaptamer.utils._deepaptamer_utils import (
-    ohe,
-    pad_sequence,
-    remove_na,
-    run_deepdna_prediction,
-)
 
 
-def preprocess_seq_ohe(seq, seq_len=35):
+def _one_hot(seq, seq_len):
     """
-    Preprocesses a single DNA sequence for DeepAptamer.
+    One-hot encode a DNA sequence into a fixed number of positions.
 
-    The function pads the sequence to length `seq_len` using 'N' and one-hot encodes
-    it. The resulting array has shape (`seq_len`, 4), where each base is encoded as:
-    - A → [1, 0, 0, 0]
-    - T → [0, 1, 0, 0]
-    - C → [0, 0, 1, 0]
-    - G → [0, 0, 0, 1]
-    - N or unknown → [0, 0, 0, 0]
+    Each base is encoded as:
+    - A -> [1, 0, 0, 0]
+    - T -> [0, 1, 0, 0]
+    - C -> [0, 0, 1, 0]
+    - G -> [0, 0, 0, 1]
+    - any other character -> [0, 0, 0, 0]
+
+    Positions after the end of ``seq`` are all zero.
 
     Parameters
     ----------
     seq : str
-        A DNA sequence of length ≤ `seq_len`.
-    seq_len : int, optional, default=35
-        The length to which the sequence will be padded or truncated.
+        A DNA sequence of length at most ``seq_len``.
+    seq_len : int
+        Number of positions in the output.
 
     Returns
     -------
     np.ndarray
-        A NumPy array of shape (`seq_len`, 4) representing the one-hot
-        encoded sequence.
+        A 2D NumPy array of shape (``seq_len``, 4).
+
+    Raises
+    ------
+    ValueError
+        If ``seq`` is longer than ``seq_len``.
     """
-    seq_pad = pad_sequence(seq, seq_len)  # pads to `seq_len`
-    seq_ohe = ohe(seq_pad)  # one-hot encode (shape `seq_len` × 4)
-    return seq_ohe
+    if len(seq) > seq_len:
+        raise ValueError(f"Sequence length {len(seq)} exceeds {seq_len}: '{seq}'")
+
+    encoded = np.zeros((seq_len, 4), dtype=int)
+    for i, base in enumerate(seq):
+        j = "ATCG".find(base)
+        if j >= 0:
+            encoded[i, j] = 1
+    return encoded
 
 
-def preprocess_seq_shape(seqs, full_dna_shape=False):
+def _shape_features(X, seq_len, full_dna_shape):
     """
-    Preprocesses a batch of DNA sequences into normalized shape vectors.
+    Turn a batch of DNA sequences into normalized shape vectors.
 
-    The function runs DeepDNA prediction on all input sequences at once,
-    normalizes each sequence's features, flattens them into a single row
-    vector per sequence, and removes any "NA" values.
+    For each shape feature (MGW, HelT, ProT, Roll), `DeepDNAShape` predicts the
+    values of every sequence, read from message-passing layer 2 (a 5-base
+    window). Each sequence's values are then trimmed, normalized to zero mean and
+    unit variance, and right-padded with zeros to their length for a ``seq_len``
+    sequence. The four features are concatenated in that order.
+
+    Trimming drops ``edge`` values at each end: the positions that `DNAshapeR`
+    leaves NA, as in the DeepAptamer paper. That is 2 for MGW and ProT and 1 for
+    HelT and Roll.
 
     Parameters
     ----------
-    seqs : str or list of str
-        DNA sequence(s) to be processed. All sequences must have the same length.
-    full_dna_shape : bool, optional, default=False
-        If True, keep the full `DeepDNAShape` output (138 values for a 35-mer).
-        If False, drop the edge positions that are NA in `DNAshapeR`, as in the
-        DeepAptamer paper (126 values for a 35-mer).
+    X : pd.DataFrame
+        One column of DNA sequences, each of length at most ``seq_len``.
+    seq_len : int
+        Length the shape features are padded to.
+    full_dna_shape : bool
+        If True, skip trimming (138 values for a 35-mer instead of 126).
 
     Returns
     -------
     np.ndarray
-        A 3D NumPy array of shape (n_seqs, 1, new_length), where `new_length`
-        depends on the DeepDNA prediction output after flattening and
-        removing "NA" values.
+        A 2D NumPy array of shape (n_seqs, shape_len), where ``shape_len``
+        depends on ``seq_len`` and ``full_dna_shape``.
     """
-    seq_shapes = run_deepdna_prediction(seqs)
-    return np.stack(
-        [_normalize_shape(seq_shape, full_dna_shape) for seq_shape in seq_shapes]
-    )
-
-
-def _normalize_shape(seq_shape, full_dna_shape=False):
-    """
-    Normalize and flatten the shape predictions of a single sequence.
-
-    Parameters
-    ----------
-    seq_shape : list of list of float
-        A list of 4 lists in order [MGW, HelT, ProT, Roll].
-    full_dna_shape : bool, optional, default=False
-        Passed on from `preprocess_seq_shape`.
-
-    Returns
-    -------
-    np.ndarray
-        A 2D NumPy array of shape (1, new_length).
-    """
-    if not full_dna_shape:
-        seq_shape = remove_na(seq_shape)
-
-    norm_features = []
-    for feat in seq_shape:  # each feat is a list of floats
-        arr = np.array(feat, dtype=np.float32)
-
-        # Normalize per feature
-        mean = arr.mean()
-        std = arr.std() if arr.std() > 0 else 1.0
-        arr_norm = (arr - mean) / std
-
-        norm_features.append(arr_norm)
-
-    # Concatenate all features into one flat vector
-    seq_flat = np.concatenate(norm_features).reshape(1, -1)
-
-    return seq_flat
+    seqs = X.iloc[:, 0]
+    blocks = []
+    for feature, edge in {"MGW": 2, "HelT": 1, "ProT": 2, "Roll": 1}.items():
+        predictions = DeepDNAShape(feature=feature, layer=2).fit_transform(X)
+        if full_dna_shape:
+            edge = 0
+        block = []
+        for seq, values in zip(seqs, predictions.to_numpy(), strict=True):
+            values = values[~np.isnan(values)]
+            values = values[edge : len(values) - edge]
+            values = (values - values.mean()) / (values.std() or 1.0)
+            block.append(np.pad(values, (0, seq_len - len(seq))))
+        blocks.append(np.stack(block))
+    return np.hstack(blocks)
 
 
 class DeepAptamerFeatures(BaseTransform):
     """DeepAptamer input features of aptamer sequences.
 
-    Each sequence is padded with ``N`` to ``seq_len`` and encoded as its one-hot
-    matrix, flattened row-wise from shape (``seq_len``, 4), followed by its
-    normalized DNA shape vector (MGW, HelT, ProT, Roll) from `DeepDNAShape`.
+    Each sequence is encoded as its one-hot matrix of ``seq_len`` positions, with
+    all-zero rows after the end of the sequence, flattened row-wise from shape
+    (``seq_len``, 4). It is followed by the normalized DNA shape vector (MGW, HelT,
+    ProT, Roll) from `DeepDNAShape`.
     This is the input layout expected by `DeepAptamerClassifier`.
+
+    Shape is predicted on the unpadded sequence. Each shape feature is then
+    normalized and right-padded with zeros, so padding does not change the
+    values of the real positions.
 
     The width is ``4 * seq_len + shape_len``, where ``shape_len`` is
     ``4 * seq_len - 14`` if ``full_dna_shape`` is False and ``4 * seq_len - 2``
     otherwise. With the defaults it is ``140 + 126 = 266``.
 
-    Input is a one-column DataFrame or a ``MoleculeLoader`` of DNA strings.
+    Input is a one-column DataFrame or a ``MoleculeLoader`` of DNA strings. Only
+    DNA is supported: sequences must be uppercase and contain only A, C, G, T and
+    N. Other characters, including U in RNA, raise a ValueError from
+    `DeepDNAShape`.
 
     Parameters
     ----------
@@ -133,11 +126,15 @@ class DeepAptamerFeatures(BaseTransform):
 
     Examples
     --------
-    >>> import pandas as pd
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.deepaptamer import DeepAptamerFeatures
-    >>> X = pd.DataFrame({"aptamer": ["AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC"]})
+    >>> aptamers = [
+    ...     "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC",
+    ...     "TGCATGCTAGCTAGCTAGCT",
+    ... ]
+    >>> X = MoleculeLoader(data={"aptamer": aptamers})
     >>> DeepAptamerFeatures().fit_transform(X).shape
-    (1, 266)
+    (2, 266)
     """
 
     _tags = {
@@ -166,11 +163,9 @@ class DeepAptamerFeatures(BaseTransform):
         pd.DataFrame
             Shape ``(len(X), 4 * seq_len + shape_len)``, indexed like X.
         """
-        seqs = [pad_sequence(seq, self.seq_len) for seq in X.iloc[:, 0]]
-        X_ohe = np.stack(
-            [preprocess_seq_ohe(seq, self.seq_len).ravel() for seq in seqs]
-        )
-        X_shape = preprocess_seq_shape(seqs, self.full_dna_shape).reshape(len(seqs), -1)
+        seqs = X.iloc[:, 0].tolist()
+        X_ohe = np.stack([_one_hot(seq, self.seq_len).ravel() for seq in seqs])
+        X_shape = _shape_features(X, self.seq_len, self.full_dna_shape)
         return pd.DataFrame(np.hstack([X_ohe, X_shape]), index=X.index)
 
     @classmethod
