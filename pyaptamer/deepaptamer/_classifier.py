@@ -19,6 +19,10 @@ class DeepAptamerClassifier(ClassifierMixin, BaseEstimator):
     This estimator trains a skorch-wrapped `DeepAptamerNN` with cross-entropy loss
     and the Adam optimizer. [1]_
 
+    The original implementation uses two sigmoid outputs with binary
+    cross-entropy. This estimator uses softmax outputs with cross-entropy, the
+    usual choice for two mutually exclusive classes.
+
     This follows the original implementation [2]_.
 
     The network has two input branches, a one-hot encoded sequence and a DNA shape

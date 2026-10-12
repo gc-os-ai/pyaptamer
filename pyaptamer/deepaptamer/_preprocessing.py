@@ -59,6 +59,9 @@ def _shape_features(X, seq_len, full_dna_shape):
     unit variance, and right-padded with zeros to their length for a ``seq_len``
     sequence. The four features are concatenated in that order.
 
+    Each sequence is normalized with its own mean and standard deviation. The
+    paper (Equation 2) may compute them over all samples instead.
+
     Trimming drops ``edge`` values at each end: the positions that `DNAshapeR`
     leaves NA, as in the DeepAptamer paper. That is 2 for MGW and ProT and 1 for
     HelT and Roll.

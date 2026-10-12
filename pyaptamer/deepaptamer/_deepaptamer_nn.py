@@ -14,9 +14,10 @@ class DeepAptamerNN(nn.Module):
     - A sequence branch using convolutional and fully-connected layers to
       process one-hot encoded aptamer sequences.
     - A structural (DNA shape) branch using convolution + pooling + dense layers to
-        extract shape features using `DeepDNAShape` from the aptamer sequence.
+      extract shape features using `DeepDNAShape` from the aptamer sequence.
     - A BiLSTM for capturing sequential dependencies.
-    - Multi-head self-attention for contextual feature refinement.
+    - An attention layer on the final BiLSTM state. As in the original, it sees a
+      single step, so it acts as two linear layers.
     - A final classification head for binary binding prediction.
 
     This follows the original implementation [2]_.
@@ -84,7 +85,7 @@ class DeepAptamerNN(nn.Module):
         Dropout layer applied after BiLSTM.
 
     attn : nn.MultiheadAttention
-        Attention layer for contextual refinement.
+        Attention layer applied to the final BiLSTM state.
 
     head : nn.Linear
         Final classification layer (logits for 2 classes).
@@ -112,7 +113,6 @@ class DeepAptamerNN(nn.Module):
         seq_pool_kernel_size=1,
         seq_pool_stride=1,
         seq_linear_hidden_dim=32,
-        # Defines the size of the 1st dimension(time/seq) used for branch concatenation
         seq_conv_linear_out=4,
         shape_conv_kernel_size=100,
         shape_pool_kernel_size=20,
