@@ -126,10 +126,14 @@ def _rescale(predictions, params: ScaleParams):
 
 
 def _as_sequence_str(value):
-    """Coerce a DataFrame cell to a DNA sequence string."""
+    """Return a DataFrame cell as a DNA sequence string, raising if it is not one."""
     if isinstance(value, str):
         return value
-    return "".join(value)
+    raise TypeError(
+        f"DeepDNAShape expects one sequence string per row, got "
+        f"{type(value).__name__}. Build the MoleculeLoader with "
+        'tiling="samples" to get one sequence per row.'
+    )
 
 
 def _check_sequence(seq):

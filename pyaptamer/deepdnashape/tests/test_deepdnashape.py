@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 import torch
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.deepdnashape import DeepDNAShape
 from pyaptamer.deepdnashape._model import AvgFeatures
 
@@ -14,9 +15,9 @@ TEST_SEQ = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
 # Short sequence used for numerical reference checks.
 REF_SEQ = "AGCTTAGCGT"
 
-# Frozen Torch-port outputs for REF_SEQ at layer=4.
-# These lock current numerical behavior in CI. Re-check against the
-# original TensorFlow deepDNAshape if model weights or rescaling change.
+# Frozen Torch-port outputs for REF_SEQ at layer=4. They match the original
+# TensorFlow deepDNAshape (tensorflow 2.12) within 4e-6. Re-check against it
+# if model weights or rescaling change.
 _REF_PREDICTIONS = {
     "MGW": np.array(
         [
@@ -127,6 +128,15 @@ def test_invalid_base(seq, bad, position):
         "Allowed bases are A, C, G, T, N.",
     ):
         DeepDNAShape(feature="MGW").fit_transform(_frame(seq))
+
+
+def test_multi_sequence_row_raises(tmp_path):
+    """A loader row holding several reads raises TypeError instead of joining them."""
+    fasta = tmp_path / "reads.fasta"
+    fasta.write_text(">a\nACGTACGTAC\n>b\nTTTTGGGGCC\n")
+    X = MoleculeLoader(data={"seq": [str(fasta)]})
+    with pytest.raises(TypeError, match='tiling="samples"'):
+        DeepDNAShape(feature="MGW").fit_transform(X)
 
 
 def test_fit_returns_self():
