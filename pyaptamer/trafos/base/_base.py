@@ -1,6 +1,7 @@
 """Base transformation class."""
 
 __author__ = ["fkiraly", "siddharth7113"]
+__all__ = ["BaseTransform"]
 
 import pandas as pd
 from skbase.base import BaseEstimator
@@ -66,7 +67,7 @@ class BaseTransform(BaseEstimator):
         self : object
             Returns self.
         """
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _fit called, this should be implemented in the subclass"
         )
 
@@ -111,7 +112,7 @@ class BaseTransform(BaseEstimator):
         if self.get_tag("property:elementwise", False):
             return X.map(self._transform_element)
 
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _transform called, "
             "this should be implemented in the subclass"
         )
@@ -131,7 +132,7 @@ class BaseTransform(BaseEstimator):
         X : array-like, shape (n_samples, n_features_transformed)
             Transformed data.
         """
-        raise ValueError(
+        raise NotImplementedError(
             "abstract method _transform_element called, "
             "since tag 'property:elementwise' is True, "
             "this should be implemented in the subclass"
