@@ -24,7 +24,7 @@ class ApplyToCols(BaseTransform):
     column, that column keeps the name in ``cols``.
 
     Univariate transformers accept a one-column frame only. This wrapper
-    applies one to a chosen column of a wider table.
+    applies one to a chosen column of a table with several columns.
 
     Parameters
     ----------

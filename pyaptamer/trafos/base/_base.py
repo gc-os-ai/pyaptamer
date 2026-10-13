@@ -44,7 +44,7 @@ class BaseTransform(BaseEstimator):
         ----------
         X : pd.DataFrame or MoleculeLoader, shape (n_samples, n_features)
             Input data to fit the transformer. A univariate transformer
-            accepts one column; for a wider table use
+            accepts one column; for a table with several columns use
             ``pyaptamer.trafos.compose.ApplyToCols``.
         y : array-like, shape (n_samples,), optional
             Target values. Only used if the transformer has
@@ -92,7 +92,7 @@ class BaseTransform(BaseEstimator):
         ----------
         X : pd.DataFrame or MoleculeLoader, shape (n_samples, n_features)
             Input data to transform. A univariate transformer accepts one
-            column; for a wider table use
+            column; for a table with several columns use
             ``pyaptamer.trafos.compose.ApplyToCols``.
 
         Returns
