@@ -96,6 +96,7 @@ Scoring functions that connect a model to the search.
    GreedyEncoder
    KMerFrequencies
    PSeAAC
+   SequenceOneHotEncoder
 ```
 
 ## Datasets
