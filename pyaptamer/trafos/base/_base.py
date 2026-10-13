@@ -10,11 +10,23 @@ from pyaptamer.data import MoleculeLoader
 
 
 class BaseTransform(BaseEstimator):
-    """Base class for all transformations."""
+    """Base class for all transformations.
+
+    Most transformers work on one column, the sequence column. They say so
+    with the tag ``capability:multivariate`` set to False, and their ``_fit``
+    and ``_transform`` always receive a frame with exactly one column. Given
+    a frame with several columns, ``fit`` and ``transform`` raise and point
+    to ``pyaptamer.trafos.compose.ApplyToCols``, which runs the transformer
+    on a named column and returns the other columns unchanged.
+
+    To write a new transformer: set the tags, implement ``_transform`` for a
+    one-column frame, and implement ``_fit`` if the transformer learns
+    anything from the data. Read the column by position, ``X.iloc[:, 0]``,
+    since its name is whatever the user's table calls it.
+    """
 
     _tags = {
         "object_type": "transformer",
-        # "input_type":
         "capability:y": False,
         "output_type": "numeric",
         "property:fit_is_empty": False,
@@ -30,8 +42,10 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to fit the transformer.
+        X : pd.DataFrame or MoleculeLoader, shape (n_samples, n_features)
+            Input data to fit the transformer. A univariate transformer
+            accepts one column; for a table with several columns use
+            ``pyaptamer.trafos.compose.ApplyToCols``.
         y : array-like, shape (n_samples,), optional
             Target values. Only used if the transformer has
             the tag ``capability:y`` set to True.
@@ -76,18 +90,22 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Input data to transform.
+        X : pd.DataFrame or MoleculeLoader, shape (n_samples, n_features)
+            Input data to transform. A univariate transformer accepts one
+            column; for a table with several columns use
+            ``pyaptamer.trafos.compose.ApplyToCols``.
 
         Returns
         -------
-        X : array-like, shape (n_samples, n_features_transformed)
+        X : pd.DataFrame, shape (n_samples, n_features_transformed)
             Transformed data.
 
         Raises
         ------
         NotFittedError
             If ``fit`` has not been called before.
+        ValueError
+            If the transformer is univariate and X has several columns.
         """
         self.check_is_fitted(method_name="transform")
         X_inner = self._check_X(X)
@@ -143,7 +161,7 @@ class BaseTransform(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
+        X : pd.DataFrame or MoleculeLoader, shape (n_samples, n_features)
             Input data to transform.
         y : array-like, shape (n_samples,), optional, default=None
             Target values. Only used if the transformer has
@@ -151,7 +169,7 @@ class BaseTransform(BaseEstimator):
 
         Returns
         -------
-        X : array-like, shape (n_samples, n_features_transformed)
+        X : pd.DataFrame, shape (n_samples, n_features_transformed)
             Transformed data.
         """
         return self.fit(X, y).transform(X)
@@ -172,8 +190,9 @@ class BaseTransform(BaseEstimator):
 
         if not self.get_tag("capability:multivariate", False) and X.shape[1] > 1:
             raise ValueError(
-                f"Transformer {type(self).__name__} only supports univariate data, "
-                f"but X has {X.shape[1]} features."
+                f"{type(self).__name__} works on a single column, but X has "
+                f"columns {list(X.columns)}. Pass the column name as cols to "
+                "pyaptamer.trafos.compose.ApplyToCols(transformer, cols)."
             )
 
         return X, y

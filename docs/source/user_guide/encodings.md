@@ -161,6 +161,39 @@ KMerFrequencies(k=1, alphabet="ACGU").fit_transform(X)
 0  0.315789  0.157895  0.473684  0.052632
 ```
 
+## Tables with more than one column
+
+A SELEX table usually has more than the sequence column, for example the
+round and a derived feature. An encoder works on one column and raises on
+such a table. Name the column with
+{class}`~pyaptamer.trafos.compose.ApplyToCols`. It encodes that column and
+returns the other columns unchanged. Encoded columns are named after the
+source column, for example `sequence__0`.
+
+```python
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.compose import ApplyToCols
+from pyaptamer.trafos.encode import GreedyEncoder
+
+X = MoleculeLoader(
+    data={"sequence": ["ACGT", "GGCC"], "round": [1, 1]},
+    tiling="samples",
+).to_dataframe()
+X["gc_content"] = X["sequence"].str.count("[GC]") / X["sequence"].str.len()
+
+words = {"A": 1, "C": 2, "G": 3, "T": 4}
+ApplyToCols(GreedyEncoder(words=words), cols="sequence").fit_transform(X)
+```
+
+```text
+   sequence__0  sequence__1  sequence__2  sequence__3  round  gc_content
+0            1            2            3            4      1         0.5
+1            3            3            2            2      1         1.0
+```
+
+Rows keep their index. A transformer that drops rows, such as
+`PrimerTrimmer`, drops them from every column.
+
 ## Encode several columns at once
 
 Each encoder works on one column. To encode a table with an aptamer column and

@@ -27,6 +27,18 @@ change without notice.
    PrimerTrimmer
 ```
 
+## Compose
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.trafos.compose
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   ApplyToCols
+```
+
 ## DNA shape
 
 ```{eval-rst}

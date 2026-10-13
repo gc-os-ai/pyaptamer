@@ -15,6 +15,7 @@ from skbase.testing import BaseFixtureGenerator, TestAllObjects
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.base import BaseTransform
+from pyaptamer.trafos.compose import ApplyToCols
 
 
 class _RowCounter(BaseTransform):
@@ -79,6 +80,15 @@ def _scenarios():
 def _scenario_for(obj):
     """The first scenario that fits obj's class; test_scenario_applies checks one exists."""  # noqa: E501
     return next(s for s in _scenarios() if s.is_applicable(type(obj)))
+
+
+def _with_extra_columns(X):
+    """The scenario frame with an int and a float column before and after it."""
+    n = len(X)
+    return pd.DataFrame(
+        {"round": [4] * n, X.columns[0]: X.iloc[:, 0].tolist(), "gc": [0.5] * n},
+        index=X.index,
+    )
 
 
 class PackageConfig:
@@ -204,6 +214,44 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
         X_fit = args["fit"]["X"].set_axis(["reads"], axis=1)
         X_transform = args["transform"]["X"].set_axis(["reads"], axis=1)
         object_instance.fit(X_fit).transform(X_transform)
+
+    def test_several_columns_raise_pointing_to_apply_to_cols(self, object_instance):
+        """A univariate transformer given several columns raises and names ApplyToCols."""  # noqa: E501
+        if object_instance.get_tag("capability:multivariate", False):
+            pytest.skip("multivariate transformers see the whole frame")
+        args = _scenario_for(object_instance).args
+        with pytest.raises(ValueError, match="ApplyToCols"):
+            object_instance.fit(_with_extra_columns(args["fit"]["X"]))
+        object_instance.fit(args["fit"]["X"])
+        with pytest.raises(ValueError, match="ApplyToCols"):
+            object_instance.transform(_with_extra_columns(args["transform"]["X"]))
+
+    def test_apply_to_cols_matches_single_column(self, object_instance):
+        """ApplyToCols gives the one-column output, renamed, with the other columns unchanged."""  # noqa: E501
+        if object_instance.get_tag("capability:multivariate", False):
+            pytest.skip("multivariate transformers see the whole frame")
+        args = _scenario_for(object_instance).args
+        X_fit, X = args["fit"]["X"], args["transform"]["X"]
+        column = X.columns[0]
+        narrow = object_instance.clone().fit(X_fit).transform(X)
+        wrapper = ApplyToCols(object_instance, cols=column)
+        Xt = wrapper.fit(_with_extra_columns(X_fit)).transform(_with_extra_columns(X))
+        assert Xt.columns[0] == "round"
+        assert Xt.columns[-1] == "gc"
+        pd.testing.assert_series_equal(
+            Xt["round"], _with_extra_columns(X)["round"].loc[Xt.index]
+        )
+        pd.testing.assert_series_equal(
+            Xt["gc"], _with_extra_columns(X)["gc"].loc[Xt.index]
+        )
+        middle = Xt.drop(columns=["round", "gc"])
+        if narrow.shape[1] == 1:
+            expected = narrow.set_axis([column], axis=1)
+        else:
+            expected = narrow.set_axis(
+                [f"{column}__{c}" for c in narrow.columns], axis=1
+            )
+        pd.testing.assert_frame_equal(middle, expected)
 
 
 def test_stateful_transform_uses_fitted_state():
