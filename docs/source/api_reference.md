@@ -27,6 +27,18 @@ change without notice.
    PrimerTrimmer
 ```
 
+## DNA shape
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepdnashape
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepDNAShape
+```
+
 ## AptaNet
 
 ```{eval-rst}
@@ -55,6 +67,21 @@ change without notice.
    AptaTransLightning
    AptaTransEncoderLightning
    EncoderPredictorConfig
+```
+
+## DeepAptamer
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepaptamer
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepAptamerPipeline
+   DeepAptamerClassifier
+   DeepAptamerFeatures
+   DeepAptamerNN
 ```
 
 ## Monte Carlo Tree Search
@@ -96,6 +123,7 @@ Scoring functions that connect a model to the search.
    GreedyEncoder
    KMerFrequencies
    PSeAAC
+   SequenceOneHotEncoder
 ```
 
 ## Datasets

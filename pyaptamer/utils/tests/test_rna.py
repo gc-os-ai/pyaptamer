@@ -125,6 +125,45 @@ def test_rna2vec_secondary_structure():
     assert np.all(result[2][3:] == 0)  # rest should be padding
 
 
+def test_rna2vec_lowercase_rna_sequences():
+    """Check conversion of lowercase and mixed-case RNA sequences."""
+    sequences = ["acgu", "acgt", "AcGu"]
+    result = rna2vec(sequences, sequence_type="rna", max_sequence_length=10)
+
+    assert result.shape == (len(sequences), 10)
+
+    nucleotides = ["A", "C", "G", "U", "N"]
+    words = {
+        "".join(triplet): i + 1
+        for i, triplet in enumerate(product(nucleotides, repeat=3))
+    }
+
+    # 'acgu', 'acgt', 'AcGu' -> 'ACGU' -> triplets: 'ACG', 'CGU'
+    assert np.all(result[:, 0] == words["ACG"])
+    assert np.all(result[:, 1] == words["CGU"])
+    assert np.all(result[:, 2:] == 0)  # rest should be padding
+
+
+def test_rna2vec_lowercase_secondary_structure():
+    """Check conversion of lowercase and mixed-case secondary structure sequences."""
+    sequences = ["sshhm", "SsHhM"]
+    result = rna2vec(sequences, sequence_type="ss", max_sequence_length=10)
+
+    assert result.shape == (len(sequences), 10)
+
+    ss_letters = ["S", "H", "M", "I", "B", "X", "E"]
+    words = {
+        "".join(triplet): i + 1
+        for i, triplet in enumerate(product(ss_letters, repeat=3))
+    }
+
+    # 'sshhm', 'SsHhM' -> 'SSHHM' -> triplets: 'SSH', 'SHH', 'HHM'
+    assert np.all(result[:, 0] == words["SSH"])
+    assert np.all(result[:, 1] == words["SHH"])
+    assert np.all(result[:, 2] == words["HHM"])
+    assert np.all(result[:, 3:] == 0)  # rest should be padding
+
+
 def test_rna2vec_edge_cases():
     """Check edge cases for RNA to vector conversion."""
     # `max_sequence_length` is <= 0
