@@ -3,6 +3,8 @@
 __author__ = ["siddharth7113"]
 __all__ = ["ApplyToCols"]
 
+import pandas as pd
+
 from pyaptamer.trafos.base import BaseTransform
 
 
@@ -21,10 +23,8 @@ class ApplyToCols(BaseTransform):
     called ``<cols>__<name>``, for example ``sequence__0``. If it returns one
     column, that column keeps the name in ``cols``.
 
-    When to use this: a transformer that works on one column finds that
-    column on its own when it is the only column of strings in the table.
-    If the table has more than one string column, say an ``id`` column next
-    to ``sequence``, it cannot tell which one to use. This wrapper tells it.
+    Univariate transformers accept a one-column frame only. This wrapper
+    applies one to a chosen column of a wider table.
 
     Parameters
     ----------
@@ -36,14 +36,37 @@ class ApplyToCols(BaseTransform):
 
     Examples
     --------
-    >>> import pandas as pd
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.trafos.compose import ApplyToCols
     >>> from pyaptamer.trafos.encode import KMerFrequencies
     >>>
-    >>> X = pd.DataFrame({"id": ["r1", "r2"], "sequence": ["ACGT", "AAAA"]})
+    >>> X = MoleculeLoader(
+    ...     data={"id": ["r1", "r2"], "sequence": ["ACGT", "AAAA"], "round": [1, 2]}
+    ... )
     >>> Xt = ApplyToCols(KMerFrequencies(k=1), cols="sequence").fit_transform(X)
     >>> Xt.columns.tolist()
-    ['id', 'sequence__0', 'sequence__1', 'sequence__2', 'sequence__3']
+    ['id', 'sequence__0', 'sequence__1', 'sequence__2', 'sequence__3', 'round']
+
+    Two sequence columns take one wrapper each, for example in a Pipeline:
+
+    >>> from sklearn.pipeline import Pipeline
+    >>> from pyaptamer.trafos.encode import PSeAAC
+    >>>
+    >>> X = MoleculeLoader(
+    ...     data={
+    ...         "aptamer": ["ACGTACGT"],
+    ...         "protein": ["ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"],
+    ...         "round": [3],
+    ...     }
+    ... )
+    >>> steps = Pipeline(
+    ...     [
+    ...         ("aptamer", ApplyToCols(KMerFrequencies(k=1), cols="aptamer")),
+    ...         ("protein", ApplyToCols(PSeAAC(), cols="protein")),
+    ...     ]
+    ... )
+    >>> steps.fit_transform(X).shape
+    (1, 355)
     """
 
     _tags = {
@@ -79,6 +102,56 @@ class ApplyToCols(BaseTransform):
         self._check_cols(X)
         Xt = self.transformer_.transform(X[[self.cols]])
         return self._splice_transformed(X, self.cols, Xt)
+
+    def _splice_transformed(self, X, column, Xt):
+        """Put the transformed output back into the table.
+
+        X is the full input table, ``column`` the name of the column that was
+        transformed, and Xt the transformer's output for that column. The
+        result is X with ``column`` replaced by Xt, in the same position.
+
+        Rows are matched by index. If the transformer removed rows, so that
+        Xt has fewer rows than X, those rows are removed from the other
+        columns too.
+
+        If Xt has several columns they are renamed ``<column>__<name>``, for
+        example ``sequence__0``. If Xt has one column it keeps the name
+        ``column``.
+
+        Raises
+        ------
+        ValueError
+            If a renamed output column already exists in X, or if rows were
+            dropped and the index of X is not unique, so the other columns
+            cannot be lined up.
+        """
+        name = type(self.transformer_).__name__
+        if Xt.shape[1] == 1:
+            Xt = Xt.set_axis([column], axis=1)
+        else:
+            Xt = Xt.set_axis([f"{column}__{c}" for c in Xt.columns], axis=1)
+
+        rest = X.drop(columns=column)
+
+        clash = rest.columns.intersection(Xt.columns).tolist()
+        if clash:
+            raise ValueError(
+                f"{name} would name its output columns {clash}, but X already "
+                "has columns with these names."
+            )
+
+        if not Xt.index.equals(X.index):
+            if not X.index.is_unique:
+                raise ValueError(
+                    f"{name} dropped rows, but the row index of X is not "
+                    "unique, so the other columns cannot be lined up with the "
+                    "result."
+                )
+            rest = rest.loc[Xt.index]
+        position = X.columns.get_loc(column)
+        before = rest.iloc[:, :position]
+        after = rest.iloc[:, position:]
+        return pd.concat([before, Xt, after], axis=1)
 
     @classmethod
     def get_test_params(cls):

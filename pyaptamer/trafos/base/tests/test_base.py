@@ -15,7 +15,7 @@ from skbase.testing import BaseFixtureGenerator, TestAllObjects
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.trafos.base import BaseTransform
-from pyaptamer.trafos.encode import KMerFrequencies
+from pyaptamer.trafos.compose import ApplyToCols
 
 
 class _RowCounter(BaseTransform):
@@ -106,7 +106,6 @@ class PackageConfig:
         "property:fit_is_empty",
         "property:elementwise",
         "output_type",
-        "input_type",
     ]
 
 
@@ -216,80 +215,39 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
         X_transform = args["transform"]["X"].set_axis(["reads"], axis=1)
         object_instance.fit(X_fit).transform(X_transform)
 
-    def test_wide_frame_keeps_other_columns(self, object_instance):
-        """A univariate transformer on a wide frame returns the other columns unchanged."""  # noqa: E501
+    def test_wide_frame_raises_pointing_to_apply_to_cols(self, object_instance):
+        """A univariate transformer given several columns raises and names ApplyToCols."""  # noqa: E501
         if object_instance.get_tag("capability:multivariate", False):
             pytest.skip("multivariate transformers see the whole frame")
         args = _scenario_for(object_instance).args
-        X = _wide(args["transform"]["X"])
-        Xt = object_instance.fit(_wide(args["fit"]["X"])).transform(X)
-        assert Xt.columns[0] == "round"
-        assert Xt.columns[-1] == "gc"
-        pd.testing.assert_series_equal(Xt["round"], X["round"].loc[Xt.index])
-        pd.testing.assert_series_equal(Xt["gc"], X["gc"].loc[Xt.index])
+        with pytest.raises(ValueError, match="ApplyToCols"):
+            object_instance.fit(_wide(args["fit"]["X"]))
+        object_instance.fit(args["fit"]["X"])
+        with pytest.raises(ValueError, match="ApplyToCols"):
+            object_instance.transform(_wide(args["transform"]["X"]))
 
-    def test_wide_frame_matches_single_column(self, object_instance):
-        """The transformed part of a wide frame equals the single-column output, renamed."""  # noqa: E501
+    def test_apply_to_cols_matches_single_column(self, object_instance):
+        """ApplyToCols gives the one-column output, renamed, with the other columns unchanged."""  # noqa: E501
         if object_instance.get_tag("capability:multivariate", False):
             pytest.skip("multivariate transformers see the whole frame")
         args = _scenario_for(object_instance).args
         X_fit, X = args["fit"]["X"], args["transform"]["X"]
         column = X.columns[0]
-        narrow = object_instance.fit(X_fit).transform(X)
-        wide = object_instance.fit(_wide(X_fit)).transform(_wide(X))
+        narrow = object_instance.clone().fit(X_fit).transform(X)
+        wrapper = ApplyToCols(object_instance, cols=column)
+        wide = wrapper.fit(_wide(X_fit)).transform(_wide(X))
+        assert wide.columns[0] == "round"
+        assert wide.columns[-1] == "gc"
+        pd.testing.assert_series_equal(wide["round"], _wide(X)["round"].loc[wide.index])
+        pd.testing.assert_series_equal(wide["gc"], _wide(X)["gc"].loc[wide.index])
         middle = wide.drop(columns=["round", "gc"])
         if narrow.shape[1] == 1:
             expected = narrow.set_axis([column], axis=1)
         else:
-            names = [f"{column}__{c}" for c in narrow.columns]
-            expected = narrow.set_axis(names, axis=1)
+            expected = narrow.set_axis(
+                [f"{column}__{c}" for c in narrow.columns], axis=1
+            )
         pd.testing.assert_frame_equal(middle, expected)
-
-    def test_wide_frame_string_column_with_missing_head(self, object_instance):
-        """A string column is still found when its first rows are missing."""
-        if object_instance.get_tag("capability:multivariate", False):
-            pytest.skip("multivariate transformers see the whole frame")
-        args = _scenario_for(object_instance).args
-        X = _wide(args["fit"]["X"])
-        column = args["fit"]["X"].columns[0]
-        X = pd.concat([pd.DataFrame({"round": [4], column: [None], "gc": [0.5]}), X])
-        assert object_instance._select_column(X) == column
-
-    def test_wide_frame_raises_on_two_string_columns(self, object_instance):
-        """Two string columns and no ApplyToCols is an error naming both columns."""
-        if object_instance.get_tag("capability:multivariate", False):
-            pytest.skip("multivariate transformers see the whole frame")
-        X = _wide(_scenario_for(object_instance).args["fit"]["X"])
-        X["id"] = "read"
-        with pytest.raises(ValueError, match="ApplyToCols"):
-            object_instance.fit(X)
-
-    def test_wide_frame_raises_on_no_string_column(self, object_instance):
-        """A wide frame without any string column is an error."""
-        if object_instance.get_tag("capability:multivariate", False):
-            pytest.skip("multivariate transformers see the whole frame")
-        X = pd.DataFrame({"round": [4, 4], "gc": [0.5, 0.4]})
-        with pytest.raises(ValueError, match="no column"):
-            object_instance.fit(X)
-
-    def test_transform_needs_the_fitted_column(self, object_instance):
-        """transform on a frame without the column found in fit raises."""
-        if object_instance.get_tag("capability:multivariate", False):
-            pytest.skip("multivariate transformers see the whole frame")
-        args = _scenario_for(object_instance).args
-        object_instance.fit(_wide(args["fit"]["X"]))
-        X = _wide(args["transform"]["X"]).rename(columns={"seq": "reads"})
-        with pytest.raises(ValueError, match="fitted on column"):
-            object_instance.transform(X)
-
-    def test_transform_wide_after_narrow_fit_raises(self, object_instance):
-        """Fitting on one column and transforming a wide frame is a clear error."""
-        if object_instance.get_tag("capability:multivariate", False):
-            pytest.skip("multivariate transformers see the whole frame")
-        args = _scenario_for(object_instance).args
-        object_instance.fit(args["fit"]["X"])
-        with pytest.raises(ValueError, match="one-column frame"):
-            object_instance.transform(_wide(args["transform"]["X"]))
 
 
 def test_stateful_transform_uses_fitted_state():
@@ -300,17 +258,3 @@ def test_stateful_transform_uses_fitted_state():
     """
     Xt = _RowCounter().fit_transform(pd.DataFrame({"seq": ["ACGU", "GUAC"]}))
     assert Xt["n_rows"].tolist() == [2, 2]
-
-
-def test_wide_frame_with_duplicate_index_and_no_dropped_rows():
-    """A repeated row index is fine when the transformer keeps every row."""
-    X = pd.DataFrame({"seq": ["ACGT", "GGCC"], "round": [1, 2]}, index=[0, 0])
-    Xt = KMerFrequencies(k=1).fit_transform(X)
-    assert Xt["round"].tolist() == [1, 2]
-
-
-def test_wide_frame_output_name_clash_raises():
-    """A column already named like an output column is an error, not a duplicate."""
-    X = pd.DataFrame({"seq": ["ACGT"], "seq__0": [1.0]})
-    with pytest.raises(ValueError, match="seq__0"):
-        KMerFrequencies(k=1).fit_transform(X)
