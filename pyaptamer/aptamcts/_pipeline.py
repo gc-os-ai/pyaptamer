@@ -10,9 +10,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.compose import ApplyToCols
-from pyaptamer.trafos.encode import ConjointTriad, KMerFrequencies
-from pyaptamer.trafos.transform import DNAToRNA
+from pyaptamer.transformations.compose import ApplyToCols
+from pyaptamer.transformations.encode import ConjointTriad, KMerFrequencies
+from pyaptamer.transformations.transform import DNAToRNA
 
 
 class AptaMCTSPipeline(BaseEstimator):

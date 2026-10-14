@@ -59,7 +59,7 @@ A PDB file can contain several chains, and a FASTQ file contains many reads.
 For a multi-chain protein structure, use `"bag"`, `"first"` or `"concat"` to
 keep the molecule in one cell. For SELEX reads, use `"samples"` to get the
 one-read-per-row table that transformers such as
-{class}`~pyaptamer.trafos.transform.PrimerTrimmer` expect.
+{class}`~pyaptamer.transformations.transform.PrimerTrimmer` expect.
 
 ```python
 loader = MoleculeLoader(data={"read": [Path("round5.fastq")]}, tiling="samples")
@@ -169,7 +169,7 @@ the table the transformer receives, so use `tiling="samples"` for any
 transformer that works on one read per row.
 
 ```python
-from pyaptamer.trafos.transform import PrimerTrimmer
+from pyaptamer.transformations.transform import PrimerTrimmer
 
 trimmer = PrimerTrimmer(
     start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",

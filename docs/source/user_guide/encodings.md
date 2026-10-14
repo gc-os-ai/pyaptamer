@@ -1,20 +1,20 @@
 # Encode sequences as features
 
-The transformers in {mod}`pyaptamer.trafos.encode` turn a column of sequence
+The transformers in {mod}`pyaptamer.transformations.encode` turn a column of sequence
 strings into a numeric table with one row per sequence. They take a one-column
 `pandas.DataFrame` or a {class}`~pyaptamer.data.MoleculeLoader` and return a
 `pandas.DataFrame` with the same index. Columns are numbered by position.
 
 | Transformer | Input | Output |
 | --- | --- | --- |
-| {class}`~pyaptamer.trafos.encode.PSeAAC` | protein sequences | pseudo amino acid composition, 350 values by default |
-| {class}`~pyaptamer.trafos.encode.KMerFrequencies` | nucleotide sequences | frequency of every k-mer up to length `k`, 340 values by default |
-| {class}`~pyaptamer.trafos.encode.ConjointTriad` | protein sequences | frequency of every k-mer up to length `k` over 7 amino acid groups, 399 values by default |
-| {class}`~pyaptamer.trafos.encode.GreedyEncoder` | any sequences | one token index per position |
+| {class}`~pyaptamer.transformations.encode.PSeAAC` | protein sequences | pseudo amino acid composition, 350 values by default |
+| {class}`~pyaptamer.transformations.encode.KMerFrequencies` | nucleotide sequences | frequency of every k-mer up to length `k`, 340 values by default |
+| {class}`~pyaptamer.transformations.encode.ConjointTriad` | protein sequences | frequency of every k-mer up to length `k` over 7 amino acid groups, 399 values by default |
+| {class}`~pyaptamer.transformations.encode.GreedyEncoder` | any sequences | one token index per position |
 
 ## Pseudo amino acid composition of proteins
 
-{class}`~pyaptamer.trafos.encode.PSeAAC` computes the pseudo amino acid
+{class}`~pyaptamer.transformations.encode.PSeAAC` computes the pseudo amino acid
 composition of Chou. For every group of physicochemical properties the vector
 holds the 20 amino acid frequencies, in the order `ACDEFGHIKLMNPQRSTVWY`,
 followed by `lambda_val` sequence-order correlation factors. Sequences must
@@ -24,7 +24,7 @@ From amino acid strings:
 
 ```python
 import pandas as pd
-from pyaptamer.trafos.encode import PSeAAC
+from pyaptamer.transformations.encode import PSeAAC
 
 X = pd.DataFrame(
     {
@@ -63,7 +63,7 @@ gives one row per chain, and the index carries the chain label:
 
 ```python
 from pyaptamer.datasets import load_1gnh
-from pyaptamer.trafos.encode import PSeAAC
+from pyaptamer.transformations.encode import PSeAAC
 
 features = PSeAAC().fit_transform(load_1gnh(tiling="samples"))
 features.iloc[:3, :6]
@@ -104,14 +104,14 @@ amino acids is replaced with `N` and a warning is issued.
 
 ## K-mer frequencies of nucleotides
 
-{class}`~pyaptamer.trafos.encode.KMerFrequencies` counts every k-mer of length
+{class}`~pyaptamer.transformations.encode.KMerFrequencies` counts every k-mer of length
 1 to `k` over an alphabet and divides by the total count, so each row sums to
 one. K-mers are ordered by length, then alphabetically, so with the default
 alphabet the columns are `A, C, G, T, AA, AC, AG, AT, CA, ...`.
 
 ```python
 import pandas as pd
-from pyaptamer.trafos.encode import KMerFrequencies
+from pyaptamer.transformations.encode import KMerFrequencies
 
 X = pd.DataFrame({"aptamer": ["AGCTTAGCGTACAGCTTAAAAGGGTTTCCCC", "GGGTTTCCCCTGCCCGCGTAC"]})
 
@@ -182,7 +182,7 @@ total.
 
 ## Conjoint triad of proteins
 
-{class}`~pyaptamer.trafos.encode.ConjointTriad` puts the 20 amino acids
+{class}`~pyaptamer.transformations.encode.ConjointTriad` puts the 20 amino acids
 into 7 groups by the dipole moment and the volume of their side chains,
 after Shen et al. (2007): `AGV`, `ILFP`, `YMTS`, `HNQW`, `RK`, `DE` and
 `C`. The protein is rewritten in the 7-letter group alphabet, and every
@@ -193,7 +193,7 @@ uses. The classic conjoint triad of Shen et al. is the 343 trimers alone.
 
 ```python
 import pandas as pd
-from pyaptamer.trafos.encode import ConjointTriad
+from pyaptamer.transformations.encode import ConjointTriad
 
 X = pd.DataFrame({"protein": ["MKTAYIAKQRQISFVKSHFSRQ", "ACDEFGHIKLMNPQRSTVWY"]})
 
@@ -224,14 +224,14 @@ ConjointTriad().fit_transform(X).shape
 A SELEX table usually has more than the sequence column, for example the
 round and a derived feature. An encoder works on one column and raises on
 such a table. Name the column with
-{class}`~pyaptamer.trafos.compose.ApplyToCols`. It encodes that column and
+{class}`~pyaptamer.transformations.compose.ApplyToCols`. It encodes that column and
 returns the other columns unchanged. Encoded columns are named after the
 source column, for example `sequence__0`.
 
 ```python
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.compose import ApplyToCols
-from pyaptamer.trafos.encode import GreedyEncoder
+from pyaptamer.transformations.compose import ApplyToCols
+from pyaptamer.transformations.encode import GreedyEncoder
 
 X = MoleculeLoader(
     data={"sequence": ["ACGT", "GGCC"], "round": [1, 1]},
@@ -262,7 +262,7 @@ This is how {class}`~pyaptamer.aptanet.AptaNetPipeline` builds its features:
 from sklearn.compose import ColumnTransformer
 
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.encode import KMerFrequencies, PSeAAC
+from pyaptamer.transformations.encode import KMerFrequencies, PSeAAC
 
 X = MoleculeLoader(
     data={
@@ -290,16 +290,16 @@ Xt.shape, Xt[0, :4], Xt[0, 340:344]
 first. Its output is a `numpy` array: the 340 k-mer values, then the 350
 PSeAAC values.
 
-A `Pipeline` of {class}`~pyaptamer.trafos.compose.ApplyToCols` steps does
+A `Pipeline` of {class}`~pyaptamer.transformations.compose.ApplyToCols` steps does
 the same with named columns and takes a loader directly. This is how
 {class}`~pyaptamer.aptamcts.AptaMCTSPipeline` builds its features:
 
 ```python
 from sklearn.pipeline import Pipeline
 
-from pyaptamer.trafos.compose import ApplyToCols
-from pyaptamer.trafos.encode import ConjointTriad, KMerFrequencies
-from pyaptamer.trafos.transform import DNAToRNA
+from pyaptamer.transformations.compose import ApplyToCols
+from pyaptamer.transformations.encode import ConjointTriad, KMerFrequencies
+from pyaptamer.transformations.transform import DNAToRNA
 
 features = Pipeline(
     [
