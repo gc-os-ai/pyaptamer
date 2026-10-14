@@ -40,7 +40,7 @@ change without notice.
    ApplyToCols
 ```
 
-## DNA shape
+## DeepDNAShape
 
 ```{eval-rst}
 .. currentmodule:: pyaptamer.deepdnashape
