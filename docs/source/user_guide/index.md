@@ -6,6 +6,7 @@
 
 molecule_loader
 encodings
+aptamcts
 aptanet
 aptatrans
 ```
@@ -36,6 +37,8 @@ aptatrans
 :::{list-table}
 :widths: 30 70
 
+* - {doc}`AptaMCTS <aptamcts>`
+  - Aptamer-protein interaction prediction and scoring for MCTS candidate generation.
 * - {doc}`AptaNet <aptanet>`
   - Aptamer-protein interaction prediction.
 * - {doc}`AptaTrans <aptatrans>`

@@ -96,6 +96,19 @@ change without notice.
    DeepAptamerNN
 ```
 
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+   AptaMCTSClassifier
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -119,6 +132,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -186,4 +200,7 @@ Scoring functions that connect a model to the search.
    generate_nplets
    rna2vec
    pdb_to_seq_uniprot
+   get_reduced_protein_letter_dict
+   rna_to_ictf
+   protein_to_ictf
 ```

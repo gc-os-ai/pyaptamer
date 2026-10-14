@@ -1,13 +1,17 @@
 """Test suite for the AptamerEval experiment classes."""
 
-__author__ = ["nennomp", "siddharth7113"]
+__author__ = ["nennomp", "siddharth7113", "aditi-dsi"]
 
 import numpy
 import pytest
 import torch
 import torch.nn as nn
 
-from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
+from pyaptamer.experiments import (
+    AptamerEvalAptaMCTS,
+    AptamerEvalAptaNet,
+    AptamerEvalAptaTrans,
+)
 
 
 class MockModel(nn.Module):
@@ -82,6 +86,28 @@ def prot_words():
     return {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2, "AUG": 0.1, "CGA": 0.4}
 
 
+class MockAptaMCTSPipeline:
+    """Mock AptaMCTSPipeline for testing."""
+
+    def __init__(self, fixed_score=0.8):
+        self.fixed_score = fixed_score
+        self.is_fitted = True
+
+    def predict_proba(self, X):
+        """Mock predict method returning fixed scores."""
+        n = len(X.to_dataframe())
+        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * n)
+
+    def fit(self, X, y):
+        self.is_fitted = True
+        return self
+
+
+@pytest.fixture
+def aptamcts_pipeline():
+    return MockAptaMCTSPipeline()
+
+
 class TestAptamerEvalConcrete:
     """Test suite for concrete AptamerEval implementations (AptaTrans and AptaNet)."""
 
@@ -153,3 +179,28 @@ class TestAptamerEvalConcrete:
         assert isinstance(score, numpy.ndarray)
         # 100 is the maximum length specified in our mock model
         assert score.shape == (1, 1, 100, aptatrans_experiment.target_encoded.shape[1])
+
+    @pytest.fixture
+    def aptamcts_experiment(self, target, aptamcts_pipeline):
+        """Fixture that returns an initialized AptamerEvalAptaMCTS instance."""
+        return AptamerEvalAptaMCTS(
+            target=target,
+            pipeline=aptamcts_pipeline,
+        )
+
+    def test_evaluate_aptamcts(self, aptamcts_experiment):
+        """Check that the AptaMCTS evaluation method works correctly."""
+        aptamer_candidate = "ACGU"
+        score = aptamcts_experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, numpy.float64)
+
+    def test_evaluate_empty_sequence_aptamcts(self, aptamcts_experiment):
+        """Check AptaMCTS evaluation with an empty sequence."""
+        score = aptamcts_experiment.evaluate("")
+        assert isinstance(score, numpy.float64)
+
+    def test_evaluate_with_underscores_aptamcts(self, aptamcts_experiment):
+        """Check AptaMCTS evaluation with sequences containing underscores."""
+        aptamer_candidate = "ACGU_"
+        score = aptamcts_experiment.evaluate(aptamer_candidate)
+        assert isinstance(score, numpy.float64)
