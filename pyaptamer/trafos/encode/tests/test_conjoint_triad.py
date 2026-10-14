@@ -48,9 +48,10 @@ def test_lowercase_is_uppercased():
     pd.testing.assert_frame_equal(lower, upper)
 
 
-def test_unknown_letter_counts_toward_length_only():
-    """A letter outside the 20 amino acids is not counted but adds to the length."""
-    Xt = ConjointTriad(k=1).fit_transform(_frame("AZ"))
+@pytest.mark.parametrize("letter", ["B", "J", "O", "U", "X", "Z"])
+def test_unknown_letter_counts_toward_length_only(letter):
+    """A non amino acid letter is not counted but adds to the length."""
+    Xt = ConjointTriad(k=1).fit_transform(_frame("A" + letter))
     np.testing.assert_allclose(Xt.to_numpy()[0], [0.5, 0, 0, 0, 0, 0, 0])
 
 

@@ -31,7 +31,7 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
     .. [1] Lee, Gwangho, et al. "Predicting aptamer sequences that interact
        with target proteins using an aptamer-protein interaction classifier
        and a Monte Carlo tree search approach." PloS one 16.6 (2021): e0253760.
-       https://doi.org/10.1371/journal.pone.0253760.g004
+       https://doi.org/10.1371/journal.pone.0253760
 
     Examples
     --------

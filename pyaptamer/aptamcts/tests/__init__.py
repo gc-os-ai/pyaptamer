@@ -1,3 +1,3 @@
-"""Tests for AptaMCTS classifier and pipeline."""
+"""Tests for the AptaMCTS pipeline."""
 
 __author__ = ["aditi-dsi"]

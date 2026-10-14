@@ -3,6 +3,8 @@
 __author__ = ["siddharth7113"]
 __all__ = ["DNAToRNA"]
 
+import pandas as pd
+
 from pyaptamer.trafos.base import BaseTransform
 
 
@@ -15,7 +17,8 @@ class DNAToRNA(BaseTransform):
     spellings.
 
     Input is a one-column DataFrame or ``MoleculeLoader`` of strings. The
-    output has the same shape, column name and index.
+    output has the same shape, column name and index. A missing cell is
+    returned as it is.
 
     Examples
     --------
@@ -54,4 +57,6 @@ class DNAToRNA(BaseTransform):
 
     def _transform_element(self, X):
         """Upper-case one sequence and replace T with U."""
+        if pd.isna(X):
+            return X
         return X.upper().replace("T", "U")

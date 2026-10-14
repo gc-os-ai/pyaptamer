@@ -3,6 +3,8 @@
 __author__ = ["aditi-dsi", "siddharth7113"]
 __all__ = ["ConjointTriad"]
 
+import string
+
 from pyaptamer.trafos.base import BaseTransform
 from pyaptamer.trafos.encode._kmer import KMerFrequencies
 
@@ -16,9 +18,14 @@ GROUPS = {
     "G": "C",
 }
 
-_RESIDUE_TO_GROUP = str.maketrans(
-    {residue: group for group, residues in GROUPS.items() for residue in residues}
-)
+
+def _group_table():
+    """Translation table from amino acid letters to group letters, X otherwise."""
+    table = dict.fromkeys(string.ascii_uppercase, "X")
+    for group, residues in GROUPS.items():
+        for residue in residues:
+            table[residue] = group
+    return str.maketrans(table)
 
 
 class ConjointTriad(BaseTransform):
@@ -48,8 +55,8 @@ class ConjointTriad(BaseTransform):
     length: ``A, B, ..., G, AA, AB, ..., GG, AAA, ...``. With ``k=3`` the
     width is 7 + 49 + 343 = 399.
 
-    Lower-case letters are upper-cased. A letter that is not one of the 20
-    standard amino acids, such as ``X``, belongs to no group. K-mers that
+    Lower-case letters are upper-cased. A non amino acid letter, such as
+    ``X`` or the ambiguity code ``B``, belongs to no group. K-mers that
     contain it are not counted, but it still counts toward the sequence
     length.
 
@@ -106,7 +113,7 @@ class ConjointTriad(BaseTransform):
         pd.DataFrame
             Shape ``(len(X), sum(7 ** i for i in 1..k))``, indexed like X.
         """
-        groups = X.iloc[:, 0].str.upper().str.translate(_RESIDUE_TO_GROUP)
+        groups = X.iloc[:, 0].str.upper().str.translate(_group_table())
         encoder = KMerFrequencies(k=self.k, alphabet="ABCDEFG", normalize="length")
         return encoder.fit_transform(groups.to_frame())
 

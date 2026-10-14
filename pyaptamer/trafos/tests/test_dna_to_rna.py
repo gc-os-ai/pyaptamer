@@ -34,3 +34,11 @@ def test_moleculeloader_input():
     """A MoleculeLoader is accepted like a one-column frame."""
     X = MoleculeLoader(data={"seq": ["ACGT"]})
     assert DNAToRNA().fit_transform(X)["seq"].tolist() == ["ACGU"]
+
+
+def test_missing_cell_passes_through():
+    """A missing cell stays missing instead of raising."""
+    X = pd.DataFrame({"seq": ["ACGT", None]})
+    Xt = DNAToRNA().fit_transform(X)
+    assert Xt["seq"].iloc[0] == "ACGU"
+    assert pd.isna(Xt["seq"].iloc[1])

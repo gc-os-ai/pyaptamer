@@ -207,9 +207,9 @@ ConjointTriad(k=1).fit_transform(X)
 ```
 
 The second sequence has every amino acid once, so its row is the group
-sizes divided by 20. Lower-case letters are upper-cased. A letter outside
-the 20 standard amino acids, such as `X`, belongs to no group: k-mers that
-contain it are not counted, but it still adds to the length.
+sizes divided by 20. Lower-case letters are upper-cased. A non amino acid
+letter, such as `X`, belongs to no group: k-mers that contain it are not
+counted, but it still adds to the length.
 
 ```python
 ConjointTriad().fit_transform(X).shape
@@ -304,7 +304,13 @@ from pyaptamer.trafos.transform import DNAToRNA
 features = Pipeline(
     [
         ("to_rna", ApplyToCols(DNAToRNA(), cols="aptamer")),
-        ("aptamer", ApplyToCols(KMerFrequencies(k=4, alphabet="ACGU"), cols="aptamer")),
+        (
+            "aptamer",
+            ApplyToCols(
+                KMerFrequencies(k=4, alphabet="ACGU", normalize="length"),
+                cols="aptamer",
+            ),
+        ),
         ("protein", ApplyToCols(ConjointTriad(k=3), cols="protein")),
     ]
 )

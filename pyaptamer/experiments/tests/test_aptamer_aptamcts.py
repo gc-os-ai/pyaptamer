@@ -41,3 +41,12 @@ def test_mcts_runs_with_the_experiment(fitted):
     assert isinstance(result["candidate"], str)
     assert len(result["candidate"]) > 0
     assert 0.0 <= result["score"] <= 1.0
+
+
+@pytest.mark.parametrize("candidate", ["", "ACGU_"])
+def test_evaluate_handles_empty_and_unknown_letters(fitted, candidate):
+    """An empty candidate or one with a letter outside ACGU still gets a score."""
+    pipeline, target = fitted
+    experiment = AptamerEvalAptaMCTS(target=target, pipeline=pipeline)
+    score = experiment.evaluate(candidate)
+    assert 0.0 <= score <= 1.0
