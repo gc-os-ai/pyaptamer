@@ -18,7 +18,7 @@ change without notice.
 ## Transformations
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.transform
+.. currentmodule:: pyaptamer.transformations.transform
 
 .. autosummary::
    :toctree: generated
@@ -31,7 +31,7 @@ change without notice.
 ## Compose
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.compose
+.. currentmodule:: pyaptamer.transformations.compose
 
 .. autosummary::
    :toctree: generated
@@ -140,7 +140,7 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.encode
+.. currentmodule:: pyaptamer.transformations.encode
 
 .. autosummary::
    :toctree: generated

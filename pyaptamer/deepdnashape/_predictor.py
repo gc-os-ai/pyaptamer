@@ -10,7 +10,7 @@ from huggingface_hub import hf_hub_download
 
 from pyaptamer.deepdnashape._model import DNAModel
 from pyaptamer.deepdnashape._params import BASE_VECTORS, FEATURES
-from pyaptamer.trafos.base import BaseTransform
+from pyaptamer.transformations.base import BaseTransform
 
 
 def _encode(seq, interbase):

@@ -27,11 +27,11 @@ aptatrans
 :widths: 30 70
 
 * - {doc}`Feature encodings <encodings>`
-  - {class}`~pyaptamer.trafos.encode.PSeAAC` and
-    {class}`~pyaptamer.trafos.encode.ConjointTriad` for proteins,
-    {class}`~pyaptamer.trafos.encode.KMerFrequencies` for nucleotides,
+  - {class}`~pyaptamer.transformations.encode.PSeAAC` and
+    {class}`~pyaptamer.transformations.encode.ConjointTriad` for proteins,
+    {class}`~pyaptamer.transformations.encode.KMerFrequencies` for nucleotides,
     column-wise encoding with
-    {class}`~pyaptamer.trafos.compose.ApplyToCols` or `ColumnTransformer`.
+    {class}`~pyaptamer.transformations.compose.ApplyToCols` or `ColumnTransformer`.
 :::
 
 ## Algorithms

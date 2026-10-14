@@ -66,13 +66,13 @@ See {doc}`molecule_loader` for the loader's options.
 ## Feature extraction
 
 The pipeline runs three transformers, each on one column with
-{class}`~pyaptamer.trafos.compose.ApplyToCols`:
+{class}`~pyaptamer.transformations.compose.ApplyToCols`:
 
-- {class}`~pyaptamer.trafos.transform.DNAToRNA` on the aptamer column,
-- {class}`~pyaptamer.trafos.encode.KMerFrequencies` with `alphabet="ACGU"`
+- {class}`~pyaptamer.transformations.transform.DNAToRNA` on the aptamer column,
+- {class}`~pyaptamer.transformations.encode.KMerFrequencies` with `alphabet="ACGU"`
   and `normalize="length"` on the aptamer column, k-mers of length 1 to
   `rna_k`, 340 values by default,
-- {class}`~pyaptamer.trafos.encode.ConjointTriad` on the protein column,
+- {class}`~pyaptamer.transformations.encode.ConjointTriad` on the protein column,
   k-mers of length 1 to `prot_k` over the 7 conjoint triad groups, 399
   values by default.
 
@@ -82,9 +82,9 @@ the improved conjoint triad feature, iCTF. The same features on their own:
 ```python
 from sklearn.pipeline import Pipeline
 
-from pyaptamer.trafos.compose import ApplyToCols
-from pyaptamer.trafos.encode import ConjointTriad, KMerFrequencies
-from pyaptamer.trafos.transform import DNAToRNA
+from pyaptamer.transformations.compose import ApplyToCols
+from pyaptamer.transformations.encode import ConjointTriad, KMerFrequencies
+from pyaptamer.transformations.transform import DNAToRNA
 
 features = Pipeline(
     [

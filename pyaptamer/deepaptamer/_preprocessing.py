@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from pyaptamer.deepdnashape import DeepDNAShape
-from pyaptamer.trafos.base import BaseTransform
+from pyaptamer.transformations.base import BaseTransform
 
 
 def _one_hot(seq, seq_len):
