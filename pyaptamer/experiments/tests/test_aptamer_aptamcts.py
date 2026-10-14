@@ -50,3 +50,17 @@ def test_evaluate_handles_empty_and_unknown_letters(fitted, candidate):
     experiment = AptamerEvalAptaMCTS(target=target, pipeline=pipeline)
     score = experiment.evaluate(candidate)
     assert 0.0 <= score <= 1.0
+
+
+def test_evaluate_uses_the_pipeline_column_names():
+    """A pipeline fitted on renamed columns scores pairs built with those names."""
+    X, y = load_li2014(split="test", return_X_y=True)
+    frame = X.to_dataframe().rename(columns={"aptamer": "apt", "protein": "target"})
+    estimator = RandomForestClassifier(n_estimators=10, random_state=0)
+    pipeline = AptaMCTSPipeline(
+        aptamer_col="apt", protein_col="target", estimator=estimator
+    ).fit(frame, y["label"].to_numpy())
+    target = frame["target"].iloc[0]
+    experiment = AptamerEvalAptaMCTS(target=target, pipeline=pipeline)
+    pair = MoleculeLoader(data={"apt": ["ACGUACGUAC"], "target": [target]})
+    assert experiment.evaluate("ACGUACGUAC") == pipeline.predict_proba(pair)[0, 1]

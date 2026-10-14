@@ -25,6 +25,7 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
         as the amino-acid sequence of the binding target protein.
     pipeline : AptaMCTSPipeline
         Fitted AptaMCTSPipeline to use for assigning binding probability scores.
+        The pair is built with its ``aptamer_col`` and ``protein_col``.
 
     References
     ----------
@@ -69,7 +70,10 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
         """
 
         X = MoleculeLoader(
-            data={"aptamer": [aptamer_candidate], "protein": [self.target]}
+            data={
+                self.pipeline.aptamer_col: [aptamer_candidate],
+                self.pipeline.protein_col: [self.target],
+            }
         )
         score = self.pipeline.predict_proba(X=X)
 
