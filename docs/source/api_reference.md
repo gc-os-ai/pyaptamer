@@ -24,6 +24,7 @@ change without notice.
    :toctree: generated
    :nosignatures:
 
+   DNAToRNA
    PrimerTrimmer
 ```
 
@@ -106,7 +107,6 @@ change without notice.
    :nosignatures:
 
    AptaMCTSPipeline
-   AptaMCTSClassifier
 ```
 
 ## Monte Carlo Tree Search
@@ -146,6 +146,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   ConjointTriad
    GreedyEncoder
    KMerFrequencies
    PSeAAC
@@ -200,7 +201,4 @@ Scoring functions that connect a model to the search.
    generate_nplets
    rna2vec
    pdb_to_seq_uniprot
-   get_reduced_protein_letter_dict
-   rna_to_ictf
-   protein_to_ictf
 ```

@@ -27,9 +27,11 @@ aptatrans
 :widths: 30 70
 
 * - {doc}`Feature encodings <encodings>`
-  - {class}`~pyaptamer.trafos.encode.PSeAAC` for proteins,
+  - {class}`~pyaptamer.trafos.encode.PSeAAC` and
+    {class}`~pyaptamer.trafos.encode.ConjointTriad` for proteins,
     {class}`~pyaptamer.trafos.encode.KMerFrequencies` for nucleotides,
-    column-wise encoding with `ColumnTransformer`.
+    column-wise encoding with
+    {class}`~pyaptamer.trafos.compose.ApplyToCols` or `ColumnTransformer`.
 :::
 
 ## Algorithms
@@ -38,7 +40,7 @@ aptatrans
 :widths: 30 70
 
 * - {doc}`AptaMCTS <aptamcts>`
-  - Aptamer-protein interaction prediction and scoring for MCTS candidate generation.
+  - Aptamer-protein interaction prediction and candidate aptamer generation.
 * - {doc}`AptaNet <aptanet>`
   - Aptamer-protein interaction prediction.
 * - {doc}`AptaTrans <aptatrans>`

@@ -1,3 +1,6 @@
+"""Candidate aptamer evaluation with a fitted AptaMCTS pipeline."""
+
+__author__ = ["aditi-dsi"]
 __all__ = ["AptamerEvalAptaMCTS"]
 
 import numpy as np
@@ -10,9 +13,10 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
     """
     Candidate aptamer evaluation for a given target protein using AptaMCTS.
 
-    This class serves as a wrapper to evaluate candidate aptamer sequences generated
-    during MCTS against a fixed target protein, using the Random Forest-based
-    AptaMCTS scoring pipeline.
+    Evaluates candidate aptamer sequences generated during MCTS against a
+    fixed target protein with a fitted ``AptaMCTSPipeline``. The score is the
+    predicted probability of the positive class, the second column of
+    ``predict_proba``.
 
     Parameters
     ----------
@@ -31,23 +35,14 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
 
     Examples
     --------
-    >>> import numpy as np
     >>> from pyaptamer.aptamcts import AptaMCTSPipeline
-    >>> from pyaptamer.data import MoleculeLoader
+    >>> from pyaptamer.datasets import load_li2014
     >>> from pyaptamer.experiments import AptamerEvalAptaMCTS
-    >>> aptamer_seq = "AGCUUAGCGUAC"
-    >>> protein_seq = "ACDEFGHIKLMN"
-    >>> X = MoleculeLoader(
-    ...     data={"aptamer": [aptamer_seq] * 5, "protein": [protein_seq] * 5}
-    ... )
-    >>> labels = np.array([0, 1, 0, 1, 0])
-    >>> pipeline = AptaMCTSPipeline()
-    >>> pipeline.fit(X, labels)  # doctest: +ELLIPSIS
-    AptaMCTSPipeline(...)
-    >>> target_protein = "ACDEFGHIKLMN"
-    >>> experiment = AptamerEvalAptaMCTS(target_protein, pipeline)
-    >>> aptamer_candidate = "AUGGC"
-    >>> score = experiment.evaluate(aptamer_candidate)
+    >>> X, y = load_li2014(split="test", return_X_y=True)
+    >>> pipeline = AptaMCTSPipeline().fit(X, y["label"])
+    >>> target = X.to_dataframe()["protein"].iloc[0]
+    >>> experiment = AptamerEvalAptaMCTS(target, pipeline)
+    >>> score = experiment.evaluate("AUGGC")
     """
 
     def __init__(self, target: str, pipeline) -> None:
@@ -58,9 +53,8 @@ class AptamerEvalAptaMCTS(BaseAptamerEval):
         """
         Evaluate the given aptamer candidate against the target protein.
 
-        The evaluation involves converting the aptamer-protein pair into
-        iCTF features and passing them through the Random Forest classifier
-        to obtain the binding probability.
+        The pair is encoded and classified by the pipeline. The score is
+        the predicted probability of the positive class.
 
         Parameters
         ----------

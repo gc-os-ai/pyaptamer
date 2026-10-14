@@ -12,7 +12,8 @@ generation behind a `scikit-learn`-style API. Three algorithms are available tod
 * - Algorithm
   - Use
 * - {doc}`AptaMCTS <user_guide/aptamcts>`
-  - Predict aptamer-protein interactions, serving as the scoring function for MCTS-based aptamer generation.
+  - Predict whether an aptamer and a protein interact, and generate candidate
+    aptamers for a target protein.
 * - {doc}`AptaNet <user_guide/aptanet>`
   - Predict whether an aptamer and a protein interact, from sequence pairs.
 * - {doc}`AptaTrans <user_guide/aptatrans>`

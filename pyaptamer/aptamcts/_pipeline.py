@@ -1,75 +1,82 @@
-__author__ = ["aditi-dsi"]
+"""AptaMCTS pipeline for aptamer-protein interaction prediction."""
+
+__author__ = ["aditi-dsi", "siddharth7113"]
 __all__ = ["AptaMCTSPipeline"]
 
-from skbase.base import BaseObject
-from sklearn.base import BaseEstimator, clone
+import pandas as pd
+from skbase.base import BaseEstimator
+from sklearn.base import clone
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.utils.validation import check_is_fitted
 
-from pyaptamer.aptamcts import AptaMCTSClassifier
-from pyaptamer.aptamcts._transforms import PairsToFeatures
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.trafos.compose import ApplyToCols
+from pyaptamer.trafos.encode import ConjointTriad, KMerFrequencies
+from pyaptamer.trafos.transform import DNAToRNA
 
 
-class AptaMCTSPipeline(BaseObject, BaseEstimator):
-    """
-    AptaMCTS pipeline for aptamer–protein interaction prediction [1]_
+class AptaMCTSPipeline(BaseEstimator):
+    """AptaMCTS classifier for aptamer-protein interaction prediction [1]_.
 
-    Implements the AptaMCTS pipeline, a machine learning method that takes raw
-    RNA and protein sequences, converts them into numerical iCTF features using
-    sequence encoding, and uses a Random Forest classifier to predict whether
-    an aptamer and a protein bind (binary classification).
+    AptaMCTS predicts whether an aptamer binds a protein from the two
+    sequences alone. It is designed for RNA aptamers. A DNA sequence is
+    converted to RNA with ``DNAToRNA``, which replaces T with U, before
+    encoding. The aptamer is encoded with ``KMerFrequencies`` over ``ACGU``,
+    k-mers of length 1 to ``rna_k``, 340 values by default. The protein is
+    encoded with ``ConjointTriad``, k-mers of length 1 to ``prot_k`` over the
+    7 conjoint triad groups, 399 values by default. Both blocks are divided by the
+    sequence length, which the Apta-MCTS code calls iCTF [2]_. The features
+    go to a random forest with balanced class weights, as in the original
+    code.
 
-    This class serves as the main end-to-end pipeline.
+    A fitted pipeline is the scoring function of
+    ``pyaptamer.experiments.AptamerEvalAptaMCTS``, which drives
+    ``pyaptamer.mcts.MCTS`` to generate candidate aptamers for a target.
+
+    The pipeline takes a ``MoleculeLoader`` or a ``DataFrame`` with an
+    aptamer column and a protein column. Other columns are ignored.
 
     Parameters
     ----------
-    rna_k : int, optional, default=4
-        The k-mer window size used by the sequence encoder to extract patterns
-        from the RNA sequence.
-
-    prot_k : int, optional, default=3
-        The k-mer window size used by the sequence encoder to extract patterns
-        from the protein sequence.
-
-    estimator : sklearn-compatible estimator or None, default=None
-        Estimator applied after feature extraction. If None, uses `AptaMCTSClassifier`.
-
+    rna_k : int, default=4
+        Longest k-mer counted in the aptamer sequence.
+    prot_k : int, default=3
+        Longest k-mer counted in the protein sequence.
     aptamer_col : str, default="aptamer"
         Name of the column holding aptamer sequences.
-
     protein_col : str, default="protein"
         Name of the column holding protein sequences.
+    estimator : sklearn classifier or None, default=None
+        Classifier applied to the features. If None, uses
+        ``RandomForestClassifier(class_weight="balanced")``.
 
     Attributes
     ----------
     pipeline_ : sklearn.pipeline.Pipeline
-        The underlying sklearn Pipeline object that handles the sequence encoding
-        and classification steps together.
+        Steps ``to_rna``, ``aptamer``, ``protein`` and ``clf``.
 
     References
     ----------
-    .. [1] Lee, Gwangho, et al. "Predicting aptamer sequences that interact
-       with target proteins using an aptamer-protein interaction classifier
-       and a Monte Carlo tree search approach." PloS one 16.6 (2021): e0253760.
-       https://doi.org/10.1371/journal.pone.0253760.g004
+    .. [1] Lee, G. et al. Predicting aptamer sequences that interact with
+       target proteins using an aptamer-protein interaction classifier and a
+       Monte Carlo tree search approach. *PLoS ONE* 16, e0253760 (2021).
+       https://doi.org/10.1371/journal.pone.0253760
     .. [2] https://github.com/leekh7411/Apta-MCTS
 
     Examples
     --------
-    >>> import numpy as np
+    The li2014 benchmark data of the paper is bundled as a ``MoleculeLoader``
+    of aptamer and protein sequences with a label column:
+
     >>> from pyaptamer.aptamcts import AptaMCTSPipeline
-    >>> from pyaptamer.data import MoleculeLoader
-    >>> pipe = AptaMCTSPipeline(rna_k=4, prot_k=3)
-    >>> aptamer_seq = "AGCUUAGCGUAC"
-    >>> protein_seq = "ACDEFGHIKLMN"
-    >>> X_train = MoleculeLoader(
-    ...     data={"aptamer": [aptamer_seq] * 4, "protein": [protein_seq] * 4}
-    ... )
-    >>> y_train = np.array([0, 1, 0, 1], dtype=np.float32)
-    >>> pipe.fit(X_train, y_train)  # doctest: +ELLIPSIS
-    AptaMCTSPipeline(...)
-    >>> preds = pipe.predict(X_train)
-    >>> proba = pipe.predict_proba(X_train)
+    >>> from pyaptamer.datasets import load_li2014
+    >>> X, y = load_li2014(split="test", return_X_y=True)
+    >>> pipe = AptaMCTSPipeline().fit(X, y["label"])
+    >>> labels = pipe.predict(X)
+    >>> proba = pipe.predict_proba(X)
+
+    Any ``MoleculeLoader`` works, so the aptamer and protein cells can be
+    paths to sequence files. See the user guide for an example.
     """
 
     def __init__(
@@ -85,30 +92,51 @@ class AptaMCTSPipeline(BaseObject, BaseEstimator):
         self.aptamer_col = aptamer_col
         self.protein_col = protein_col
         self.estimator = estimator
+        super().__init__()
 
     def _build_pipeline(self):
-        transformer = PairsToFeatures(
-            rna_k=self.rna_k,
-            prot_k=self.prot_k,
-            aptamer_col=self.aptamer_col,
-            protein_col=self.protein_col,
+        aptamer = KMerFrequencies(k=self.rna_k, alphabet="ACGU", normalize="length")
+        protein = ConjointTriad(k=self.prot_k)
+        if self.estimator is None:
+            estimator = RandomForestClassifier(class_weight="balanced")
+        else:
+            estimator = clone(self.estimator)
+        return Pipeline(
+            [
+                ("to_rna", ApplyToCols(DNAToRNA(), cols=self.aptamer_col)),
+                ("aptamer", ApplyToCols(aptamer, cols=self.aptamer_col)),
+                ("protein", ApplyToCols(protein, cols=self.protein_col)),
+                ("clf", estimator),
+            ]
         )
-        self._estimator = self.estimator or AptaMCTSClassifier()
 
-        return Pipeline([("features", transformer), ("clf", clone(self._estimator))])
+    def _to_frame(self, X):
+        if isinstance(X, MoleculeLoader):
+            X = X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
+        columns = [self.aptamer_col, self.protein_col]
+        missing = [c for c in columns if c not in X.columns]
+        if missing:
+            raise ValueError(
+                f"X has no column {missing}. X has columns {list(X.columns)}. "
+                "Pass the names as AptaMCTSPipeline(aptamer_col=..., protein_col=...)."
+            )
+        return X[columns]
 
     def fit(self, X, y):
         self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(X, y)
-
+        self.pipeline_.fit(self._to_frame(X), y)
+        self._is_fitted = True
         return self
 
-    def predict(self, X):
-        check_is_fitted(self)
-
-        return self.pipeline_.predict(X)
-
     def predict_proba(self, X):
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="predict_proba")
+        return self.pipeline_.predict_proba(self._to_frame(X))
 
-        return self.pipeline_.predict_proba(X)
+    def predict(self, X):
+        self.check_is_fitted(method_name="predict")
+        return self.pipeline_.predict(self._to_frame(X))
