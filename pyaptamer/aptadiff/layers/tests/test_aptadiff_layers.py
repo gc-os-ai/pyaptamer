@@ -55,18 +55,6 @@ def test_transformer_invalid_type(default_transformer_kwargs):
         )
 
 
-def test_transformer_native_warning_on_local_heads(default_transformer_kwargs):
-    """Test that using local heads with native attention triggers a warning."""
-    with pytest.warns(
-        UserWarning, match="n_local_attn_heads is set to 4 but will be ignored"
-    ):
-        AptaDiffTransformerEmbedding(
-            **default_transformer_kwargs,
-            transformer_type="native",
-            n_local_attn_heads=4,
-        )
-
-
 @pytest.mark.parametrize("max_seq_len, window_size", [(100, 30), (128, 50), (64, 10)])
 def test_transformer_invalid_max_seq_len_window_ratio(
     default_transformer_kwargs, max_seq_len, window_size

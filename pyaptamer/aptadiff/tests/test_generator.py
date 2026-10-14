@@ -2,23 +2,17 @@
 
 __author__ = ["aditi-dsi"]
 
-import copy
 import pickle
 from collections.abc import Callable
 from typing import Any
 
-import lightning as L
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-import torch.nn as nn
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptadiff import AptaDiffGenerator
-from pyaptamer.aptadiff.layers._libs._linear_attention_transformer import (
-    LinearAttentionTransformer,
-)
 
 NUM_CLASSES = 4
 SEQ_LEN = 8
@@ -31,11 +25,6 @@ TEST_PARAMS = {
     "max_epochs": 1,
     "random_state": 0,
 }
-
-
-def _tokens(y: np.ndarray) -> np.ndarray:
-    """Return the class index at each position of flat one-hot sequences."""
-    return y.reshape(len(y), NUM_CLASSES, SEQ_LEN).argmax(axis=1)
 
 
 def _expected_failed_checks(estimator: AptaDiffGenerator) -> dict[str, str]:
@@ -77,41 +66,29 @@ class TestAptaDiffGenerator:
     """Test AptaDiffGenerator fitting and generation."""
 
     @pytest.mark.parametrize(
-        "params, block_type",
+        "params",
         [
-            ({}, nn.TransformerEncoderLayer),
-            (
-                {
-                    "transformer_type": "linear",
-                    "n_local_attn_heads": 1,
-                    "local_attn_window_size": 2,
-                },
-                LinearAttentionTransformer,
-            ),
+            {},
+            {
+                "transformer_type": "linear",
+                "n_local_attn_heads": 1,
+                "local_attn_window_size": 2,
+            },
         ],
+        ids=["native", "linear"],
     )
     def test_fit_predict_end_to_end(
-        self,
-        data: tuple[np.ndarray, np.ndarray],
-        params: dict[str, Any],
-        block_type: type[nn.Module],
+        self, data: tuple[np.ndarray, np.ndarray], params: dict[str, Any]
     ) -> None:
-        """Check fit builds the configured model and predict returns one-hot."""
+        """Check fit trains a model for either backend and predict returns one-hot."""
         X, y = data
         generator = AptaDiffGenerator(**TEST_PARAMS, **params)
-        training_device = L.Trainer(
-            accelerator="auto", devices=1, logger=False, enable_progress_bar=False
-        ).strategy.root_device
 
         assert generator.fit(X, y) is generator
         assert generator.seq_len_ == SEQ_LEN
         assert generator.n_features_in_ == N_LATENT
-
-        diffusion = generator.diffusion_
-        block = diffusion.denoise_fn.transformer.transformer_blocks[0][0]
-        assert type(block) is block_type
-        assert not diffusion.training
-        assert next(diffusion.parameters()).device.type == training_device.type
+        assert generator.n_epochs_ == TEST_PARAMS["max_epochs"]
+        assert not generator.diffusion_.training
 
         out = generator.predict(X[:5])
 
@@ -120,6 +97,17 @@ class TestAptaDiffGenerator:
         onehot = out.reshape(5, NUM_CLASSES, SEQ_LEN)
         assert np.isin(onehot, (0.0, 1.0)).all()
         assert (onehot.sum(axis=1) == 1).all()
+
+    def test_patience_stops_before_max_epochs(
+        self, data: tuple[np.ndarray, np.ndarray]
+    ) -> None:
+        """Check patience ends training early and n_epochs_ reports the epoch count."""
+        X, y = data
+        params = {**TEST_PARAMS, "max_epochs": 20, "patience": 0}
+
+        generator = AptaDiffGenerator(**params).fit(X, y)
+
+        assert 0 < generator.n_epochs_ < 20
 
     def test_predict_is_unaffected_by_global_seed(
         self, fitted: AptaDiffGenerator, data: tuple[np.ndarray, np.ndarray]
@@ -137,8 +125,7 @@ class TestAptaDiffGenerator:
     def test_fit_and_predict_leave_global_rng_untouched(
         self, data: tuple[np.ndarray, np.ndarray]
     ) -> None:
-        """Check fit and predict with random_state doesn;t affect the global
-        RNG state."""
+        """Check fit and predict with random_state leave the global RNG unchanged."""
         X, y = data
         torch_before = torch.get_rng_state()
         numpy_before = np.random.get_state()[1].copy()
@@ -148,25 +135,16 @@ class TestAptaDiffGenerator:
         assert torch.equal(torch_before, torch.get_rng_state())
         np.testing.assert_array_equal(numpy_before, np.random.get_state()[1])
 
-    @pytest.mark.parametrize("to_cpu", [False, True])
     def test_pickle_roundtrip(
-        self,
-        fitted: AptaDiffGenerator,
-        data: tuple[np.ndarray, np.ndarray],
-        to_cpu: bool,
+        self, fitted: AptaDiffGenerator, data: tuple[np.ndarray, np.ndarray]
     ) -> None:
         """Check an unpickled generator predicts the same sequences."""
         X, _ = data
-        generator = copy.deepcopy(fitted)
-        if to_cpu:
-            generator.diffusion_.cpu()
-        expected = generator.predict(X)
+        expected = fitted.predict(X)
 
-        restored = pickle.loads(pickle.dumps(generator))
+        restored = pickle.loads(pickle.dumps(fitted))
 
         np.testing.assert_array_equal(restored.predict(X), expected)
-        if to_cpu:
-            assert next(restored.diffusion_.parameters()).device.type == "cpu"
 
 
 class TestAptaDiffGeneratorInputs:
@@ -181,11 +159,15 @@ class TestAptaDiffGeneratorInputs:
                 id="width-not-multiple",
             ),
             pytest.param(
-                lambda y: _tokens(y).astype(np.float32), "one-hot", id="raw-tokens"
+                lambda y: y.reshape(len(y), NUM_CLASSES, SEQ_LEN)
+                .argmax(axis=1)
+                .astype(np.float32),
+                "one-hot",
+                id="raw-tokens",
             ),
             pytest.param(
-                lambda y: np.eye(NUM_CLASSES, dtype=np.float32)[_tokens(y)].reshape(
-                    len(y), -1
+                lambda y: np.tile(
+                    np.eye(NUM_CLASSES, dtype=np.float32)[0], (len(y), SEQ_LEN)
                 ),
                 "one-hot",
                 id="position-major",

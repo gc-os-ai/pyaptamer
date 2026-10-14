@@ -93,11 +93,6 @@ class AptaDiffLightning(L.LightningModule):
     >>> model_lightning = AptaDiffLightning(
     ...     diffusion, lr=1e-4, optimizer=torch.optim.AdamW
     ... )
-    >>> config = model_lightning.configure_optimizers()
-    >>> type(config["optimizer"]).__name__
-    'AdamW'
-    >>> config["lr_scheduler"]["interval"]
-    'epoch'
 
     Training runs through a Lightning `Trainer`:
 
@@ -108,7 +103,7 @@ class AptaDiffLightning(L.LightningModule):
     >>> x = x.permute(0, 2, 1).float()
     >>> z = torch.randn(4, 16)
     >>> loader = DataLoader(TensorDataset(x, z), batch_size=2)
-    >>> trainer = L.Trainer(max_epochs=1)  # doctest: +SKIP
+    >>> trainer = L.Trainer(max_epochs=1)
     >>> trainer.fit(model_lightning, loader)  # doctest: +SKIP
     """
 

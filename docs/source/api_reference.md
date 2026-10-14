@@ -57,6 +57,21 @@ change without notice.
    EncoderPredictorConfig
 ```
 
+## AptaDiff
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptadiff
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaDiffGenerator
+   AptaDiffLightning
+   AptaDiffDiffusion
+   AptaDiffDenoiser
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
