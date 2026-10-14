@@ -51,3 +51,24 @@ def test_empty_sequence_is_all_zero():
     Xt = KMerFrequencies(k=2).fit_transform(_frame(""))
     assert not Xt.isna().any().any()
     assert Xt.to_numpy().sum() == 0
+
+
+def test_normalize_by_length():
+    """normalize="length" divides every count by the sequence length."""
+    Xt = KMerFrequencies(k=2, normalize="length").fit_transform(_frame("ACGT"))
+    expected = np.zeros(20)
+    expected[[0, 1, 2, 3, 5, 10, 15]] = 1 / 4
+    np.testing.assert_allclose(Xt.to_numpy()[0], expected)
+
+
+def test_normalize_by_length_empty_sequence_is_all_zero():
+    """An empty sequence gives a zero vector under normalize="length"."""
+    Xt = KMerFrequencies(k=2, normalize="length").fit_transform(_frame(""))
+    assert not Xt.isna().any().any()
+    assert Xt.to_numpy().sum() == 0
+
+
+def test_unknown_normalize_raises():
+    """A normalize value other than "total" or "length" is an error."""
+    with pytest.raises(ValueError, match="normalize"):
+        KMerFrequencies(normalize="rows").fit_transform(_frame("ACGT"))

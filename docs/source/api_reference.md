@@ -24,6 +24,7 @@ change without notice.
    :toctree: generated
    :nosignatures:
 
+   DNAToRNA
    PrimerTrimmer
 ```
 
@@ -39,7 +40,7 @@ change without notice.
    ApplyToCols
 ```
 
-## DNA shape
+## DeepDNAShape
 
 ```{eval-rst}
 .. currentmodule:: pyaptamer.deepdnashape
@@ -96,6 +97,18 @@ change without notice.
    DeepAptamerNN
 ```
 
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -119,6 +132,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -132,6 +146,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   ConjointTriad
    GreedyEncoder
    KMerFrequencies
    PSeAAC

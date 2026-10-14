@@ -9,6 +9,7 @@ strings into a numeric table with one row per sequence. They take a one-column
 | --- | --- | --- |
 | {class}`~pyaptamer.trafos.encode.PSeAAC` | protein sequences | pseudo amino acid composition, 350 values by default |
 | {class}`~pyaptamer.trafos.encode.KMerFrequencies` | nucleotide sequences | frequency of every k-mer up to length `k`, 340 values by default |
+| {class}`~pyaptamer.trafos.encode.ConjointTriad` | protein sequences | frequency of every k-mer up to length `k` over 7 amino acid groups, 399 values by default |
 | {class}`~pyaptamer.trafos.encode.GreedyEncoder` | any sequences | one token index per position |
 
 ## Pseudo amino acid composition of proteins
@@ -161,6 +162,63 @@ KMerFrequencies(k=1, alphabet="ACGU").fit_transform(X)
 0  0.315789  0.157895  0.473684  0.052632
 ```
 
+By default the counts are divided by the total number of counted k-mers, so
+each row sums to one. With `normalize="length"` they are divided by the
+number of letters in the sequence instead, so the features of each k-mer
+length keep their own scale:
+
+```python
+KMerFrequencies(k=1, alphabet="ACGU", normalize="length").fit_transform(X)
+```
+
+```text
+          0         1         2         3
+0  0.315789  0.157895  0.473684  0.052632
+```
+
+With `k=1` both give the same values, because every letter is one k-mer.
+For `k > 1` the two differ, since each length adds its own counts to the
+total.
+
+## Conjoint triad of proteins
+
+{class}`~pyaptamer.trafos.encode.ConjointTriad` puts the 20 amino acids
+into 7 groups by the dipole moment and the volume of their side chains,
+after Shen et al. (2007): `AGV`, `ILFP`, `YMTS`, `HNQW`, `RK`, `DE` and
+`C`. The protein is rewritten in the 7-letter group alphabet, and every
+k-mer of length 1 to `k` over it is counted and divided by the sequence
+length. With the default `k=3` the width is 7 + 49 + 343 = 399. This is
+the improved conjoint triad feature of Lee and Han (2020) that Apta-MCTS
+uses. The classic conjoint triad of Shen et al. is the 343 trimers alone.
+
+```python
+import pandas as pd
+from pyaptamer.trafos.encode import ConjointTriad
+
+X = pd.DataFrame({"protein": ["MKTAYIAKQRQISFVKSHFSRQ", "ACDEFGHIKLMNPQRSTVWY"]})
+
+ConjointTriad(k=1).fit_transform(X)
+```
+
+```text
+       0      1      2      3      4    5     6
+0  0.136  0.182  0.273  0.182  0.227  0.0  0.00
+1  0.150  0.200  0.200  0.200  0.100  0.1  0.05
+```
+
+The second sequence has every amino acid once, so its row is the group
+sizes divided by 20. Lower-case letters are upper-cased. A non amino acid
+letter, such as `X`, belongs to no group: k-mers that contain it are not
+counted, but it still adds to the length.
+
+```python
+ConjointTriad().fit_transform(X).shape
+```
+
+```text
+(2, 399)
+```
+
 ## Tables with more than one column
 
 A SELEX table usually has more than the sequence column, for example the
@@ -231,3 +289,36 @@ Xt.shape, Xt[0, :4], Xt[0, 340:344]
 `ColumnTransformer` takes a `DataFrame`, so call `to_dataframe()` on a loader
 first. Its output is a `numpy` array: the 340 k-mer values, then the 350
 PSeAAC values.
+
+A `Pipeline` of {class}`~pyaptamer.trafos.compose.ApplyToCols` steps does
+the same with named columns and takes a loader directly. This is how
+{class}`~pyaptamer.aptamcts.AptaMCTSPipeline` builds its features:
+
+```python
+from sklearn.pipeline import Pipeline
+
+from pyaptamer.trafos.compose import ApplyToCols
+from pyaptamer.trafos.encode import ConjointTriad, KMerFrequencies
+from pyaptamer.trafos.transform import DNAToRNA
+
+features = Pipeline(
+    [
+        ("to_rna", ApplyToCols(DNAToRNA(), cols="aptamer")),
+        (
+            "aptamer",
+            ApplyToCols(
+                KMerFrequencies(k=4, alphabet="ACGU", normalize="length"),
+                cols="aptamer",
+            ),
+        ),
+        ("protein", ApplyToCols(ConjointTriad(k=3), cols="protein")),
+    ]
+)
+
+Xt = features.fit_transform(X)
+Xt.shape, Xt.columns[:2].tolist(), Xt.columns[340:342].tolist()
+```
+
+```text
+((1, 739), ['aptamer__0', 'aptamer__1'], ['protein__0', 'protein__1'])
+```
