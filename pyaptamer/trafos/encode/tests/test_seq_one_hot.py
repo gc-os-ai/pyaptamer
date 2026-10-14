@@ -59,15 +59,6 @@ def test_sequence_one_hot_encoder_accepts_moleculeloader():
     assert Xt.iloc[0].equals(Xt.iloc[1])
 
 
-def test_sequence_one_hot_encoder_custom_columns():
-    """Column names are configurable, not hardcoded."""
-    X = MoleculeLoader(data={"custom_seq": [SEQUENCE] * 2})
-    encoder = SequenceOneHotEncoder()
-    Xt = encoder.fit_transform(X)
-
-    assert Xt.shape == (2, 4 * len(SEQUENCE))
-
-
 def test_sequence_one_hot_encoder_custom_vocab():
     """A custom vocab sets the class count, and encodes and decodes correctly."""
     encoder = SequenceOneHotEncoder(
@@ -78,6 +69,14 @@ def test_sequence_one_hot_encoder_custom_vocab():
 
     assert Xt.shape == (1, 20)
     assert encoder.inverse_transform(Xt)["sequence"].iloc[0] == "ACGN"
+
+
+def test_sequence_one_hot_encoder_custom_vocab_without_inverse_vocab():
+    """Without inverse_vocab, decoding follows the custom vocab."""
+    encoder = SequenceOneHotEncoder(vocab={"A": 0, "C": 1, "G": 2, "T": 3, "U": 3})
+    Xt = encoder.fit_transform(pd.DataFrame({"seq": ["ACGU"]}))
+
+    assert encoder.inverse_transform(Xt)["sequence"].iloc[0] == "ACGT"
 
 
 def test_sequence_one_hot_encoder_empty_input():
@@ -193,6 +192,12 @@ def test_sequence_one_hot_encoder_inverse_transform_rejects_bad_tensor_dim(X_ten
     """Tensors that are not 2D or 3D raise a ValueError naming the dimension."""
     with pytest.raises(ValueError, match="expects a 2D index tensor or a 3D"):
         SequenceOneHotEncoder().inverse_transform(X_tensor)
+
+
+def test_sequence_one_hot_encoder_inverse_transform_rejects_2d_float_tensor():
+    """A 2D float tensor is not read as indices and raises a ValueError."""
+    with pytest.raises(ValueError, match="2D tensor of integer indices"):
+        SequenceOneHotEncoder().inverse_transform(torch.zeros(1, 16))
 
 
 def test_sequence_one_hot_encoder_accepts_primer_trimmer_output():

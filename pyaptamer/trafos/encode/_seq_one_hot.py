@@ -30,12 +30,13 @@ class SequenceOneHotEncoder(BaseTransform):
     ----------
     vocab : dict[str, int], optional, default=None
         Maps characters to integer indices. Several characters can share an
-        index, e.g. ``U`` and ``T``. If None, uses the nucleotide default.
-        The vocab must cover every character in the data and anything outside it
-        is handled by ``handle_unknown``.
+        index, e.g. ``U`` and ``T``. If None, uses
+        ``{"A": 0, "T": 1, "G": 2, "C": 3, "U": 1}``.
+        Keys must be upper case, since sequences are upper-cased before
+        lookup. Characters outside the vocab are handled by ``handle_unknown``.
     inverse_vocab : dict[int, str], optional, default=None
-        Maps indices back to characters, for decoding. If None, uses the
-        nucleotide default.
+        Maps indices back to characters, for decoding. If None, each index
+        decodes to the first character mapped to it in ``vocab``.
     handle_unknown : {"raise", "drop"}, default="raise"
         What to do when a sequence is ``NaN``/``None`` or contains a
         character outside the vocab.
@@ -71,13 +72,9 @@ class SequenceOneHotEncoder(BaseTransform):
     _tags = {
         "authors": ["aditi-dsi"],
         "maintainers": ["aditi-dsi"],
-        "output_type": "numeric",
         "property:fit_is_empty": True,
         "capability:multivariate": False,
     }
-
-    _VOCAB = {"A": 0, "T": 1, "G": 2, "C": 3, "U": 1}
-    _INVERSE_VOCAB = {0: "A", 1: "T", 2: "G", 3: "C"}
 
     def __init__(
         self,
@@ -90,19 +87,11 @@ class SequenceOneHotEncoder(BaseTransform):
         self.handle_unknown = handle_unknown
         super().__init__()
 
-    @property
-    def _active_vocab(self):
-        """Vocabulary in use, or the default if none was given."""
-        if self.vocab is not None:
-            return self.vocab
-        return self._VOCAB
-
-    @property
-    def _active_inverse_vocab(self):
-        """Inverse vocabulary in use, or the default if none was given."""
-        if self.inverse_vocab is not None:
-            return self.inverse_vocab
-        return self._INVERSE_VOCAB
+    def _resolve_vocab(self):
+        """Return the vocab in use."""
+        if self.vocab is None:
+            return {"A": 0, "T": 1, "G": 2, "C": 3, "U": 1}
+        return self.vocab
 
     def _validate_params(self):
         """Check the constructor arguments, raising ValueError if unusable."""
@@ -113,27 +102,19 @@ class SequenceOneHotEncoder(BaseTransform):
                 f"got {self.handle_unknown!r}."
             )
 
-    def _check_X(self, X):  # noqa: N802
-        """Coerce X to a DataFrame and check its column holds sequences.
+    def _check_sequences(self, X):
+        """Check that the first column of X holds one str sequence per row.
 
         Parameters
         ----------
-        X : MoleculeLoader or pandas.DataFrame
-            Input data to validate.
-
-        Returns
-        -------
-        pandas.DataFrame
-            ``X`` as a DataFrame.
+        X : pd.DataFrame
+            Input data. Only the first column is read.
 
         Raises
         ------
         TypeError
-            If ``X`` is not a MoleculeLoader or DataFrame, or if its column
-            does not hold one sequence per row.
+            If the first column of X does not hold str sequences.
         """
-        X = super()._check_X(X)
-
         kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=True)
         if kind not in ("string", "empty"):
             raise TypeError(
@@ -143,7 +124,6 @@ class SequenceOneHotEncoder(BaseTransform):
                 'default tiling="bag" - use tiling="samples" so each sequence '
                 "is one row."
             )
-        return X
 
     def _transform(self, X):
         """Validate and convert sequences to one-hot frames.
@@ -162,14 +142,17 @@ class SequenceOneHotEncoder(BaseTransform):
 
         Raises
         ------
+        TypeError
+            If the first column of X does not hold str sequences.
         ValueError
             If sequences have varying lengths, or if
             ``handle_unknown="raise"`` and a sequence has None/NaN value, or
             contains a character outside the vocab.
         """
         self._validate_params()
+        self._check_sequences(X)
 
-        vocab = self._active_vocab
+        vocab = self._resolve_vocab()
 
         reads = X.iloc[:, 0]
         lengths = reads.dropna().str.len()
@@ -262,8 +245,8 @@ class SequenceOneHotEncoder(BaseTransform):
         Raises
         ------
         ValueError
-            If a frame's column count is not a multiple of the vocab size, or
-            if a tensor is not 2D or 3D.
+            If a frame's column count is not a multiple of the vocab size, if
+            a tensor is not 2D or 3D, or if a 2D tensor is not of integer type.
 
         Notes
         -----
@@ -271,11 +254,17 @@ class SequenceOneHotEncoder(BaseTransform):
         cannot be passed back through ``transform``, since ``"X"`` is not in
         the vocabulary.
         """
-        inverse_vocab = self._active_inverse_vocab
+        vocab = self._resolve_vocab()
+        if self.inverse_vocab is not None:
+            inverse_vocab = self.inverse_vocab
+        else:
+            inverse_vocab = {}
+            for char, idx in vocab.items():
+                inverse_vocab.setdefault(idx, char)
 
         index = None
         if isinstance(X, pd.DataFrame):
-            num_classes = max(self._active_vocab.values()) + 1
+            num_classes = max(vocab.values()) + 1
             if X.shape[1] % num_classes:
                 raise ValueError(
                     f"{type(self).__name__} expects a frame with a multiple of "
@@ -289,6 +278,12 @@ class SequenceOneHotEncoder(BaseTransform):
             raise ValueError(
                 f"{type(self).__name__}.inverse_transform expects a 2D index "
                 f"tensor or a 3D one-hot tensor, got {X.dim()}D."
+            )
+
+        if X.dim() == 2 and (X.is_floating_point() or X.is_complex()):
+            raise ValueError(
+                f"{type(self).__name__}.inverse_transform expects a 2D tensor "
+                f"of integer indices, got dtype {X.dtype}."
             )
 
         if X.dim() == 3:
