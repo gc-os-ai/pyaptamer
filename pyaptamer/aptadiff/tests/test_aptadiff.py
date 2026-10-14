@@ -208,7 +208,7 @@ def test_embed_size_follows_the_vae(reads: pd.DataFrame, embed_size: int) -> Non
 
 
 def test_rejects_unusable_vae(reads: pd.DataFrame) -> None:
-    """A model exposing neither accepted interface raises TypeError."""
+    """A model exposing none of the accepted interface raises TypeError."""
     with pytest.raises(TypeError, match="transform.*encoder and h2mu"):
         _estimator(vae=object()).fit(reads)
 

@@ -42,7 +42,7 @@ class AptaDiff(BaseEstimator):
     Optimising aptamers is external. The diffusion model is
     conditioned only on latent coordinates, so steering generation
     towards better binders means choosing better latent points. `gmm_centers_`
-    gives the motif-dependent modes used for de novo design, and
+    gives the learned clusters used for de novo design, and
     `inverse_transform` accepts any latent points, including ones proposed by
     an outer loop such as Bayesian optimisation using wet-lab results.
 
@@ -50,7 +50,7 @@ class AptaDiff(BaseEstimator):
     ----------
     vae : object
         Pretrained latent model mapping integer-encoded sequences to latent
-        coordinates. Requires a trained model as an untrained model produces random,
+        coordinates. Requires a trained model, as an untrained model produces random,
         unusable coordinates. Accepted either as an object with a
         ``transform(X_idx)`` method returning shape (n_samples, embed_size), or
         as a module with ``encoder`` and ``h2mu`` attributes such as
@@ -63,14 +63,14 @@ class AptaDiff(BaseEstimator):
         constant primer regions of a SELEX read. If None, `X` must already
         hold sequences of one fixed length.
     encoder : SequenceOneHotEncoder or None, optional, default=None
-        Transform that encodes the cleaned sequences in one-hot form, cloned before
-        fitting. It is both the diffusion model's target and the decoder that
+        Transform that encodes the cleaned sequences in one-hot form.
+        It is a required format for both, the diffusion model and the decoder that
         turns generated output back into strings, so its vocabulary supports the
         encoding in both directions. If None, uses
         ``SequenceOneHotEncoder(handle_unknown="drop")``, which treats A/T/G/C
         as four classes with ``U`` sharing ``T``'s index and drops reads
         holding any other character, reproducing the original implementation's
-        filtering of ambiguous chars. Inject a pre-configured
+        filtering of ambiguous chars. Pass a pre-configured
         :class:`~pyaptamer.trafos.encode.SequenceOneHotEncoder` to supply a
         custom `vocab` or `inverse_vocab`, or to make unknown characters raise
         rather than be dropped.
@@ -83,12 +83,12 @@ class AptaDiff(BaseEstimator):
         lowest AIC is kept. Must be at least 1. The default matches the
         original implementation.
     generator : AptaDiffGenerator or None, optional, default=None
-        The diffusion engine, cloned before fitting. If None, uses
+        The diffusion engine of AptaDiff. If None, uses
         :class:`~pyaptamer.aptadiff.AptaDiffGenerator` with its defaults,
         that matches the original paper's configuration, which runs one denoiser
         pass per diffusion timestep.
     random_state : int, optional, default=None
-        Seed for the mixture fits, for drawing latent points in `sample`, and
+        Seed for fitting the mixture, for drawing latent points in `sample`, and
         for the diffusion model when `generator` is None. The global NumPy and
         Torch random states are left unchanged.
 
@@ -98,8 +98,8 @@ class AptaDiff(BaseEstimator):
         The fitted clone of `trimmer`, or None if none was given.
     encoder_ : SequenceOneHotEncoder
         The fitted clone of `encoder`, or of the default encoder if none was
-        given. Supplies the diffusion model's target and decodes generated
-        sequences back to strings.
+        given. Converts strings into the format required by the diffusion model,
+        and translates a generated output back into strings.
     vae_ : object
         The latent model used for extraction. Its weights are never read,
         written or migrated by this class.
@@ -162,8 +162,8 @@ class AptaDiff(BaseEstimator):
     >>> aptadiff.fit(load_sample_fastq())  # doctest: +ELLIPSIS
     AptaDiff(...)
 
-    Generate new sequences, or condition on the motif modes to reproduce the
-    paper's exact sequence generation:
+    Generate new sequences, or use the learned cluster centers to reproduce
+    the paper's exact sequence generation:
 
     >>> aptadiff.sample(2)["sequence"].str.len().tolist()
     [40, 40]
@@ -300,11 +300,9 @@ class AptaDiff(BaseEstimator):
 
         Notes
         -----
-        The original paper generates exactly `n_clusters` sequences by strictly
-        using the cluster centers. This method is more flexible, allowing
-        to generate any `n_samples` by randomly sampling around those centers.
-        To reproduce the paper's exact generation output, pass `gmm_centers_`
-        to `inverse_transform` instead.
+        This method generates new sequences by randomly exploring the learned clusters.
+        If you want to generate only the exact central sequence for each cluster (which
+        is what the original paper did), pass gmm_centers_ to inverse_transform instead.
         """
         check_is_fitted(self)
 
