@@ -86,11 +86,6 @@ change without notice.
 
 ```{eval-rst}
 .. currentmodule:: pyaptamer.deepaptamer
-
-.. autosummary::
-   :toctree: generated
-   :nosignatures:
-
    DeepAptamerPipeline
    DeepAptamerClassifier
    DeepAptamerFeatures
@@ -107,6 +102,23 @@ change without notice.
    :nosignatures:
 
    AptaMCTSPipeline
+
+## AptaDiff
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptadiff
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaDiff
+   AptaDiffGenerator
+   AptaDiffLightning
+   AptaDiffDiffusion
+   AptaDiffDenoiser
+```
+
 ```
 
 ## Monte Carlo Tree Search
