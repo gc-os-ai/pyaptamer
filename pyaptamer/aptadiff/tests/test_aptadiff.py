@@ -12,8 +12,8 @@ from sklearn.exceptions import NotFittedError
 from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
 from pyaptamer.datasets import load_sample_fastq
 from pyaptamer.raptgen import CNNPHMMVAE
-from pyaptamer.trafos.encode import SequenceOneHotEncoder
-from pyaptamer.trafos.transform import PrimerTrimmer
+from pyaptamer.transformations.encode import SequenceOneHotEncoder
+from pyaptamer.transformations.transform import PrimerTrimmer
 
 SEQ_LEN = 40
 EMBED_SIZE = 2

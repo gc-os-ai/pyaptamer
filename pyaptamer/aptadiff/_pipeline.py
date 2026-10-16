@@ -16,7 +16,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptadiff._generator import AptaDiffGenerator
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.encode import SequenceOneHotEncoder
+from pyaptamer.transformations.encode import SequenceOneHotEncoder
 
 
 class AptaDiff(BaseEstimator):
@@ -59,7 +59,7 @@ class AptaDiff(BaseEstimator):
         migrates its weights.
     trimmer : BaseTransform or None, optional, default=None
         Transform applied to the raw reads before encoding, typically
-        :class:`~pyaptamer.trafos.transform.PrimerTrimmer` to strip the
+        :class:`~pyaptamer.transformations.transform.PrimerTrimmer` to strip the
         constant primer regions of a SELEX read. If None, `X` must already
         hold sequences of one fixed length.
     encoder : SequenceOneHotEncoder or None, optional, default=None
@@ -71,7 +71,7 @@ class AptaDiff(BaseEstimator):
         as four classes with ``U`` sharing ``T``'s index and drops reads
         holding any other character, reproducing the original implementation's
         filtering of ambiguous chars. Pass a pre-configured
-        :class:`~pyaptamer.trafos.encode.SequenceOneHotEncoder` to supply a
+        :class:`~pyaptamer.transformations.encode.SequenceOneHotEncoder` to supply a
         custom `vocab` or `inverse_vocab`, or to make unknown characters raise
         rather than be dropped.
     n_clusters : int, optional, default=8
@@ -137,7 +137,7 @@ class AptaDiff(BaseEstimator):
     >>> from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
     >>> from pyaptamer.datasets import load_sample_fastq
     >>> from pyaptamer.raptgen import CNNPHMMVAE
-    >>> from pyaptamer.trafos.transform import PrimerTrimmer
+    >>> from pyaptamer.transformations.transform import PrimerTrimmer
     >>>
     >>> vae = CNNPHMMVAE(motif_len=40, embed_size=2)
     >>>
@@ -544,7 +544,8 @@ class AptaDiff(BaseEstimator):
             ``torch.long``.
         Y : pandas.DataFrame
             One-hot encoded sequences, shape (n_samples, num_classes *
-            seq_len), as :class:`~pyaptamer.trafos.encode.SequenceOneHotEncoder`
+            seq_len), as
+            :class:`~pyaptamer.transformations.encode.SequenceOneHotEncoder`
             produces them.
 
         Raises
