@@ -2,7 +2,6 @@ __author__ = ["aditi-dsi"]
 __all__ = ["SinusoidalPosEmbedding", "AptaDiffTransformerEmbedding"]
 
 import math
-import warnings
 
 import torch
 import torch.nn as nn
@@ -86,7 +85,7 @@ class AptaDiffTransformerEmbedding(nn.Module):
         Number of attention heads per transformer layer.
     attn_layer_dropout : float, default=0.0
         Dropout probability applied within attention blocks.
-    n_local_attn_heads : int, default=0
+    n_local_attn_heads : int, default=8
         Number of heads dedicated to local windowed attention when using
         `transformer_type="linear"`. Ignored when using `"native"`.
     local_attn_window_size : int, default=1
@@ -125,7 +124,7 @@ class AptaDiffTransformerEmbedding(nn.Module):
         num_timesteps,
         heads=16,
         attn_layer_dropout=0.0,
-        n_local_attn_heads=0,
+        n_local_attn_heads=8,
         local_attn_window_size=1,
         transformer_type="native",
     ):
@@ -135,14 +134,6 @@ class AptaDiffTransformerEmbedding(nn.Module):
             raise ValueError(
                 f"transformer_type must be 'linear' or 'native', "
                 f"got'{transformer_type}'"
-            )
-
-        if transformer_type == "native" and n_local_attn_heads != 0:
-            warnings.warn(
-                f"n_local_attn_heads is set to {n_local_attn_heads} but "
-                "will be ignored because transformer_type is 'native'. "
-                "This parameter is only used when transformer_type='linear'.",
-                stacklevel=2,
             )
 
         if max_seq_len % local_attn_window_size != 0:

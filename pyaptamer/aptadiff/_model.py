@@ -84,7 +84,7 @@ class AptaDiffDenoiser(nn.Module):
         Number of attention heads per transformer layer.
     attn_layer_dropout : float, optional, default=0.0
         Dropout probability applied within attention blocks.
-    n_local_attn_heads : int, optional, default=0
+    n_local_attn_heads : int, optional, default=8
         Number of heads dedicated to local windowed attention when using
         `transformer_type="linear"`. Ignored when using `"native"`.
     local_attn_window_size : int, optional, default=1
@@ -132,7 +132,7 @@ class AptaDiffDenoiser(nn.Module):
         num_timesteps: int = 1000,
         heads: int = 16,
         attn_layer_dropout: float = 0.0,
-        n_local_attn_heads: int = 0,
+        n_local_attn_heads: int = 8,
         local_attn_window_size: int = 1,
         transformer_type: Literal["native", "linear"] = "native",
     ):

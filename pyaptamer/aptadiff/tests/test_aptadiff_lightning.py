@@ -10,28 +10,21 @@ import torch.nn.functional as F
 
 from pyaptamer.aptadiff import AptaDiffDenoiser, AptaDiffDiffusion, AptaDiffLightning
 
-NUM_CLASSES = 4
-SEQ_LEN = 8
-ENC_EMBED_SIZE = 16
-TIMESTEPS = 4
-
 
 @pytest.fixture
 def diffusion() -> AptaDiffDiffusion:
-    """Build a small AptaDiffDiffusion."""
+    """Build a small AptaDiffDiffusion for 4 classes, length 8, 16 latent dims."""
     denoiser = AptaDiffDenoiser(
-        enc_embed_size=ENC_EMBED_SIZE,
-        num_classes=NUM_CLASSES,
+        enc_embed_size=16,
+        num_classes=4,
         dim=32,
         depth=1,
         n_blocks=1,
-        max_seq_len=SEQ_LEN,
-        num_timesteps=TIMESTEPS,
+        max_seq_len=8,
+        num_timesteps=4,
         heads=2,
     )
-    return AptaDiffDiffusion(
-        denoise_fn=denoiser, num_classes=NUM_CLASSES, num_timesteps=TIMESTEPS
-    )
+    return AptaDiffDiffusion(denoise_fn=denoiser, num_classes=4, num_timesteps=4)
 
 
 class TestAptaDiffLightning:
@@ -48,9 +41,11 @@ class TestAptaDiffLightning:
         self, model_lightning: AptaDiffLightning, batch_size: int, step_method: str
     ) -> None:
         """Check training_step and validation_step return a non-negative scalar."""
-        tokens = torch.randint(0, NUM_CLASSES, (batch_size, SEQ_LEN))
-        x = F.one_hot(tokens, NUM_CLASSES).permute(0, 2, 1).float()
-        z = torch.randn(batch_size, ENC_EMBED_SIZE)
+        tokens = torch.randint(0, 4, (batch_size, 8))
+        x = F.one_hot(tokens, 4).permute(0, 2, 1).float()
+        z = torch.randn(batch_size, 16)
+        if step_method == "validation_step":
+            model_lightning.eval()
 
         loss = getattr(model_lightning, step_method)((x, z), batch_idx=0)
 
