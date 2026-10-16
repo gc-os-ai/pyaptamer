@@ -2,6 +2,7 @@ __all__ = ["AptamerEvalAptaNet"]
 
 import numpy as np
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.experiments._aptamer import BaseAptamerEval
 
 
@@ -15,19 +16,23 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         characters. Interpreted as the amino-acid sequence of the binding target
         protein.
     pipeline : AptaNetPipeline
-        Fitted AptaNetPipeline to use for assigning scores.
+        Fitted AptaNetPipeline to use for assigning scores. The pair is built
+        with its ``aptamer_col`` and ``protein_col``.
 
     Examples
     --------
     >>> import numpy as np
     >>> from pyaptamer.aptanet import AptaNetPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.experiments import AptamerEvalAptaNet
     >>> aptamer_seq = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
     >>> protein_seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
-    >>> pairs = [(aptamer_seq, protein_seq) for _ in range(5)]
+    >>> X = MoleculeLoader(
+    ...     data={"aptamer": [aptamer_seq] * 5, "protein": [protein_seq] * 5}
+    ... )
     >>> labels = np.array([0] * 5, dtype=np.float32)
     >>> pipeline = AptaNetPipeline()
-    >>> pipeline.fit(pairs, labels)  # doctest: +ELLIPSIS
+    >>> pipeline.fit(X, labels)  # doctest: +ELLIPSIS
     AptaNetPipeline(...)
     >>> target = "ACDEFACDEFACDEFACDEFACDEFACDEFACDEFACDEF"
     >>> experiment = AptamerEvalAptaNet(target, pipeline)
@@ -54,6 +59,12 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         np.float64
             The probability score assigned to the aptamer candidate.
         """
-        score = self.pipeline.predict_proba(X=[(aptamer_candidate, self.target)])
+        X = MoleculeLoader(
+            data={
+                self.pipeline.aptamer_col: [aptamer_candidate],
+                self.pipeline.protein_col: [self.target],
+            }
+        )
+        score = self.pipeline.predict_proba(X=X)
 
         return np.float64(score[:, 1].item())  # return the positive class probability

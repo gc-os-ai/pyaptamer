@@ -38,3 +38,11 @@ def test_filter_words_preserves_order():
     # indices should reflect order of iteration over dict
     expected = {"zebra": 1, "alpha": 2}
     assert result == expected
+
+
+def test_filter_words_empty_dict():
+    """Test filter_words raises ValueError for an empty dictionary."""
+    import pytest
+
+    with pytest.raises(ValueError, match="words must be a non-empty dictionary"):
+        filter_words({})

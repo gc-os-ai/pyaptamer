@@ -1,6 +1,6 @@
 """Test suite for the AptamerEval experiment classes."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 
 import numpy
 import pytest
@@ -33,17 +33,23 @@ class MockModel(nn.Module):
 class MockAptaNetPipeline:
     """Mock AptaNetPipeline for testing."""
 
-    def __init__(self, fixed_score=0.7):
+    def __init__(self, fixed_score=0.7, aptamer_col="aptamer", protein_col="protein"):
         self.fixed_score = fixed_score
+        self.aptamer_col = aptamer_col
+        self.protein_col = protein_col
         self.is_fitted = True
 
     def predict_proba(self, X):
         """
         Mock predict method that returns fixed scores for binary classification (no
         binding, binding).
+
+        ``X`` is a :class:`~pyaptamer.data.loader.MoleculeLoader`; materialize it
+        to learn how many pairs to score.
         """
+        n = len(X.to_dataframe())
         # return probability scores as a list
-        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * len(X))
+        return numpy.array([[1 - self.fixed_score, self.fixed_score]] * n)
 
     def fit(self, X, y):
         """Mock fit method."""
@@ -149,3 +155,18 @@ class TestAptamerEvalConcrete:
         assert isinstance(score, numpy.ndarray)
         # 100 is the maximum length specified in our mock model
         assert score.shape == (1, 1, 100, aptatrans_experiment.target_encoded.shape[1])
+
+
+class RecordingPipeline(MockAptaNetPipeline):
+    """Mock pipeline that records the column names it is asked to score."""
+
+    def predict_proba(self, X):
+        self.columns = X.to_dataframe().columns.tolist()
+        return super().predict_proba(X)
+
+
+def test_aptanet_evaluate_uses_the_pipeline_column_names(target):
+    """The pair is built with the column names the pipeline was configured with."""
+    pipeline = RecordingPipeline(aptamer_col="apt", protein_col="target")
+    AptamerEvalAptaNet(target=target, pipeline=pipeline).evaluate("ACGU")
+    assert pipeline.columns == ["apt", "target"]
