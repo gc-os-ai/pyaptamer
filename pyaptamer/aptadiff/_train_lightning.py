@@ -93,6 +93,17 @@ class AptaDiffLightning(L.LightningModule):
     >>> model_lightning = AptaDiffLightning(
     ...     diffusion, lr=1e-4, optimizer=torch.optim.AdamW
     ... )
+    >>> config = model_lightning.configure_optimizers()
+    >>> config["optimizer"]  # doctest: +ELLIPSIS
+    AdamW (
+    Parameter Group 0...
+        lr: ...
+    ...
+    )
+    >>> config["optimizer"].param_groups[0]["lr"]
+    0.0001
+    >>> config["lr_scheduler"]["interval"]
+    'epoch'
 
     Training runs through a Lightning `Trainer`:
 
