@@ -25,6 +25,7 @@ dependencies = [
     "skorch",
     "imblearn",
     "requests",
+    "scikit-optimize>=0.10",
 ]
 
 [project.urls]
