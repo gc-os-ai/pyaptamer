@@ -53,7 +53,7 @@ aptadiff = AptaDiff(
 
 `X` is a {class}`~pyaptamer.data.MoleculeLoader` or a `pandas.DataFrame` with
 one read per row in a single column. A `MoleculeLoader` cell may be a path to
-a FASTQ file, which `tiling="samples"` turns into one row per read; see
+a FASTQ file, which `tiling="samples"` turns into one row per read, see
 {doc}`molecule_loader` for the loader's options.
 
 `vae` maps integer-encoded sequences to latent coordinates. It is used for
@@ -153,7 +153,7 @@ aptadiff = AptaDiff(vae=vae, generator=generator)
 
 `num_timesteps` is the number of diffusion steps, and `predict` runs one
 denoiser pass per step. `patience` stops training early when the validation
-loss stops improving; the default trains for all `max_epochs`, as the original
+loss stops improving, the default trains for all `max_epochs`, as the original
 training script does.
 
 `transformer_type` selects the attention backend. The default `"native"` uses
@@ -164,8 +164,7 @@ for strict reproducibility.
 `num_classes` must match the number of classes the encoder produces, four by
 default. A mismatch raises `ValueError`.
 
-Training runs on the fastest available device, and the generator can also be
-used on its own with latent vectors and one-hot encoded sequences.
+Training runs on the fastest available device, and the generator can also be used independently with latent vectors and one-hot encoded sequences.
 
 ## References
 
