@@ -6,6 +6,7 @@
 
 molecule_loader
 encodings
+aptadiff
 aptamcts
 aptanet
 aptatrans
@@ -39,6 +40,8 @@ aptatrans
 :::{list-table}
 :widths: 30 70
 
+* - {doc}`AptaDiff <aptadiff>`
+  - De novo aptamer generation from SELEX reads.
 * - {doc}`AptaMCTS <aptamcts>`
   - Aptamer-protein interaction prediction and candidate aptamer generation.
 * - {doc}`AptaNet <aptanet>`

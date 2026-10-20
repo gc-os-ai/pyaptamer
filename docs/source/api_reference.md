@@ -112,6 +112,7 @@ change without notice.
    :toctree: generated
    :nosignatures:
 
+   AptaDiff
    AptaDiffGenerator
    AptaDiffLightning
    AptaDiffDiffusion
