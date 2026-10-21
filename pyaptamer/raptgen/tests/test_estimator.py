@@ -125,9 +125,11 @@ def test_transform_is_encoder_mean():
     """transform returns h2mu(encoder(X)), the latent mean, not a sample."""
     X = _encoded()
     model = _model().fit(X)
+    device = next(model.model_.parameters()).device
+    X_idx = torch.tensor(X.to_numpy(), device=device)
     with torch.no_grad():
-        expected = model.model_.h2mu(model.model_.encoder(torch.tensor(X.to_numpy())))
-    np.testing.assert_allclose(model.transform(X), expected.numpy(), atol=1e-6)
+        expected = model.model_.h2mu(model.model_.encoder(X_idx))
+    np.testing.assert_allclose(model.transform(X), expected.cpu().numpy(), atol=1e-6)
 
 
 def test_sampled_sequence_is_cleaned(monkeypatch):
