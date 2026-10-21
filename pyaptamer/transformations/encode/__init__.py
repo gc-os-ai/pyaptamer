@@ -4,6 +4,7 @@ from pyaptamer.transformations.encode._conjoint_triad import ConjointTriad
 from pyaptamer.transformations.encode._greedy import GreedyEncoder
 from pyaptamer.transformations.encode._kmer import KMerFrequencies
 from pyaptamer.transformations.encode._pseaac import PSeAAC
+from pyaptamer.transformations.encode._seq_index import SequenceIndexEncoder
 from pyaptamer.transformations.encode._seq_one_hot import SequenceOneHotEncoder
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "GreedyEncoder",
     "KMerFrequencies",
     "PSeAAC",
+    "SequenceIndexEncoder",
     "SequenceOneHotEncoder",
 ]
