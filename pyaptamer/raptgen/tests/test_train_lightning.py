@@ -62,3 +62,19 @@ def test_configure_optimizers_custom():
     assert isinstance(optimizer, torch.optim.SGD)
     assert optimizer.param_groups[0]["momentum"] == 0.9
     assert optimizer.param_groups[0]["lr"] == 0.1
+
+
+def test_training_step_matches_loss_fn_with_force_matching():
+    """At epoch 1 the step equals loss_fn with beta 1/beta_epochs and match_cost 5 - 4/force_epochs."""  # noqa: E501
+    torch.manual_seed(0)
+    model = CNNPHMMVAE(motif_len=5, hidden_size=8)
+    module = RaptGenLightning(model, beta_epochs=4, force_epochs=2)
+    data = torch.randint(0, 4, (4, 12))
+
+    torch.manual_seed(1)
+    loss = module.training_step((data,), batch_idx=0)
+    torch.manual_seed(1)
+    expected = model.loss_fn(
+        data, *model(data), beta=0.25, force_matching=True, match_cost=3.0
+    )
+    assert torch.isclose(loss, expected)

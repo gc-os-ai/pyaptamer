@@ -3,10 +3,14 @@
 __author__ = ["siddharth7113"]
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.raptgen import RaptGenGenerator, RaptGenModel
+from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
+from pyaptamer.transformations.encode import SequenceIndexEncoder
 
 SEQS = [
     "ATGCATGCATGC",
@@ -33,7 +37,7 @@ def _model(**kwargs):
 
 
 def _encoded():
-    return RaptGenGenerator()._encode_sequences(SEQS)
+    return SequenceIndexEncoder().fit_transform(pd.DataFrame({"aptamer": SEQS}))
 
 
 def test_fit_transform_shape():
@@ -87,21 +91,63 @@ def test_fit_rejects_single_sequence():
 
 
 def test_generator_roundtrip():
-    """RaptGenGenerator accepts strings and returns strings."""
-    gen = RaptGenGenerator(motif_len=5)
-    gen.model_ = _model().fit(_encoded())
-    Z = gen.transform(SEQS[:2])
-    assert Z.shape[0] == 2
-    assert all(set(seq) <= set("ATGC") for seq in gen.inverse_transform(Z))
+    """RaptGenGenerator takes a MoleculeLoader and returns latents and strings."""
+    X = MoleculeLoader(data={"aptamer": SEQS})
+    gen = RaptGenGenerator(estimator=_model()).fit(X)
+    Z = gen.transform(X)
+    assert Z.shape == (len(SEQS), 10)
+    assert all(set(seq) <= set("ATGC") for seq in gen.inverse_transform(Z[:2]))
+    assert gen.estimator_.random_state == 0
+
+
+def test_generator_clones_estimator():
+    """fit stores a fitted clone and leaves the passed estimator untouched."""
+    model = _model()
+    gen = RaptGenGenerator(estimator=model).fit(pd.DataFrame({"aptamer": SEQS}))
+    assert gen.estimator_ is not model
+    assert not hasattr(model, "model_")
+    assert isinstance(gen.estimator_, RaptGenModel)
+
+
+def test_generator_rejects_missing_column():
+    """A frame without the aptamer column raises a ValueError naming the columns."""
+    with pytest.raises(ValueError, match="no column 'aptamer'"):
+        RaptGenGenerator().fit(pd.DataFrame({"seq": SEQS}))
 
 
 def test_generator_rejects_mixed_lengths():
     """Sequences of different length raise a ValueError."""
-    with pytest.raises(ValueError, match="same length"):
-        RaptGenGenerator()._encode_sequences(["ATGC", "ATG"])
+    with pytest.raises(ValueError, match="same fixed length"):
+        RaptGenGenerator().fit(pd.DataFrame({"aptamer": ["ATGC", "ATG"]}))
 
 
-def test_generator_rejects_invalid_characters():
-    """Characters outside A, T, G, C, U raise a ValueError naming them."""
-    with pytest.raises(ValueError, match=r"\['N', 'a'\]"):
-        RaptGenGenerator()._encode_sequences(["ATGN", "aTGC"])
+def test_transform_is_encoder_mean():
+    """transform returns h2mu(encoder(X)), the latent mean, not a sample."""
+    X = _encoded()
+    model = _model().fit(X)
+    with torch.no_grad():
+        expected = model.model_.h2mu(model.model_.encoder(torch.tensor(X.to_numpy())))
+    np.testing.assert_allclose(model.transform(X), expected.numpy(), atol=1e-6)
+
+
+def test_sampled_sequence_is_cleaned(monkeypatch):
+    """Lowercase inserts are upper-cased and deletion markers removed."""
+    model = _model().fit(_encoded())
+    monkeypatch.setattr(
+        ProfileHMMSampler, "sample", lambda self, sequence_only: "taccG_TCGtaaAA_"
+    )
+    Z = model.transform(_encoded()[:1])
+    assert model.inverse_transform(Z, most_likely=False) == ["TACCGTCGTAAAA"]
+
+
+def test_decode_most_probable_fills_wildcards_with_best_scoring(monkeypatch):
+    """Deletions are dropped and each N takes the best-scoring nucleotide."""
+    model = _model().fit(_encoded())
+    monkeypatch.setattr(
+        ProfileHMMSampler, "most_probable", lambda self, sequence_only: "A_NCN"
+    )
+    monkeypatch.setattr(
+        ProfileHMMSampler, "calc_seq_proba", lambda self, seq: seq.count("G")
+    )
+    Z = model.transform(_encoded()[:1])
+    assert model.inverse_transform(Z, most_likely=True) == ["AGCG"]

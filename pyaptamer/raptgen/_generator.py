@@ -1,93 +1,123 @@
-"""RaptGen end-to-end generator on raw sequence strings"""
+"""RaptGen end-to-end generator on raw sequences"""
 
 __author__ = ["NoorMajdoub"]
 __all__ = ["RaptGenGenerator"]
 
-import torch
-from sklearn.base import BaseEstimator
-from sklearn.utils.validation import check_is_fitted
+import pandas as pd
+from skbase.base import BaseEstimator
+from sklearn.base import clone
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.raptgen._estimator import RaptGenModel
-from pyaptamer.raptgen.layers._utils import seq_to_indices
+from pyaptamer.transformations.encode import SequenceIndexEncoder
 
 
 class RaptGenGenerator(BaseEstimator):
-    """
-    RaptGen algorithm for unsupervised aptamer sequence generation.
-    This is the end-to-end, user-facing entry point: it accepts raw
-    A/T/G/C sequence strings directly, encodes them into integer
-    indices, and delegates the actual training/generation work to
-    `RaptGenModel`, which operates purely on numeric arrays.
+    """RaptGen algorithm for unsupervised aptamer sequence generation [1]_.
+
+    Takes a MoleculeLoader or a DataFrame with a column of fixed-length aptamer
+    sequences. The sequences are encoded as integer indices with
+    `SequenceIndexEncoder` and passed to the estimator, `RaptGenModel` by
+    default, which trains the variational autoencoder. `transform` maps
+    sequences to points in the latent space and `inverse_transform` generates
+    sequences from latent points.
 
     Parameters
     ----------
-    motif_len : int, optional, default=10
-        Length of the motif to be learned by the model.
+    aptamer_col : str, optional, default="aptamer"
+        Name of the column holding the aptamer sequences.
+    estimator : RaptGenModel or None, optional, default=None
+        Estimator fitted on the encoded sequences. If None, uses
+        `RaptGenModel()` with its default parameters.
 
     Attributes
     ----------
-    model_ : RaptGenModel
-        The underlying fitted engine, doing the actual training and
-        generation. Only present after calling `fit`.
+    encoder_ : SequenceIndexEncoder
+        The fitted sequence encoder.
+    estimator_ : RaptGenModel
+        The fitted estimator.
+
+    References
+    ----------
+    .. [1] Iwano, Natsuki, et al. "Generative aptamer discovery using RaptGen."
+    Nature Computational Science 2.6 (2022): 378-386.
+
+    Examples
+    --------
+    >>> from pyaptamer.data import MoleculeLoader
+    >>> from pyaptamer.raptgen import RaptGenGenerator, RaptGenModel
+    >>> aptamers = ["ATGCATGCATGC", "GGCATTACGTAC", "TTGACCGTAGCA", "CCATGGTACGAT"]
+    >>> X = MoleculeLoader(data={"aptamer": aptamers})
+    >>> model = RaptGenModel(motif_len=5, max_epochs=1, random_state=0)
+    >>> gen = RaptGenGenerator(estimator=model)
+    >>> gen.fit(X)  # doctest: +ELLIPSIS
+    RaptGenGenerator(...)
+    >>> Z = gen.transform(X)
+    >>> Z.shape
+    (4, 10)
+    >>> len(gen.inverse_transform(Z[:2]))
+    2
     """
 
-    def __init__(self, motif_len=10):
-        self.motif_len = motif_len
+    def __init__(self, aptamer_col="aptamer", estimator=None):
+        self.aptamer_col = aptamer_col
+        self.estimator = estimator
+        super().__init__()
 
-    def _encode_sequences(self, X):
-        """Map sequence strings to a tensor of integer indices."""
-        X = list(X)
-        lengths = {len(seq) for seq in X}
-        if len(lengths) > 1:
-            raise ValueError(
-                "All sequences passed in a single call must have the same "
-                f"length for batching, got lengths {sorted(lengths)}."
+    def _to_frame(self, X):
+        if isinstance(X, MoleculeLoader):
+            X = X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
             )
-        invalid = sorted({ch for seq in X for ch in seq if ch not in "ATGCU"})
-        if invalid:
+        if self.aptamer_col not in X.columns:
             raise ValueError(
-                f"Sequences must contain only A, T, G, C or U, got {invalid}."
+                f"X has no column {self.aptamer_col!r}, got columns "
+                f"{list(X.columns)}. Pass the column name as aptamer_col."
             )
-        indices = [seq_to_indices(seq) for seq in X]
-        return torch.tensor(indices, dtype=torch.long)
+        return X[[self.aptamer_col]]
 
     def fit(self, X, y=None):
-        """Train the model on raw aptamer sequences.
+        """Train the model on aptamer sequences.
 
         Parameters
         ----------
-        X : list of str
-            Aptamer sequences (A/T/G/C only), all the same length.
+        X : MoleculeLoader or pd.DataFrame
+            Data with the aptamer column. All sequences must have the same
+            length and contain only A, T, G, C or U.
         y : ignored
-            Present for sklearn API compatibility. RaptGen is
-            unsupervised and does not use labels.
+            Present for API compatibility. RaptGen is unsupervised.
 
         Returns
         -------
         self : RaptGenGenerator
             The fitted generator.
         """
-        self.model_ = RaptGenModel(motif_len=self.motif_len)
-        X_idx = self._encode_sequences(X)
-        self.model_.fit(X_idx, y)
+        self.encoder_ = SequenceIndexEncoder()
+        X_idx = self.encoder_.fit_transform(self._to_frame(X))
+        self.estimator_ = clone(self.estimator) if self.estimator else RaptGenModel()
+        self.estimator_.fit(X_idx.to_numpy())
+        self._is_fitted = True
         return self
 
     def transform(self, X):
-        """Encode raw sequences into latent-space points.
+        """Encode aptamer sequences into latent-space points.
 
         Parameters
         ----------
-        X : list of str
-            Aptamer sequences (A/T/G/C only), all the same length.
+        X : MoleculeLoader or pd.DataFrame
+            Data with the aptamer column.
 
         Returns
         -------
         ndarray of shape (n_samples, embed_size)
             Latent-space coordinates.
         """
-        check_is_fitted(self, "model_")
-        X_idx = self._encode_sequences(X)
-        return self.model_.transform(X_idx)
+        self.check_is_fitted(method_name="transform")
+        X_idx = self.encoder_.transform(self._to_frame(X))
+        return self.estimator_.transform(X_idx.to_numpy())
 
     def inverse_transform(self, Z, most_likely=True):
         """Generate sequences from latent-space points.
@@ -104,5 +134,5 @@ class RaptGenGenerator(BaseEstimator):
         list of str
             One A/T/G/C sequence per point in `Z`.
         """
-        check_is_fitted(self, "model_")
-        return self.model_.inverse_transform(Z, most_likely=most_likely)
+        self.check_is_fitted(method_name="inverse_transform")
+        return self.estimator_.inverse_transform(Z, most_likely=most_likely)

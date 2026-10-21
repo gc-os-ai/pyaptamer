@@ -150,8 +150,8 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        X_idx : tensor of shape (n_samples, seq_len)
-            Integer-encoded sequences, see `seq_to_indices`.
+        X_idx : array-like of shape (n_samples, seq_len)
+            Integer-encoded sequences, as produced by `SequenceIndexEncoder`.
         y : ignored
             Present for sklearn API compatibility.
 
@@ -159,7 +159,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         -------
         self : RaptGenModel
         """
-        X_idx = torch.as_tensor(X_idx, dtype=torch.long)
+        X_idx = torch.as_tensor(np.asarray(X_idx), dtype=torch.long)
         with torch.random.fork_rng(enabled=self.random_state is not None):
             if self.random_state is not None:
                 torch.manual_seed(self.random_state)
@@ -225,7 +225,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, seq_len)
-            Integer-encoded sequences, see `seq_to_indices`.
+            Integer-encoded sequences, as produced by `SequenceIndexEncoder`.
 
         Returns
         -------
@@ -236,7 +236,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         self.model_.eval()
 
         device = next(self.model_.parameters()).device
-        X_idx = torch.as_tensor(X, dtype=torch.long).to(device)
+        X_idx = torch.as_tensor(np.asarray(X), dtype=torch.long).to(device)
         with torch.no_grad():
             h = self.model_.encoder(X_idx)
             mu = self.model_.h2mu(h)
