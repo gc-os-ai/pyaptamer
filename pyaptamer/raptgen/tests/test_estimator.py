@@ -1,4 +1,4 @@
-"""Tests for RaptGenModel and RaptgenGenerator"""
+"""Tests for RaptGenModel and RaptGenGenerator"""
 
 __author__ = ["siddharth7113"]
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 
-from pyaptamer.raptgen import RaptgenGenerator, RaptGenModel
+from pyaptamer.raptgen import RaptGenGenerator, RaptGenModel
 
 SEQS = [
     "ATGCATGCATGC",
@@ -24,8 +24,8 @@ def _model(**kwargs):
     params = {
         "motif_len": 5,
         "hidden_size": 8,
-        "epochs": 2,
-        "threshold": 1,
+        "max_epochs": 2,
+        "patience": 1,
         "random_state": 0,
     }
     params.update(kwargs)
@@ -33,7 +33,7 @@ def _model(**kwargs):
 
 
 def _encoded():
-    return RaptgenGenerator()._encode_sequences(SEQS)
+    return RaptGenGenerator()._encode_sequences(SEQS)
 
 
 def test_fit_transform_shape():
@@ -74,6 +74,12 @@ def test_fit_leaves_global_rng_untouched():
     assert after_fit == torch.rand(1).item()
 
 
+def test_fit_records_epochs():
+    """n_epochs_ holds the number of epochs the Trainer ran."""
+    model = _model(max_epochs=3, patience=None).fit(_encoded())
+    assert model.n_epochs_ == 3
+
+
 def test_fit_rejects_single_sequence():
     """fit needs at least two sequences for the validation split."""
     with pytest.raises(ValueError, match="at least 2"):
@@ -81,8 +87,8 @@ def test_fit_rejects_single_sequence():
 
 
 def test_generator_roundtrip():
-    """RaptgenGenerator accepts strings and returns strings."""
-    gen = RaptgenGenerator(motif_len=5)
+    """RaptGenGenerator accepts strings and returns strings."""
+    gen = RaptGenGenerator(motif_len=5)
     gen.model_ = _model().fit(_encoded())
     Z = gen.transform(SEQS[:2])
     assert Z.shape[0] == 2
@@ -92,10 +98,10 @@ def test_generator_roundtrip():
 def test_generator_rejects_mixed_lengths():
     """Sequences of different length raise a ValueError."""
     with pytest.raises(ValueError, match="same length"):
-        RaptgenGenerator()._encode_sequences(["ATGC", "ATG"])
+        RaptGenGenerator()._encode_sequences(["ATGC", "ATG"])
 
 
 def test_generator_rejects_invalid_characters():
     """Characters outside A, T, G, C, U raise a ValueError naming them."""
     with pytest.raises(ValueError, match=r"\['N', 'a'\]"):
-        RaptgenGenerator()._encode_sequences(["ATGN", "aTGC"])
+        RaptGenGenerator()._encode_sequences(["ATGN", "aTGC"])

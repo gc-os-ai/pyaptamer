@@ -1,7 +1,7 @@
 """RaptGen end-to-end generator on raw sequence strings"""
 
 __author__ = ["NoorMajdoub"]
-__all__ = ["RaptgenGenerator"]
+__all__ = ["RaptGenGenerator"]
 
 import torch
 from sklearn.base import BaseEstimator
@@ -11,7 +11,7 @@ from pyaptamer.raptgen._estimator import RaptGenModel
 from pyaptamer.raptgen.layers._utils import seq_to_indices
 
 
-class RaptgenGenerator(BaseEstimator):
+class RaptGenGenerator(BaseEstimator):
     """
     RaptGen algorithm for unsupervised aptamer sequence generation.
     This is the end-to-end, user-facing entry point: it accepts raw
@@ -64,7 +64,7 @@ class RaptgenGenerator(BaseEstimator):
 
         Returns
         -------
-        self : RaptgenGenerator
+        self : RaptGenGenerator
             The fitted generator.
         """
         self.model_ = RaptGenModel(motif_len=self.motif_len)
