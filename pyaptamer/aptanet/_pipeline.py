@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 
 from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.encode import KMerFrequencies, PSeAAC
+from pyaptamer.transformations.encode import KMerFrequencies, PSeAAC
 
 
 class AptaNetPipeline(BaseEstimator):

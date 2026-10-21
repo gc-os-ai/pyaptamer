@@ -18,13 +18,38 @@ change without notice.
 ## Transformations
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.transform
+.. currentmodule:: pyaptamer.transformations.transform
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   DNAToRNA
    PrimerTrimmer
+```
+
+## Compose
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.transformations.compose
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   ApplyToCols
+```
+
+## DeepDNAShape
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepdnashape
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepDNAShape
 ```
 
 ## AptaNet
@@ -57,6 +82,44 @@ change without notice.
    EncoderPredictorConfig
 ```
 
+## DeepAptamer
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepaptamer
+   DeepAptamerPipeline
+   DeepAptamerClassifier
+   DeepAptamerFeatures
+   DeepAptamerNN
+```
+
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+
+## AptaDiff
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptadiff
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaDiffGenerator
+   AptaDiffLightning
+   AptaDiffDiffusion
+   AptaDiffDenoiser
+```
+
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -80,6 +143,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -87,15 +151,17 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.encode
+.. currentmodule:: pyaptamer.transformations.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   ConjointTriad
    GreedyEncoder
    KMerFrequencies
    PSeAAC
+   SequenceOneHotEncoder
 ```
 
 ## Datasets

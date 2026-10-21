@@ -10,7 +10,7 @@ from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.trafos.encode.tests._pseaac_solution import solution
+from pyaptamer.transformations.encode.tests._pseaac_solution import solution
 
 params = [
     (
