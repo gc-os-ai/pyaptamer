@@ -1,4 +1,4 @@
-"""RaptGen training/generation pipeline"""
+"""RaptGen estimator on integer-encoded sequences"""
 
 __author__ = ["NoorMajdoub"]
 __all__ = ["RaptGenModel"]
@@ -24,6 +24,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     decoding it into profile HMM transition and emission
     probabilities, then sampling a concrete A/T/G/C sequence from those
     probabilities using `ProfileHMMSampler`.
+
     Parameters
     ----------
     motif_len : int, optional, default=12
@@ -47,7 +48,9 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         Fraction of `X` held out each `fit` call to drive early stopping.
     threshold : int, optional, default=50
         Early-stopping patience.
-    beta_schedule : bool, optional, default=True.
+    beta_schedule : bool, optional, default=True
+        If True, ramp the KL weight linearly from 0 to `beta` over the first
+        `threshold` epochs.
     beta : float, optional, default=1.0
         Weight of the KL-divergence term in the VAE loss, used once past
         the annealing period (or throughout, if `beta_schedule=False`).
@@ -58,7 +61,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
     device : str or None, optional, default=None
         Torch device to train/run on.
     random_state : int or None, optional, default=None
-        Seed for torch's RNG, for reproducible training/generation.
+        Seed for training and for sampling in `inverse_transform`.
 
     Attributes
     ----------
@@ -107,9 +110,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         self.random_state = random_state
 
     def _build_model(self):
-        """Helper function to instantiate an untrained VAE
-        matching this pipeline's params.
-        """
+        """Instantiate an untrained VAE matching this estimator's params."""
         model_cls = CNNPHMMVAEFast if self.fast else CNNPHMMVAE
         return model_cls(
             motif_len=self.motif_len,
@@ -119,7 +120,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         )
 
     def _train_val_split(self, n):
-        """Helper function to split input data into train and validation sets."""
+        """Split sample indices into train and validation sets."""
         if n < 2:
             raise ValueError(f"Need at least 2 sequences to fit, got {n}.")
         n_val = max(1, int(n * self.validation_fraction))
@@ -127,11 +128,27 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         return perm[n_val:], perm[:n_val]
 
     def fit(self, X_idx, y=None):
-        """Train the VAE on a collection of aptamer sequences."""
-        if self.random_state is not None:
-            torch.manual_seed(self.random_state)
+        """Train the VAE on a collection of aptamer sequences.
 
+        Parameters
+        ----------
+        X_idx : tensor of shape (n_samples, seq_len)
+            Integer-encoded sequences, see `seq_to_indices`.
+        y : ignored
+            Present for sklearn API compatibility.
+
+        Returns
+        -------
+        self : RaptGenModel
+        """
         self.device_ = self.device or ("cuda" if torch.cuda.is_available() else "cpu")
+        with torch.random.fork_rng(enabled=self.random_state is not None):
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
+            self._fit(torch.as_tensor(X_idx, dtype=torch.long))
+        return self
+
+    def _fit(self, X_idx):
         self.model_ = self._build_model().to(self.device_)
 
         train_idx, val_idx = self._train_val_split(len(X_idx))
@@ -208,15 +225,18 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         if best_state is not None:
             self.model_.load_state_dict(best_state)
 
-        return self
-
     def transform(self, X):
         """Encode sequences into latent-space points.
 
         Parameters
         ----------
-        X : Integer mapping of the input sequences, shape (n_samples, seq_len)
-            Input sequences to encode.
+        X : array-like of shape (n_samples, seq_len)
+            Integer-encoded sequences, see `seq_to_indices`.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, embed_size)
+            Latent means of the input sequences.
         """
         check_is_fitted(self, "model_")
         self.model_.eval()
@@ -235,11 +255,14 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         Z : array of shape (n_points, embed_size)
             Latent-space points.
         most_likely : bool, optional, default=True
-            To specify the sampling strategy.
+            If True, take the greedy most probable path through the profile HMM
+            and fill insert positions with the best-scoring nucleotides. If
+            False, draw one random path.
+
         Returns
         -------
         sequences : list of str
-            One fully-decoded sequence per latent-space point in `Z`.
+            One A/T/G/C sequence per latent-space point in `Z`.
         """
         check_is_fitted(self, "model_")
         self.model_.eval()
@@ -248,25 +271,23 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         with torch.no_grad():
             transition_proba, emission_proba = self.model_.decoder(z)
 
+        rng = np.random.default_rng(self.random_state)
         sequences = []
         for i in range(z.shape[0]):
             sampler = ProfileHMMSampler(
                 transition_proba[i].cpu().numpy(),
                 emission_proba[i].cpu().numpy(),
                 proba_is_log=True,
+                random_state=rng,
             )
             if most_likely:
-                seq = self._decode_most_probable(
-                    sampler
-                )  # most probable is called in decode_most_probable
+                seq = self._decode_most_probable(sampler, rng)
             else:
-                seq = sampler.sample(
-                    sequence_only=True
-                )  # sample alreadyreturn the full sequence
+                seq = sampler.sample(sequence_only=True).replace("_", "").upper()
             sequences.append(seq)
         return sequences
 
-    def _decode_most_probable(self, sampler, eval_max=256):
+    def _decode_most_probable(self, sampler, rng, eval_max=256):
         """
         Turn most_probable()'s raw skeleton into a final, fully-decoded
         sequence.
@@ -281,6 +302,8 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         ----------
         sampler : ProfileHMMSampler
             The sampler to generate and score candidates with.
+        rng : numpy.random.Generator
+            Generator used to subsample candidates above `eval_max`.
         eval_max : int, optional, default=256
             Number of possible generated candidates.
 
@@ -295,10 +318,8 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         n_wildcards = pattern.count("*")
         all_combos = list(itertools.product("ATGC", repeat=n_wildcards))
 
-        if (
-            len(all_combos) > eval_max
-        ):  # if too many combinations, sample a subset of them
-            idx = np.random.choice(len(all_combos), size=eval_max, replace=False)
+        if len(all_combos) > eval_max:
+            idx = rng.choice(len(all_combos), size=eval_max, replace=False)
             all_combos = [all_combos[i] for i in idx]
 
         candidates = []
@@ -309,5 +330,5 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
             )
 
         scored = [(c, sampler.calc_seq_proba(c)) for c in candidates]
-        best_seq, _ = max(scored, key=lambda x: x[1])  # reutnr just the best candidate
+        best_seq, _ = max(scored, key=lambda x: x[1])
         return best_seq
