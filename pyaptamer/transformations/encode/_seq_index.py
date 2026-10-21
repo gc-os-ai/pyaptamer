@@ -17,9 +17,7 @@ class SequenceIndexEncoder(BaseTransform):
     """Encode fixed-length sequences as integer indices, one column per position.
 
     Each sequence of length ``L`` becomes ``L`` integer columns. Column ``l``
-    holds the vocab index of the character at position ``l``. This is the
-    input format of models with an embedding layer, such as RaptGen, and the
-    first step of :class:`SequenceOneHotEncoder`.
+    holds the vocab index of the character at position ``l``.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
     ``pandas.DataFrame`` with exactly one column of sequences.
