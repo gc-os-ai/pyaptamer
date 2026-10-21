@@ -32,6 +32,8 @@ class ProfileHMMSampler:
     proba_is_log : bool, optional, default=False
         If True, `transition_proba`/`emission_proba` are given as
         log-probabilities, as received directly from the decoder.
+    random_state : int, numpy.random.Generator or None, optional, default=None
+        Seed or generator for `sample`. None draws a fresh generator.
 
     Attributes
     ----------
@@ -44,9 +46,12 @@ class ProfileHMMSampler:
         exponentiated if `proba_is_log` is True.
     """
 
-    def __init__(self, transition_proba, emission_proba, proba_is_log=False):
+    def __init__(
+        self, transition_proba, emission_proba, proba_is_log=False, random_state=None
+    ):
         self.e = emission_proba
         self.a = transition_proba
+        self.rng = np.random.default_rng(random_state)
         if proba_is_log:
             self.e = np.exp(self.e)
             self.a = np.exp(self.a)
@@ -106,7 +111,7 @@ class ProfileHMMSampler:
             else:
                 logger.info("something wrong")
 
-            state = np.random.choice([State.M, State.I, State.D], p=p / sum(p))
+            state = self.rng.choice([State.M, State.I, State.D], p=p / sum(p))
             if state != State.I:
                 idx += 1
             states.append((idx, state))
@@ -114,11 +119,11 @@ class ProfileHMMSampler:
                 break
 
             if state == State.M:
-                seq += np.random.choice(list("ATGC"), p=self.e[idx - 1])
+                seq += self.rng.choice(list("ATGC"), p=self.e[idx - 1])
                 if debug:
                     logger.info("%d %s %s %s", idx, state, self.e[idx - 1], seq[-1])
             elif state == State.I:
-                seq += np.random.choice(list("atgc"))
+                seq += self.rng.choice(list("atgc"))
             else:
                 seq += "_"
         if not sequence_only:
