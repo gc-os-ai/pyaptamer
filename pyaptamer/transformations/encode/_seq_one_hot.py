@@ -3,7 +3,6 @@
 __author__ = ["aditi-dsi"]
 __all__ = ["SequenceOneHotEncoder"]
 
-import warnings
 from typing import Literal
 
 import numpy as np
@@ -11,8 +10,8 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 
-from pyaptamer import logger
 from pyaptamer.transformations.base import BaseTransform
+from pyaptamer.transformations.encode._seq_index import SequenceIndexEncoder
 
 
 class SequenceOneHotEncoder(BaseTransform):
@@ -22,6 +21,9 @@ class SequenceOneHotEncoder(BaseTransform):
     one-hot columns, indexed like the input. Column ``v * L + l`` holds class
     ``v`` at position ``l``. Reshape with ``.to_numpy().reshape(n, V, L)`` to
     recover the ``(V, L)`` matrix per sequence.
+
+    Sequences are validated and mapped to indices by
+    :class:`SequenceIndexEncoder`, then one-hot encoded.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
     ``pandas.DataFrame`` with exactly one column of sequences.
@@ -93,38 +95,6 @@ class SequenceOneHotEncoder(BaseTransform):
             return {"A": 0, "T": 1, "G": 2, "C": 3, "U": 1}
         return self.vocab
 
-    def _validate_params(self):
-        """Check the constructor arguments, raising ValueError if unusable."""
-        valid_handle_unknown = {"raise", "drop"}
-        if self.handle_unknown not in valid_handle_unknown:
-            raise ValueError(
-                f"handle_unknown must be one of {sorted(valid_handle_unknown)}, "
-                f"got {self.handle_unknown!r}."
-            )
-
-    def _check_sequences(self, X):
-        """Check that the first column of X holds one str sequence per row.
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            Input data. Only the first column is read.
-
-        Raises
-        ------
-        TypeError
-            If the first column of X does not hold str sequences.
-        """
-        kind = pd.api.types.infer_dtype(X.iloc[:, 0], skipna=True)
-        if kind not in ("string", "empty"):
-            raise TypeError(
-                f"{type(self).__name__} expects one str sequence per row, but "
-                f"column {X.columns[0]!r} is {kind!r}. If it holds several "
-                "sequences per cell, the MoleculeLoader was built with the "
-                'default tiling="bag" - use tiling="samples" so each sequence '
-                "is one row."
-            )
-
     def _transform(self, X):
         """Validate and convert sequences to one-hot frames.
 
@@ -149,82 +119,24 @@ class SequenceOneHotEncoder(BaseTransform):
             ``handle_unknown="raise"`` and a sequence has None/NaN value, or
             contains a character outside the vocab.
         """
-        self._validate_params()
-        self._check_sequences(X)
-
         vocab = self._resolve_vocab()
-
-        reads = X.iloc[:, 0]
-        lengths = reads.dropna().str.len()
-
-        if lengths.nunique() > 1:
-            raise ValueError(
-                f"{type(self).__name__} requires all sequences to be the "
-                f"same fixed length, got lengths {sorted(lengths.unique())}. "
-                "Route raw reads through PrimerTrimmer first to produce "
-                "fixed-length regions."
-            )
-
-        encoded_seqs, kept_pos = [], []
-        vocab_chars = vocab.keys()
-
-        for pos, seq in enumerate(reads):
-            if pd.isna(seq):
-                if self.handle_unknown == "raise":
-                    raise ValueError(
-                        f"{type(self).__name__} found a None/NaN value in "
-                        f"{reads.name!r}. Set handle_unknown='drop' to "
-                        "skip these rows instead."
-                    )
-                continue
-
-            seq = seq.upper()
-            unknown = set(seq) - vocab_chars
-
-            if unknown:
-                if self.handle_unknown == "raise":
-                    raise ValueError(
-                        f"{type(self).__name__} found unsupported "
-                        f"character(s) {sorted(unknown)} in "
-                        f"{reads.name!r}, expected only "
-                        f"{sorted(vocab)}. Set handle_unknown='drop' "
-                        "to skip these rows instead."
-                    )
-                continue
-
-            encoded_seqs.append([vocab[char] for char in seq])
-            kept_pos.append(pos)
-
-        dropped = len(reads) - len(encoded_seqs)
-        if dropped:
-            if not encoded_seqs:
-                warnings.warn(
-                    f"{type(self).__name__} dropped all {len(reads)} sequences: "
-                    "none could be encoded.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            else:
-                logger.info(
-                    f"{type(self).__name__} dropped {dropped} of {len(reads)} "
-                    "sequences that could not be encoded."
-                )
-
         num_classes = max(vocab.values()) + 1
-        index = reads.index[kept_pos]
 
-        if not encoded_seqs:
-            seq_len = int(lengths.iloc[0]) if not lengths.empty else 0
+        indices = SequenceIndexEncoder(
+            vocab=vocab, handle_unknown=self.handle_unknown
+        ).fit_transform(X)
+
+        if indices.empty:
             return pd.DataFrame(
-                np.zeros((0, num_classes * seq_len), dtype=np.float32),
-                index=index,
+                np.zeros((0, num_classes * indices.shape[1]), dtype=np.float32),
+                index=indices.index,
             )
 
-        int_tensor = torch.tensor(encoded_seqs, dtype=torch.long)
+        int_tensor = torch.tensor(indices.to_numpy(), dtype=torch.long)
         one_hot = F.one_hot(int_tensor, num_classes=num_classes).to(torch.float32)
-        flat = one_hot.permute(0, 2, 1).reshape(len(encoded_seqs), -1).numpy()
+        flat = one_hot.permute(0, 2, 1).reshape(len(indices), -1).numpy()
 
-        return pd.DataFrame(flat, index=index)
+        return pd.DataFrame(flat, index=indices.index)
 
     def inverse_transform(self, X):
         """Convert encoded frames, one-hot tensors or index tensors back to sequences.
