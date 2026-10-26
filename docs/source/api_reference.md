@@ -1,7 +1,6 @@
 # API reference
 
-This page documents the public API. Names not listed here are internal and may
-change without notice.
+This page documents the public API.
 
 ## Data
 
@@ -18,16 +17,29 @@ change without notice.
 ## Transformations
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.transform
+.. currentmodule:: pyaptamer.transformations.transform
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   DNAToRNA
    PrimerTrimmer
 ```
 
-## DNA shape
+## Compose
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.transformations.compose
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   ApplyToCols
+```
+
+## DeepDNAShape
 
 ```{eval-rst}
 .. currentmodule:: pyaptamer.deepdnashape
@@ -84,6 +96,33 @@ change without notice.
    DeepAptamerNN
 ```
 
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+```
+
+## AptaDiff
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptadiff
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaDiffGenerator
+   AptaDiffLightning
+   AptaDiffDiffusion
+   AptaDiffDenoiser
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -107,6 +146,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -114,17 +154,20 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.trafos.encode
+.. currentmodule:: pyaptamer.transformations.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   ConjointTriad
    GreedyEncoder
    KMerFrequencies
    PSeAAC
+   SequenceOneHotEncoder
 ```
 
+(api-datasets)=
 ## Datasets
 
 ```{eval-rst}

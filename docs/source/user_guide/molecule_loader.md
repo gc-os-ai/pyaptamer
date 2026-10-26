@@ -59,11 +59,11 @@ A PDB file can contain several chains, and a FASTQ file contains many reads.
 For a multi-chain protein structure, use `"bag"`, `"first"` or `"concat"` to
 keep the molecule in one cell. For SELEX reads, use `"samples"` to get the
 one-read-per-row table that transformers such as
-{class}`~pyaptamer.trafos.transform.PrimerTrimmer` expect.
+{class}`~pyaptamer.transformations.transform.PrimerTrimmer` expect.
 
 ```python
 loader = MoleculeLoader(data={"read": [Path("round5.fastq")]}, tiling="samples")
-reads = loader.to_dataframe()  # one row per read
+reads = loader.to_dataframe()
 ```
 
 With `"samples"`, a row with two or more file columns raises an error, since
@@ -119,8 +119,10 @@ loader = MoleculeLoader(
     tiling="samples",
     indexing="keep_as_column",
 )
-loader.to_dataframe()  # columns: read, read_chain_id
+loader.to_dataframe()
 ```
+
+The table has the columns `read` and `read_chain_id`.
 
 ## Choose a flat or two-level index: `multiindex`
 
@@ -140,12 +142,14 @@ option only when the count of each sequence does not matter.
 
 ```python
 loader = MoleculeLoader(
-    data={"target": [Path("1gnh.pdb")]},  # 10 identical chains
+    data={"target": [Path("1gnh.pdb")]},
     tiling="samples",
     ignore_duplicates=True,
 )
-loader.to_dataframe()  # one row
+loader.to_dataframe()
 ```
+
+1GNH has ten identical chains, so the table has one row.
 
 ## Use the bundled datasets
 
@@ -169,7 +173,7 @@ the table the transformer receives, so use `tiling="samples"` for any
 transformer that works on one read per row.
 
 ```python
-from pyaptamer.trafos.transform import PrimerTrimmer
+from pyaptamer.transformations.transform import PrimerTrimmer
 
 trimmer = PrimerTrimmer(
     start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",

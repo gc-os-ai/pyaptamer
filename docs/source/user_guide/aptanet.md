@@ -45,8 +45,8 @@ pipe = AptaNetPipeline(aptamer_col="apt", protein_col="target")
 ## Feature extraction
 
 The pipeline encodes the aptamer column with
-{class}`~pyaptamer.trafos.encode.KMerFrequencies` and the protein column with
-{class}`~pyaptamer.trafos.encode.PSeAAC`, joined by a `ColumnTransformer`.
+{class}`~pyaptamer.transformations.encode.KMerFrequencies` and the protein column with
+{class}`~pyaptamer.transformations.encode.PSeAAC`, joined by a `ColumnTransformer`.
 The `k` argument sets the longest aptamer k-mer:
 
 ```python
