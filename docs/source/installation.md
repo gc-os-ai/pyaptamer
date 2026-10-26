@@ -8,10 +8,11 @@
 pip install --pre pyaptamer
 ```
 
-The current release is a prerelease, so the `--pre` flag is required.
+The current release is a prerelease, so `pip` needs the `--pre` flag.
+Check the install:
 
 ```bash
-pip install pyaptamer==0.1.0a1
+python -c "import pyaptamer; print(pyaptamer.__version__)"
 ```
 
 ## Development install
@@ -34,4 +35,4 @@ cd docs
 make html
 ```
 
-The rendered site is written to `docs/build/html`.
+Open `docs/build/html/index.html` in a browser.

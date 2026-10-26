@@ -1,7 +1,6 @@
 # API reference
 
-This page documents the public API. Names not listed here are internal and may
-change without notice.
+This page documents the public API.
 
 ## Data
 
@@ -86,6 +85,11 @@ change without notice.
 
 ```{eval-rst}
 .. currentmodule:: pyaptamer.deepaptamer
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
    DeepAptamerPipeline
    DeepAptamerClassifier
    DeepAptamerFeatures
@@ -102,6 +106,7 @@ change without notice.
    :nosignatures:
 
    AptaMCTSPipeline
+```
 
 ## AptaDiff
 
@@ -132,8 +137,6 @@ change without notice.
    RaptGenLightning
    CNNPHMMVAE
    CNNPHMMVAEFast
-```
-
 ```
 
 ## Monte Carlo Tree Search
@@ -181,6 +184,7 @@ Scoring functions that connect a model to the search.
    SequenceOneHotEncoder
 ```
 
+(api-datasets)=
 ## Datasets
 
 ```{eval-rst}

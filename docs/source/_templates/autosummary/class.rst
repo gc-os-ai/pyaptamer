@@ -9,7 +9,8 @@
    "set_tags", "clone_tags", "get_test_params", "create_test_instance",
    "create_test_instances_and_names", "get_fitted_params", "is_composite",
    "get_param_names", "get_param_defaults", "save",
-   "load_from_path", "load_from_serial",
+   "load_from_path", "load_from_serial", "check_is_fitted", "is_fitted",
+   "set_random_state", "GET_FITTED_PARAMS_NESTING",
 ] %}
 
 .. autoclass:: {{ objname }}
