@@ -123,6 +123,22 @@ This page documents the public API.
    AptaDiffDenoiser
 ```
 
+## RaptGen
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.raptgen
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   RaptGenGenerator
+   RaptGenModel
+   RaptGenLightning
+   CNNPHMMVAE
+   CNNPHMMVAEFast
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -164,6 +180,7 @@ Scoring functions that connect a model to the search.
    GreedyEncoder
    KMerFrequencies
    PSeAAC
+   SequenceIndexEncoder
    SequenceOneHotEncoder
 ```
 
