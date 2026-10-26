@@ -1,66 +1,105 @@
 # AptaDiff
 
-AptaDiff generates aptamer sequences with a diffusion model. Training pairs
-each sequence with a latent vector, for example its embedding from a RaptGen
-variational autoencoder. Generation starts from random noise and denoises it,
-step by step, into a sequence that matches a given latent vector. Moving
-through the latent space then gives new sequences close to known ones.
+AptaDiff generates aptamer sequences with a diffusion model. Each training
+sequence is paired with its latent coordinates from a pretrained encoder,
+for example a RaptGen variational autoencoder. The diffusion model learns to
+produce a sequence from its coordinates. New sequences come from new
+coordinates: points drawn from a Gaussian mixture fitted to the training
+coordinates, the mixture centers, or points chosen by an optimization loop.
 
-The entry point is {class}`~pyaptamer.aptadiff.AptaDiffGenerator`.
+The entry point is {class}`~pyaptamer.aptadiff.AptaDiff`.
 
-## Training and generating
+## Fitting on SELEX reads
 
-`fit` takes the latent vectors as `X` and the one-hot encoded sequences as
-`y`. {class}`~pyaptamer.transformations.encode.SequenceOneHotEncoder`
-produces the layout the model expects and decodes the generated output
-again.
+`fit` takes raw SELEX reads as a {class}`~pyaptamer.data.MoleculeLoader` or
+a `pandas.DataFrame` with one read per row. The reads pass through four
+components:
+
+- `trimmer` strips the constant primer regions, typically a
+  {class}`~pyaptamer.transformations.transform.PrimerTrimmer`. Without a
+  trimmer, all reads must have the same length.
+- `encoder` one-hot encodes the trimmed reads. The default drops reads with
+  characters other than A, T, G, C and U.
+- `vae` is the pretrained latent model. It is used for inference only.
+- `generator` is the diffusion model, an
+  {class}`~pyaptamer.aptadiff.AptaDiffGenerator`.
 
 ```python
-import numpy as np
-import pandas as pd
-from pyaptamer.aptadiff import AptaDiffGenerator
-from pyaptamer.data import MoleculeLoader
-from pyaptamer.transformations.encode import SequenceOneHotEncoder
+from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
+from pyaptamer.datasets import load_sample_fastq
+from pyaptamer.raptgen import CNNPHMMVAE
+from pyaptamer.transformations.transform import PrimerTrimmer
 
-sequences = [
-    "GGGAGGACGAAGACGACTCG",
-    "AAGCGTCGGATCTACACGTG",
-    "CGGTATCGAGTACAGGAGTC",
-    "TTGACCGTAGCATCGATGCA",
-]
-encoder = SequenceOneHotEncoder()
-y = encoder.fit_transform(MoleculeLoader(data={"aptamer": sequences * 10}))
+vae = CNNPHMMVAE(motif_len=40, embed_size=2)
 
-rng = np.random.default_rng(0)
-X = rng.normal(size=(40, 4)).astype(np.float32)
+trimmer = PrimerTrimmer(
+    start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",
+    end_primer="TATGTGCGCATACATGGATCCTC",
+    variable_length=40,
+)
 
 generator = AptaDiffGenerator(
-    num_timesteps=20, dim=32, depth=1, heads=4, max_epochs=3, random_state=0
+    num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
 )
-generator.fit(X, y)
 
-generated = generator.predict(X[:3])
-encoder.inverse_transform(pd.DataFrame(generated, columns=y.columns))
+aptadiff = AptaDiff(
+    vae=vae,
+    trimmer=trimmer,
+    generator=generator,
+    n_clusters=3,
+    gmm_restarts=5,
+    random_state=0,
+)
+aptadiff.fit(load_sample_fastq())
 ```
 
-All sequences in `y` must have the same length. For sequences of length `L`
-over four nucleotides, `y` has `4 * L` columns, and `predict` returns the
-same layout with one row per row of `X`.
+The VAE here is untrained and the diffusion model is tiny, so the example
+runs in seconds and shows the mechanics only. In practice `vae` is a RaptGen
+model trained on the same reads, and `generator` keeps its defaults, which
+match the paper.
 
-Here the latent vectors are random numbers, so the example only shows the
-mechanics. In practice they come from an encoder fitted on the same
-sequences, so that nearby latent vectors give similar sequences.
+After fitting, `latents_` holds the coordinates of the training reads,
+`sequences_` the reads they belong to, and `gmm_centers_` the means of the
+mixture.
 
-## Model size and training
+## Generating sequences
+
+`sample` draws coordinates from the mixture and decodes them:
+
+```python
+new = aptadiff.sample(10)
+```
+
+`inverse_transform` decodes any coordinates. The original implementation
+generates one sequence per cluster center:
+
+```python
+centers = aptadiff.inverse_transform(aptadiff.gmm_centers_)
+```
+
+Both return a `pandas.DataFrame` with a `sequence` column.
+
+Optimization is external. `transform` gives the coordinates of measured
+sequences, an optimization loop proposes new coordinates from their measured
+affinities, and `inverse_transform` turns the proposals into sequences to
+test next.
+
+`score` returns the mean log-likelihood of reads in bits per character, and
+`score_samples` one value per read. Higher is better.
+
+## The diffusion model on its own
+
+{class}`~pyaptamer.aptadiff.AptaDiffGenerator` can be used without the
+pipeline. `fit` takes the latent vectors as `X` and the one-hot encoded
+sequences as `y`, in the layout of
+{class}`~pyaptamer.transformations.encode.SequenceOneHotEncoder`. `predict`
+returns one one-hot sequence per row of `X`.
 
 The defaults match the paper: `dim=512`, `depth=12`, `heads=16`,
-`num_timesteps=1000` and `max_epochs=1000`. The small values above make the
-example run in seconds. Training uses a GPU when one is available.
-
-A share of the data, `validation_fraction`, is held out, and the weights of
-the epoch with the lowest validation loss are kept. `patience` stops training
-after that many epochs without improvement. `random_state` makes the split,
-the training and the generation reproducible.
+`num_timesteps=1000` and `max_epochs=1000`. Training uses a GPU when one is
+available. A share of the data, `validation_fraction`, is held out, and the
+weights of the epoch with the lowest validation loss are kept. `patience`
+stops training after that many epochs without improvement.
 
 ```python
 generator = AptaDiffGenerator(max_epochs=200, patience=20, random_state=0)

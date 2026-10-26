@@ -117,6 +117,7 @@ This page documents the public API.
    :toctree: generated
    :nosignatures:
 
+   AptaDiff
    AptaDiffGenerator
    AptaDiffLightning
    AptaDiffDiffusion
