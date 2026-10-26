@@ -11,7 +11,6 @@ import torch
 from numpy.typing import ArrayLike
 from sklearn.base import BaseEstimator, clone
 from sklearn.mixture import GaussianMixture
-from sklearn.utils import Tags, check_random_state
 from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.aptadiff._generator import AptaDiffGenerator
@@ -20,108 +19,85 @@ from pyaptamer.transformations.encode import SequenceOneHotEncoder
 
 
 class AptaDiff(BaseEstimator):
-    """Design and optimise aptamers with AptaDiff [1]_.
+    """Generate aptamer sequences with AptaDiff [1]_.
 
-    Takes a pretrained latent model and AptaDiff's multinomial diffusion
-    model. `fit` cleans and encodes raw SELEX reads, reads their latent
-    coordinates out of `vae`, trains the diffusion model to generate sequences
-    conditioned on those coordinates, and fits a Gaussian mixture to the
-    latents. `sample` then generates new sequences from that mixture.
-
-    There is no `predict`. AptaDiff is unsupervised and generative, so
-    as per scikit-learn conventions, `sample` draws new sequences.
-    Regenerating input sequences from their own latents is available as `reconstruct`.
-
-    `score` returns the average log-likelihood in bits per character, negated so
-    that higher is better as per scikit-learn conventions. The original implementation
-    reports the same quantity unnegated.
-
-    This class holds no training code of its own. `vae` is used directly for inference,
-    and diffusion training is delegated to `generator`.
-
-    Optimising aptamers is external. The diffusion model is
-    conditioned only on latent coordinates, so steering generation
-    towards better binders means choosing better latent points. `gmm_centers_`
-    gives the learned clusters used for de novo design, and
-    `inverse_transform` accepts any latent points, including ones proposed by
-    an outer loop such as Bayesian optimisation using wet-lab results.
+    `fit` takes raw SELEX reads. It trims and one-hot encodes them, reads
+    their latent coordinates from the pretrained `vae`, trains the diffusion
+    model of `generator` to produce each encoded read from its coordinates,
+    and fits a Gaussian mixture to the coordinates. `sample` draws
+    coordinates from the mixture and decodes them into sequences.
+    `inverse_transform` decodes any coordinates, for example the cluster
+    centers in `gmm_centers_` or points proposed by an outer optimization
+    loop.
 
     Parameters
     ----------
     vae : object
-        Pretrained latent model mapping integer-encoded sequences to latent
-        coordinates. Requires a trained model, as an untrained model produces random,
-        unusable coordinates. Accepted either as an object with a
-        ``transform(X_idx)`` method returning shape (n_samples, embed_size), or
-        as a module with ``encoder`` and ``h2mu`` attributes such as
-        :class:`~pyaptamer.raptgen.CNNPHMMVAE`. Anything else raises
-        ``TypeError``. This class never trains the model, and never inspects or
-        migrates its weights.
+        Pretrained latent model. Either an object with a ``transform(X_idx)``
+        method that maps integer-encoded sequences to an array of shape
+        (n_samples, embed_size), or a module with ``encoder`` and ``h2mu``
+        attributes such as :class:`~pyaptamer.raptgen.CNNPHMMVAE`. The model
+        is only used for inference. It must be trained already.
     trimmer : BaseTransform or None, optional, default=None
-        Transform applied to the raw reads before encoding, typically
-        :class:`~pyaptamer.transformations.transform.PrimerTrimmer` to strip the
-        constant primer regions of a SELEX read. If None, `X` must already
-        hold sequences of one fixed length.
+        Transform applied to the reads before encoding, typically
+        :class:`~pyaptamer.transformations.transform.PrimerTrimmer`. If None,
+        the reads must all have the same length.
     encoder : SequenceOneHotEncoder or None, optional, default=None
-        Transform that encodes the cleaned sequences in one-hot form.
-        It is a required format for both, the diffusion model and the decoder that
-        turns generated output back into strings, so its vocabulary supports the
-        encoding in both directions. If None, uses
-        ``SequenceOneHotEncoder(handle_unknown="drop")``, which treats A/T/G/C
-        as four classes with ``U`` sharing ``T``'s index and drops reads
-        holding any other character, reproducing the original implementation's
-        filtering of ambiguous chars. Pass a pre-configured
-        :class:`~pyaptamer.transformations.encode.SequenceOneHotEncoder` to supply a
-        custom `vocab` or `inverse_vocab`, or to make unknown characters raise
-        rather than be dropped.
+        One-hot encoder for the trimmed reads. Its vocabulary also gives the
+        integer indices passed to `vae`, so it must match the vocabulary the
+        latent model was trained with. If None, uses
+        ``SequenceOneHotEncoder(handle_unknown="drop")``: A, T, G and C are
+        the four classes, U shares the index of T, and reads with any other
+        character are dropped. The default matches
+        :class:`~pyaptamer.raptgen.CNNPHMMVAE`.
     n_clusters : int, optional, default=8
-        Number of Gaussian mixture components fitted to the training latents.
-        Must not exceed the number of valid sequences left after cleaning.
-        The default matches the original implementation.
+        Number of components of the Gaussian mixture. Must not exceed the
+        number of reads left after trimming and encoding.
     gmm_restarts : int, optional, default=100
-        Number of Gaussian mixture fits attempted, of which the one with the
-        lowest AIC is kept. Must be at least 1. The default matches the
-        original implementation.
+        Number of mixture fits. The fit with the lowest AIC is kept. Must be
+        at least 1.
     generator : AptaDiffGenerator or None, optional, default=None
-        The diffusion engine of AptaDiff. If None, uses
-        :class:`~pyaptamer.aptadiff.AptaDiffGenerator` with its defaults,
-        that matches the original paper's configuration, which runs one denoiser
-        pass per diffusion timestep.
-    random_state : int, optional, default=None
-        Seed for fitting the mixture, for drawing latent points in `sample`, and
-        for the diffusion model when `generator` is None. The global NumPy and
-        Torch random states are left unchanged.
+        The diffusion model. If None, uses
+        :class:`~pyaptamer.aptadiff.AptaDiffGenerator` with its defaults.
+    random_state : int or None, optional, default=None
+        Seed for the mixture fits, for `sample`, and for `generator` when it
+        is None. The global NumPy random state is never used. The global
+        Torch random state is left unchanged when a seed is given.
 
     Attributes
     ----------
     trimmer_ : BaseTransform or None
-        The fitted clone of `trimmer`, or None if none was given.
+        Fitted clone of `trimmer`, or None.
     encoder_ : SequenceOneHotEncoder
-        The fitted clone of `encoder`, or of the default encoder if none was
-        given. Converts strings into the format required by the diffusion model,
-        and translates a generated output back into strings.
+        Fitted clone of `encoder`, or the fitted default encoder.
     vae_ : object
-        The latent model used for extraction. Its weights are never read,
-        written or migrated by this class.
+        The `vae` that was passed, unchanged.
     generator_ : AptaDiffGenerator
-        The fitted diffusion engine.
+        Fitted clone of `generator`, or the fitted default generator.
     gmm_ : sklearn.mixture.GaussianMixture
-        The mixture fitted to `latents_`, selected by lowest AIC.
+        The mixture with the lowest AIC over `gmm_restarts` fits.
     gmm_centers_ : numpy.ndarray
-        Component means of `gmm_`, shape (n_clusters, embed_size_). Passing
-        these to `inverse_transform` reproduces the original implementation's
-        exact sequence generation.
+        Means of `gmm_`, shape (n_clusters, embed_size_).
     latents_ : numpy.ndarray
-        Latent coordinates of the training sequences, shape
+        Latent coordinates of the training reads, shape
         (n_samples, embed_size_).
     sequences_ : pandas.DataFrame
-        The valid sequences left after cleaning. Each row matches the
-        corresponding coordinate in `latents_`.
+        The training reads left after trimming and encoding, one row per row
+        of `latents_`.
     seq_len_ : int
-        Length of the training sequences, and of the sequences generated.
+        Length of the encoded reads and of the generated sequences.
     embed_size_ : int
-        Dimension of the latent coordinates, inferred from the output of `vae`.
+        Number of latent coordinates per read.
 
+    Notes
+    -----
+    The original implementation generates one sequence per cluster center.
+    ``inverse_transform(gmm_centers_)`` does the same. `sample` draws new
+    points from the mixture instead.
+
+    `score` and `score_samples` return the log-likelihood in bits per
+    character, so higher is better. The original implementation reports the
+    negative of this value as a loss.
 
     References
     ----------
@@ -133,6 +109,8 @@ class AptaDiff(BaseEstimator):
 
     Examples
     --------
+    The example uses an untrained latent model and a tiny diffusion model.
+
     >>> import torch
     >>> from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
     >>> from pyaptamer.datasets import load_sample_fastq
@@ -190,12 +168,12 @@ class AptaDiff(BaseEstimator):
         self.random_state = random_state
 
     def fit(self, X: ArrayLike, y=None) -> "AptaDiff":
-        """Encode the reads, extract their latents, and train the model.
+        """Trim and encode the reads, train the diffusion model, fit the mixture.
 
         Parameters
         ----------
         X : MoleculeLoader or pandas.DataFrame
-            Raw SELEX reads, one read per row, in a single column.
+            Raw SELEX reads, one read per row, in the first column.
         y : ignored
             Not used, present for API consistency by convention.
 
@@ -247,11 +225,7 @@ class AptaDiff(BaseEstimator):
         return self
 
     def _fit_gmm(self, latents: np.ndarray) -> GaussianMixture:
-        """Fit the mixture several times and keep the best fit.
-
-        Each restart is initialised differently but the sequence of restarts is
-        determined by `random_state`, so the selected fit is reproducible. The
-        fit with the lowest AIC is kept, as in the original implementation.
+        """Fit the mixture `gmm_restarts` times and keep the fit with the lowest AIC.
 
         Parameters
         ----------
@@ -264,7 +238,7 @@ class AptaDiff(BaseEstimator):
         sklearn.mixture.GaussianMixture
             The fit with the lowest AIC out of `gmm_restarts` attempts.
         """
-        random_state = check_random_state(self.random_state)
+        random_state = np.random.RandomState(self.random_state)
         best_gmm, best_aic = None, np.inf
 
         for _ in range(self.gmm_restarts):
@@ -278,10 +252,9 @@ class AptaDiff(BaseEstimator):
         return best_gmm
 
     def sample(self, n_samples: int = 1) -> pd.DataFrame:
-        """Generate new aptamer sequences.
+        """Generate new sequences.
 
-        Draws latent points from `gmm_` and runs the reverse diffusion process
-        conditioned on each point.
+        Draws latent points from `gmm_` and decodes them with `inverse_transform`.
 
         Parameters
         ----------
@@ -297,17 +270,11 @@ class AptaDiff(BaseEstimator):
         ------
         NotFittedError
             If `fit` has not been called before.
-
-        Notes
-        -----
-        This method generates new sequences by randomly exploring the learned clusters.
-        If you want to generate only the exact central sequence for each cluster (which
-        is what the original paper did), pass gmm_centers_ to inverse_transform instead.
         """
         check_is_fitted(self)
 
         random_state = self.gmm_.random_state
-        self.gmm_.random_state = check_random_state(self.random_state)
+        self.gmm_.random_state = np.random.RandomState(self.random_state)
         try:
             latents, _ = self.gmm_.sample(n_samples)
         finally:
@@ -344,9 +311,8 @@ class AptaDiff(BaseEstimator):
     def inverse_transform(self, Z: ArrayLike) -> pd.DataFrame:
         """Generate one sequence per latent point.
 
-        Accepts any latent points, including ones chosen outside this
-        estimator, such as the output of an optimisation loop over wet-lab
-        affinity measurements.
+        The points can come from anywhere, for example `gmm_centers_` or an
+        optimization loop.
 
         Parameters
         ----------
@@ -380,9 +346,8 @@ class AptaDiff(BaseEstimator):
         Returns
         -------
         pandas.DataFrame
-            Reconstructed sequences in a column named ``"sequence"``, indexed
-            by the rows of `X` they were reconstructed from, so they can be
-            compared against the input row by row.
+            Reconstructed sequences in a column named ``"sequence"``, with the
+            index of the rows of `X` they come from.
 
         Raises
         ------
@@ -399,11 +364,10 @@ class AptaDiff(BaseEstimator):
         return reconstructed
 
     def score(self, X: ArrayLike, y=None) -> float:
-        """Average log-likelihood of the sequences, in bits per character.
+        """Mean log-likelihood of the reads in bits per character.
 
-        It is negated so that higher is better, as per scikit-learn conventions.
-        The original implementation reports the same quantity unnegated, as bits
-        per character.
+        Higher is better. The original implementation reports the negative of
+        this value as a loss.
 
         Parameters
         ----------
@@ -429,9 +393,10 @@ class AptaDiff(BaseEstimator):
         return float(self.score_samples(X).mean())
 
     def score_samples(self, X: ArrayLike) -> np.ndarray:
-        """Per-sequence log-likelihood, in bits per character.
+        """Log-likelihood of each read in bits per character.
 
-        It is negated so that higher is better, as per scikit-learn conventions.
+        Higher is better. The original implementation reports the negative of
+        this value as a loss.
 
         Parameters
         ----------
@@ -573,28 +538,21 @@ class AptaDiff(BaseEstimator):
 
         if self.trimmer_ is not None:
             X = self.trimmer_.fit_transform(X) if fit else self.trimmer_.transform(X)
-        else:
-            reads = X.iloc[:, 0]
-            if pd.api.types.infer_dtype(reads, skipna=True) == "string":
-                lengths = reads.dropna().str.len()
-                if lengths.nunique() > 1:
-                    raise ValueError(
-                        f"{type(self).__name__} received sequences of variable "
-                        f"lengths {sorted(lengths.unique())}, but the diffusion "
-                        "model generates one fixed length. Clean the reads "
-                        "beforehand, or pass an instantiated PrimerTrimmer as "
-                        "the trimmer argument to strip the constant primer "
-                        "regions and keep the fixed-length random region."
-                    )
 
-        Y = self.encoder_.fit_transform(X) if fit else self.encoder_.transform(X)
+        reads = X.reset_index(drop=True)
+        Y = (
+            self.encoder_.fit_transform(reads)
+            if fit
+            else self.encoder_.transform(reads)
+        )
         if len(Y) == 0:
             raise ValueError(
                 f"{type(self).__name__} has no sequences left to work with, "
                 "every read was dropped while cleaning and encoding."
             )
 
-        sequences = X.loc[Y.index]
+        sequences = X.iloc[Y.index]
+        Y.index = sequences.index
         seq_len = len(sequences.iloc[0, 0])
         if not fit and seq_len != self.seq_len_:
             raise ValueError(
@@ -606,8 +564,3 @@ class AptaDiff(BaseEstimator):
         onehot = torch.as_tensor(Y.to_numpy().copy())
         X_idx = onehot.reshape(len(Y), num_classes, seq_len).argmax(dim=1)
         return sequences, X_idx, Y
-
-    def __sklearn_tags__(self) -> Tags:
-        tags = super().__sklearn_tags__()
-        tags.non_deterministic = True
-        return tags

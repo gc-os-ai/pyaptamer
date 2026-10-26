@@ -173,6 +173,20 @@ def test_rows_stay_aligned_across_dropped_reads() -> None:
         )
 
 
+def test_duplicate_index_labels_stay_aligned() -> None:
+    """Repeated index labels select rows by position, not by label."""
+    kept = ["ACGT" * 10, "TGCA" * 10, "GGCC" * 10]
+    first = pd.DataFrame({"sequence": [_read(kept[0]), _read(kept[1])]})
+    second = pd.DataFrame({"sequence": [_read("ACGN" + "ACGT" * 9), _read(kept[2])]})
+    frame = pd.concat([first, second])
+    estimator = _estimator(n_clusters=2).fit(frame)
+
+    assert list(frame.index) == [0, 1, 0, 1]
+    assert list(estimator.sequences_.iloc[:, 0]) == kept
+    assert list(estimator.sequences_.index) == [0, 1, 1]
+    assert len(estimator.latents_) == len(kept)
+
+
 def test_inverse_transform_accepts_external_latents(fitted: AptaDiff) -> None:
     """Latent coordinates chosen outside the estimator can generate sequences."""
     from_array = fitted.inverse_transform([[0.1, 0.2], [0.3, 0.4]])
@@ -241,7 +255,7 @@ def test_trimmer_none_rejects_variable_lengths() -> None:
     """Without a trimmer, input of uneven lengths is refused."""
     frame = pd.DataFrame({"sequence": ["ACGT" * 10, "ACGT", "ACGT" * 5]})
 
-    with pytest.raises(ValueError, match="variable lengths"):
+    with pytest.raises(ValueError, match="same fixed length"):
         _estimator(trimmer=None).fit(frame)
 
 
@@ -302,6 +316,15 @@ def test_fit_leaves_vae_and_global_rng_untouched(reads: pd.DataFrame) -> None:
     assert vae.training == was_training
     assert torch.equal(torch_state, torch.get_rng_state())
     assert np.array_equal(numpy_state[1], np.random.get_state()[1])
+
+
+def test_unseeded_fit_leaves_global_numpy_rng_untouched(reads: pd.DataFrame) -> None:
+    """Without a seed, the mixture and sample still do not use the global NumPy RNG."""
+    numpy_state = np.random.get_state()[1]
+
+    _estimator(random_state=None).fit(reads).sample(2)
+
+    assert np.array_equal(numpy_state, np.random.get_state()[1])
 
 
 def test_random_state_is_reproducible(reads: pd.DataFrame) -> None:
