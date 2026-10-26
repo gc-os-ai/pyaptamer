@@ -32,12 +32,13 @@ class AptaDiff(BaseEstimator):
 
     Parameters
     ----------
-    vae : object
-        Pretrained latent model. Either an object with a ``transform(X_idx)``
-        method that maps integer-encoded sequences to an array of shape
-        (n_samples, embed_size), or a module with ``encoder`` and ``h2mu``
-        attributes such as :class:`~pyaptamer.raptgen.CNNPHMMVAE`. The model
-        is only used for inference. It must be trained already.
+    vae : RaptGenModel or torch.nn.Module
+        Pretrained latent model. Either a fitted
+        :class:`~pyaptamer.raptgen.RaptGenModel`, or any object with a
+        ``transform(X_idx)`` method that maps integer-encoded sequences to an
+        array of shape (n_samples, embed_size), or a module with ``encoder``
+        and ``h2mu`` attributes such as :class:`~pyaptamer.raptgen.CNNPHMMVAE`.
+        The model is only used for inference. It must be trained already.
     trimmer : BaseTransform or None, optional, default=None
         Transform applied to the reads before encoding, typically
         :class:`~pyaptamer.transformations.transform.PrimerTrimmer`. If None,
