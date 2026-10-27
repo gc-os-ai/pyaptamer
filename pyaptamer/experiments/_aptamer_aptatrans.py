@@ -1,10 +1,9 @@
 __all__ = ["AptamerEvalAptaTrans"]
 
 import numpy as np
-import torch
 
+from pyaptamer.data import MoleculeLoader
 from pyaptamer.experiments._aptamer import BaseAptamerEval
-from pyaptamer.utils import encode_rna, rna2vec
 
 
 class AptamerEvalAptaTrans(BaseAptamerEval):
@@ -16,62 +15,41 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
         Target sequence string consisting of amino acid letters and (possibly) unknown
         characters. Interpreted as the amino-acid sequence of the binding target
         protein.
-    model : torch.nn.Module
-        Model to use for assigning scores.
-    device : torch.device
-        Device to run the model on.
-    prot_words : dict[str, float]
-        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
-        Used to encode protein sequences into their numerical representions.
-
-    Attributes
-    ----------
-    target_encoded : Tensor
-        Encoded target sequence tensor.
+    pipeline : AptaTransPipeline
+        Fitted AptaTransPipeline to use for assigning scores. The pair is built
+        with its ``aptamer_col`` and ``protein_col``.
 
     Examples
     --------
-    >>> import torch
-    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
+    >>> import numpy as np
+    >>> from pyaptamer.aptatrans import AptaTransClassifier, AptaTransPipeline
+    >>> from pyaptamer.data import MoleculeLoader
     >>> from pyaptamer.experiments import AptamerEvalAptaTrans
-    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
-    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
-    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
-    >>> target = "DHRNE"
-    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
-    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
-    >>> aptamer_candidate = "AUGGC"
-    >>> imap = experiment.evaluate(aptamer_candidate, return_interaction_map=True)
-    >>> score = experiment.evaluate(aptamer_candidate)
+    >>> aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+    >>> protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> X = MoleculeLoader(data={"aptamer": [aptamer] * 8, "protein": [protein] * 8})
+    >>> y = np.array([0, 1] * 4)
+    >>> clf = AptaTransClassifier(
+    ...     in_dim=8,
+    ...     n_heads=2,
+    ...     n_encoder_layers=1,
+    ...     conv_layers=[1, 1, 1],
+    ...     max_epochs=1,
+    ...     random_state=0,
+    ... )
+    >>> pipeline = AptaTransPipeline(apta_max_len=16, prot_max_len=16, estimator=clf)
+    >>> pipeline.fit(X, y)  # doctest: +ELLIPSIS
+    AptaTransPipeline(...)
+    >>> experiment = AptamerEvalAptaTrans(protein, pipeline)
+    >>> score = experiment.evaluate("AUGGC")
     """
 
-    def __init__(
-        self,
-        target: str,
-        model: torch.nn.Module,
-        device: torch.device,
-        prot_words: dict[str, int],
-    ) -> None:
+    def __init__(self, target: str, pipeline) -> None:
         super().__init__(target)
-        self.model = model
-        self.device = device
+        self.pipeline = pipeline
 
-        self.target_encoded = encode_rna(
-            sequences=target,
-            words=prot_words,
-            max_len=model.prot_embedding.max_len,
-        ).to(device)
-
-    @torch.no_grad()
-    def evaluate(
-        self, aptamer_candidate: str, return_interaction_map: bool = False
-    ) -> np.float64 | np.ndarray:
+    def evaluate(self, aptamer_candidate: str) -> np.float64:
         """Evaluate the given aptamer candidate against the target protein.
-
-        If `return_interaction_map` is set to `True`, the method returns the
-        aptamer-protein interaction map. Otherwise, it returns the score assigned to
-        the aptamer candidate.
 
         Parameters
         ----------
@@ -79,41 +57,18 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
             The aptamer candidate to evaluate. It should be a string consisting of
             letters representing nucleotides: 'A', 'C', 'G', and 'U' (for RNA) or 'T'
             (for DNA).
-        return_interaction_map : bool, optional, default=False
-            Whether to return the interaction map or not.
 
         Returns
         -------
-        np.float64 or np.ndarray
-            The score assigned to the aptamer candidate if `return_interaction_map` is
-            `False`. If `return_interaction_map` is `True`, the interaction map, of
-            shape (batch_size, 1, seq_len_aptamer, seq_len_protein).
+        np.float64
+            The probability score assigned to the aptamer candidate.
         """
-        self.model.eval()
-
-        # convert the aptamer candidate to its numerical representation
-        aptamer_candidate = torch.tensor(
-            rna2vec(
-                [aptamer_candidate],
-                max_sequence_length=self.model.apta_embedding.max_len,
-            ),
-            dtype=torch.int64,
+        X = MoleculeLoader(
+            data={
+                self.pipeline.aptamer_col: [aptamer_candidate],
+                self.pipeline.protein_col: [self.target],
+            }
         )
+        score = self.pipeline.predict_proba(X=X)
 
-        if return_interaction_map:
-            return (
-                self.model.forward_imap(
-                    aptamer_candidate.to(self.device),
-                    self.target_encoded,
-                )
-                .cpu()
-                .detach()
-                .numpy()
-            )
-        else:
-            return np.float64(
-                self.model(
-                    aptamer_candidate.to(self.device),
-                    self.target_encoded,
-                ).item()
-            )
+        return np.float64(score[:, 1].item())

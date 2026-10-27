@@ -221,13 +221,30 @@ class AptaTrans(nn.Module):
 
         encoder_module = nn.ModuleList([embedding, pos_encoding, encoder])
 
-        # pass the the encoder a padding mask to ignore zero-padded tokens
-        encoder_module.forward = lambda x: encoder(
-            pos_encoding(embedding(x)),
-            src_key_padding_mask=(x == 0),  # padding mask
-        )
-
         return (encoder_module, token_predictor)
+
+    def _encode(self, encoder: nn.ModuleList, x: Tensor) -> Tensor:
+        """Encode token ids with one of the two encoders.
+
+        Positions with token id 0 are padding and are masked. In a row that
+        is only padding, no position is masked.
+
+        Parameters
+        ----------
+        encoder : nn.ModuleList
+            ``encoder_apta`` or ``encoder_prot``.
+        x : Tensor
+            Token ids, shape (batch_size, seq_len).
+
+        Returns
+        -------
+        Tensor
+            Encoded tokens, shape (batch_size, seq_len, in_dim).
+        """
+        embedding, pos_encoding, transformer = encoder
+        mask = x == 0
+        mask = mask & ~mask.all(dim=1, keepdim=True)
+        return transformer(pos_encoding(embedding(x)), src_key_padding_mask=mask)
 
     def _make_layer(
         self,
@@ -319,12 +336,12 @@ class AptaTrans(nn.Module):
             If `encoder_type` is not 'apta' or 'prot'.
         """
         if encoder_type == "apta":  # pretrain aptamers' encoder
-            out_apta_mt = self.encoder_apta(x[0])
-            out_apta_ss = self.encoder_apta(x[1])
+            out_apta_mt = self._encode(self.encoder_apta, x[0])
+            out_apta_ss = self._encode(self.encoder_apta, x[1])
             return self.token_predictor_apta(out_apta_mt, out_apta_ss)
         elif encoder_type == "prot":  # pretrain proteins' encoder
-            out_prot_mt = self.encoder_prot(x[0])
-            out_prot_ss = self.encoder_prot(x[1])
+            out_prot_mt = self._encode(self.encoder_prot, x[0])
+            out_prot_ss = self._encode(self.encoder_prot, x[1])
             return self.token_predictor_prot(out_prot_mt, out_prot_ss)
         else:
             raise ValueError(
@@ -348,7 +365,8 @@ class AptaTrans(nn.Module):
         Tensor
             Interaction map tensor of shape (batch_size, 1, seq_len (s1), seq_len (s2)).
         """
-        x_apta, x_prot = self.encoder_apta(x_apta), self.encoder_prot(x_prot)
+        x_apta = self._encode(self.encoder_apta, x_apta)
+        x_prot = self._encode(self.encoder_prot, x_prot)
         return self.imap(x_apta, x_prot)
 
     def forward(self, x_apta: Tensor, x_prot: Tensor) -> Tensor:

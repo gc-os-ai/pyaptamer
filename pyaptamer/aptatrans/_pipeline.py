@@ -1,258 +1,290 @@
-"""
-AptaTrans' complete pipeline for for aptamer-protein interaction prediction and
-candidate aptamers recommendation.
+"""AptaTrans pipeline for aptamer-protein interaction prediction and candidate
+aptamer generation.
 """
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 __all__ = ["AptaTransPipeline"]
 
+import pandas as pd
+from skbase.base import BaseEstimator
+from sklearn.base import clone
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 
-import torch
-from torch import Tensor
-
-from pyaptamer import logger
-from pyaptamer.aptatrans import AptaTrans
+from pyaptamer.aptatrans._classifier import AptaTransClassifier
+from pyaptamer.data import MoleculeLoader
+from pyaptamer.datasets import load_csv_dataset
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
-from pyaptamer.utils import (
-    generate_nplets,
-)
+from pyaptamer.transformations.compose import ApplyToCols
+from pyaptamer.transformations.encode import GreedyEncoder, KMerIndexEncoder
+from pyaptamer.transformations.transform import DNAToRNA
 from pyaptamer.utils._base import filter_words
 
 
-class AptaTransPipeline:
-    """AptaTrans pipeline for aptamer affinity prediction, by Shin et al.
+class AptaTransPipeline(BaseEstimator):
+    """AptaTrans pipeline for aptamer-protein interaction, by Shin et al. [1]_.
 
-    Algorithm as originally described in Shin et al [1]_.
+    AptaTrans predicts whether an aptamer binds a protein from the two
+    sequences. The aptamer is converted to RNA with ``DNAToRNA`` and encoded
+    with ``KMerIndexEncoder``, the ids of its overlapping triplets over
+    ``ACGUN``. The protein is encoded with ``GreedyEncoder``, a greedy longest
+    match against the protein words. The two id blocks are concatenated and
+    passed to ``AptaTransClassifier``.
 
-    Reimplemented based on the publication and the original codebase.
+    A fitted pipeline also generates candidate aptamers for a target protein
+    with ``generate``. It drives ``pyaptamer.mcts.MCTS`` [2]_ with
+    ``pyaptamer.experiments.AptamerEvalAptaTrans`` as the scoring function.
+
+    The pipeline takes a ``MoleculeLoader`` or a ``DataFrame`` with an
+    aptamer column and a protein column. Other columns are ignored.
 
     Original implementation: https://github.com/PNUMLB/AptaTrans.
 
-    The AptaTrans pipeline combines leverages AptaTrans' deep neural network for
-    aptamer-protein interaction prediction and, by combining it with Apta-MCTS [2]_,
-    recommends candidate aptamers for a given target protein.
-
     Parameters
     ----------
-    device : torch.device
-        The device on which to run the model.
-    model : AptaTrans
-        An instance of the AptaTrans() class.
-    prot_words : dict[str, float]
-        A dictionary mapping protein n-mer protein subsequences to a unique integer ID.
-        Used to encode protein sequences into their numerical representions. The
-        subsequences and their frequency should come from the same dataset used for
-        pretraining the protein encoder.
-    depth : int, optional, default=20
-        The depth of the tree in the Monte Carlo Tree Search (MCTS) algorithm. Also
-        defines the length of the generated aptamer candidates. Must be equal or
-        greater than 3 since preprocessing uses triplet encoding (3-mers), which
-        requires sequences of at least 3 nucleotides to extract overlapping triplets.
-    n_iterations : int, optional, default=1000
-        The number of iterations for the MCTS algorithm.
+    prot_words : dict[str, float] or None, default=None
+        Protein words mapped to their frequency. Words with a frequency above
+        the mean are kept and get the ids 1, 2, and so on. They should come
+        from the dataset used to pretrain the protein encoder. If None, uses
+        the bundled ``protein_word_freq`` dataset of the paper.
+    apta_max_len : int, default=275
+        Number of triplet ids per aptamer.
+    prot_max_len : int, default=867
+        Number of word ids per protein.
+    aptamer_col : str, default="aptamer"
+        Name of the column holding aptamer sequences.
+    protein_col : str, default="protein"
+        Name of the column holding protein sequences.
+    estimator : AptaTransClassifier or None, default=None
+        Classifier applied to the token ids. Its ``apta_max_len`` is set to
+        the ``apta_max_len`` of this pipeline. If None, uses
+        ``AptaTransClassifier()``.
 
     Attributes
     ----------
-    apta_words, prot_words : dict[str, int]
-        A dictionary mapping aptamer 3-mer subsequences to unique indices, and protein
-        words to their frequency. In particular, `prot_words` now contains only protein
-        words with above-average frequency, mapped to unique integer IDs
+    pipeline_ : sklearn.pipeline.Pipeline
+        Steps ``to_rna``, ``features`` (a ``ColumnTransformer``) and ``clf``.
 
     References
     ----------
     .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
-    aptamer-protein interaction using pretrained encoders." BMC bioinformatics 24.1
-    (2023): 447.
-    .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with target
-    proteins using an aptamer-protein interaction classifier and a Monte Carlo tree
-    search approach." PloS one 16.6 (2021): e0253760.
+       aptamer-protein interaction using pretrained encoders." BMC bioinformatics
+       24.1 (2023): 447.
+    .. [2] Lee, Gwangho, et al. "Predicting aptamer sequences that interact with
+       target proteins using an aptamer-protein interaction classifier and a Monte
+       Carlo tree search approach." PloS one 16.6 (2021): e0253760.
 
     Examples
     --------
-    >>> import torch
-    >>> from pyaptamer.aptatrans import (
-    ...     AptaTrans,
-    ...     AptaTransPipeline,
-    ...     EncoderPredictorConfig,
+    >>> import numpy as np
+    >>> from pyaptamer.aptatrans import AptaTransClassifier, AptaTransPipeline
+    >>> from pyaptamer.data import MoleculeLoader
+    >>> aptamer = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+    >>> protein = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> X = MoleculeLoader(data={"aptamer": [aptamer] * 8, "protein": [protein] * 8})
+    >>> y = np.array([0, 1] * 4)
+    >>> clf = AptaTransClassifier(
+    ...     in_dim=8,
+    ...     n_heads=2,
+    ...     n_encoder_layers=1,
+    ...     conv_layers=[1, 1, 1],
+    ...     max_epochs=1,
+    ...     random_state=0,
     ... )
-    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=100)
-    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=100)
-    >>> prot_words = {"DHR": 0.5, "AIQ": 0.5, "AAG": 0.2}
-    >>> target = "DHRNENIAIQ"
-    >>> model = AptaTrans(apta_embedding, prot_embedding)
-    >>> pipeline = AptaTransPipeline(device, model, prot_words, depth=5, n_iterations=5)
-    >>> aptamer = "ACGUA"
-    >>> imap = pipeline.get_interaction_map(aptamer, target)
-    >>> candidates = pipeline.recommend(target, n_candidates=1, verbose=False)
+    >>> pipe = AptaTransPipeline(apta_max_len=16, prot_max_len=16, estimator=clf)
+    >>> pipe.fit(X, y)  # doctest: +ELLIPSIS
+    AptaTransPipeline(...)
+    >>> proba = pipe.predict_proba(X)
+    >>> labels = pipe.predict(X)
+    >>> candidates = pipe.generate(protein, n_candidates=1, depth=5, n_iterations=2)
     """
 
     def __init__(
         self,
-        device: torch.device,
-        model: AptaTrans,
-        prot_words: dict[str, float],
-        depth: int = 20,
-        n_iterations: int = 1000,
-    ) -> None:
-        """
-        Raises
-        ------
-        ValueError
-            If `depth` is less than 3.
-        """
-        if depth < 3:
-            raise ValueError(
-                f"Invalid depth value: {depth}. Must be greater than or equal to 3."
+        prot_words=None,
+        apta_max_len=275,
+        prot_max_len=867,
+        aptamer_col="aptamer",
+        protein_col="protein",
+        estimator=None,
+    ):
+        self.prot_words = prot_words
+        self.apta_max_len = apta_max_len
+        self.prot_max_len = prot_max_len
+        self.aptamer_col = aptamer_col
+        self.protein_col = protein_col
+        self.estimator = estimator
+        super().__init__()
+
+    def _build_pipeline(self):
+        prot_words = self.prot_words
+        if prot_words is None:
+            freq = load_csv_dataset(
+                name="protein_word_freq", keep_default_na=False, na_values=["_"]
             )
+            prot_words = freq.set_index("seq")["freq"].to_dict()
 
-        self.device = device
-        self.model = model.to(device)
-        self.depth = depth
-        self.n_iterations = n_iterations
-
-        self.apta_words, self.prot_words = self._init_words(prot_words)
-
-    def _init_words(
-        self,
-        prot_words: dict[str, float],
-    ) -> tuple[dict[str, int], dict[str, int]]:
-        """Initialize aptamer and protein word vocabularies.
-
-        For aptamers, creates a mapping between all possible 3-mer RNA subsequences and
-        integer indices. For proteins, load protein words mapped to their frequency,
-        filter out those with below-average frequency, and assign unique integer IDs.
-
-        Parameters
-        ----------
-        prot_words : dict[str, float]
-            A dictionary containing protein 3-mer subsequences and their frequencies.
-
-        Returns
-        -------
-        tuple[dict[str, int], dict[str, int]]
-            A tuple of dictionaries mapping aptamer 3-mer subsequences to unique
-            indices and protein words to their frequencies, respectively.
-        """
-        # generate all possible RNA triplets (5^3 -> 125 total)
-        apta_words = generate_nplets(letters=["A", "C", "G", "U", "N"], repeat=3)
-
-        # filter out protein words with below average frequency and assign unique
-        # integer IDs
-        prot_words = filter_words(prot_words)
-
-        return (apta_words, prot_words)
-
-    def _init_aptamer_experiment(self, target: str) -> AptamerEvalAptaTrans:
-        """Initialize the aptamer recommendation experiment."""
-        experiment = AptamerEvalAptaTrans(
-            target=target,
-            model=self.model,
-            device=self.device,
-            prot_words=self.prot_words,
+        features = ColumnTransformer(
+            [
+                (
+                    "aptamer",
+                    KMerIndexEncoder(k=3, alphabet="ACGUN", max_len=self.apta_max_len),
+                    [self.aptamer_col],
+                ),
+                (
+                    "protein",
+                    GreedyEncoder(
+                        words=filter_words(prot_words), max_len=self.prot_max_len
+                    ),
+                    [self.protein_col],
+                ),
+            ]
         )
-        return experiment
-
-    def get_interaction_map(self, candidate: str, target: str) -> Tensor:
-        # TODO: to make the interaction map ready for plotting (at least if we were to
-        # follow the original paper), there are additional steps. Need to decide if put
-        # it here or elsewhere (e.g., in plotting code). For now, TBD.
-        # Personally, I would leave this as is, to provide an "untouched" interaction
-        # map.
-        """Generate the aptamer-protein interaction map.
-
-        Parameters
-        ----------
-        candidate : str
-            The candidate aptamer sequence.
-        target : str
-            The target protein sequence.
-
-        Returns
-        -------
-        Tensor
-            A tensor containing the interaction map, of shape (batch_size, 1,
-            seq_len_apta, seq_len_prot).
-        """
-        experiment = self._init_aptamer_experiment(target)
-        return experiment.evaluate(candidate, return_interaction_map=True)
-
-    def predict(self, candidate: str, target: str) -> Tensor:
-        """Predict aptamer-protein interaction (API) score for a given target protein.
-
-        This methods initializes a new aptamer experiment for the given aptamer
-        candidate and target protein. Finally, it predict the interaction score using
-        the AptaTrans' deep neural network.
-
-        Parameters
-        ----------
-        candidate : str
-            The candidate aptamer sequence.
-        target : str
-            The target protein sequence.
-
-        Returns
-        -------
-        Tensor
-            A tensor containing the predicted interaction score.
-        """
-        experiment = self._init_aptamer_experiment(target)
-        return experiment.evaluate(candidate)
-
-    @torch.no_grad()
-    def recommend(
-        self,
-        target: str,
-        n_candidates: int = 10,
-        verbose: bool = True,
-    ) -> set[tuple[str, str, float]]:
-        """Recommend aptamer candidates for a given target protein.
-
-        The Monte Carlo Tree Search (MCTS) algorithm is used to generate candidate
-        aptamers. Then, AptaTrans' deep neural network is used as a scoring function to
-        evaluate the candidates, inside the Aptamer() experiment. The process stop when
-        `n_candidates` unique candidates are generated.
-
-        Parameters
-        ----------
-        target : str
-            The target protein sequence.
-        n_candidates : int, optional, default=10
-            The number of candidate aptamers to generate.
-        verbose : bool, optional, default=True
-            If True, enables print statements for debugging and progress tracking.
-
-        Returns
-        -------
-        set[tuple[str, str, float]]
-            A set of tuples containing reconstructed and unrecontructed candidate
-            aptamer sequence, and the corresponding score.
-        """
-        experiment = self._init_aptamer_experiment(target)
-
-        # initialize MCTS with the experiment
-        mcts = MCTS(
-            experiment=experiment,
-            depth=self.depth,
-            n_iterations=self.n_iterations,
+        if self.estimator is None:
+            estimator = AptaTransClassifier()
+        else:
+            estimator = clone(self.estimator)
+        estimator.set_params(apta_max_len=self.apta_max_len)
+        return Pipeline(
+            [
+                ("to_rna", ApplyToCols(DNAToRNA(), cols=self.aptamer_col)),
+                ("features", features),
+                ("clf", estimator),
+            ]
         )
 
-        # generate aptamer candidates
+    def _to_frame(self, X):
+        if isinstance(X, MoleculeLoader):
+            X = X.to_dataframe()
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                "X must be a MoleculeLoader instance or a pandas DataFrame. "
+                f"Got {type(X)} instead."
+            )
+        columns = [self.aptamer_col, self.protein_col]
+        missing = [c for c in columns if c not in X.columns]
+        if missing:
+            raise ValueError(
+                f"X has no column {missing}. X has columns {list(X.columns)}. "
+                "Pass the names as AptaTransPipeline(aptamer_col=..., "
+                "protein_col=...)."
+            )
+        return X[columns]
+
+    def fit(self, X, y):
+        """Encode the pairs and train the classifier.
+
+        Parameters
+        ----------
+        X : MoleculeLoader or pandas.DataFrame
+            Aptamer and protein sequences, one pair per row.
+        y : array-like of shape (n_samples,)
+            Binary labels, 1 if the pair interacts.
+
+        Returns
+        -------
+        self : AptaTransPipeline
+        """
+        self.pipeline_ = self._build_pipeline()
+        self.pipeline_.fit(self._to_frame(X), y)
+        self._is_fitted = True
+        return self
+
+    def predict_proba(self, X):
+        """Predict class probabilities for each pair.
+
+        Parameters
+        ----------
+        X : MoleculeLoader or pandas.DataFrame
+            Aptamer and protein sequences, one pair per row.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, 2)
+            Probability of each class, in the order of ``classes_`` of the
+            classifier.
+        """
+        self.check_is_fitted(method_name="predict_proba")
+        return self.pipeline_.predict_proba(self._to_frame(X))
+
+    def predict(self, X):
+        """Predict the class label of each pair.
+
+        Parameters
+        ----------
+        X : MoleculeLoader or pandas.DataFrame
+            Aptamer and protein sequences, one pair per row.
+
+        Returns
+        -------
+        ndarray of shape (n_samples,)
+            Predicted class labels.
+        """
+        self.check_is_fitted(method_name="predict")
+        return self.pipeline_.predict(self._to_frame(X))
+
+    def interaction_map(self, X):
+        """Compute the aptamer-protein interaction map of each pair.
+
+        Parameters
+        ----------
+        X : MoleculeLoader or pandas.DataFrame
+            Aptamer and protein sequences, one pair per row.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, 1, apta_len, prot_len)
+            Interaction map between the aptamer and protein positions.
+            ``apta_len`` is ``apta_max_len`` and ``prot_len`` is
+            ``prot_max_len``, each at least 6.
+        """
+        self.check_is_fitted(method_name="interaction_map")
+        tokens = self.pipeline_[:-1].transform(self._to_frame(X))
+        return self.pipeline_[-1].interaction_map(tokens)
+
+    def generate(self, target, n_candidates=10, depth=20, n_iterations=1000):
+        """Generate candidate aptamers for a target protein.
+
+        Each candidate is found by one run of Monte Carlo Tree Search, scored
+        by this pipeline. Runs continue until ``n_candidates`` distinct
+        candidates are found.
+
+        Parameters
+        ----------
+        target : str
+            Amino-acid sequence of the target protein.
+        n_candidates : int, default=10
+            Number of distinct candidates to return.
+        depth : int, default=20
+            Depth of the search tree. Also the number of nucleotides of each
+            candidate. Must be at least 3, the length of one triplet.
+        n_iterations : int, default=1000
+            Number of search iterations per nucleotide.
+
+        Returns
+        -------
+        list of tuple[str, str, float]
+            ``(candidate, sequence, score)`` per candidate, highest score
+            first. ``sequence`` is the raw search sequence with direction
+            markers, before reconstruction.
+        """
+        self.check_is_fitted(method_name="generate")
+        if depth < 3:
+            raise ValueError(f"depth must be at least 3, got {depth}.")
+
+        experiment = AptamerEvalAptaTrans(target=target, pipeline=self)
+        mcts = MCTS(experiment=experiment, depth=depth, n_iterations=n_iterations)
+
         candidates = {}
         while len(candidates) < n_candidates:
-            result = mcts.run(verbose=verbose)
-            candidate, sequence, score = tuple(result.values())
+            result = mcts.run(verbose=False)
+            candidate = result["candidate"]
             if candidate not in candidates:
-                candidates[candidate] = (candidate, sequence, score.item())
-
-        if verbose:
-            for candidate, sequence, score in candidates.values():
-                logger.info(
-                    "Candidate: %s, Sequence: %s, Score: %.4f",
+                candidates[candidate] = (
                     candidate,
-                    sequence,
-                    score,
+                    result["sequence"],
+                    float(result["score"]),
                 )
 
-        return set(candidates.values())
+        return sorted(candidates.values(), key=lambda c: c[2], reverse=True)
