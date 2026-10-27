@@ -96,8 +96,10 @@ class AptaNetPipeline(BaseEstimator):
                 ("protein", pseaac, [self.protein_col]),
             ]
         )
-        self._estimator = self.estimator or AptaNetClassifier()
-        return Pipeline([("features", features), ("clf", clone(self._estimator))])
+        estimator = self.estimator
+        if estimator is None:
+            estimator = AptaNetClassifier()
+        return Pipeline([("features", features), ("clf", clone(estimator))])
 
     @staticmethod
     def _to_frame(X):
@@ -136,7 +138,10 @@ class AptaNetPipeline(BaseEstimator):
 
     def __sklearn_tags__(self):
         """Return the scikit-learn tags, with the type of the estimator."""
-        estimator = get_tags(self.estimator or AptaNetClassifier())
+        estimator = self.estimator
+        if estimator is None:
+            estimator = AptaNetClassifier()
+        estimator = get_tags(estimator)
         return Tags(
             estimator_type=estimator.estimator_type,
             target_tags=estimator.target_tags,

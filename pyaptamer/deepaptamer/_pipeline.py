@@ -201,7 +201,10 @@ class DeepAptamerPipeline(BaseEstimator):
 
     def __sklearn_tags__(self):
         """Return the scikit-learn tags, with the type of the estimator."""
-        estimator = get_tags(self.estimator or DeepAptamerClassifier())
+        estimator = self.estimator
+        if estimator is None:
+            estimator = DeepAptamerClassifier()
+        estimator = get_tags(estimator)
         return Tags(
             estimator_type=estimator.estimator_type,
             target_tags=estimator.target_tags,
