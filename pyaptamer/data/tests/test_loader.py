@@ -12,7 +12,7 @@ from pyaptamer.data.loader import MoleculeLoader
 DATA_DIR = Path(__file__).parent.parent.parent / "datasets" / "data"
 PDB_MULTI = str(DATA_DIR / "1gnh.pdb")  # 10 chains A-J, all identical sequence
 PDB_SINGLE = str(DATA_DIR / "1brq.pdb")  # 1 chain A
-PDB_NO_SEQRES = str(DATA_DIR / "1gnh_no_seqres.pdb")
+PDB_NO_SEQRES = str(Path(__file__).parent / "data" / "1gnh_no_seqres.pdb")
 
 
 # in-memory data
