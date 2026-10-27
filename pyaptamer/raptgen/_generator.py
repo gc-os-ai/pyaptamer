@@ -6,6 +6,7 @@ __all__ = ["RaptGenGenerator"]
 import pandas as pd
 from skbase.base import BaseEstimator
 from sklearn.base import clone
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.raptgen._estimator import RaptGenModel
@@ -136,3 +137,12 @@ class RaptGenGenerator(BaseEstimator):
         """
         self.check_is_fitted(method_name="inverse_transform")
         return self.estimator_.inverse_transform(Z, most_likely=most_likely)
+
+    def __sklearn_tags__(self):
+        """Return the scikit-learn tags of an unsupervised transformer."""
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(preserves_dtype=[]),
+            input_tags=InputTags(two_d_array=True, string=True),
+        )

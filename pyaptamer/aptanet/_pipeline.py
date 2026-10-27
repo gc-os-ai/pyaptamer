@@ -7,6 +7,7 @@ from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.utils import InputTags, Tags, get_tags
 
 from pyaptamer.aptanet import AptaNetClassifier
 from pyaptamer.data import MoleculeLoader
@@ -122,3 +123,24 @@ class AptaNetPipeline(BaseEstimator):
     def predict(self, X):
         self.check_is_fitted(method_name="predict")
         return self.pipeline_.predict(self._to_frame(X))
+
+    def score(self, X, y):
+        """Return the score of the estimator, accuracy for a classifier."""
+        self.check_is_fitted(method_name="score")
+        return self.pipeline_.score(self._to_frame(X), y)
+
+    @property
+    def classes_(self):
+        """Class labels seen in ``fit``, for a classifier estimator."""
+        return self.pipeline_.classes_
+
+    def __sklearn_tags__(self):
+        """Return the scikit-learn tags, with the type of the estimator."""
+        estimator = get_tags(self.estimator or AptaNetClassifier())
+        return Tags(
+            estimator_type=estimator.estimator_type,
+            target_tags=estimator.target_tags,
+            classifier_tags=estimator.classifier_tags,
+            regressor_tags=estimator.regressor_tags,
+            input_tags=InputTags(two_d_array=True, string=True),
+        )

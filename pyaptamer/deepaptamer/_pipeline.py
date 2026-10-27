@@ -6,6 +6,7 @@ from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.utils import InputTags, Tags, get_tags
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.deepaptamer._classifier import DeepAptamerClassifier
@@ -173,3 +174,38 @@ class DeepAptamerPipeline(BaseEstimator):
         """
         self.check_is_fitted(method_name="predict")
         return self.pipeline_.predict(self._to_frame(X))
+
+    def score(self, X, y):
+        """
+        Return the score of the estimator on `X` and `y`.
+
+        Parameters
+        ----------
+        X : MoleculeLoader or pd.DataFrame
+            Data with the aptamer column.
+        y : array-like of shape (n_samples,)
+            True class labels.
+
+        Returns
+        -------
+        float
+            The estimator's score, accuracy for a classifier.
+        """
+        self.check_is_fitted(method_name="score")
+        return self.pipeline_.score(self._to_frame(X), y)
+
+    @property
+    def classes_(self):
+        """Class labels seen in ``fit``."""
+        return self.pipeline_.classes_
+
+    def __sklearn_tags__(self):
+        """Return the scikit-learn tags, with the type of the estimator."""
+        estimator = get_tags(self.estimator or DeepAptamerClassifier())
+        return Tags(
+            estimator_type=estimator.estimator_type,
+            target_tags=estimator.target_tags,
+            classifier_tags=estimator.classifier_tags,
+            regressor_tags=estimator.regressor_tags,
+            input_tags=InputTags(two_d_array=True, string=True),
+        )
