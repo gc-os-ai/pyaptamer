@@ -210,6 +210,7 @@ class AptaTrans(nn.Module):
             ),
             num_layers=n_encoder_layers,
             norm=nn.LayerNorm(in_dim),
+            enable_nested_tensor=False,
         )
 
         # token predictor

@@ -236,6 +236,23 @@ class TestAptaTransModel:
 
         assert torch.isfinite(output).all()
 
+    def test_eval_forward_without_nested_tensor_support(self, monkeypatch):
+        """Evaluation runs where nested tensors are missing, as on Apple MPS."""
+
+        def unsupported(*args, **kwargs):
+            raise NotImplementedError("nested tensors are not supported")
+
+        monkeypatch.setattr(torch, "_nested_tensor_from_mask_left_aligned", unsupported)
+        config = EncoderPredictorConfig(num_embeddings=16, target_dim=8, max_len=8)
+        model = AptaTrans(config, config, in_dim=8, n_heads=2, n_encoder_layers=1)
+        model.eval()
+        x = torch.tensor([[3, 4, 5, 0, 0, 0, 0, 0]] * 2)
+
+        with torch.no_grad():
+            output = model(x, x)
+
+        assert output.shape == (2, 1)
+
 
 @parametrize_with_checks([AptaTransClassifier(apta_max_len=1, **SMALL_NET)])
 def test_sklearn_compatible_classifier(estimator, check):
