@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=84.0.0", "wheel"]
+requires = ["setuptools>=84.2.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -35,7 +35,7 @@ Issues = "https://github.com/gc-os-ai/pyaptamer/issues"
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.17.0",
+    "ruff>=0.17.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",
