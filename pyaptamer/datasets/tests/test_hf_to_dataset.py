@@ -6,7 +6,7 @@ from pyaptamer.datasets import load_hf_to_dataset
 def test_hf_hub_dataset_load():
     """Test loading a known Hugging Face Hub dataset (small)."""
     ds = load_hf_to_dataset(
-        "https://huggingface.co/datasets/gcos/HoloRBP4_round8_trimmed/resolve/main/HoloRBP4_round8_trimmed.fasta"
+        "https://huggingface.co/datasets/ecospecs/HoloRBP4_round8_trimmed/resolve/main/HoloRBP4_round8_trimmed.fasta"
     )
     assert "text" in ds.column_names
 
