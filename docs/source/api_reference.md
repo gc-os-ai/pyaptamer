@@ -1,7 +1,55 @@
 # API reference
 
-This page documents the public API. Names not listed here are internal and may
-change without notice.
+This page documents the public API.
+
+## Data
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.data
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   MoleculeLoader
+```
+
+## Transformations
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.transformations.transform
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DNAToRNA
+   PrimerTrimmer
+```
+
+## Compose
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.transformations.compose
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   ApplyToCols
+```
+
+## DeepDNAShape
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepdnashape
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepDNAShape
+```
 
 ## AptaNet
 
@@ -33,6 +81,64 @@ change without notice.
    EncoderPredictorConfig
 ```
 
+## DeepAptamer
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.deepaptamer
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   DeepAptamerPipeline
+   DeepAptamerClassifier
+   DeepAptamerFeatures
+   DeepAptamerNN
+```
+
+## AptaMCTS
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptamcts
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaMCTSPipeline
+```
+
+## AptaDiff
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.aptadiff
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   AptaDiffGenerator
+   AptaDiffLightning
+   AptaDiffDiffusion
+   AptaDiffDenoiser
+```
+
+## RaptGen
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.raptgen
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   RaptGenGenerator
+   RaptGenModel
+   RaptGenLightning
+   CNNPHMMVAE
+   CNNPHMMVAEFast
+```
+
 ## Monte Carlo Tree Search
 
 ```{eval-rst}
@@ -56,6 +162,7 @@ Scoring functions that connect a model to the search.
    :toctree: generated
    :nosignatures:
 
+   AptamerEvalAptaMCTS
    AptamerEvalAptaNet
    AptamerEvalAptaTrans
 ```
@@ -63,16 +170,21 @@ Scoring functions that connect a model to the search.
 ## Encodings
 
 ```{eval-rst}
-.. currentmodule:: pyaptamer.pseaac
+.. currentmodule:: pyaptamer.transformations.encode
 
 .. autosummary::
    :toctree: generated
    :nosignatures:
 
+   ConjointTriad
+   GreedyEncoder
+   KMerFrequencies
    PSeAAC
-   AptaNetPSeAAC
+   SequenceIndexEncoder
+   SequenceOneHotEncoder
 ```
 
+(api-datasets)=
 ## Datasets
 
 ```{eval-rst}
@@ -91,6 +203,7 @@ Scoring functions that connect a model to the search.
    load_1gnh
    load_5nu7
    load_li2014
+   load_sample_fastq
 ```
 
 ## Benchmarking
@@ -119,8 +232,5 @@ Scoring functions that connect a model to the search.
    encode_rna
    generate_nplets
    rna2vec
-   pdb_to_struct
-   struct_to_aaseq
    pdb_to_seq_uniprot
-   pdb_to_aaseq
 ```

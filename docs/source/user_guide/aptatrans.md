@@ -26,8 +26,12 @@ from pyaptamer.aptatrans import (
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-apta_embedding = EncoderPredictorConfig(128, 16, max_len=100)
-prot_embedding = EncoderPredictorConfig(128, 16, max_len=100)
+apta_embedding = EncoderPredictorConfig(
+    num_embeddings=128, target_dim=16, max_len=100
+)
+prot_embedding = EncoderPredictorConfig(
+    num_embeddings=128, target_dim=16, max_len=100
+)
 model = AptaTrans(apta_embedding, prot_embedding)
 
 prot_words = {"DHR": 0.5, "AIQ": 0.5, "AAG": 0.2}
@@ -74,8 +78,8 @@ from pyaptamer.mcts import MCTS
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = AptaTrans(
-    EncoderPredictorConfig(128, 16, max_len=128),
-    EncoderPredictorConfig(128, 16, max_len=128),
+    EncoderPredictorConfig(num_embeddings=128, target_dim=16, max_len=128),
+    EncoderPredictorConfig(num_embeddings=128, target_dim=16, max_len=128),
 ).to(device)
 
 experiment = AptamerEvalAptaTrans(
