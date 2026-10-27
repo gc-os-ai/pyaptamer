@@ -56,8 +56,8 @@ walk through AptaNet, AptaMCTS, AptaTrans and benchmarking end to end.
 * - {doc}`AptaNet <user_guide/aptanet>`
   - Predict whether an aptamer and a protein interact, from sequence pairs.
 * - {doc}`AptaTrans <user_guide/aptatrans>`
-  - Score aptamer-protein interaction and recommend candidate aptamers for a
-    target.
+  - Predict whether an aptamer and a protein interact, and generate candidate
+    aptamers for a target protein.
 * - {doc}`DeepAptamer <user_guide/deepaptamer>`
   - Predict whether a DNA aptamer binds its target, from the sequence and its
     predicted DNA shape.
