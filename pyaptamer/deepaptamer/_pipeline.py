@@ -1,19 +1,17 @@
 __author__ = ["satvshr", "geetu040"]
 __all__ = ["DeepAptamerPipeline"]
 
-import pandas as pd
-from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.utils import InputTags, Tags, get_tags
 
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.base import BasePipelineDelegator
 from pyaptamer.deepaptamer._classifier import DeepAptamerClassifier
 from pyaptamer.deepaptamer._preprocessing import DeepAptamerFeatures
 
 
-class DeepAptamerPipeline(BaseEstimator):
+class DeepAptamerPipeline(BasePipelineDelegator):
     """
     DeepAptamer algorithm for aptamer binding prediction [1]_
 
@@ -79,6 +77,12 @@ class DeepAptamerPipeline(BaseEstimator):
     >>> proba = pipe.predict_proba(X_train)
     """
 
+    _tags = {
+        "authors": ["satvshr", "geetu040"],
+        "maintainers": ["siddharth7113"],
+        "col_params": ["aptamer_col"],
+    }
+
     def __init__(
         self, seq_len=35, full_dna_shape=False, aptamer_col="aptamer", estimator=None
     ):
@@ -108,107 +112,7 @@ class DeepAptamerPipeline(BaseEstimator):
             estimator.set_params(seq_len=self.seq_len)
         return Pipeline([("features", features), ("clf", estimator)])
 
-    @staticmethod
-    def _to_frame(X):
-        if isinstance(X, MoleculeLoader):
-            return X.to_dataframe()
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
-        return X
-
-    def fit(self, X, y):
-        """
-        Fit the pipeline on training data.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pd.DataFrame
-            Training data with the aptamer column.
-        y : array-like of shape (n_samples,)
-            Binary class labels.
-
-        Returns
-        -------
-        self : object
-            Fitted pipeline.
-        """
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(self._to_frame(X), y)
-        self._is_fitted = True
-        return self
-
-    def predict_proba(self, X):
-        """
-        Predict class probabilities for the aptamers in `X`.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pd.DataFrame
-            Data with the aptamer column.
-
-        Returns
-        -------
-        ndarray of shape (n_samples, 2)
-            Probability estimates for each class, in the order of the estimator's
-            ``classes_``.
-        """
-        self.check_is_fitted(method_name="predict_proba")
-        return self.pipeline_.predict_proba(self._to_frame(X))
-
-    def predict(self, X):
-        """
-        Predict binary class labels for the aptamers in `X`.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pd.DataFrame
-            Data with the aptamer column.
-
-        Returns
-        -------
-        ndarray of shape (n_samples,)
-            Predicted class labels.
-        """
-        self.check_is_fitted(method_name="predict")
-        return self.pipeline_.predict(self._to_frame(X))
-
-    def score(self, X, y):
-        """
-        Return the score of the estimator on `X` and `y`.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pd.DataFrame
-            Data with the aptamer column.
-        y : array-like of shape (n_samples,)
-            True class labels.
-
-        Returns
-        -------
-        float
-            The estimator's score, accuracy for a classifier.
-        """
-        self.check_is_fitted(method_name="score")
-        return self.pipeline_.score(self._to_frame(X), y)
-
-    @property
-    def classes_(self):
-        """Class labels seen in ``fit``."""
-        return self.pipeline_.classes_
-
-    def __sklearn_tags__(self):
-        """Return the scikit-learn tags, with the type of the estimator."""
-        estimator = self.estimator
-        if estimator is None:
-            estimator = DeepAptamerClassifier()
-        estimator = get_tags(estimator)
-        return Tags(
-            estimator_type=estimator.estimator_type,
-            target_tags=estimator.target_tags,
-            classifier_tags=estimator.classifier_tags,
-            regressor_tags=estimator.regressor_tags,
-            input_tags=InputTags(two_d_array=True, string=True),
-        )
+    @classmethod
+    def get_test_params(cls, parameter_set="default"):
+        """Return testing parameter settings for the estimator."""
+        return {"estimator": DummyClassifier()}
