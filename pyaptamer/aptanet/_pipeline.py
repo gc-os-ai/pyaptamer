@@ -2,19 +2,17 @@ __author__ = ["nennomp", "satvshr", "siddharth7113"]
 __all__ = ["AptaNetPipeline"]
 __required__ = ["python>=3.10"]
 
-import pandas as pd
-from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.utils import InputTags, Tags, get_tags
 
 from pyaptamer.aptanet import AptaNetClassifier
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.base import BasePipelineDelegator
 from pyaptamer.transformations.encode import KMerFrequencies, PSeAAC
 
 
-class AptaNetPipeline(BaseEstimator):
+class AptaNetPipeline(BasePipelineDelegator):
     """
     AptaNet algorithm for aptamer–protein interaction prediction [1]_
 
@@ -77,6 +75,12 @@ class AptaNetPipeline(BaseEstimator):
     >>> proba = pipe.predict_proba(X_test)
     """
 
+    _tags = {
+        "authors": ["nennomp", "satvshr", "siddharth7113"],
+        "maintainers": ["siddharth7113"],
+        "col_params": ["aptamer_col", "protein_col"],
+    }
+
     def __init__(
         self, k=4, aptamer_col="aptamer", protein_col="protein", estimator=None
     ):
@@ -101,51 +105,7 @@ class AptaNetPipeline(BaseEstimator):
             estimator = AptaNetClassifier()
         return Pipeline([("features", features), ("clf", clone(estimator))])
 
-    @staticmethod
-    def _to_frame(X):
-        if isinstance(X, MoleculeLoader):
-            return X.to_dataframe()
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
-        return X
-
-    def fit(self, X, y):
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(self._to_frame(X), y)
-        self._is_fitted = True
-        return self
-
-    def predict_proba(self, X):
-        self.check_is_fitted(method_name="predict_proba")
-        return self.pipeline_.predict_proba(self._to_frame(X))
-
-    def predict(self, X):
-        self.check_is_fitted(method_name="predict")
-        return self.pipeline_.predict(self._to_frame(X))
-
-    def score(self, X, y):
-        """Return the score of the estimator, accuracy for a classifier."""
-        self.check_is_fitted(method_name="score")
-        return self.pipeline_.score(self._to_frame(X), y)
-
-    @property
-    def classes_(self):
-        """Class labels seen in ``fit``, for a classifier estimator."""
-        return self.pipeline_.classes_
-
-    def __sklearn_tags__(self):
-        """Return the scikit-learn tags, with the type of the estimator."""
-        estimator = self.estimator
-        if estimator is None:
-            estimator = AptaNetClassifier()
-        estimator = get_tags(estimator)
-        return Tags(
-            estimator_type=estimator.estimator_type,
-            target_tags=estimator.target_tags,
-            classifier_tags=estimator.classifier_tags,
-            regressor_tags=estimator.regressor_tags,
-            input_tags=InputTags(two_d_array=True, string=True),
-        )
+    @classmethod
+    def get_test_params(cls, parameter_set="default"):
+        """Return testing parameter settings for the estimator."""
+        return {"estimator": DummyClassifier()}

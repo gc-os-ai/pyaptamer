@@ -3,14 +3,13 @@
 __author__ = ["NoorMajdoub"]
 __all__ = ["RaptGenGenerator"]
 
-import pandas as pd
 from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
-from pyaptamer.data import MoleculeLoader
 from pyaptamer.raptgen._estimator import RaptGenModel
 from pyaptamer.transformations.encode import SequenceIndexEncoder
+from pyaptamer.utils._check_x import check_X
 
 
 class RaptGenGenerator(BaseEstimator):
@@ -65,20 +64,9 @@ class RaptGenGenerator(BaseEstimator):
         self.estimator = estimator
         super().__init__()
 
-    def _to_frame(self, X):
-        if isinstance(X, MoleculeLoader):
-            X = X.to_dataframe()
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
-        if self.aptamer_col not in X.columns:
-            raise ValueError(
-                f"X has no column {self.aptamer_col!r}, got columns "
-                f"{list(X.columns)}. Pass the column name as aptamer_col."
-            )
-        return X[[self.aptamer_col]]
+    def _check_X(self, X):  # noqa: N802
+        cols = {"aptamer_col": self.aptamer_col}
+        return check_X(X, cols=cols, owner=type(self).__name__)
 
     def fit(self, X, y=None):
         """Train the model on aptamer sequences.
@@ -97,7 +85,7 @@ class RaptGenGenerator(BaseEstimator):
             The fitted generator.
         """
         self.encoder_ = SequenceIndexEncoder()
-        X_idx = self.encoder_.fit_transform(self._to_frame(X))
+        X_idx = self.encoder_.fit_transform(self._check_X(X))
         self.estimator_ = clone(self.estimator) if self.estimator else RaptGenModel()
         self.estimator_.fit(X_idx.to_numpy())
         self._is_fitted = True
@@ -117,7 +105,7 @@ class RaptGenGenerator(BaseEstimator):
             Latent-space coordinates.
         """
         self.check_is_fitted(method_name="transform")
-        X_idx = self.encoder_.transform(self._to_frame(X))
+        X_idx = self.encoder_.transform(self._check_X(X))
         return self.estimator_.transform(X_idx.to_numpy())
 
     def inverse_transform(self, Z, most_likely=True):

@@ -112,7 +112,7 @@ def test_generator_clones_estimator():
 
 def test_generator_rejects_missing_column():
     """A frame without the aptamer column raises a ValueError naming the columns."""
-    with pytest.raises(ValueError, match="no column 'aptamer'"):
+    with pytest.raises(ValueError, match="aptamer_col"):
         RaptGenGenerator().fit(pd.DataFrame({"seq": SEQS}))
 
 

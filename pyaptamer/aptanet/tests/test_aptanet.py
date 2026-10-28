@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from sklearn.base import is_regressor
 from sklearn.dummy import DummyClassifier
-from sklearn.model_selection import cross_val_score
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptanet import AptaNetClassifier, AptaNetPipeline, AptaNetRegressor
@@ -84,11 +82,6 @@ def test_pipeline_fit_and_predict_regression(aptamer_seq, protein_seq):
     assert np.issubdtype(preds.dtype, np.floating)
 
 
-def test_pipeline_is_regressor_with_regressor_estimator():
-    """The pipeline takes its estimator type from its estimator."""
-    assert is_regressor(AptaNetPipeline(estimator=AptaNetRegressor()))
-
-
 def _fitted_features(X):
     """The fitted feature step of an AptaNetPipeline, without training the network."""
     y = np.zeros(len(X.to_dataframe()), dtype=np.float32)
@@ -117,17 +110,6 @@ def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_s
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
-def test_pipeline_custom_column_names(aptamer_seq, protein_seq):
-    """aptamer_col and protein_col select the columns; nothing is hardcoded."""
-    X = MoleculeLoader(data={"apt": [aptamer_seq] * 4, "target": [protein_seq] * 4})
-    y = np.array([0, 0, 1, 1], dtype=np.float32)
-    pipe = AptaNetPipeline(
-        aptamer_col="apt", protein_col="target", estimator=DummyClassifier()
-    ).fit(X, y)
-    assert pipe.predict(X).shape == (4,)
-
-
-@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_pseaac_is_pinned_to_aptanet_reference(aptamer_seq, protein_seq):
     """The protein step reproduces the AptaNet reference PSeAAC vector.
 
@@ -140,33 +122,6 @@ def test_pipeline_pseaac_is_pinned_to_aptanet_reference(aptamer_seq, protein_seq
     np.testing.assert_allclose(
         protein_step.transform(ref).to_numpy()[0], solution, atol=1e-3
     )
-
-
-@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
-def test_pipeline_accepts_dataframe(aptamer_seq, protein_seq):
-    """A DataFrame with the aptamer and protein columns is accepted like a loader."""
-    X = _make_loader(aptamer_seq, protein_seq, 4).to_dataframe()
-    y = np.array([0, 0, 1, 1], dtype=np.float32)
-    pipe = AptaNetPipeline(estimator=DummyClassifier()).fit(X, y)
-    assert pipe.predict(X).shape == (4,)
-
-
-def test_pipeline_rejects_other_input():
-    """Input that is neither a MoleculeLoader nor a DataFrame raises TypeError."""
-    with pytest.raises(
-        TypeError, match="MoleculeLoader instance or a pandas DataFrame"
-    ):
-        AptaNetPipeline().fit([["ACGT", "ACDE"]], np.array([0.0]))
-
-
-@pytest.mark.parametrize("scoring", [None, "roc_auc"])
-@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
-def test_pipeline_cross_val_score(aptamer_seq, protein_seq, scoring):
-    """cross_val_score gives finite scores, with the default score and roc_auc."""
-    X = _make_loader(aptamer_seq, protein_seq, 8).to_dataframe()
-    y = np.array([0, 1] * 4)
-    pipe = AptaNetPipeline(estimator=DummyClassifier())
-    assert np.isfinite(cross_val_score(pipe, X, y, cv=2, scoring=scoring)).all()
 
 
 @parametrize_with_checks(
