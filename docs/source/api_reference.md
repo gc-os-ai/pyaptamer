@@ -221,6 +221,18 @@ Scoring functions that connect a model to the search.
    Benchmarking
 ```
 
+## Base classes
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.base
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   BasePipelineDelegator
+```
+
 ## Utilities
 
 ```{eval-rst}

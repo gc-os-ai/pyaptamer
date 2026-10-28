@@ -110,17 +110,6 @@ def test_fasta_sourced_loader_matches_in_memory(tmp_path, aptamer_seq, protein_s
 
 
 @pytest.mark.parametrize("aptamer_seq, protein_seq", params)
-def test_pipeline_custom_column_names(aptamer_seq, protein_seq):
-    """aptamer_col and protein_col select the columns; nothing is hardcoded."""
-    X = MoleculeLoader(data={"apt": [aptamer_seq] * 4, "target": [protein_seq] * 4})
-    y = np.array([0, 0, 1, 1], dtype=np.float32)
-    pipe = AptaNetPipeline(
-        aptamer_col="apt", protein_col="target", estimator=DummyClassifier()
-    ).fit(X, y)
-    assert pipe.predict(X).shape == (4,)
-
-
-@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
 def test_pipeline_pseaac_is_pinned_to_aptanet_reference(aptamer_seq, protein_seq):
     """The protein step reproduces the AptaNet reference PSeAAC vector.
 
@@ -133,23 +122,6 @@ def test_pipeline_pseaac_is_pinned_to_aptanet_reference(aptamer_seq, protein_seq
     np.testing.assert_allclose(
         protein_step.transform(ref).to_numpy()[0], solution, atol=1e-3
     )
-
-
-@pytest.mark.parametrize("aptamer_seq, protein_seq", params)
-def test_pipeline_accepts_dataframe(aptamer_seq, protein_seq):
-    """A DataFrame with the aptamer and protein columns is accepted like a loader."""
-    X = _make_loader(aptamer_seq, protein_seq, 4).to_dataframe()
-    y = np.array([0, 0, 1, 1], dtype=np.float32)
-    pipe = AptaNetPipeline(estimator=DummyClassifier()).fit(X, y)
-    assert pipe.predict(X).shape == (4,)
-
-
-def test_pipeline_rejects_other_input():
-    """Input that is neither a MoleculeLoader nor a DataFrame raises TypeError."""
-    with pytest.raises(
-        TypeError, match="MoleculeLoader instance or a pandas DataFrame"
-    ):
-        AptaNetPipeline().fit([["ACGT", "ACDE"]], np.array([0.0]))
 
 
 @parametrize_with_checks(

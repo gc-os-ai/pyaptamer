@@ -12,6 +12,9 @@ import pandas as pd
 import pytest
 from skbase._exceptions import NotFittedError
 from skbase.testing import BaseFixtureGenerator, TestAllObjects
+from sklearn.exceptions import NotFittedError as SklearnNotFittedError
+from sklearn.pipeline import Pipeline
+from sklearn.utils.validation import check_is_fitted
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.transformations.base import BaseTransform
@@ -252,6 +255,21 @@ class TestAllTransformers(TransformerFixtureGenerator, TestAllObjects):
                 [f"{column}__{c}" for c in narrow.columns], axis=1
             )
         pd.testing.assert_frame_equal(middle, expected)
+
+    def test_sklearn_sees_fitted_state(self, object_instance):
+        """scikit-learn's check_is_fitted raises before fit and passes after."""
+        with pytest.raises(SklearnNotFittedError):
+            check_is_fitted(object_instance)
+        object_instance.fit(**_scenario_for(object_instance).args["fit"])
+        check_is_fitted(object_instance)
+
+    def test_sklearn_pipeline_ending_in_transformer(self, object_instance):
+        """A scikit-learn Pipeline ending in the transformer gives its output."""
+        args = _scenario_for(object_instance).args
+        X_fit, X = args["fit"]["X"], args["transform"]["X"]
+        expected = object_instance.clone().fit(X_fit).transform(X)
+        pipe = Pipeline([("step", object_instance)]).fit(X_fit)
+        pd.testing.assert_frame_equal(pipe.transform(X), expected)
 
 
 def test_stateful_transform_uses_fitted_state():
