@@ -5,14 +5,13 @@ aptamer generation.
 __author__ = ["nennomp", "siddharth7113"]
 __all__ = ["AptaTransPipeline"]
 
-import pandas as pd
-from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
 from sklearn.pipeline import Pipeline
 
 from pyaptamer.aptatrans._classifier import AptaTransClassifier
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.base import BasePipelineDelegator
 from pyaptamer.datasets import load_csv_dataset
 from pyaptamer.experiments import AptamerEvalAptaTrans
 from pyaptamer.mcts import MCTS
@@ -22,7 +21,7 @@ from pyaptamer.transformations.transform import DNAToRNA
 from pyaptamer.utils._base import filter_words
 
 
-class AptaTransPipeline(BaseEstimator):
+class AptaTransPipeline(BasePipelineDelegator):
     """AptaTrans pipeline for aptamer-protein interaction, by Shin et al. [1]_.
 
     AptaTrans predicts whether an aptamer binds a protein from the two
@@ -56,10 +55,12 @@ class AptaTransPipeline(BaseEstimator):
         Name of the column holding aptamer sequences.
     protein_col : str, default="protein"
         Name of the column holding protein sequences.
-    estimator : AptaTransClassifier or None, default=None
-        Classifier applied to the token ids. Its ``apta_max_len`` is set to
-        the ``apta_max_len`` of this pipeline. If None, uses
-        ``AptaTransClassifier()``.
+    estimator : sklearn-compatible classifier or None, default=None
+        Classifier applied to the token ids. If None, uses an
+        ``AptaTransClassifier`` with the ``apta_max_len`` of this pipeline. An
+        ``AptaTransClassifier`` passed here must have the same ``apta_max_len``
+        as the pipeline. Only an ``AptaTransClassifier`` supports
+        ``interaction_map``.
 
     Attributes
     ----------
@@ -85,6 +86,7 @@ class AptaTransPipeline(BaseEstimator):
     >>> X = MoleculeLoader(data={"aptamer": [aptamer] * 8, "protein": [protein] * 8})
     >>> y = np.array([0, 1] * 4)
     >>> clf = AptaTransClassifier(
+    ...     apta_max_len=16,
     ...     in_dim=8,
     ...     n_heads=2,
     ...     n_encoder_layers=1,
@@ -99,6 +101,12 @@ class AptaTransPipeline(BaseEstimator):
     >>> labels = pipe.predict(X)
     >>> candidates = pipe.generate(protein, n_candidates=1, depth=5, n_iterations=2)
     """
+
+    _tags = {
+        "authors": ["nennomp", "siddharth7113"],
+        "maintainers": ["siddharth7113"],
+        "col_params": ["aptamer_col", "protein_col"],
+    }
 
     def __init__(
         self,
@@ -142,10 +150,9 @@ class AptaTransPipeline(BaseEstimator):
             ]
         )
         if self.estimator is None:
-            estimator = AptaTransClassifier()
+            estimator = AptaTransClassifier(apta_max_len=self.apta_max_len)
         else:
             estimator = clone(self.estimator)
-        estimator.set_params(apta_max_len=self.apta_max_len)
         return Pipeline(
             [
                 ("to_rna", ApplyToCols(DNAToRNA(), cols=self.aptamer_col)),
@@ -153,76 +160,6 @@ class AptaTransPipeline(BaseEstimator):
                 ("clf", estimator),
             ]
         )
-
-    def _to_frame(self, X):
-        if isinstance(X, MoleculeLoader):
-            X = X.to_dataframe()
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
-        columns = [self.aptamer_col, self.protein_col]
-        missing = [c for c in columns if c not in X.columns]
-        if missing:
-            raise ValueError(
-                f"X has no column {missing}. X has columns {list(X.columns)}. "
-                "Pass the names as AptaTransPipeline(aptamer_col=..., "
-                "protein_col=...)."
-            )
-        return X[columns]
-
-    def fit(self, X, y):
-        """Encode the pairs and train the classifier.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pandas.DataFrame
-            Aptamer and protein sequences, one pair per row.
-        y : array-like of shape (n_samples,)
-            Binary labels, 1 if the pair interacts.
-
-        Returns
-        -------
-        self : AptaTransPipeline
-        """
-        self.pipeline_ = self._build_pipeline()
-        self.pipeline_.fit(self._to_frame(X), y)
-        self._is_fitted = True
-        return self
-
-    def predict_proba(self, X):
-        """Predict class probabilities for each pair.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pandas.DataFrame
-            Aptamer and protein sequences, one pair per row.
-
-        Returns
-        -------
-        ndarray of shape (n_samples, 2)
-            Probability of each class, in the order of ``classes_`` of the
-            classifier.
-        """
-        self.check_is_fitted(method_name="predict_proba")
-        return self.pipeline_.predict_proba(self._to_frame(X))
-
-    def predict(self, X):
-        """Predict the class label of each pair.
-
-        Parameters
-        ----------
-        X : MoleculeLoader or pandas.DataFrame
-            Aptamer and protein sequences, one pair per row.
-
-        Returns
-        -------
-        ndarray of shape (n_samples,)
-            Predicted class labels.
-        """
-        self.check_is_fitted(method_name="predict")
-        return self.pipeline_.predict(self._to_frame(X))
 
     def interaction_map(self, X):
         """Compute the aptamer-protein interaction map of each pair.
@@ -240,7 +177,7 @@ class AptaTransPipeline(BaseEstimator):
             ``prot_max_len``, each at least 6.
         """
         self.check_is_fitted(method_name="interaction_map")
-        tokens = self.pipeline_[:-1].transform(self._to_frame(X))
+        tokens = self.pipeline_[:-1].transform(self._check_X(X))
         return self.pipeline_[-1].interaction_map(tokens)
 
     def generate(self, target, n_candidates=10, depth=20, n_iterations=1000):
@@ -288,3 +225,8 @@ class AptaTransPipeline(BaseEstimator):
                 )
 
         return sorted(candidates.values(), key=lambda c: c[2], reverse=True)
+
+    @classmethod
+    def get_test_params(cls, parameter_set="default"):
+        """Return testing parameter settings for the estimator."""
+        return {"apta_max_len": 12, "prot_max_len": 10, "estimator": DummyClassifier()}

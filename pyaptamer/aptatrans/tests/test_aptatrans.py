@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from skbase._exceptions import NotFittedError
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptatrans import (
@@ -280,7 +279,7 @@ def _small_pipeline(**kwargs):
     return AptaTransPipeline(
         apta_max_len=12,
         prot_max_len=10,
-        estimator=AptaTransClassifier(**SMALL_NET),
+        estimator=AptaTransClassifier(apta_max_len=12, **SMALL_NET),
         **kwargs,
     )
 
@@ -291,20 +290,6 @@ def fitted(pairs):
     return _small_pipeline().fit(*pairs)
 
 
-def test_pipeline_predict_proba_rows_sum_to_one(fitted, pairs):
-    """predict_proba gives one probability pair per row, summing to one."""
-    proba = fitted.predict_proba(pairs[0])
-    assert proba.shape == (8, 2)
-    np.testing.assert_allclose(proba.sum(axis=1), 1.0)
-
-
-def test_pipeline_predict_returns_seen_labels(fitted, pairs):
-    """predict gives one label per row, from the labels seen in fit."""
-    labels = fitted.predict(pairs[0])
-    assert labels.shape == (8,)
-    assert set(labels) <= {0, 1}
-
-
 def test_pipeline_dna_and_rna_spelling_score_the_same(fitted):
     """An aptamer spelled with T scores the same as with U."""
     dna = pd.DataFrame({"aptamer": [APTAMER], "protein": [PROTEIN]})
@@ -312,40 +297,12 @@ def test_pipeline_dna_and_rna_spelling_score_the_same(fitted):
     np.testing.assert_allclose(fitted.predict_proba(dna), fitted.predict_proba(rna))
 
 
-def test_pipeline_custom_column_names_and_extra_columns(pairs):
-    """Named columns are read and other columns are ignored."""
-    X = pairs[0].to_dataframe().rename(columns={"aptamer": "apt", "protein": "prot"})
-    X["note"] = "x"
-    pipe = _small_pipeline(aptamer_col="apt", protein_col="prot").fit(X, pairs[1])
-    assert pipe.predict(X).shape == (8,)
-
-
-def test_pipeline_missing_column_raises(fitted):
-    """X without the aptamer column raises a ValueError naming it."""
-    with pytest.raises(ValueError, match="aptamer"):
-        fitted.predict(pd.DataFrame({"protein": [PROTEIN]}))
-
-
-def test_pipeline_predict_before_fit_raises(pairs):
-    """predict on an unfitted pipeline raises NotFittedError."""
-    with pytest.raises(NotFittedError):
-        _small_pipeline().predict(pairs[0])
-
-
-def test_pipeline_sets_estimator_split_without_changing_it(fitted):
-    """The fitted classifier splits at the pipeline's apta_max_len; the passed one
-    is not fitted or changed."""
-    assert fitted.pipeline_["clf"].apta_max_len == 12
-    assert fitted.estimator.apta_max_len == 275
-    assert not hasattr(fitted.estimator, "model_")
-
-
 def test_pipeline_default_protein_words_are_the_bundled_ones(pairs):
     """With prot_words=None the protein encoder uses the 713 bundled words."""
     pipe = AptaTransPipeline(
         apta_max_len=12,
         prot_max_len=10,
-        estimator=AptaTransClassifier(**SMALL_NET),
+        estimator=AptaTransClassifier(apta_max_len=12, **SMALL_NET),
     ).fit(*pairs)
     words = pipe.pipeline_["features"].named_transformers_["protein"].words
     assert len(words) == 713

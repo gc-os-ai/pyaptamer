@@ -54,6 +54,7 @@ network on shorter sequences trains on a CPU:
 from pyaptamer.aptatrans import AptaTransClassifier
 
 clf = AptaTransClassifier(
+    apta_max_len=64,
     in_dim=32,
     n_heads=4,
     n_encoder_layers=1,

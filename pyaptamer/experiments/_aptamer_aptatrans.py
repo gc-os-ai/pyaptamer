@@ -30,6 +30,7 @@ class AptamerEvalAptaTrans(BaseAptamerEval):
     >>> X = MoleculeLoader(data={"aptamer": [aptamer] * 8, "protein": [protein] * 8})
     >>> y = np.array([0, 1] * 4)
     >>> clf = AptaTransClassifier(
+    ...     apta_max_len=16,
     ...     in_dim=8,
     ...     n_heads=2,
     ...     n_encoder_layers=1,
