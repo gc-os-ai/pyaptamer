@@ -5,6 +5,7 @@ __all__ = ["BaseTransform"]
 
 import pandas as pd
 from skbase.base import BaseEstimator
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
 from pyaptamer.data import MoleculeLoader
 
@@ -173,6 +174,30 @@ class BaseTransform(BaseEstimator):
             Transformed data.
         """
         return self.fit(X, y).transform(X)
+
+    def __sklearn_is_fitted__(self):
+        """Return whether ``fit`` has been called.
+
+        scikit-learn's ``check_is_fitted`` calls this, for example in a
+        ``Pipeline`` whose last step is this transformer.
+        """
+        return self.is_fitted
+
+    def __sklearn_tags__(self):
+        """Return the scikit-learn tags of the transformer.
+
+        scikit-learn reads these when the transformer is a step of one of its
+        meta-estimators. ``requires_fit`` is True for every transformer,
+        including those with ``property:fit_is_empty``, since ``transform``
+        raises before ``fit``.
+        """
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(preserves_dtype=[]),
+            input_tags=InputTags(two_d_array=True, string=True),
+            requires_fit=True,
+        )
 
     def _check_X_y(self, X, y):  # noqa: N802
         """Check X and y inputs.

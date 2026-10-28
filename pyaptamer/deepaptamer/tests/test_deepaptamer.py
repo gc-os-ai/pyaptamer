@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 import torch
 from sklearn.dummy import DummyClassifier
+from sklearn.model_selection import cross_val_score
 from sklearn.utils.estimator_checks import (
     check_get_params_invariance,
     check_no_attributes_set_in_init,
@@ -131,6 +132,15 @@ def test_pipeline_rejects_other_input():
         TypeError, match="MoleculeLoader instance or a pandas DataFrame"
     ):
         DeepAptamerPipeline().fit(APTAMERS, np.array([0, 1]))
+
+
+@pytest.mark.parametrize("scoring", [None, "roc_auc"])
+def test_pipeline_cross_val_score(scoring):
+    """cross_val_score gives finite scores, with the default score and roc_auc."""
+    X = pd.DataFrame({"aptamer": APTAMERS * 4})
+    y = np.array([0, 1] * 4)
+    pipe = DeepAptamerPipeline(estimator=DummyClassifier())
+    assert np.isfinite(cross_val_score(pipe, X, y, cv=2, scoring=scoring)).all()
 
 
 def test_classifier_fit_predict():

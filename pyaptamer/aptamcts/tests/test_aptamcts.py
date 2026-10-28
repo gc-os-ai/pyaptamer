@@ -7,6 +7,7 @@ import pytest
 from skbase._exceptions import NotFittedError
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
 
 from pyaptamer.aptamcts import AptaMCTSPipeline
 from pyaptamer.data import MoleculeLoader
@@ -97,6 +98,16 @@ def test_passed_estimator_is_not_fitted_in_place(li2014):
     rf = _fast_rf()
     AptaMCTSPipeline(estimator=rf).fit(X, y)
     assert not hasattr(rf, "estimators_")
+
+
+@pytest.mark.parametrize("scoring", [None, "roc_auc"])
+def test_cross_val_score(li2014, scoring):
+    """cross_val_score gives finite scores, with the default score and roc_auc."""
+    X, y = li2014
+    pipe = AptaMCTSPipeline(estimator=_fast_rf())
+    assert np.isfinite(
+        cross_val_score(pipe, X.to_dataframe(), y, cv=2, scoring=scoring)
+    ).all()
 
 
 def test_predict_before_fit_raises(li2014):
