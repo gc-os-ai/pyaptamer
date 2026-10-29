@@ -157,7 +157,7 @@ class SequenceOneHotEncoder(BaseTransform):
         reads = X.iloc[:, 0]
         lengths = reads.dropna().str.len()
 
-        if lengths.nunique() > 1:
+        if self.handle_unknown == "raise" and lengths.nunique() > 1:
             raise ValueError(
                 f"{type(self).__name__} requires all sequences to be the "
                 f"same fixed length, got lengths {sorted(lengths.unique())}. "
@@ -194,6 +194,17 @@ class SequenceOneHotEncoder(BaseTransform):
 
             encoded_seqs.append([vocab[char] for char in seq])
             kept_pos.append(pos)
+
+        if self.handle_unknown == "drop":
+            retained_lengths = [len(seq) for seq in encoded_seqs]
+            lengths_to_check = retained_lengths or lengths.tolist()
+            if len(set(lengths_to_check)) > 1:
+                raise ValueError(
+                    f"{type(self).__name__} requires all sequences to be the "
+                    f"same fixed length, got lengths {sorted(set(lengths_to_check))}. "
+                    "Route raw reads through PrimerTrimmer first to produce "
+                    "fixed-length regions."
+                )
 
         dropped = len(reads) - len(encoded_seqs)
         if dropped:

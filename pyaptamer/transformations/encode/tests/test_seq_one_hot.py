@@ -111,6 +111,15 @@ def test_sequence_one_hot_encoder_handle_unknown_drop_unsupported_character():
     assert encoder.inverse_transform(Xt)["sequence"].tolist() == ["ACGT"]
 
 
+def test_drop_unknown_sequence_before_checking_fixed_length():
+    """A dropped unknown row of another length does not reject valid reads."""
+    X = pd.DataFrame({"seq": ["ACGT", "ACGTN"]}, index=[10, 20])
+    Xt = SequenceOneHotEncoder(handle_unknown="drop").fit_transform(X)
+
+    assert Xt.shape == (1, 16)
+    assert Xt.index.tolist() == [10]
+
+
 @pytest.mark.parametrize("missing_value", [None, float("nan")])
 def test_sequence_one_hot_encoder_handle_unknown_drop_missing_value(missing_value):
     """handle_unknown='drop' skips only the row containing None/NaN value."""
