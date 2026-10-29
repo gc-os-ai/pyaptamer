@@ -1,6 +1,7 @@
 __author__ = ["prashantpandeygit", "Alleny244"]
 
 import re
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -194,7 +195,11 @@ def test_batch_nan_padding():
     """Shorter sequences are right-padded with NaN in a batch."""
     short = "ATGC"
     long = TEST_SEQ
-    Xt = DeepDNAShape(feature="MGW").fit_transform(_frame(short, long))
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "error", message="Constructing a DataFrame from a list of sequences"
+        )
+        Xt = DeepDNAShape(feature="MGW").fit_transform(_frame(short, long))
 
     assert Xt.shape == (2, len(long))
     assert np.isnan(Xt.iloc[0, len(short) :]).all()

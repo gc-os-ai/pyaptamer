@@ -198,4 +198,8 @@ class DeepDNAShape(BaseTransform):
                 )
 
         preds = [self._predict_one(seq) for seq in X.iloc[:, 0]]
-        return pd.DataFrame(preds, index=X.index, dtype=np.float64).add_prefix("pos_")
+        width = max((len(pred) for pred in preds), default=0)
+        values = np.full((len(preds), width), np.nan, dtype=np.float64)
+        for row, pred in enumerate(preds):
+            values[row, : len(pred)] = pred
+        return pd.DataFrame(values, index=X.index).add_prefix("pos_")
