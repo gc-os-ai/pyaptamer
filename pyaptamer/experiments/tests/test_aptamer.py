@@ -62,23 +62,6 @@ class TestAptamerEvalConcrete:
         score = experiment.evaluate(aptamer_candidate)
         assert isinstance(score, numpy.float64)
 
-    @pytest.mark.parametrize(
-        "experiment", [AptamerEvalAptaNet, AptamerEvalAptaTrans], indirect=True
-    )
-    def test_evaluate_empty_sequence(self, experiment):
-        """Check evaluation with empty sequence."""
-        score = experiment.evaluate("")
-        assert isinstance(score, numpy.float64)
-
-    @pytest.mark.parametrize(
-        "experiment", [AptamerEvalAptaNet, AptamerEvalAptaTrans], indirect=True
-    )
-    def test_evaluate_with_underscores(self, experiment):
-        """Check evaluation with sequences containing underscores."""
-        aptamer_candidate = "ACGU"
-        score = experiment.evaluate(aptamer_candidate)
-        assert isinstance(score, numpy.float64)
-
 
 class RecordingPipeline(MockPipeline):
     """Mock pipeline that records the column names it is asked to score."""

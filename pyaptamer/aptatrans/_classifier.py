@@ -3,6 +3,7 @@
 __author__ = ["siddharth7113"]
 __all__ = ["AptaTransClassifier"]
 
+import copy
 import tempfile
 
 import lightning as L
@@ -58,6 +59,10 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         uses ``[3, 3, 3]``.
     dropout : float, default=0.1
         Dropout rate of the encoders.
+    model : AptaTrans or None, default=None
+        Starting network, for example one with pretrained encoders. ``fit``
+        trains a copy of it instead of a new network built from the size
+        parameters above and ``pretrained``.
     pretrained : bool, default=False
         If True, start from the pretrained AptaTrans weights. These need the
         default ``apta_max_len``, vocabulary sizes and network sizes, and a
@@ -128,6 +133,7 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         n_heads=8,
         conv_layers=None,
         dropout=0.1,
+        model=None,
         pretrained=False,
         lr=1e-5,
         weight_decay=1e-5,
@@ -146,6 +152,7 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         self.n_heads = n_heads
         self.conv_layers = conv_layers
         self.dropout = dropout
+        self.model = model
         self.pretrained = pretrained
         self.lr = lr
         self.weight_decay = weight_decay
@@ -185,9 +192,6 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
                 f"{type(self).__name__} is a binary classifier, but y has "
                 f"{len(self.classes_)} class(es): {self.classes_.tolist()}."
             )
-        if len(X) < 2:
-            raise ValueError(f"Need at least 2 samples to fit, got {len(X)}.")
-
         x_apta, x_prot = self._to_tensors(X)
         y_t = torch.as_tensor(y_idx, dtype=torch.float32)
         with torch.random.fork_rng(enabled=self.random_state is not None):
@@ -249,7 +253,9 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         self.n_epochs_ = trainer.current_epoch
 
     def _build_model(self, apta_len, prot_len):
-        """Instantiate an untrained network for blocks of the given lengths."""
+        """Copy the given network, or build one for blocks of the given lengths."""
+        if self.model is not None:
+            return copy.deepcopy(self.model)
         return AptaTrans(
             apta_embedding=EncoderPredictorConfig(
                 num_embeddings=self.n_apta_tokens,
@@ -270,7 +276,7 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         )
 
     def _to_tensors(self, X):
-        """Split X into aptamer and protein token tensors, padded to 6 columns."""
+        """Split X into the aptamer and protein token tensors."""
         name = type(self).__name__
         if X.shape[1] <= self.apta_max_len:
             raise ValueError(
@@ -285,33 +291,32 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         if np.any(X != np.round(X)):
             raise ValueError(f"{name} expects integer token ids in X.")
 
-        blocks = [
-            ("aptamer", "n_apta_tokens", X[:, : self.apta_max_len]),
-            ("protein", "n_prot_tokens", X[:, self.apta_max_len :]),
-        ]
-        tensors = []
-        for block_name, param, block in blocks:
-            n_tokens = getattr(self, param)
-            if block.max() >= n_tokens:
-                raise ValueError(
-                    f"The {block_name} columns of X hold token id {int(block.max())}, "
-                    f"but {param}={n_tokens}. Pass {name}({param}=...) with a "
-                    f"value above {int(block.max())}."
-                )
-            padded = np.zeros(
-                (len(block), max(block.shape[1], _MIN_BLOCK_LEN)), dtype=np.int64
-            )
-            padded[:, : block.shape[1]] = block
-            tensors.append(torch.as_tensor(padded))
-        return tensors
+        x_apta = self._block(X[:, : self.apta_max_len], "aptamer", "n_apta_tokens")
+        x_prot = self._block(X[:, self.apta_max_len :], "protein", "n_prot_tokens")
+        return x_apta, x_prot
 
-    def _forward(self, X, method):
-        """Run a network method over X in minibatches and return a numpy array."""
+    def _block(self, block, block_name, param):
+        """Check the ids of one block against the parameter named by param and pad
+        the block to at least 6 columns."""
+        n_tokens = getattr(self, param)
+        if block.max() >= n_tokens:
+            raise ValueError(
+                f"The {block_name} columns of X hold token id {int(block.max())}, "
+                f"but {param}={n_tokens}. Pass {type(self).__name__}({param}=...) "
+                f"with a value above {int(block.max())}."
+            )
+        width = max(block.shape[1], _MIN_BLOCK_LEN)
+        padded = np.zeros((len(block), width), dtype=np.int64)
+        padded[:, : block.shape[1]] = block
+        return torch.as_tensor(padded)
+
+    def _forward(self, X, imap=False):
+        """Run the network over X in minibatches and return a numpy array."""
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         x_apta, x_prot = self._to_tensors(X)
         self.model_.eval()
-        forward = getattr(self.model_, method)
+        forward = self.model_.forward_imap if imap else self.model_
         device = next(self.model_.parameters()).device
         loader = DataLoader(TensorDataset(x_apta, x_prot), batch_size=self.batch_size)
         with torch.no_grad():
@@ -333,8 +338,8 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         ndarray of shape (n_samples, 2)
             Probability of ``classes_[0]`` and ``classes_[1]``.
         """
-        p = self._forward(X, "forward").ravel().astype(np.float64)
-        return np.column_stack([1 - p, p])
+        p_positive = self._forward(X)[:, 0].astype(np.float64)
+        return np.column_stack([1 - p_positive, p_positive])
 
     def predict(self, X):
         """Predict class labels.
@@ -366,7 +371,7 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
             Interaction map between the aptamer and protein positions. Each
             length is the width of its block, at least 6.
         """
-        return self._forward(X, "forward_imap")
+        return self._forward(X, imap=True)
 
     def __sklearn_tags__(self):
         tags = super().__sklearn_tags__()
@@ -374,5 +379,4 @@ class AptaTransClassifier(ClassifierMixin, BaseEstimator):
         tags.input_tags.positive_only = True
         tags.classifier_tags.multi_class = False
         tags.classifier_tags.poor_score = True
-        tags.non_deterministic = True
         return tags

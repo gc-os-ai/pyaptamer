@@ -144,7 +144,8 @@ aptamer encoder learns the secondary structure of RNA sequences from bpRNA,
 and the protein encoder the secondary structure of proteins from the Protein
 Data Bank. {class}`~pyaptamer.aptatrans.AptaTransEncoderLightning` runs this
 step. The tutorial notebook `examples/aptatrans_tutorial.ipynb` walks
-through it.
+through it. Pass the network with the pretrained encoders as
+`AptaTransClassifier(model=...)` to train the classifier from it.
 
 ## References
 

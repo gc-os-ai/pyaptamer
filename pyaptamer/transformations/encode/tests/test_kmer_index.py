@@ -3,6 +3,7 @@
 __author__ = ["siddharth7113"]
 
 import pandas as pd
+import pytest
 
 from pyaptamer.transformations.encode import KMerIndexEncoder
 
@@ -37,3 +38,22 @@ def test_max_len_truncates():
         pd.DataFrame({"seq": ["AACC"]})
     )
     assert Xt.iloc[0].tolist() == [1, 2]
+
+
+def test_unknown_replaces_letters_outside_alphabet():
+    """With unknown set, a foreign letter encodes like the unknown letter."""
+    with_n = KMerIndexEncoder(k=3, alphabet="ACGTN", unknown="N").fit_transform(
+        pd.DataFrame({"seq": ["AC-GT"]})
+    )
+    expected = KMerIndexEncoder(k=3, alphabet="ACGTN").fit_transform(
+        pd.DataFrame({"seq": ["ACNGT"]})
+    )
+    pd.testing.assert_frame_equal(with_n, expected)
+
+
+def test_unknown_outside_alphabet_raises():
+    """unknown must be a letter of alphabet."""
+    with pytest.raises(ValueError, match="unknown"):
+        KMerIndexEncoder(alphabet="ACGT", unknown="N").fit_transform(
+            pd.DataFrame({"seq": ["ACGT"]})
+        )

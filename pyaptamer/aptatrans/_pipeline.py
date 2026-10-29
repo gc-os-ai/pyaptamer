@@ -67,6 +67,13 @@ class AptaTransPipeline(BasePipelineDelegator):
     pipeline_ : sklearn.pipeline.Pipeline
         Steps ``to_rna``, ``features`` (a ``ColumnTransformer``) and ``clf``.
 
+    Notes
+    -----
+    The classifier splits each row of ids at its own ``apta_max_len``. An
+    ``AptaTransClassifier`` passed as ``estimator`` with a different
+    ``apta_max_len`` than the pipeline cuts the row in the wrong place and
+    raises a token id error in ``fit``.
+
     References
     ----------
     .. [1] Shin, Incheol, et al. "AptaTrans: a deep neural network for predicting
@@ -132,25 +139,28 @@ class AptaTransPipeline(BasePipelineDelegator):
                 name="protein_word_freq", keep_default_na=False, na_values=["_"]
             )
             prot_words = freq.set_index("seq")["freq"].to_dict()
+        words = filter_words(prot_words)
 
         features = ColumnTransformer(
             [
                 (
                     "aptamer",
-                    KMerIndexEncoder(k=3, alphabet="ACGUN", max_len=self.apta_max_len),
+                    KMerIndexEncoder(
+                        k=3, alphabet="ACGUN", max_len=self.apta_max_len, unknown="N"
+                    ),
                     [self.aptamer_col],
                 ),
                 (
                     "protein",
-                    GreedyEncoder(
-                        words=filter_words(prot_words), max_len=self.prot_max_len
-                    ),
+                    GreedyEncoder(words=words, max_len=self.prot_max_len),
                     [self.protein_col],
                 ),
             ]
         )
         if self.estimator is None:
-            estimator = AptaTransClassifier(apta_max_len=self.apta_max_len)
+            estimator = AptaTransClassifier(
+                apta_max_len=self.apta_max_len, n_prot_tokens=len(words) + 2
+            )
         else:
             estimator = clone(self.estimator)
         return Pipeline(

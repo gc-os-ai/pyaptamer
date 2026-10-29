@@ -18,7 +18,8 @@ class KMerIndexEncoder(BaseTransform):
     ``k=3``, ``ACGUA`` has ``ACG``, ``CGU`` and ``GUA``. Each k-mer made of
     letters from ``alphabet`` has an id from 1 to ``len(alphabet) ** k``,
     in the order ``AAA, AAC, AAG, ...`` for ``alphabet="ACGT"``. Id 0 is
-    padding, and also marks a k-mer with a letter outside ``alphabet``.
+    padding. A k-mer with a letter outside ``alphabet`` also gets id 0. Set
+    ``unknown`` to replace such letters by a letter of ``alphabet`` instead.
 
     Sequences are upper-cased before encoding. Each row is truncated or
     zero-padded to ``max_len`` ids. A sequence shorter than ``k`` has no
@@ -36,6 +37,10 @@ class KMerIndexEncoder(BaseTransform):
     max_len : int or None, default=None
         Number of ids per row. If None, the number of k-mers of the longest
         sequence.
+    unknown : str or None, default=None
+        Letter of ``alphabet`` that replaces every letter outside
+        ``alphabet`` before the lookup, for example ``"N"``. If None, a k-mer
+        with such a letter gets id 0.
 
     Examples
     --------
@@ -46,6 +51,14 @@ class KMerIndexEncoder(BaseTransform):
        0  1  2  3
     0  1  2  0  0
     1  0  0  0  0
+
+    With ``unknown``, a letter outside the alphabet encodes as that letter.
+    ``AA-C`` becomes ``AANC``, the k-mers ``AAN`` and ``ANC``:
+
+    >>> X = pd.DataFrame({"seq": ["AA-C"]})
+    >>> KMerIndexEncoder(k=3, alphabet="ACGTN", unknown="N").fit_transform(X)
+       0   1
+    0  5  22
     """
 
     _tags = {
@@ -56,10 +69,11 @@ class KMerIndexEncoder(BaseTransform):
         "capability:multivariate": False,
     }
 
-    def __init__(self, k=3, alphabet="ACGT", max_len=None):
+    def __init__(self, k=3, alphabet="ACGT", max_len=None, unknown=None):
         self.k = k
         self.alphabet = alphabet
         self.max_len = max_len
+        self.unknown = unknown
         super().__init__()
 
     def _transform(self, X):
@@ -79,6 +93,11 @@ class KMerIndexEncoder(BaseTransform):
             raise ValueError(f"k must be at least 1, got {self.k}.")
         if self.max_len is not None and self.max_len < 1:
             raise ValueError(f"max_len must be at least 1 or None, got {self.max_len}.")
+        if self.unknown is not None and self.unknown not in self.alphabet:
+            raise ValueError(
+                f"unknown must be a letter of alphabet={self.alphabet!r} or None, "
+                f"got {self.unknown!r}."
+            )
 
         ids = {
             "".join(kmer): i
@@ -87,6 +106,10 @@ class KMerIndexEncoder(BaseTransform):
         rows = []
         for sequence in X.iloc[:, 0]:
             sequence = sequence.upper()
+            if self.unknown is not None:
+                sequence = "".join(
+                    c if c in self.alphabet else self.unknown for c in sequence
+                )
             n_kmers = len(sequence) - self.k + 1
             rows.append([ids.get(sequence[i : i + self.k], 0) for i in range(n_kmers)])
 
@@ -103,4 +126,8 @@ class KMerIndexEncoder(BaseTransform):
     @classmethod
     def get_test_params(cls):
         """Return parameter sets for the shared transformer tests."""
-        return [{}, {"k": 2, "alphabet": "ACGU", "max_len": 10}]
+        return [
+            {},
+            {"k": 2, "alphabet": "ACGU", "max_len": 10},
+            {"k": 3, "alphabet": "ACGTN", "unknown": "N"},
+        ]

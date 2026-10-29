@@ -2,6 +2,8 @@
 
 __author__ = ["nennomp", "siddharth7113"]
 
+from itertools import product
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -267,6 +269,55 @@ def test_classifier_token_id_above_vocabulary_raises():
         clf.fit(X, [0, 1])
 
 
+def _ids(n_rows=8, n_cols=16):
+    """Token-id rows with ids 1 to 19 and alternating labels."""
+    rng = np.random.default_rng(0)
+    return rng.integers(1, 20, size=(n_rows, n_cols)), np.array([0, 1] * (n_rows // 2))
+
+
+def test_classifier_same_random_state_reproduces_the_fit():
+    """The same random_state gives the same probabilities; another seed differs."""
+    X, y = _ids()
+
+    def proba(seed):
+        params = {**SMALL_NET, "random_state": seed}
+        return AptaTransClassifier(apta_max_len=8, **params).fit(X, y).predict_proba(X)
+
+    np.testing.assert_array_equal(proba(0), proba(0))
+    assert not np.array_equal(proba(0), proba(1))
+
+
+def test_classifier_n_epochs_counts_the_epochs_run():
+    """Without early stopping, n_epochs_ is max_epochs."""
+    X, y = _ids()
+    params = {**SMALL_NET, "max_epochs": 3}
+    clf = AptaTransClassifier(apta_max_len=8, patience=None, **params).fit(X, y)
+    assert clf.n_epochs_ == 3
+
+
+def test_classifier_model_starts_from_the_given_network():
+    """fit trains a copy of model with its sizes and leaves model unchanged."""
+    config = EncoderPredictorConfig(num_embeddings=20, target_dim=8, max_len=8)
+    model = AptaTrans(
+        config, config, in_dim=8, n_heads=2, n_encoder_layers=1, conv_layers=[1, 1, 1]
+    )
+    before = {k: v.clone() for k, v in model.state_dict().items()}
+    X, y = _ids()
+    clf = AptaTransClassifier(
+        apta_max_len=8,
+        n_apta_tokens=20,
+        n_prot_tokens=20,
+        model=model,
+        max_epochs=1,
+        random_state=0,
+    ).fit(X, y)
+
+    assert clf.model_ is not model
+    fitted_shapes = {k: v.shape for k, v in clf.model_.state_dict().items()}
+    assert fitted_shapes == {k: v.shape for k, v in before.items()}
+    assert all(torch.equal(model.state_dict()[k], v) for k, v in before.items())
+
+
 @pytest.fixture(scope="module")
 def pairs():
     """Eight aptamer-protein pairs with alternating labels."""
@@ -297,15 +348,21 @@ def test_pipeline_dna_and_rna_spelling_score_the_same(fitted):
     np.testing.assert_allclose(fitted.predict_proba(dna), fitted.predict_proba(rna))
 
 
-def test_pipeline_default_protein_words_are_the_bundled_ones(pairs):
+def test_pipeline_default_protein_words_are_the_bundled_ones(fitted):
     """With prot_words=None the protein encoder uses the 713 bundled words."""
-    pipe = AptaTransPipeline(
-        apta_max_len=12,
-        prot_max_len=10,
-        estimator=AptaTransClassifier(apta_max_len=12, **SMALL_NET),
-    ).fit(*pairs)
-    words = pipe.pipeline_["features"].named_transformers_["protein"].words
+    words = fitted.pipeline_["features"].named_transformers_["protein"].words
     assert len(words) == 713
+
+
+def test_pipeline_default_classifier_vocabulary_follows_the_words():
+    """The default classifier's protein vocabulary is the kept words, padding and
+    mask, also with more than the 713 bundled words."""
+    amino = "ACDEFGHIKLMNPQRSTVWY"
+    words = {"".join(w): 2.0 for w in product(amino, repeat=2)}
+    words.update({"".join(w): 2.0 for w in list(product(amino, repeat=3))[:400]})
+    words["A"] = 0.0
+    clf = AptaTransPipeline(prot_words=words)._build_pipeline()["clf"]
+    assert clf.n_prot_tokens == 802
 
 
 def test_pipeline_interaction_map_shape(fitted, pairs):
