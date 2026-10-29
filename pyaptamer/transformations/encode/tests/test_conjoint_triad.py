@@ -60,3 +60,9 @@ def test_empty_sequence_is_all_zero():
     Xt = ConjointTriad(k=2).fit_transform(_frame(""))
     assert not Xt.isna().any().any()
     assert Xt.to_numpy().sum() == 0
+
+
+def test_empty_batch_keeps_feature_width():
+    """An empty frame retains the conjoint triad feature width."""
+    X = pd.DataFrame({"protein": pd.Series([], dtype=object)})
+    assert ConjointTriad(k=3).fit_transform(X).shape == (0, 399)

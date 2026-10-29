@@ -96,6 +96,8 @@ class KMerFrequencies(BaseTransform):
             for i in range(1, self.k + 1)
             for p in product(self.alphabet, repeat=i)
         ]
+        if X.empty:
+            return pd.DataFrame(index=X.index, columns=range(len(kmers)), dtype=float)
         rows = [self._encode(seq, kmers) for seq in X.iloc[:, 0]]
         return pd.DataFrame(np.vstack(rows), index=X.index)
 
