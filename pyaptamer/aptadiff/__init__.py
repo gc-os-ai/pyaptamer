@@ -2,6 +2,7 @@
 
 from pyaptamer.aptadiff._generator import AptaDiffGenerator
 from pyaptamer.aptadiff._model import AptaDiffDenoiser, AptaDiffDiffusion
+from pyaptamer.aptadiff._optimizer import AptaDiffOptimizer
 from pyaptamer.aptadiff._pipeline import AptaDiff
 from pyaptamer.aptadiff._train_lightning import AptaDiffLightning
 
@@ -12,4 +13,5 @@ __all__ = [
     "AptaDiffDiffusion",
     "AptaDiffGenerator",
     "AptaDiffLightning",
+    "AptaDiffOptimizer",
 ]
