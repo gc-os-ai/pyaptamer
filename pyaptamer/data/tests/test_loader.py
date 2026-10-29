@@ -151,6 +151,19 @@ def test_features_keeps_literal_and_single_sequence_columns():
     assert df["name"].tolist() == ["a", "b"]
 
 
+def test_features_raises_if_generated_column_would_overwrite_input(tmp_path):
+    """features: a generated sequence_N column must not replace user data."""
+    fasta = tmp_path / "library.fasta"
+    fasta.write_text(">apt1\nACGT\n>apt2\nTTTT\n")
+    loader = MoleculeLoader(
+        data={"sequence": [str(fasta)], "sequence_0": ["metadata"]},
+        tiling="features",
+    )
+
+    with pytest.raises(ValueError, match="sequence_0.*already exist"):
+        loader.to_dataframe()
+
+
 # indexing
 def test_indexing_new_gives_rangeindex():
     """indexing='new': the index is a RangeIndex; chain IDs are dropped."""

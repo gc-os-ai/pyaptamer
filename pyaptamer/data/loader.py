@@ -259,6 +259,15 @@ class MoleculeLoader:
                 ]
                 continue
 
+            feature_columns = [f"{col}_{i}" for i in range(max_n)]
+            collisions = [name for name in feature_columns if name in df.columns]
+            if collisions:
+                raise ValueError(
+                    "tiling='features' would create columns "
+                    f"{collisions}, which already exist in the input. Rename "
+                    "the input columns before materializing the files."
+                )
+
             for i in range(max_n):
                 column = []
                 for (is_file, recs), value in zip(loaded, df[col], strict=True):
