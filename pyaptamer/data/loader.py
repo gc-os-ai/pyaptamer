@@ -346,6 +346,18 @@ class MoleculeLoader:
     ):
         """Apply ``indexing`` and ``multiindex`` to an exploded frame."""
         if self.indexing == "keep_as_column":
+            chain_id_columns = [
+                f"{col}_chain_id"
+                for col, cids in chain_id_cols.items()
+                if any(cid is not None for cid in cids)
+            ]
+            collisions = [name for name in chain_id_columns if name in out.columns]
+            if collisions:
+                raise ValueError(
+                    "indexing='keep_as_column' would create columns "
+                    f"{collisions}, which already exist in the input. Rename "
+                    "the input columns before materializing the files."
+                )
             for col, cids in chain_id_cols.items():
                 if any(cid is not None for cid in cids):
                     out[f"{col}_chain_id"] = cids

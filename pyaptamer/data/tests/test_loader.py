@@ -185,6 +185,18 @@ def test_indexing_keep_as_column():
     assert isinstance(df.index, pd.RangeIndex)
 
 
+def test_indexing_keep_as_column_raises_if_chain_id_would_overwrite_input():
+    """keep_as_column must not replace a caller's existing chain ID field."""
+    loader = MoleculeLoader(
+        data={"target": [PDB_SINGLE], "target_chain_id": ["metadata"]},
+        tiling="samples",
+        indexing="keep_as_column",
+    )
+
+    with pytest.raises(ValueError, match="target_chain_id.*already exist"):
+        loader.to_dataframe()
+
+
 # multiindex
 def test_multiindex_real():
     """multiindex='multiindex': the index is a (row, sequence) MultiIndex."""
