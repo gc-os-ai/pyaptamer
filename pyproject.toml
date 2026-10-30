@@ -34,7 +34,7 @@ Issues = "https://github.com/gc-os-ai/pyaptamer/issues"
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.17.2",
+    "ruff>=0.17.3",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pre-commit",
