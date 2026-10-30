@@ -18,6 +18,7 @@ from pyaptamer.deepaptamer import (
     DeepAptamerFeatures,
     DeepAptamerPipeline,
 )
+from pyaptamer.deepdnashape import _predictor
 
 APTAMERS = [
     "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCC",
@@ -68,6 +69,25 @@ def test_features_shape_ignores_padding():
     features = np.split(unpadded.to_numpy(), [16, 33, 49])
     expected = np.concatenate([np.pad(feat, (0, 15)) for feat in features])
     np.testing.assert_allclose(padded.to_numpy(), expected)
+
+
+def test_features_load_each_shape_model_once(monkeypatch):
+    """Repeated transforms on one instance load each of the 4 models once."""
+    calls = []
+    original = _predictor.hf_hub_download
+
+    def counting(*args, **kwargs):
+        calls.append(kwargs["filename"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(_predictor, "hf_hub_download", counting)
+    features = DeepAptamerFeatures()
+    X = pd.DataFrame({"seq": APTAMERS})
+    first = features.fit_transform(X)
+    second = features.fit_transform(X)
+
+    assert sorted(calls) == ["HelT.pt", "MGW.pt", "ProT.pt", "Roll.pt"]
+    pd.testing.assert_frame_equal(first, second)
 
 
 def test_features_reject_too_long_sequences():

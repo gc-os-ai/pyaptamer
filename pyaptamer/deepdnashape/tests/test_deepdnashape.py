@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from pyaptamer.data import MoleculeLoader
-from pyaptamer.deepdnashape import DeepDNAShape
+from pyaptamer.deepdnashape import DeepDNAShape, _predictor
 from pyaptamer.deepdnashape._model import AvgFeatures
 
 # test sequence
@@ -225,3 +225,83 @@ def test_avg_features_pads_to_next_multiple():
     x = torch.randn(3, 64)
     out = layer(x)
     assert out.shape == (3 * 5,)
+
+
+def _random_seqs(n, length, seed=0):
+    """Return ``n`` random DNA strings of the given length."""
+    rng = np.random.default_rng(seed)
+    return ["".join(rng.choice(list("ACGT"), size=length)) for _ in range(n)]
+
+
+def _one_at_a_time(est, seqs):
+    """Transform each sequence in its own call and stack the rows."""
+    return np.vstack([est.fit_transform(_frame(seq)).to_numpy() for seq in seqs])
+
+
+@pytest.mark.parametrize("layer", [2, 4])
+@pytest.mark.parametrize("feature", ["MGW", "ProT", "Roll", "HelT"])
+def test_batch_matches_one_at_a_time(feature, layer):
+    """Scoring sequences together gives the same values as one at a time."""
+    seqs = _random_seqs(6, 20)
+    est = DeepDNAShape(feature=feature, layer=layer)
+    batched = est.fit_transform(_frame(*seqs)).to_numpy()
+    np.testing.assert_allclose(batched, _one_at_a_time(est, seqs), rtol=1e-5, atol=1e-5)
+
+
+def test_batch_single_sequence():
+    """A batch of one sequence works and keeps its shape."""
+    Xt = DeepDNAShape(feature="MGW").fit_transform(_frame(REF_SEQ))
+    assert Xt.shape == (1, len(REF_SEQ))
+    assert not Xt.isna().any().any()
+
+
+def test_batch_mixed_lengths_keep_order_and_padding():
+    """Rows keep the input order and NaN padding when lengths are mixed."""
+    seqs = ["ATGCATGCAT", TEST_SEQ, "GGCCA", "TTAGCGTACA", "A"]
+    est = DeepDNAShape(feature="MGW")
+    Xt = est.fit_transform(_frame(*seqs))
+
+    assert Xt.shape == (len(seqs), len(TEST_SEQ))
+    for i, seq in enumerate(seqs):
+        alone = est.fit_transform(_frame(seq)).to_numpy()[0]
+        np.testing.assert_allclose(Xt.iloc[i, : len(seq)], alone, rtol=1e-5, atol=1e-5)
+        assert np.isnan(Xt.iloc[i, len(seq) :]).all()
+
+
+def test_batch_keeps_index():
+    """The output keeps the index of the input."""
+    X = pd.DataFrame({"seq": ["ATGC", "GGCCAT", "TTAA"]}, index=[7, 3, 5])
+    Xt = DeepDNAShape(feature="MGW").fit_transform(X)
+    assert list(Xt.index) == [7, 3, 5]
+
+
+def test_batch_larger_than_batch_size():
+    """More sequences than batch_size give the same values as a single pass."""
+    seqs = _random_seqs(7, 15)
+    X = _frame(*seqs)
+    whole = DeepDNAShape(feature="Roll").fit_transform(X)
+    chunked = DeepDNAShape(feature="Roll", batch_size=3).fit_transform(X)
+    np.testing.assert_allclose(chunked, whole, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("batch_size", [0, -1])
+def test_invalid_batch_size(batch_size):
+    """A batch_size below 1 raises ValueError."""
+    with pytest.raises(ValueError, match="batch_size must be at least 1"):
+        DeepDNAShape(feature="MGW", batch_size=batch_size)
+
+
+def test_model_loaded_once_across_transforms(monkeypatch):
+    """Repeated transforms on one instance download and load weights once."""
+    calls = []
+    original = _predictor.hf_hub_download
+
+    def counting(*args, **kwargs):
+        calls.append(kwargs["filename"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(_predictor, "hf_hub_download", counting)
+    est = DeepDNAShape(feature="MGW")
+    for _ in range(3):
+        est.fit_transform(_frame(REF_SEQ))
+    assert calls == ["MGW.pt"]
