@@ -75,6 +75,14 @@ def test_suggestions_inside_bounds(bounds):
     assert np.all(points <= expected[:, 1])
 
 
+def test_points_outside_bounds(evaluated):
+    """Evaluated points outside the search range raise a ValueError."""
+    X, y = evaluated
+    bo = BayesianOptimizer((-1, 1), batch_size=2)  # X must go outside of the range
+    with pytest.raises(ValueError, match="outside"):
+        bo.suggest(X, y)
+
+
 # --- valid usage tests -----
 
 
