@@ -40,7 +40,8 @@ pipe.predict(X_new)
 The {doc}`user guide <user_guide/index>` has one page per tool. The
 notebooks in
 [examples](https://github.com/gc-os-ai/pyaptamer/tree/main/examples)
-walk through AptaNet, AptaMCTS, AptaTrans and benchmarking end to end.
+walk through AptaNet, AptaMCTS, AptaTrans, AptaDiff and benchmarking end
+to end.
 
 ## Algorithms
 
@@ -62,8 +63,8 @@ walk through AptaNet, AptaMCTS, AptaTrans and benchmarking end to end.
   - Predict whether a DNA aptamer binds its target, from the sequence and its
     predicted DNA shape.
 * - {doc}`AptaDiff <user_guide/aptadiff>`
-  - Generate aptamer sequences with a diffusion model conditioned on latent
-    vectors.
+  - Design new aptamer sequences from the SELEX reads of a selection round,
+    with a diffusion model.
 * - {doc}`MCTS <user_guide/mcts>`
   - Search for a high-scoring sequence with Monte Carlo tree search, given a
     scoring experiment.
