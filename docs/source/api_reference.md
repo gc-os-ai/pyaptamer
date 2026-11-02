@@ -75,6 +75,7 @@ This page documents the public API.
    :nosignatures:
 
    AptaTransPipeline
+   AptaTransClassifier
    AptaTrans
    AptaTransLightning
    AptaTransEncoderLightning
@@ -180,6 +181,7 @@ Scoring functions that connect a model to the search.
    ConjointTriad
    GreedyEncoder
    KMerFrequencies
+   KMerIndexEncoder
    PSeAAC
    SequenceIndexEncoder
    SequenceOneHotEncoder

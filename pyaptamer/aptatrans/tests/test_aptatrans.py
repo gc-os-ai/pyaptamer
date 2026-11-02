@@ -1,12 +1,33 @@
 """Test suite for AptaTrans' deep neural network and pipeline."""
 
-__author__ = ["nennomp"]
+__author__ = ["nennomp", "siddharth7113"]
 
+from itertools import product
+
+import numpy as np
+import pandas as pd
 import pytest
 import torch
-import torch.nn as nn
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
-from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
+from pyaptamer.aptatrans import (
+    AptaTrans,
+    AptaTransClassifier,
+    AptaTransPipeline,
+    EncoderPredictorConfig,
+)
+from pyaptamer.data import MoleculeLoader
+
+APTAMER = "AGCTTAGCGTACAGCTTAAAAGGGTTTCCCCTGCCCGCGTAC"
+PROTEIN = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+SMALL_NET = {
+    "in_dim": 8,
+    "n_heads": 2,
+    "n_encoder_layers": 1,
+    "conv_layers": [1, 1, 1],
+    "max_epochs": 1,
+    "random_state": 0,
+}
 
 
 class TestAptaTransModel:
@@ -202,271 +223,164 @@ class TestAptaTransModel:
             f"seq_len_apta={seq_len_apta}, seq_len_prot={seq_len_prot}"
         )
 
+    @pytest.mark.parametrize("train", [True, False])
+    def test_forward_row_of_only_padding_is_finite(self, train):
+        """A sequence of only padding ids gives a finite score."""
+        config = EncoderPredictorConfig(num_embeddings=16, target_dim=8, max_len=8)
+        model = AptaTrans(config, config, in_dim=8, n_heads=2, n_encoder_layers=1)
+        model.train(train)
+        x_apta = torch.tensor([[0] * 8, [3, 4, 0, 0, 0, 0, 0, 0]])
+        x_prot = torch.tensor([[5, 6, 7, 0, 0, 0, 0, 0]] * 2)
 
-class MockAptaTransNeuralNet(nn.Module):
-    """Mock AptaTrans model for testing pipeline."""
+        with torch.no_grad():
+            output = model(x_apta, x_prot)
 
-    def __init__(self, device):
-        super().__init__()
-        self.device = device
-        # mock embeddings with required attributes
-        self.apta_embedding = type("MockEmbedding", (), {"max_len": 100})()
-        self.prot_embedding = type("MockEmbedding", (), {"max_len": 150})()
+        assert torch.isfinite(output).all()
 
-    def forward_imap(self, x_apta, x_prot):
-        batch_size = x_apta.shape[0]
-        return torch.randn(
-            batch_size,
-            1,
-            self.apta_embedding.max_len,
-            self.prot_embedding.max_len,
-            device=self.device,
-        )
+    def test_eval_forward_without_nested_tensor_support(self, monkeypatch):
+        """Evaluation runs where nested tensors are missing, as on Apple MPS."""
 
-    def forward(self, x_apta, x_prot):
-        # return deterministic scores based on input shapes
-        batch_size = x_apta.shape[0]
-        return torch.tensor([[0.8]], device=self.device).repeat(batch_size, 1)
+        def unsupported(*args, **kwargs):
+            raise NotImplementedError("nested tensors are not supported")
 
-    def to(self, device):
-        self.device = device
-        return self
+        monkeypatch.setattr(torch, "_nested_tensor_from_mask_left_aligned", unsupported)
+        config = EncoderPredictorConfig(num_embeddings=16, target_dim=8, max_len=8)
+        model = AptaTrans(config, config, in_dim=8, n_heads=2, n_encoder_layers=1)
+        model.eval()
+        x = torch.tensor([[3, 4, 5, 0, 0, 0, 0, 0]] * 2)
+
+        with torch.no_grad():
+            output = model(x, x)
+
+        assert output.shape == (2, 1)
 
 
-class TestAptaTransPipeline:
-    """Tests for the AptaTransPipeline() class."""
+@parametrize_with_checks([AptaTransClassifier(apta_max_len=1, **SMALL_NET)])
+def test_sklearn_compatible_classifier(estimator, check):
+    """AptaTransClassifier passes the scikit-learn estimator checks."""
+    check(estimator)
 
-    @pytest.mark.parametrize(
-        "device, prot_words",
-        [
-            (
-                torch.device("cpu"),
-                {"AAA": 0.5, "AAC": 0.3, "AAG": 0.8, "ACA": 0.2, "ACC": 0.9},
-            ),
-            (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu"),
-                {"CCC": 0.6, "CCG": 0.4, "CGC": 0.7, "GGG": 0.1, "GGC": 0.85},
-            ),
-        ],
+
+def test_classifier_token_id_above_vocabulary_raises():
+    """A token id outside the vocabulary raises a ValueError naming the parameter."""
+    X = np.array([[1, 1], [200, 1]])
+    clf = AptaTransClassifier(apta_max_len=1, **SMALL_NET)
+    with pytest.raises(ValueError, match="n_apta_tokens"):
+        clf.fit(X, [0, 1])
+
+
+def _ids(n_rows=8, n_cols=16):
+    """Token-id rows with ids 1 to 19 and alternating labels."""
+    rng = np.random.default_rng(0)
+    return rng.integers(1, 20, size=(n_rows, n_cols)), np.array([0, 1] * (n_rows // 2))
+
+
+def test_classifier_same_random_state_reproduces_the_fit():
+    """The same random_state gives the same probabilities; another seed differs."""
+    X, y = _ids()
+
+    def proba(seed):
+        params = {**SMALL_NET, "random_state": seed}
+        return AptaTransClassifier(apta_max_len=8, **params).fit(X, y).predict_proba(X)
+
+    np.testing.assert_array_equal(proba(0), proba(0))
+    assert not np.array_equal(proba(0), proba(1))
+
+
+def test_classifier_n_epochs_counts_the_epochs_run():
+    """Without early stopping, n_epochs_ is max_epochs."""
+    X, y = _ids()
+    params = {**SMALL_NET, "max_epochs": 3}
+    clf = AptaTransClassifier(apta_max_len=8, patience=None, **params).fit(X, y)
+    assert clf.n_epochs_ == 3
+
+
+def test_classifier_model_starts_from_the_given_network():
+    """fit trains a copy of model with its sizes and leaves model unchanged."""
+    config = EncoderPredictorConfig(num_embeddings=20, target_dim=8, max_len=8)
+    model = AptaTrans(
+        config, config, in_dim=8, n_heads=2, n_encoder_layers=1, conv_layers=[1, 1, 1]
     )
-    def test_initialization(self, device, prot_words):
-        """Check AptaTransPipeline() initializes correctly."""
-        model = MockAptaTransNeuralNet(device)
-        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
+    before = {k: v.clone() for k, v in model.state_dict().items()}
+    X, y = _ids()
+    clf = AptaTransClassifier(
+        apta_max_len=8,
+        n_apta_tokens=20,
+        n_prot_tokens=20,
+        model=model,
+        max_epochs=1,
+        random_state=0,
+    ).fit(X, y)
 
-        assert isinstance(pipeline, AptaTransPipeline)
-        assert pipeline.device.type == device.type
-        assert pipeline.model is model
-        assert pipeline.model.device.type == device.type
+    assert clf.model_ is not model
+    fitted_shapes = {k: v.shape for k, v in clf.model_.state_dict().items()}
+    assert fitted_shapes == {k: v.shape for k, v in before.items()}
+    assert all(torch.equal(model.state_dict()[k], v) for k, v in before.items())
 
-        # check word dictionaries
-        assert isinstance(pipeline.apta_words, dict)
-        assert isinstance(pipeline.prot_words, dict)
 
-        # check aptamer words contain all possible triplets (should be 125)
-        assert len(pipeline.apta_words) == 125
+@pytest.fixture(scope="module")
+def pairs():
+    """Eight aptamer-protein pairs with alternating labels."""
+    X = MoleculeLoader(data={"aptamer": [APTAMER] * 8, "protein": [PROTEIN] * 8})
+    return X, np.array([0, 1] * 4)
 
-        # check protein words filtering (only above average frequency)
-        mean_freq = sum(prot_words.values()) / len(prot_words)
-        expected_prot_count = sum(1 for freq in prot_words.values() if freq > mean_freq)
-        assert len(pipeline.prot_words) == expected_prot_count
 
-    @pytest.mark.parametrize("depth", [-1, 0, 1, 2])
-    def test_initialization_with_small_depth(self, depth):
-        """Check ValueError is raised at initialization when depth is less than 3."""
-        model = MockAptaTransNeuralNet(torch.device("cpu"))
-        prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.8}
-
-        with pytest.raises(ValueError):
-            AptaTransPipeline(
-                device=torch.device("cpu"),
-                model=model,
-                prot_words=prot_words,
-                depth=depth,
-            )
-
-    @pytest.mark.parametrize(
-        "device, target",
-        [
-            (torch.device("cpu"), "AUGCAUGC"),
-            (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu"),
-                "GCUAGCUA",
-            ),
-        ],
+def _small_pipeline(**kwargs):
+    """Build a pipeline with a network small enough to train in a test."""
+    return AptaTransPipeline(
+        apta_max_len=12,
+        prot_max_len=10,
+        estimator=AptaTransClassifier(apta_max_len=12, **SMALL_NET),
+        **kwargs,
     )
-    def test_init_aptamer_experiment(self, device, target, monkeypatch):
-        """Check _init_aptamer_experiment() initializes Aptamer experiment correctly."""
-        # setup
-        model = MockAptaTransNeuralNet(device)
-        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
-        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
-        # mock Aptamer class to capture initialization arguments
-        captured_args = {}
 
-        class MockAptamer:
-            def __init__(self, **kwargs):
-                captured_args.update(kwargs)
+@pytest.fixture(scope="module")
+def fitted(pairs):
+    """A small AptaTransPipeline fitted on pairs."""
+    return _small_pipeline().fit(*pairs)
 
-        monkeypatch.setattr(
-            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", MockAptamer
-        )
 
-        # test experiment initialization
-        experiment = pipeline._init_aptamer_experiment(target)
+def test_pipeline_dna_and_rna_spelling_score_the_same(fitted):
+    """An aptamer spelled with T scores the same as with U."""
+    dna = pd.DataFrame({"aptamer": [APTAMER], "protein": [PROTEIN]})
+    rna = pd.DataFrame({"aptamer": [APTAMER.replace("T", "U")], "protein": [PROTEIN]})
+    np.testing.assert_allclose(fitted.predict_proba(dna), fitted.predict_proba(rna))
 
-        # check that Aptamer was initialized with correct arguments
-        assert isinstance(experiment, MockAptamer)
-        assert captured_args["target"] == target
-        assert captured_args["model"] is model
-        assert captured_args["device"] == device
 
-    @pytest.mark.parametrize(
-        "device, candidate, target",
-        [
-            (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
-            (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu"),
-                "GCUAG",
-                "AUGCAUGC",
-            ),
-        ],
+def test_pipeline_default_protein_words_are_the_bundled_ones(fitted):
+    """With prot_words=None the protein encoder uses the 713 bundled words."""
+    words = fitted.pipeline_["features"].named_transformers_["protein"].words
+    assert len(words) == 713
+
+
+def test_pipeline_default_classifier_vocabulary_follows_the_words():
+    """The default classifier's protein vocabulary is the kept words, padding and
+    mask, also with more than the 713 bundled words."""
+    amino = "ACDEFGHIKLMNPQRSTVWY"
+    words = {"".join(w): 2.0 for w in product(amino, repeat=2)}
+    words.update({"".join(w): 2.0 for w in list(product(amino, repeat=3))[:400]})
+    words["A"] = 0.0
+    clf = AptaTransPipeline(prot_words=words)._build_pipeline()["clf"]
+    assert clf.n_prot_tokens == 802
+
+
+def test_pipeline_interaction_map_shape(fitted, pairs):
+    """interaction_map gives one aptamer-by-protein map per row."""
+    imap = fitted.interaction_map(pairs[0])
+    assert imap.shape == (8, 1, 12, 10)
+
+
+def test_pipeline_generate_returns_distinct_candidates_by_score(fitted):
+    """generate returns n distinct candidates, highest score first."""
+    candidates = fitted.generate(PROTEIN, n_candidates=2, depth=4, n_iterations=2)
+    assert len({c[0] for c in candidates}) == 2
+    assert [c[2] for c in candidates] == sorted(
+        (c[2] for c in candidates), reverse=True
     )
-    def test_predict(self, device, candidate, target, monkeypatch):
-        """Check predict returns interaction scores correctly."""
-        # setup
-        model = MockAptaTransNeuralNet(device)
-        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
-        pipeline = AptaTransPipeline(device=device, model=model, prot_words=prot_words)
 
-        # expected score
-        expected_score = torch.tensor(0.85, device=device)
 
-        # mock Aptamer experiment with evaluate method
-        class MockExperiment:
-            def evaluate(self, cand):
-                assert cand == candidate  # verify correct candidate is passed
-                return expected_score
-
-        def mock_aptamer(**kwargs):
-            return MockExperiment()
-
-        monkeypatch.setattr(
-            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
-        )
-
-        # test prediction - note the typo fix: self.experiment -> experiment
-        monkeypatch.setattr(
-            pipeline, "_init_aptamer_experiment", lambda target: MockExperiment()
-        )
-
-        # test predict
-        score = pipeline.predict(candidate=candidate, target=target)
-
-        # check output
-        assert isinstance(score, torch.Tensor)
-        assert torch.equal(score, expected_score)
-        assert score.device.type == device.type
-
-    @pytest.mark.parametrize(
-        "device, target, n_candidates, depth",
-        [
-            (torch.device("cpu"), "AUGCAUGC", 3, 5),
-            (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu"),
-                "GCUAGCUA",
-                5,
-                10,
-            ),
-        ],
-    )
-    def test_recommend(self, device, target, n_candidates, depth, monkeypatch):
-        """Check AptaTransPipeline.recommend() generates candidate aptamers."""
-        # setup
-        model = MockAptaTransNeuralNet(device)
-        prot_words = {"AUG": 0.8, "GCA": 0.6, "UGC": 0.4, "CUA": 0.2}
-        pipeline = AptaTransPipeline(
-            device=device, model=model, prot_words=prot_words, depth=depth
-        )
-
-        # mock Aptamer experiment
-        class MockExperiment:
-            def evaluate(self, candidate):
-                return torch.tensor(0.75)
-
-        def mock_aptamer(**kwargs):
-            return MockExperiment()
-
-        monkeypatch.setattr(
-            "pyaptamer.aptatrans._pipeline.AptamerEvalAptaTrans", mock_aptamer
-        )
-
-        # mock MCTS to return deterministic candidates
-        class MockMCTS:
-            def __init__(self, **kwargs):
-                self.counter = 0
-
-            def run(self, verbose: bool = False):
-                # Generate some mock candidates
-                candidates = [
-                    (f"APTA{i:03d}", f"sequence_{i}", torch.tensor(i) / 10)
-                    for i in range(10)
-                ]
-
-                candidate_data = candidates[self.counter % len(candidates)]
-                self.counter += 1
-
-                return {
-                    "candidate": candidate_data[0],  # reconstructed candidate
-                    "sequence": candidate_data[1],  # original sequence
-                    "score": candidate_data[2],  # evaluation score
-                }
-
-        monkeypatch.setattr("pyaptamer.aptatrans._pipeline.MCTS", MockMCTS)
-
-        # test recommendation
-        candidates = pipeline.recommend(target=target, n_candidates=n_candidates)
-
-        # check output
-        assert isinstance(candidates, set)
-        assert len(candidates) == n_candidates  # should be exactly n_candidates
-
-    @pytest.mark.parametrize(
-        "device, candidate, target",
-        [
-            (torch.device("cpu"), "AUGCA", "GCUAGCUA"),
-            (
-                torch.device("cuda")
-                if torch.cuda.is_available()
-                else torch.device("cpu"),
-                "GCUAG",
-                "AUGCAUGC",
-            ),
-        ],
-    )
-    def test_get_interaction_map(self, device, candidate, target):
-        """
-        Check AptaTransPipeline.get_interaction_map() generates aptamer-protein
-        interaction map.
-        """
-        model = MockAptaTransNeuralNet(torch.device(device))
-        pipeline = AptaTransPipeline(
-            device=torch.device(device), model=model, prot_words={"AAA": 0.5}
-        )
-
-        imap = pipeline.get_interaction_map(candidate, target)
-        assert imap.shape == (
-            1,
-            1,
-            model.apta_embedding.max_len,
-            model.prot_embedding.max_len,
-        )
+def test_pipeline_generate_rejects_depth_below_three(fitted):
+    """depth below 3 raises a ValueError, since no triplet fits."""
+    with pytest.raises(ValueError, match="depth"):
+        fitted.generate(PROTEIN, depth=2)

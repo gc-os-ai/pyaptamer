@@ -57,17 +57,16 @@ class MCTS(BaseObject):
 
     Examples
     --------
-    >>> import torch
-    >>> from pyaptamer.aptatrans import AptaTrans, EncoderPredictorConfig
-    >>> from pyaptamer.experiments import AptamerEvalAptaTrans
+    >>> import numpy as np
+    >>> from pyaptamer.aptamcts import AptaMCTSPipeline
+    >>> from pyaptamer.data import MoleculeLoader
+    >>> from pyaptamer.experiments import AptamerEvalAptaMCTS
     >>> from pyaptamer.mcts import MCTS
-    >>> apta_embedding = EncoderPredictorConfig(128, 16, max_len=128)
-    >>> prot_embedding = EncoderPredictorConfig(128, 16, max_len=128)
-    >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> model = AptaTrans(apta_embedding, prot_embedding).to(device)
-    >>> target = "DHRNE"
-    >>> prot_words = {"DHR": 1, "RNE": 2, "NE": 3}
-    >>> experiment = AptamerEvalAptaTrans(target, model, device, prot_words)
+    >>> aptamer = "AGCUUAGCGUACAGCUUAAAAGGGUUUCCCCUGCCCGCGUAC"
+    >>> target = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+    >>> X = MoleculeLoader(data={"aptamer": [aptamer] * 4, "protein": [target] * 4})
+    >>> pipeline = AptaMCTSPipeline().fit(X, np.array([0, 1, 0, 1]))
+    >>> experiment = AptamerEvalAptaMCTS(target, pipeline)
     >>> mcts = MCTS(depth=5, n_iterations=2, experiment=experiment)
     >>> candidate = mcts.run(verbose=False)
     >>> seq = candidate["candidate"]  # the reconstructed aptamer string
