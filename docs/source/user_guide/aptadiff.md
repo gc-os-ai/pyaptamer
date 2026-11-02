@@ -1,36 +1,35 @@
 # AptaDiff
 
-AptaDiff generates aptamer sequences with a diffusion model. Each training
-sequence is paired with its latent coordinates from a pretrained encoder,
-for example a RaptGen variational autoencoder. The diffusion model learns to
-produce a sequence from its coordinates. New sequences come from new
-coordinates: points drawn from a Gaussian mixture fitted to the training
-coordinates, the mixture centers, or points chosen by an optimization loop.
+AptaDiff designs new aptamers from SELEX reads. It takes the raw reads of a
+single selection round, strips their primer regions, reads the latent
+coordinates of each read out of a pretrained variational autoencoder, and
+trains a multinomial diffusion model to generate sequences conditioned on
+those coordinates. A Gaussian mixture fitted to the same coordinates supplies
+the latent points that new sequences are generated from.
 
-The entry point is {class}`~pyaptamer.aptadiff.AptaDiff`.
+The entry point is {class}`~pyaptamer.aptadiff.AptaDiff`. The diffusion model
+is exposed separately as {class}`~pyaptamer.aptadiff.AptaDiffGenerator`.
 
-## Fitting on SELEX reads
+AptaDiff is unsupervised and generative, so it has no `predict`. New sequences
+come from `sample`, and `y` is ignored by `fit`.
 
-`fit` takes raw SELEX reads as a {class}`~pyaptamer.data.MoleculeLoader` or
-a `pandas.DataFrame` with one read per row. The reads pass through four
-components:
+## Building the estimator
 
-- `trimmer` strips the constant primer regions, typically a
-  {class}`~pyaptamer.transformations.transform.PrimerTrimmer`. Without a
-  trimmer, all reads must have the same length.
-- `encoder` one-hot encodes the trimmed reads. The default drops reads with
-  characters other than A, T, G, C and U.
-- `vae` is the pretrained latent model. It is used for inference only.
-- `generator` is the diffusion model, an
-  {class}`~pyaptamer.aptadiff.AptaDiffGenerator`.
+`AptaDiff` composes three parts that are passed in: the latent model `vae`,
+the `trimmer` that cleans the reads, and the `generator` that trains the
+diffusion model.
 
 ```python
+import torch
 from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
 from pyaptamer.datasets import load_sample_fastq
 from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.transform import PrimerTrimmer
 
+X = load_sample_fastq()
+
 vae = CNNPHMMVAE(motif_len=40, embed_size=2)
+# vae.load_state_dict(torch.load("raptgen_weights.pt"))
 
 trimmer = PrimerTrimmer(
     start_primer="TAATACGACTCACTATAGGGAGAACTTCGACCAGAAG",
@@ -39,6 +38,7 @@ trimmer = PrimerTrimmer(
 )
 
 generator = AptaDiffGenerator(
+    num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
 )
 
@@ -50,64 +50,132 @@ aptadiff = AptaDiff(
     gmm_restarts=5,
     random_state=0,
 )
-aptadiff.fit(load_sample_fastq())
 ```
 
-The VAE here is untrained and the diffusion model is tiny, so the example
-runs in seconds and shows the mechanics only. In practice `vae` is a RaptGen
-model trained on the same reads, and `generator` keeps its defaults, which
-match the paper.
+`X` is a {class}`~pyaptamer.data.MoleculeLoader` or a `pandas.DataFrame` with
+one read per row in a single column. A `MoleculeLoader` cell may be a path to
+a FASTQ file, which `tiling="samples"` turns into one row per read, see
+{doc}`molecule_loader` for the loader's options.
 
-After fitting, `latents_` holds the coordinates of the training reads,
-`sequences_` the reads they belong to, and `gmm_centers_` the means of the
-mixture.
+`vae` maps integer-encoded sequences to latent coordinates. It is used for
+inference only, and is never trained, inspected or migrated by `AptaDiff`.
+Pass a fitted {class}`~pyaptamer.raptgen.RaptGenModel`, any other object with
+a `transform` method, or a module with `encoder` and `h2mu` attributes, such
+as {class}`~pyaptamer.raptgen.CNNPHMMVAE`. The weights
+must be trained, as an untrained model gives random, unusable coordinates and
+therefore meaningless sequences.
+
+`trimmer` removes the constant primer binding sites of the SELEX design with
+{class}`~pyaptamer.transformations.transform.PrimerTrimmer`, keeping the random
+region. The diffusion model generates one fixed length, so without a trimmer
+`X` must already hold sequences that are all the same length.
+
+Reads are encoded with
+{class}`~pyaptamer.transformations.encode.SequenceOneHotEncoder`. The default
+treats `A`, `T`, `G` and `C` as four classes, with `U` sharing the index of
+`T`, and drops any read holding another character. Pass a configured encoder
+to supply a custom vocabulary or to make unknown characters raise:
+
+```python
+from pyaptamer.transformations.encode import SequenceOneHotEncoder
+
+aptadiff = AptaDiff(vae=vae, encoder=SequenceOneHotEncoder(handle_unknown="raise"))
+```
 
 ## Generating sequences
 
-`sample` draws coordinates from the mixture and decodes them:
+`fit` trains the diffusion model and the mixture. `sample` then draws latent
+points from the mixture and generates one sequence per point:
 
 ```python
-new = aptadiff.sample(10)
+aptadiff.fit(X)
+
+sequences = aptadiff.sample(n_samples=10)
 ```
 
-`inverse_transform` decodes any coordinates. The original implementation
-generates one sequence per cluster center:
+`sample` returns a `pandas.DataFrame` with the generated sequences in a column
+named `sequence`, all of length `seq_len_`. The reads that survived cleaning
+are kept as `sequences_`, and their latent coordinates as `latents_`.
+
+`reconstruct` regenerates the input sequences from their own latents, and
+`score` reports the mean log-likelihood of the sequences in bits per
+character. Higher is better. The original implementation reports the
+negative of this value as a loss:
 
 ```python
-centers = aptadiff.inverse_transform(aptadiff.gmm_centers_)
+reconstructed = aptadiff.reconstruct(X)
+bits_per_character = aptadiff.score(X)
 ```
 
-Both return a `pandas.DataFrame` with a `sequence` column.
+## Designing from cluster centers
 
-Optimization is external. `transform` gives the coordinates of measured
-sequences, an optimization loop proposes new coordinates from their measured
-affinities, and `inverse_transform` turns the proposals into sequences to
-test next.
-
-`score` returns the mean log-likelihood of reads in bits per character, and
-`score_samples` one value per read. Higher is better.
-
-## The diffusion model on its own
-
-{class}`~pyaptamer.aptadiff.AptaDiffGenerator` can be used without the
-pipeline. `fit` takes the latent vectors as `X` and the one-hot encoded
-sequences as `y`, in the layout of
-{class}`~pyaptamer.transformations.encode.SequenceOneHotEncoder`. `predict`
-returns one one-hot sequence per row of `X`.
-
-The defaults match the paper: `dim=512`, `depth=12`, `heads=16`,
-`num_timesteps=1000` and `max_epochs=1000`. Training uses a GPU when one is
-available. A share of the data, `validation_fraction`, is held out, and the
-weights of the epoch with the lowest validation loss are kept. `patience`
-stops training after that many epochs without improvement.
+Generation is conditioned only on latent coordinates, so steering it towards
+better binders means choosing better latent points. The component means of the
+fitted mixture are available as `gmm_centers_`, one point per learned cluster.
+Passing them to `inverse_transform` generates one sequence per cluster, which
+is the de novo design procedure of the paper:
 
 ```python
-generator = AptaDiffGenerator(max_epochs=200, patience=20, random_state=0)
+candidates = aptadiff.inverse_transform(aptadiff.gmm_centers_)
 ```
 
-## Reference
+`inverse_transform` accepts any latent points with `embed_size_` columns, not
+only the cluster centers. Points proposed by an outer optimisation loop over
+wet-lab affinity measurements, such as Bayesian optimisation, are passed the
+same way. `transform` maps sequences in the other direction, to their latent
+coordinates.
 
-- Wang, Z., et al. AptaDiff: de novo design and optimization of aptamers
-  based on diffusion models. *Briefings in Bioinformatics* 25, bbae517
-  (2024). <https://doi.org/10.1093/bib/bbae517>
+`n_clusters` sets the number of mixture components, and `gmm_restarts` the
+number of fits attempted, of which the one with the lowest AIC is kept:
+
+```python
+aptadiff = AptaDiff(vae=vae, n_clusters=8, gmm_restarts=100)
+```
+
+## Configuring the diffusion model
+
+`AptaDiff` delegates diffusion training to
+{class}`~pyaptamer.aptadiff.AptaDiffGenerator`, whose defaults match the
+original implementation and are sized for full SELEX datasets. Pass a
+configured generator to change them:
+
+```python
+generator = AptaDiffGenerator(
+    num_timesteps=1000,
+    dim=512,
+    depth=12,
+    max_epochs=1000,
+    patience=10,
+    batch_size=32,
+    lr=1e-4,
+    verbose=1,
+)
+
+aptadiff = AptaDiff(vae=vae, generator=generator)
+```
+
+`num_timesteps` is the number of diffusion steps, and generation runs one
+denoiser pass per step. `patience` stops training early when the validation
+loss stops improving. The default trains for all `max_epochs`, as the original
+training script does.
+
+`transformer_type` selects the attention backend. The default `"native"` uses
+PyTorch's own transformer layer, giving exact attention and hardware
+acceleration. `"linear"` is the linear attention approximation of the paper,
+for strict reproducibility.
+
+`num_classes` must match the number of classes the encoder produces, four by
+default. A mismatch raises `ValueError`.
+
+Training runs on the fastest available device, and the generator can also be used independently with latent vectors and one-hot encoded sequences.
+
+## References
+
+- Wang, Z., Liu, Z., Zhang, W., Li, Y., Feng, Y., Chen, S., Zhao, Y.
+  AptaDiff: de novo design and optimization of aptamers based on diffusion
+  models. *Briefings in Bioinformatics* 25(6), bbae517 (2024).
+  <https://doi.org/10.1093/bib/bbae517>
 - Code: <https://github.com/wz-create/AptaDiff>
+- Iwano, N., Adachi, T., Aoki, K., Nakamura, Y., Hamada, M. Generative
+  aptamer discovery using RaptGen. *Nature Computational Science* 2, 378-386
+  (2022). <https://doi.org/10.1038/s43588-022-00249-6>

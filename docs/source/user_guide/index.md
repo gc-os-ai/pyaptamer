@@ -56,7 +56,7 @@ benchmarking
 * - {doc}`DeepAptamer <deepaptamer>`
   - Binding prediction for DNA aptamers from sequence and DNA shape.
 * - {doc}`AptaDiff <aptadiff>`
-  - Sequence generation with a diffusion model.
+  - De novo aptamer generation from SELEX reads.
 * - {doc}`Monte Carlo tree search <mcts>`
   - Sequence search with a score of your choice.
 :::

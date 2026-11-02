@@ -46,6 +46,9 @@ docs = [
     "myst-parser>=4.0.1",
     "sphinx-copybutton>=0.5",
 ]
+plot = [
+    "matplotlib>=3.8",
+]
 
 [tool.ruff]
 line-length = 88
