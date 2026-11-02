@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pyaptamer.aptadiff import AptaDiffGenerator
 
@@ -25,22 +24,6 @@ TEST_PARAMS = {
     "max_epochs": 1,
     "random_state": 0,
 }
-
-
-def _expected_failed_checks(estimator: AptaDiffGenerator) -> dict[str, str]:
-    """Return the sklearn checks that fail because their y is not one-hot."""
-    return dict.fromkeys(
-        [
-            "check_fit_score_takes_y",
-            "check_estimators_overwrite_params",
-            "check_dont_overwrite_parameters",
-            "check_estimators_fit_returns_self",
-            "check_readonly_memmap_input",
-            "check_n_features_in_after_fitting",
-            "check_positive_only_tag_during_fit",
-        ],
-        "sklearn passes a 1D y, not flat one-hot sequences",
-    )
 
 
 @pytest.fixture(scope="module")
@@ -209,18 +192,3 @@ class TestAptaDiffGeneratorInputs:
 
         assert out.dtype == np.float32
         assert out.shape == (N_SAMPLES, NUM_CLASSES * SEQ_LEN)
-
-
-class TestAptaDiffGeneratorSklearn:
-    """Test AptaDiffGenerator against scikit-learn's estimator checks."""
-
-    @parametrize_with_checks(
-        [AptaDiffGenerator(**TEST_PARAMS)],
-        legacy=False,
-        expected_failed_checks=_expected_failed_checks,
-    )
-    def test_sklearn_compatible_estimator(
-        self, estimator: AptaDiffGenerator, check: Callable[[Any], None]
-    ) -> None:
-        """Run scikit-learn's API checks on AptaDiffGenerator."""
-        check(estimator)

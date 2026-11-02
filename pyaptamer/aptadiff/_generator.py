@@ -13,10 +13,10 @@ import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import ArrayLike
-from sklearn.base import BaseEstimator
+from skbase.base import BaseEstimator
 from sklearn.model_selection import train_test_split
-from sklearn.utils import Tags
-from sklearn.utils.validation import check_is_fitted, validate_data
+from sklearn.utils import InputTags, Tags, TargetTags
+from sklearn.utils.validation import validate_data
 from torch.utils.data import DataLoader, TensorDataset
 
 from pyaptamer.aptadiff._model import (
@@ -187,6 +187,12 @@ class AptaDiffGenerator(BaseEstimator):
     (3, 32)
     """
 
+    _tags = {
+        "object_type": "estimator",
+        "authors": ["aditi-dsi"],
+        "maintainers": ["aditi-dsi"],
+    }
+
     def __init__(
         self,
         num_classes: int = 4,
@@ -236,6 +242,7 @@ class AptaDiffGenerator(BaseEstimator):
         self.gamma = gamma
         self.random_state = random_state
         self.verbose = verbose
+        super().__init__()
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> "AptaDiffGenerator":
         """Train the diffusion model.
@@ -341,6 +348,7 @@ class AptaDiffGenerator(BaseEstimator):
         self.diffusion_ = model.diffusion.to(trainer.strategy.root_device).eval()
         self.seq_len_ = seq_len
         self.n_epochs_ = trainer.current_epoch
+        self._is_fitted = True
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
@@ -362,7 +370,7 @@ class AptaDiffGenerator(BaseEstimator):
             Generated sequences as float32, one-hot encoded in the same flat
             layout as `y` in `fit`, shape (n_samples, num_classes * seq_len_).
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="predict")
         X = validate_data(self, X, reset=False, dtype=np.float32)
         num_classes = self.diffusion_.num_classes
         device = next(self.diffusion_.parameters()).device
@@ -457,8 +465,42 @@ class AptaDiffGenerator(BaseEstimator):
 
         return log_x.argmax(dim=1)
 
+    def __sklearn_is_fitted__(self) -> bool:
+        """Return whether `fit` has been called.
+
+        scikit-learn's ``check_is_fitted`` calls this, for example in a
+        ``Pipeline`` whose last step is this estimator.
+        """
+        return self.is_fitted
+
     def __sklearn_tags__(self) -> Tags:
-        tags = super().__sklearn_tags__()
-        tags.non_deterministic = True
-        tags.target_tags.required = True
-        return tags
+        """Return the scikit-learn tags of an unsupervised transformer."""
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=True),
+            input_tags=InputTags(two_d_array=True),
+            non_deterministic=True,
+        )
+
+    @classmethod
+    def get_test_params(cls, parameter_set: str = "default") -> dict:
+        """Return testing parameter settings for the estimator.
+
+        Parameters
+        ----------
+        parameter_set : str, optional, default="default"
+            Name of the parameter set to return. Only ``"default"`` is
+            defined.
+
+        Returns
+        -------
+        dict
+            Parameters of a small diffusion model that trains in one epoch.
+        """
+        return {
+            "num_timesteps": 2,
+            "dim": 32,
+            "depth": 1,
+            "max_epochs": 1,
+            "random_state": 0,
+        }

@@ -9,13 +9,15 @@ import numpy as np
 import pandas as pd
 import torch
 from numpy.typing import ArrayLike
-from sklearn.base import BaseEstimator, clone
+from skbase.base import BaseEstimator
+from sklearn.base import clone
 from sklearn.mixture import GaussianMixture
-from sklearn.utils.validation import check_is_fitted
+from sklearn.utils import InputTags, Tags, TargetTags
 
 from pyaptamer.aptadiff._generator import AptaDiffGenerator
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.encode import SequenceOneHotEncoder
+from pyaptamer.utils._check_x import check_X
 
 
 class AptaDiff(BaseEstimator):
@@ -150,6 +152,12 @@ class AptaDiff(BaseEstimator):
     (3, 1)
     """
 
+    _tags = {
+        "object_type": "estimator",
+        "authors": ["aditi-dsi"],
+        "maintainers": ["aditi-dsi"],
+    }
+
     def __init__(
         self,
         vae,
@@ -167,6 +175,7 @@ class AptaDiff(BaseEstimator):
         self.gmm_restarts = gmm_restarts
         self.generator = generator
         self.random_state = random_state
+        super().__init__()
 
     def fit(self, X: ArrayLike, y=None) -> "AptaDiff":
         """Trim and encode the reads, train the diffusion model, fit the mixture.
@@ -222,6 +231,7 @@ class AptaDiff(BaseEstimator):
         self.latents_ = latents
         self.sequences_ = sequences
         self.gmm_centers_ = self.gmm_.means_
+        self._is_fitted = True
 
         return self
 
@@ -272,7 +282,7 @@ class AptaDiff(BaseEstimator):
         NotFittedError
             If `fit` has not been called before.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="sample")
 
         random_state = self.gmm_.random_state
         self.gmm_.random_state = np.random.RandomState(self.random_state)
@@ -305,7 +315,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="transform")
         _, X_idx, _ = self._prepare(X, fit=False)
         return self._latents(X_idx)
 
@@ -332,7 +342,7 @@ class AptaDiff(BaseEstimator):
         ValueError
             If `Z` does not have `embed_size_` columns.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="inverse_transform")
         onehot = self.generator_.predict(Z)
         return self.encoder_.inverse_transform(pd.DataFrame(onehot))
 
@@ -358,7 +368,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="reconstruct")
         sequences, X_idx, _ = self._prepare(X, fit=False)
         reconstructed = self.inverse_transform(self._latents(X_idx))
         reconstructed.index = sequences.index
@@ -390,7 +400,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="score")
         return float(self.score_samples(X).mean())
 
     def score_samples(self, X: ArrayLike) -> np.ndarray:
@@ -418,7 +428,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="score_samples")
         _, X_idx, Y = self._prepare(X, fit=False)
         latents = self._latents(X_idx)
 
@@ -523,12 +533,7 @@ class AptaDiff(BaseEstimator):
             if no sequence survives cleaning and encoding, or if `fit` is
             False and `X` holds sequences of a length other than `seq_len_`.
         """
-        X = X.to_dataframe() if isinstance(X, MoleculeLoader) else X
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
+        X = check_X(X)
 
         if fit:
             self.trimmer_ = None if self.trimmer is None else clone(self.trimmer)
@@ -565,3 +570,47 @@ class AptaDiff(BaseEstimator):
         onehot = torch.as_tensor(Y.to_numpy().copy())
         X_idx = onehot.reshape(len(Y), num_classes, seq_len).argmax(dim=1)
         return sequences, X_idx, Y
+
+    def __sklearn_is_fitted__(self) -> bool:
+        """Return whether `fit` has been called.
+
+        scikit-learn's ``check_is_fitted`` calls this, for example in a
+        ``Pipeline`` whose last step is this estimator.
+        """
+        return self.is_fitted
+
+    def __sklearn_tags__(self) -> Tags:
+        """Return the scikit-learn tags of an unsupervised transformer."""
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=False),
+            input_tags=InputTags(two_d_array=True, string=True),
+            non_deterministic=True,
+        )
+
+    @classmethod
+    def get_test_params(cls, parameter_set: str = "default") -> dict:
+        """Return testing parameter settings for the estimator.
+
+        Parameters
+        ----------
+        parameter_set : str, optional, default="default"
+            Name of the parameter set to return. Only ``"default"`` is
+            defined.
+
+        Returns
+        -------
+        dict
+            Parameters of a test instance. The latent model is untrained,
+            which is enough to give latent coordinates of the right shape, and
+            no trimmer is set, so the reads must all have the same length.
+        """
+        return {
+            "vae": CNNPHMMVAE(motif_len=8, embed_size=2),
+            "generator": AptaDiffGenerator(
+                num_timesteps=2, dim=32, depth=1, max_epochs=1, random_state=0
+            ),
+            "n_clusters": 2,
+            "gmm_restarts": 1,
+            "random_state": 0,
+        }

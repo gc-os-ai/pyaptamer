@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from skbase._exceptions import NotFittedError
 from sklearn.base import clone
-from sklearn.exceptions import NotFittedError
 
 from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
 from pyaptamer.datasets import load_sample_fastq
