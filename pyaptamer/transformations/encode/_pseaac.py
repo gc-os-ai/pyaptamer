@@ -129,6 +129,9 @@ class PSeAAC(BaseTransform):
             Shape ``(len(X), (20 + lambda_val) * n_groups)``, indexed like X.
         """
         np_matrix, prop_groups = self._resolve_groups()
+        if X.empty:
+            width = (20 + self.lambda_val) * len(prop_groups)
+            return pd.DataFrame(index=X.index, columns=range(width), dtype=float)
         rows = [self._encode(seq, np_matrix, prop_groups) for seq in X.iloc[:, 0]]
         return pd.DataFrame(np.vstack(rows), index=X.index)
 
