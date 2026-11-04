@@ -1,7 +1,7 @@
 """End-to-end AptaDiff algorithm taking SELEX reads and generating aptamer sequences."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["AptaDiff"]
+__all__ = ["AptaDiffGenerator"]
 
 import math
 
@@ -9,16 +9,18 @@ import numpy as np
 import pandas as pd
 import torch
 from numpy.typing import ArrayLike
-from sklearn.base import BaseEstimator, clone
+from skbase.base import BaseEstimator
+from sklearn.base import clone
 from sklearn.mixture import GaussianMixture
-from sklearn.utils.validation import check_is_fitted
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
-from pyaptamer.aptadiff._generator import AptaDiffGenerator
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.aptadiff._estimator import AptaDiffModel
+from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.encode import SequenceOneHotEncoder
+from pyaptamer.utils._check_x import check_X
 
 
-class AptaDiff(BaseEstimator):
+class AptaDiffGenerator(BaseEstimator):
     """Generate aptamer sequences with AptaDiff [1]_.
 
     `fit` takes raw SELEX reads. It trims and one-hot encodes them, reads
@@ -57,9 +59,9 @@ class AptaDiff(BaseEstimator):
     gmm_restarts : int, optional, default=100
         Number of mixture fits. The fit with the lowest AIC is kept. Must be
         at least 1.
-    generator : AptaDiffGenerator or None, optional, default=None
+    generator : AptaDiffModel or None, optional, default=None
         The diffusion model. If None, uses
-        :class:`~pyaptamer.aptadiff.AptaDiffGenerator` with its defaults.
+        :class:`~pyaptamer.aptadiff.AptaDiffModel` with its defaults.
     random_state : int or None, optional, default=None
         Seed for the mixture fits, for `sample`, and for `generator` when it
         is None. The global NumPy random state is never used. The global
@@ -73,7 +75,7 @@ class AptaDiff(BaseEstimator):
         Fitted clone of `encoder`, or the fitted default encoder.
     vae_ : object
         The `vae` that was passed, unchanged.
-    generator_ : AptaDiffGenerator
+    generator_ : AptaDiffModel
         Fitted clone of `generator`, or the fitted default generator.
     gmm_ : sklearn.mixture.GaussianMixture
         The mixture with the lowest AIC over `gmm_restarts` fits.
@@ -113,7 +115,7 @@ class AptaDiff(BaseEstimator):
     The example uses an untrained latent model and a tiny diffusion model.
 
     >>> import torch
-    >>> from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
+    >>> from pyaptamer.aptadiff import AptaDiffGenerator, AptaDiffModel
     >>> from pyaptamer.datasets import load_sample_fastq
     >>> from pyaptamer.raptgen import CNNPHMMVAE
     >>> from pyaptamer.transformations.transform import PrimerTrimmer
@@ -126,11 +128,11 @@ class AptaDiff(BaseEstimator):
     ...     variable_length=40,
     ... )
     >>>
-    >>> generator = AptaDiffGenerator(
+    >>> generator = AptaDiffModel(
     ...     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
     ... )
     >>>
-    >>> aptadiff = AptaDiff(
+    >>> aptadiff = AptaDiffGenerator(
     ...     vae=vae,
     ...     trimmer=trimmer,
     ...     generator=generator,
@@ -139,7 +141,7 @@ class AptaDiff(BaseEstimator):
     ...     random_state=0,
     ... )
     >>> aptadiff.fit(load_sample_fastq())  # doctest: +ELLIPSIS
-    AptaDiff(...)
+    AptaDiffGenerator(...)
 
     Generate new sequences, or use the learned cluster centers to reproduce
     the paper's exact sequence generation:
@@ -149,6 +151,12 @@ class AptaDiff(BaseEstimator):
     >>> aptadiff.inverse_transform(aptadiff.gmm_centers_).shape
     (3, 1)
     """
+
+    _tags = {
+        "object_type": "estimator",
+        "authors": ["aditi-dsi"],
+        "maintainers": ["aditi-dsi"],
+    }
 
     def __init__(
         self,
@@ -167,8 +175,9 @@ class AptaDiff(BaseEstimator):
         self.gmm_restarts = gmm_restarts
         self.generator = generator
         self.random_state = random_state
+        super().__init__()
 
-    def fit(self, X: ArrayLike, y=None) -> "AptaDiff":
+    def fit(self, X: ArrayLike, y=None) -> "AptaDiffGenerator":
         """Trim and encode the reads, train the diffusion model, fit the mixture.
 
         Parameters
@@ -180,7 +189,7 @@ class AptaDiff(BaseEstimator):
 
         Returns
         -------
-        AptaDiff
+        AptaDiffGenerator
             The fitted estimator.
 
         Raises
@@ -204,7 +213,7 @@ class AptaDiff(BaseEstimator):
 
         generator = self.generator
         if generator is None:
-            generator = AptaDiffGenerator(random_state=self.random_state)
+            generator = AptaDiffModel(random_state=self.random_state)
 
         num_classes = Y.shape[1] // self.seq_len_
         expected = getattr(generator, "num_classes", None)
@@ -212,7 +221,7 @@ class AptaDiff(BaseEstimator):
             raise ValueError(
                 f"The encoder produces {num_classes} classes per position, but "
                 f"the generator expects num_classes={expected}. Pass "
-                f"AptaDiffGenerator(num_classes={num_classes}) as the generator, "
+                f"AptaDiffModel(num_classes={num_classes}) as the generator, "
                 f"or an encoder whose vocabulary has {expected} classes."
             )
 
@@ -222,6 +231,7 @@ class AptaDiff(BaseEstimator):
         self.latents_ = latents
         self.sequences_ = sequences
         self.gmm_centers_ = self.gmm_.means_
+        self._is_fitted = True
 
         return self
 
@@ -272,7 +282,7 @@ class AptaDiff(BaseEstimator):
         NotFittedError
             If `fit` has not been called before.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="sample")
 
         random_state = self.gmm_.random_state
         self.gmm_.random_state = np.random.RandomState(self.random_state)
@@ -305,7 +315,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="transform")
         _, X_idx, _ = self._prepare(X, fit=False)
         return self._latents(X_idx)
 
@@ -332,7 +342,7 @@ class AptaDiff(BaseEstimator):
         ValueError
             If `Z` does not have `embed_size_` columns.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="inverse_transform")
         onehot = self.generator_.predict(Z)
         return self.encoder_.inverse_transform(pd.DataFrame(onehot))
 
@@ -358,7 +368,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="reconstruct")
         sequences, X_idx, _ = self._prepare(X, fit=False)
         reconstructed = self.inverse_transform(self._latents(X_idx))
         reconstructed.index = sequences.index
@@ -390,7 +400,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="score")
         return float(self.score_samples(X).mean())
 
     def score_samples(self, X: ArrayLike) -> np.ndarray:
@@ -418,7 +428,7 @@ class AptaDiff(BaseEstimator):
             If no sequence survives cleaning and encoding, or if `X` holds
             sequences of a length other than `seq_len_`.
         """
-        check_is_fitted(self)
+        self.check_is_fitted(method_name="score_samples")
         _, X_idx, Y = self._prepare(X, fit=False)
         latents = self._latents(X_idx)
 
@@ -523,12 +533,7 @@ class AptaDiff(BaseEstimator):
             if no sequence survives cleaning and encoding, or if `fit` is
             False and `X` holds sequences of a length other than `seq_len_`.
         """
-        X = X.to_dataframe() if isinstance(X, MoleculeLoader) else X
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
+        X = check_X(X)
 
         if fit:
             self.trimmer_ = None if self.trimmer is None else clone(self.trimmer)
@@ -565,3 +570,48 @@ class AptaDiff(BaseEstimator):
         onehot = torch.as_tensor(Y.to_numpy().copy())
         X_idx = onehot.reshape(len(Y), num_classes, seq_len).argmax(dim=1)
         return sequences, X_idx, Y
+
+    def __sklearn_is_fitted__(self) -> bool:
+        """Return whether `fit` has been called.
+
+        scikit-learn's ``check_is_fitted`` calls this, for example in a
+        ``Pipeline`` whose last step is this estimator.
+        """
+        return self.is_fitted
+
+    def __sklearn_tags__(self) -> Tags:
+        """Return the scikit-learn tags of an unsupervised transformer."""
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(preserves_dtype=[]),
+            input_tags=InputTags(two_d_array=True, string=True),
+            non_deterministic=True,
+        )
+
+    @classmethod
+    def get_test_params(cls, parameter_set: str = "default") -> dict:
+        """Return testing parameter settings for the estimator.
+
+        Parameters
+        ----------
+        parameter_set : str, optional, default="default"
+            Name of the parameter set to return. Only ``"default"`` is
+            defined.
+
+        Returns
+        -------
+        dict
+            Parameters of a test instance. The latent model is untrained,
+            which is enough to give latent coordinates of the right shape, and
+            no trimmer is set, so the reads must all have the same length.
+        """
+        return {
+            "vae": CNNPHMMVAE(motif_len=8, embed_size=2),
+            "generator": AptaDiffModel(
+                num_timesteps=2, dim=32, depth=1, max_epochs=1, random_state=0
+            ),
+            "n_clusters": 2,
+            "gmm_restarts": 1,
+            "random_state": 0,
+        }

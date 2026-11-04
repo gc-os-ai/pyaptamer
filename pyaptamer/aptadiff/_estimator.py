@@ -1,7 +1,7 @@
 """Scikit-learn estimator that trains AptaDiff and generates sequences."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["AptaDiffGenerator"]
+__all__ = ["AptaDiffModel"]
 
 import tempfile
 from collections.abc import Callable
@@ -27,7 +27,7 @@ from pyaptamer.aptadiff._model import (
 from pyaptamer.aptadiff._train_lightning import AptaDiffLightning
 
 
-class AptaDiffGenerator(BaseEstimator):
+class AptaDiffModel(BaseEstimator):
     """Train AptaDiff's diffusion model and generate aptamer sequences.
 
     Learns to generate sequences conditioned on latent vectors, such as the latent
@@ -173,16 +173,16 @@ class AptaDiffGenerator(BaseEstimator):
     Examples
     --------
     >>> import numpy as np
-    >>> from pyaptamer.aptadiff import AptaDiffGenerator
+    >>> from pyaptamer.aptadiff import AptaDiffModel
     >>> rng = np.random.default_rng(0)
     >>> tokens = rng.integers(0, 4, size=(20, 8))
     >>> y = np.eye(4, dtype=np.float32)[tokens].transpose(0, 2, 1).reshape(20, -1)
     >>> X = rng.normal(size=(20, 2)).astype(np.float32)
-    >>> generator = AptaDiffGenerator(
+    >>> generator = AptaDiffModel(
     ...     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
     ... )
     >>> generator.fit(X, y)  # doctest: +ELLIPSIS
-    AptaDiffGenerator(...)
+    AptaDiffModel(...)
     >>> generator.predict(X[:3]).shape
     (3, 32)
     """
@@ -237,7 +237,7 @@ class AptaDiffGenerator(BaseEstimator):
         self.random_state = random_state
         self.verbose = verbose
 
-    def fit(self, X: ArrayLike, y: ArrayLike) -> "AptaDiffGenerator":
+    def fit(self, X: ArrayLike, y: ArrayLike) -> "AptaDiffModel":
         """Train the diffusion model.
 
         Parameters
@@ -251,7 +251,7 @@ class AptaDiffGenerator(BaseEstimator):
 
         Returns
         -------
-        AptaDiffGenerator
+        AptaDiffModel
             The fitted estimator.
 
         Raises
