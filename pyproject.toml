@@ -47,7 +47,7 @@ docs = [
     "sphinx-copybutton>=0.5",
 ]
 plot = [
-    "matplotlib>=3.8",
+    "matplotlib>=3.10.9",
 ]
 
 [tool.ruff]
