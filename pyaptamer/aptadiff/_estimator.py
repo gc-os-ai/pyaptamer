@@ -1,7 +1,7 @@
 """Scikit-learn estimator that trains AptaDiff and generates sequences."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["AptaDiffGenerator"]
+__all__ = ["AptaDiffModel"]
 
 import tempfile
 from collections.abc import Callable
@@ -13,10 +13,10 @@ import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from numpy.typing import ArrayLike
-from skbase.base import BaseEstimator
+from sklearn.base import BaseEstimator
 from sklearn.model_selection import train_test_split
-from sklearn.utils import InputTags, Tags, TargetTags
-from sklearn.utils.validation import validate_data
+from sklearn.utils import Tags
+from sklearn.utils.validation import check_is_fitted, validate_data
 from torch.utils.data import DataLoader, TensorDataset
 
 from pyaptamer.aptadiff._model import (
@@ -27,7 +27,7 @@ from pyaptamer.aptadiff._model import (
 from pyaptamer.aptadiff._train_lightning import AptaDiffLightning
 
 
-class AptaDiffGenerator(BaseEstimator):
+class AptaDiffModel(BaseEstimator):
     """Train AptaDiff's diffusion model and generate aptamer sequences.
 
     Learns to generate sequences conditioned on latent vectors, such as the latent
@@ -173,25 +173,19 @@ class AptaDiffGenerator(BaseEstimator):
     Examples
     --------
     >>> import numpy as np
-    >>> from pyaptamer.aptadiff import AptaDiffGenerator
+    >>> from pyaptamer.aptadiff import AptaDiffModel
     >>> rng = np.random.default_rng(0)
     >>> tokens = rng.integers(0, 4, size=(20, 8))
     >>> y = np.eye(4, dtype=np.float32)[tokens].transpose(0, 2, 1).reshape(20, -1)
     >>> X = rng.normal(size=(20, 2)).astype(np.float32)
-    >>> generator = AptaDiffGenerator(
+    >>> generator = AptaDiffModel(
     ...     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
     ... )
     >>> generator.fit(X, y)  # doctest: +ELLIPSIS
-    AptaDiffGenerator(...)
+    AptaDiffModel(...)
     >>> generator.predict(X[:3]).shape
     (3, 32)
     """
-
-    _tags = {
-        "object_type": "estimator",
-        "authors": ["aditi-dsi"],
-        "maintainers": ["aditi-dsi"],
-    }
 
     def __init__(
         self,
@@ -242,9 +236,8 @@ class AptaDiffGenerator(BaseEstimator):
         self.gamma = gamma
         self.random_state = random_state
         self.verbose = verbose
-        super().__init__()
 
-    def fit(self, X: ArrayLike, y: ArrayLike) -> "AptaDiffGenerator":
+    def fit(self, X: ArrayLike, y: ArrayLike) -> "AptaDiffModel":
         """Train the diffusion model.
 
         Parameters
@@ -258,7 +251,7 @@ class AptaDiffGenerator(BaseEstimator):
 
         Returns
         -------
-        AptaDiffGenerator
+        AptaDiffModel
             The fitted estimator.
 
         Raises
@@ -348,7 +341,6 @@ class AptaDiffGenerator(BaseEstimator):
         self.diffusion_ = model.diffusion.to(trainer.strategy.root_device).eval()
         self.seq_len_ = seq_len
         self.n_epochs_ = trainer.current_epoch
-        self._is_fitted = True
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
@@ -370,7 +362,7 @@ class AptaDiffGenerator(BaseEstimator):
             Generated sequences as float32, one-hot encoded in the same flat
             layout as `y` in `fit`, shape (n_samples, num_classes * seq_len_).
         """
-        self.check_is_fitted(method_name="predict")
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False, dtype=np.float32)
         num_classes = self.diffusion_.num_classes
         device = next(self.diffusion_.parameters()).device
@@ -465,42 +457,8 @@ class AptaDiffGenerator(BaseEstimator):
 
         return log_x.argmax(dim=1)
 
-    def __sklearn_is_fitted__(self) -> bool:
-        """Return whether `fit` has been called.
-
-        scikit-learn's ``check_is_fitted`` calls this, for example in a
-        ``Pipeline`` whose last step is this estimator.
-        """
-        return self.is_fitted
-
     def __sklearn_tags__(self) -> Tags:
-        """Return the scikit-learn tags of an unsupervised transformer."""
-        return Tags(
-            estimator_type=None,
-            target_tags=TargetTags(required=True),
-            input_tags=InputTags(two_d_array=True),
-            non_deterministic=True,
-        )
-
-    @classmethod
-    def get_test_params(cls, parameter_set: str = "default") -> dict:
-        """Return testing parameter settings for the estimator.
-
-        Parameters
-        ----------
-        parameter_set : str, optional, default="default"
-            Name of the parameter set to return. Only ``"default"`` is
-            defined.
-
-        Returns
-        -------
-        dict
-            Parameters of a small diffusion model that trains in one epoch.
-        """
-        return {
-            "num_timesteps": 2,
-            "dim": 32,
-            "depth": 1,
-            "max_epochs": 1,
-            "random_state": 0,
-        }
+        tags = super().__sklearn_tags__()
+        tags.non_deterministic = True
+        tags.target_tags.required = True
+        return tags

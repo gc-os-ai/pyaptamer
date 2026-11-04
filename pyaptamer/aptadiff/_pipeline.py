@@ -1,7 +1,7 @@
 """End-to-end AptaDiff algorithm taking SELEX reads and generating aptamer sequences."""
 
 __author__ = ["aditi-dsi"]
-__all__ = ["AptaDiff"]
+__all__ = ["AptaDiffGenerator"]
 
 import math
 
@@ -12,15 +12,15 @@ from numpy.typing import ArrayLike
 from skbase.base import BaseEstimator
 from sklearn.base import clone
 from sklearn.mixture import GaussianMixture
-from sklearn.utils import InputTags, Tags, TargetTags
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
-from pyaptamer.aptadiff._generator import AptaDiffGenerator
+from pyaptamer.aptadiff._estimator import AptaDiffModel
 from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.encode import SequenceOneHotEncoder
 from pyaptamer.utils._check_x import check_X
 
 
-class AptaDiff(BaseEstimator):
+class AptaDiffGenerator(BaseEstimator):
     """Generate aptamer sequences with AptaDiff [1]_.
 
     `fit` takes raw SELEX reads. It trims and one-hot encodes them, reads
@@ -59,9 +59,9 @@ class AptaDiff(BaseEstimator):
     gmm_restarts : int, optional, default=100
         Number of mixture fits. The fit with the lowest AIC is kept. Must be
         at least 1.
-    generator : AptaDiffGenerator or None, optional, default=None
+    generator : AptaDiffModel or None, optional, default=None
         The diffusion model. If None, uses
-        :class:`~pyaptamer.aptadiff.AptaDiffGenerator` with its defaults.
+        :class:`~pyaptamer.aptadiff.AptaDiffModel` with its defaults.
     random_state : int or None, optional, default=None
         Seed for the mixture fits, for `sample`, and for `generator` when it
         is None. The global NumPy random state is never used. The global
@@ -75,7 +75,7 @@ class AptaDiff(BaseEstimator):
         Fitted clone of `encoder`, or the fitted default encoder.
     vae_ : object
         The `vae` that was passed, unchanged.
-    generator_ : AptaDiffGenerator
+    generator_ : AptaDiffModel
         Fitted clone of `generator`, or the fitted default generator.
     gmm_ : sklearn.mixture.GaussianMixture
         The mixture with the lowest AIC over `gmm_restarts` fits.
@@ -115,7 +115,7 @@ class AptaDiff(BaseEstimator):
     The example uses an untrained latent model and a tiny diffusion model.
 
     >>> import torch
-    >>> from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
+    >>> from pyaptamer.aptadiff import AptaDiffGenerator, AptaDiffModel
     >>> from pyaptamer.datasets import load_sample_fastq
     >>> from pyaptamer.raptgen import CNNPHMMVAE
     >>> from pyaptamer.transformations.transform import PrimerTrimmer
@@ -128,11 +128,11 @@ class AptaDiff(BaseEstimator):
     ...     variable_length=40,
     ... )
     >>>
-    >>> generator = AptaDiffGenerator(
+    >>> generator = AptaDiffModel(
     ...     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
     ... )
     >>>
-    >>> aptadiff = AptaDiff(
+    >>> aptadiff = AptaDiffGenerator(
     ...     vae=vae,
     ...     trimmer=trimmer,
     ...     generator=generator,
@@ -141,7 +141,7 @@ class AptaDiff(BaseEstimator):
     ...     random_state=0,
     ... )
     >>> aptadiff.fit(load_sample_fastq())  # doctest: +ELLIPSIS
-    AptaDiff(...)
+    AptaDiffGenerator(...)
 
     Generate new sequences, or use the learned cluster centers to reproduce
     the paper's exact sequence generation:
@@ -177,7 +177,7 @@ class AptaDiff(BaseEstimator):
         self.random_state = random_state
         super().__init__()
 
-    def fit(self, X: ArrayLike, y=None) -> "AptaDiff":
+    def fit(self, X: ArrayLike, y=None) -> "AptaDiffGenerator":
         """Trim and encode the reads, train the diffusion model, fit the mixture.
 
         Parameters
@@ -189,7 +189,7 @@ class AptaDiff(BaseEstimator):
 
         Returns
         -------
-        AptaDiff
+        AptaDiffGenerator
             The fitted estimator.
 
         Raises
@@ -213,7 +213,7 @@ class AptaDiff(BaseEstimator):
 
         generator = self.generator
         if generator is None:
-            generator = AptaDiffGenerator(random_state=self.random_state)
+            generator = AptaDiffModel(random_state=self.random_state)
 
         num_classes = Y.shape[1] // self.seq_len_
         expected = getattr(generator, "num_classes", None)
@@ -221,7 +221,7 @@ class AptaDiff(BaseEstimator):
             raise ValueError(
                 f"The encoder produces {num_classes} classes per position, but "
                 f"the generator expects num_classes={expected}. Pass "
-                f"AptaDiffGenerator(num_classes={num_classes}) as the generator, "
+                f"AptaDiffModel(num_classes={num_classes}) as the generator, "
                 f"or an encoder whose vocabulary has {expected} classes."
             )
 
@@ -584,6 +584,7 @@ class AptaDiff(BaseEstimator):
         return Tags(
             estimator_type=None,
             target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(preserves_dtype=[]),
             input_tags=InputTags(two_d_array=True, string=True),
             non_deterministic=True,
         )
@@ -607,7 +608,7 @@ class AptaDiff(BaseEstimator):
         """
         return {
             "vae": CNNPHMMVAE(motif_len=8, embed_size=2),
-            "generator": AptaDiffGenerator(
+            "generator": AptaDiffModel(
                 num_timesteps=2, dim=32, depth=1, max_epochs=1, random_state=0
             ),
             "n_clusters": 2,

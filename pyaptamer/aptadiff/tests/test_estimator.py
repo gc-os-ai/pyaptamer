@@ -1,4 +1,4 @@
-"""Test the AptaDiffGenerator estimator."""
+"""Test the AptaDiffModel estimator."""
 
 __author__ = ["aditi-dsi"]
 
@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from sklearn.utils.estimator_checks import parametrize_with_checks
 
-from pyaptamer.aptadiff import AptaDiffGenerator
+from pyaptamer.aptadiff import AptaDiffModel
 
 NUM_CLASSES = 4
 SEQ_LEN = 8
@@ -24,6 +25,22 @@ TEST_PARAMS = {
     "max_epochs": 1,
     "random_state": 0,
 }
+
+
+def _expected_failed_checks(estimator: AptaDiffModel) -> dict[str, str]:
+    """Return the sklearn checks that fail because their y is not one-hot."""
+    return dict.fromkeys(
+        [
+            "check_fit_score_takes_y",
+            "check_estimators_overwrite_params",
+            "check_dont_overwrite_parameters",
+            "check_estimators_fit_returns_self",
+            "check_readonly_memmap_input",
+            "check_n_features_in_after_fitting",
+            "check_positive_only_tag_during_fit",
+        ],
+        "sklearn passes a 1D y, not flat one-hot sequences",
+    )
 
 
 @pytest.fixture(scope="module")
@@ -39,14 +56,14 @@ def data() -> tuple[np.ndarray, np.ndarray]:
 
 
 @pytest.fixture(scope="module")
-def fitted(data: tuple[np.ndarray, np.ndarray]) -> AptaDiffGenerator:
-    """Return a small AptaDiffGenerator fitted on data."""
+def fitted(data: tuple[np.ndarray, np.ndarray]) -> AptaDiffModel:
+    """Return a small AptaDiffModel fitted on data."""
     X, y = data
-    return AptaDiffGenerator(**TEST_PARAMS).fit(X, y)
+    return AptaDiffModel(**TEST_PARAMS).fit(X, y)
 
 
-class TestAptaDiffGenerator:
-    """Test AptaDiffGenerator fitting and generation."""
+class TestAptaDiffModel:
+    """Test AptaDiffModel fitting and generation."""
 
     @pytest.mark.parametrize(
         "params",
@@ -65,7 +82,7 @@ class TestAptaDiffGenerator:
     ) -> None:
         """Check fit trains a model for either backend and predict returns one-hot."""
         X, y = data
-        generator = AptaDiffGenerator(**TEST_PARAMS, **params)
+        generator = AptaDiffModel(**TEST_PARAMS, **params)
 
         assert generator.fit(X, y) is generator
         assert generator.seq_len_ == SEQ_LEN
@@ -88,12 +105,12 @@ class TestAptaDiffGenerator:
         X, y = data
         params = {**TEST_PARAMS, "max_epochs": 20, "patience": 0}
 
-        generator = AptaDiffGenerator(**params).fit(X, y)
+        generator = AptaDiffModel(**params).fit(X, y)
 
         assert 0 < generator.n_epochs_ < 20
 
     def test_predict_is_unaffected_by_global_seed(
-        self, fitted: AptaDiffGenerator, data: tuple[np.ndarray, np.ndarray]
+        self, fitted: AptaDiffModel, data: tuple[np.ndarray, np.ndarray]
     ) -> None:
         """Check predict's output is not affected by the global seed."""
         X, _ = data
@@ -113,13 +130,13 @@ class TestAptaDiffGenerator:
         torch_before = torch.get_rng_state()
         numpy_before = np.random.get_state()[1].copy()
 
-        AptaDiffGenerator(**TEST_PARAMS).fit(X, y).predict(X)
+        AptaDiffModel(**TEST_PARAMS).fit(X, y).predict(X)
 
         assert torch.equal(torch_before, torch.get_rng_state())
         np.testing.assert_array_equal(numpy_before, np.random.get_state()[1])
 
     def test_pickle_roundtrip(
-        self, fitted: AptaDiffGenerator, data: tuple[np.ndarray, np.ndarray]
+        self, fitted: AptaDiffModel, data: tuple[np.ndarray, np.ndarray]
     ) -> None:
         """Check an unpickled generator predicts the same sequences."""
         X, _ = data
@@ -130,8 +147,8 @@ class TestAptaDiffGenerator:
         np.testing.assert_array_equal(restored.predict(X), expected)
 
 
-class TestAptaDiffGeneratorInputs:
-    """Test AptaDiffGenerator input validation and conversion."""
+class TestAptaDiffModelInputs:
+    """Test AptaDiffModel input validation and conversion."""
 
     @pytest.mark.parametrize(
         "make_invalid_y, match",
@@ -168,11 +185,9 @@ class TestAptaDiffGeneratorInputs:
         X, y = data
 
         with pytest.raises(ValueError, match=match):
-            AptaDiffGenerator(**TEST_PARAMS).fit(X, make_invalid_y(y))
+            AptaDiffModel(**TEST_PARAMS).fit(X, make_invalid_y(y))
 
-    def test_predict_rejects_wrong_latent_width(
-        self, fitted: AptaDiffGenerator
-    ) -> None:
+    def test_predict_rejects_wrong_latent_width(self, fitted: AptaDiffModel) -> None:
         """Check latent vectors of a different width than in fit raise a ValueError."""
         X = np.zeros((3, N_LATENT + 1), dtype=np.float32)
 
@@ -187,8 +202,23 @@ class TestAptaDiffGeneratorInputs:
         X = X.astype(np.float64)
         y = pd.DataFrame(y.astype(np.float64))
 
-        generator = AptaDiffGenerator(**TEST_PARAMS).fit(X, y)
+        generator = AptaDiffModel(**TEST_PARAMS).fit(X, y)
         out = generator.predict(X)
 
         assert out.dtype == np.float32
         assert out.shape == (N_SAMPLES, NUM_CLASSES * SEQ_LEN)
+
+
+class TestAptaDiffModelSklearn:
+    """Test AptaDiffModel against scikit-learn's estimator checks."""
+
+    @parametrize_with_checks(
+        [AptaDiffModel(**TEST_PARAMS)],
+        legacy=False,
+        expected_failed_checks=_expected_failed_checks,
+    )
+    def test_sklearn_compatible_estimator(
+        self, estimator: AptaDiffModel, check: Callable[[Any], None]
+    ) -> None:
+        """Run scikit-learn's API checks on AptaDiffModel."""
+        check(estimator)

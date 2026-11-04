@@ -9,7 +9,7 @@ import torch
 from skbase._exceptions import NotFittedError
 from sklearn.base import clone
 
-from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
+from pyaptamer.aptadiff import AptaDiffGenerator, AptaDiffModel
 from pyaptamer.datasets import load_sample_fastq
 from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.encode import SequenceOneHotEncoder
@@ -34,7 +34,7 @@ GENERATOR_PARAMS = {
 class _TransformOnlyVAE:
     """Mock VAE model exposing only transform.
 
-    Proves AptaDiff supports generic non-RaptGen models.
+    Proves AptaDiffGenerator supports generic non-RaptGen models.
     """
 
     def __init__(self, embed_size: int) -> None:
@@ -81,19 +81,19 @@ def _five_class_encoder() -> SequenceOneHotEncoder:
     )
 
 
-def _estimator(**kwargs) -> AptaDiff:
-    """Return an AptaDiff instance, with any parameter overridable."""
+def _estimator(**kwargs) -> AptaDiffGenerator:
+    """Return an AptaDiffGenerator instance, with any parameter overridable."""
     if "vae" not in kwargs:
         kwargs["vae"] = _vae()
     if "generator" not in kwargs:
-        kwargs["generator"] = AptaDiffGenerator(**GENERATOR_PARAMS)
+        kwargs["generator"] = AptaDiffModel(**GENERATOR_PARAMS)
     defaults = {
         "trimmer": _trimmer(),
         "n_clusters": N_CLUSTERS,
         "gmm_restarts": 3,
         "random_state": 0,
     }
-    return AptaDiff(**{**defaults, **kwargs})
+    return AptaDiffGenerator(**{**defaults, **kwargs})
 
 
 def _read(random_region: str) -> str:
@@ -115,13 +115,13 @@ def reads() -> pd.DataFrame:
 
 
 @pytest.fixture(scope="module")
-def fitted(reads: pd.DataFrame) -> AptaDiff:
-    """Return an AptaDiff fitted on the sample reads."""
+def fitted(reads: pd.DataFrame) -> AptaDiffGenerator:
+    """Return an AptaDiffGenerator fitted on the sample reads."""
     return _estimator().fit(reads)
 
 
 @pytest.mark.parametrize("n_samples", [1, 4])
-def test_fit_and_sample(fitted: AptaDiff, n_samples: int) -> None:
+def test_fit_and_sample(fitted: AptaDiffGenerator, n_samples: int) -> None:
     """Fitting populates the documented attributes and sample generates from them."""
     assert fitted.seq_len_ == SEQ_LEN
     assert fitted.embed_size_ == EMBED_SIZE
@@ -136,7 +136,9 @@ def test_fit_and_sample(fitted: AptaDiff, n_samples: int) -> None:
     assert all(_is_valid_output(sequence) for sequence in generated["sequence"])
 
 
-def test_reconstruct_matches_input_rows(fitted: AptaDiff, reads: pd.DataFrame) -> None:
+def test_reconstruct_matches_input_rows(
+    fitted: AptaDiffGenerator, reads: pd.DataFrame
+) -> None:
     """Reconstructions are indexed by the reads they were generated from."""
     reconstructed = fitted.reconstruct(reads)
 
@@ -187,7 +189,7 @@ def test_duplicate_index_labels_stay_aligned() -> None:
     assert len(estimator.latents_) == len(kept)
 
 
-def test_inverse_transform_accepts_external_latents(fitted: AptaDiff) -> None:
+def test_inverse_transform_accepts_external_latents(fitted: AptaDiffGenerator) -> None:
     """Latent coordinates chosen outside the estimator can generate sequences."""
     from_array = fitted.inverse_transform([[0.1, 0.2], [0.3, 0.4]])
     from_centers = fitted.inverse_transform(fitted.gmm_centers_)
@@ -199,7 +201,7 @@ def test_inverse_transform_accepts_external_latents(fitted: AptaDiff) -> None:
 
 
 def test_score_matches_score_samples_mean(
-    fitted: AptaDiff, reads: pd.DataFrame
+    fitted: AptaDiffGenerator, reads: pd.DataFrame
 ) -> None:
     """score is the mean of one finite value per encoded sequence."""
     per_sequence = fitted.score_samples(reads)
