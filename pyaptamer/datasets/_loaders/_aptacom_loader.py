@@ -123,7 +123,7 @@ def load_aptacom_full(select_columns=None):
         The loaded dataset, optionally filtered to the selected columns.
 
     """
-    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = load_hf_to_dataset("ecospecs/pyaptamer-AptaCom")
     aptacom = aptacom.to_pandas()
     dataset = _filter_columns(aptacom, columns=select_columns)
     return dataset
@@ -155,7 +155,7 @@ def load_aptacom(return_X_y=False):
     """
     from pyaptamer.data.loader import MoleculeLoader
 
-    aptacom = load_hf_to_dataset("gcos/pyaptamer-AptaCom")
+    aptacom = load_hf_to_dataset("ecospecs/pyaptamer-AptaCom")
     aptacom = aptacom.to_pandas()
     dataset = prepare_x_y(aptacom)
     if return_X_y:
