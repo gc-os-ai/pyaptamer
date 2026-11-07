@@ -5,13 +5,14 @@
 ## From PyPI
 
 ```bash
-pip install pyaptamer
+pip install --pre pyaptamer
 ```
 
-The current release is a prerelease. To pin it explicitly:
+The current release is a prerelease, so `pip` needs the `--pre` flag.
+Check the install:
 
 ```bash
-pip install pyaptamer==0.1.0a1
+python -c "import pyaptamer; print(pyaptamer.__version__)"
 ```
 
 ## Development install
@@ -24,7 +25,7 @@ cd pyaptamer
 pip install -e ".[dev]"
 ```
 
-The `dev` extra adds `ruff`, `pytest`, and `pre-commit`.
+The `dev` extra adds `ruff`, `pytest`, `pytest-cov`, and `pre-commit`.
 
 ## Building the documentation
 
@@ -34,4 +35,4 @@ cd docs
 make html
 ```
 
-The rendered site is written to `docs/build/html`.
+Open `docs/build/html/index.html` in a browser.

@@ -16,7 +16,8 @@ class AptamerEvalAptaNet(BaseAptamerEval):
         characters. Interpreted as the amino-acid sequence of the binding target
         protein.
     pipeline : AptaNetPipeline
-        Fitted AptaNetPipeline to use for assigning scores.
+        Fitted AptaNetPipeline to use for assigning scores. The pair is built
+        with its ``aptamer_col`` and ``protein_col``.
 
     Examples
     --------
@@ -59,7 +60,10 @@ class AptamerEvalAptaNet(BaseAptamerEval):
             The probability score assigned to the aptamer candidate.
         """
         X = MoleculeLoader(
-            data={"aptamer": [aptamer_candidate], "protein": [self.target]}
+            data={
+                self.pipeline.aptamer_col: [aptamer_candidate],
+                self.pipeline.protein_col: [self.target],
+            }
         )
         score = self.pipeline.predict_proba(X=X)
 

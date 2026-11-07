@@ -276,7 +276,7 @@ class AptaTrans(nn.Module):
         else:
             logger.info("Downloading best weights from hugging face...")
             url = (
-                "https://huggingface.co/gcos/pyaptamer-aptatrans/resolve/main/"
+                "https://huggingface.co/ecospecs/pyaptamer-aptatrans/resolve/main/"
                 "pretrained.pt"
             )
             state_dict = torch.hub.load_state_dict_from_url(
