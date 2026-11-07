@@ -131,19 +131,20 @@ class MessagePassingConv(nn.Module):
 
         Parameters
         ----------
-        x : torch.Tensor of shape (N, filters)
-            Current node feature matrix, one row per sequence
-            position.
+        x : torch.Tensor of shape (B, L, filters)
+            Current node feature matrix, one row per position of each
+            of the ``B`` sequences, all of length ``L``.
 
         Returns
         -------
-        torch.Tensor of shape (N, filters)
+        torch.Tensor of shape (B, L, filters)
             Updated node feature matrix.
         """
 
-        idx = torch.arange(x.shape[0], device=x.device)
-        prev_sumx = x[(idx - 1).clamp(min=0)]
-        next_sumx = x[(idx + 1).clamp(max=x.shape[0] - 1)]
+        length = x.shape[1]
+        idx = torch.arange(length, device=x.device)
+        prev_sumx = x[:, (idx - 1).clamp(min=0)]
+        next_sumx = x[:, (idx + 1).clamp(max=length - 1)]
 
         aggre = next_sumx @ self.w_next + prev_sumx @ self.w_prev + self.b
 
@@ -157,7 +158,8 @@ class MessagePassingConv(nn.Module):
             aggre = aggre + x
 
         if self.bn is not None:
-            aggre = self.bn(F.relu(aggre))
+            shape = aggre.shape
+            aggre = self.bn(F.relu(aggre).reshape(-1, shape[-1])).reshape(shape)
 
         if self.gru is not None:
             x = self.gru(aggre, x)
@@ -197,14 +199,15 @@ class AvgFeatures(nn.Module):
 
         Parameters
         ----------
-        x : torch.Tensor of shape (N, filter_size)
+        x : torch.Tensor of shape (..., filter_size)
             Node feature matrix from a preceding convolution or
-            GRU layer.
+            GRU layer, for example (B, L, filter_size).
 
         Returns
         -------
-        torch.Tensor of shape (N * target_features,)
-            Flattened vector of per-node, per-feature averages.
+        torch.Tensor of shape (n_nodes * target_features,)
+            Flattened vector of per-node, per-feature averages, where
+            ``n_nodes`` is the number of rows of ``x``.
         """
         if self.pad_amount > 0:
             x = F.pad(x, (0, self.pad_amount))
@@ -310,29 +313,32 @@ class DNAModel(nn.Module):
 
         Parameters
         ----------
-        x : torch.Tensor of shape (N, input_features)
-            One-hot (or di-nucleotide) encoded sequence, one
-            row per node.
+        x : torch.Tensor of shape (B, L, input_features)
+            Batch of ``B`` one-hot (or di-nucleotide) encoded sequences of
+            the same length ``L``, one row per node. Neighbours are taken
+            within each sequence, so sequences do not influence each other.
 
         Returns
         -------
-        torch.Tensor
-            Final DNA shape score prediction matrix over sequence length.
+        torch.Tensor of shape (B, L * base_features, n_scores)
+            DNA shape score predictions over sequence length, with one score
+            per collected layer in ``n_scores``. If ``constraints`` is
+            False, only the last layer is returned, with shape
+            (B, L * base_features).
         """
-        x = x.unsqueeze(0).permute(0, 2, 1)
-        x = self.input_conv(x)
-        x = x.permute(0, 2, 1).squeeze(0)
+        n_seqs = x.shape[0]
+        x = self.input_conv(x.permute(0, 2, 1)).permute(0, 2, 1)
 
         results = []
         if self.selflayer:
-            results.append(self.avg_layer(x))
+            results.append(self.avg_layer(x).reshape(n_seqs, -1))
 
         for layer in self.mp:
             for _ in range(self.steps):
                 x = layer(x)
             if self.constraints:
-                results.append(self.avg_layer(x))
+                results.append(self.avg_layer(x).reshape(n_seqs, -1))
 
         if self.constraints:
-            return torch.stack(results, dim=1)
-        return self.avg_layer(x)
+            return torch.stack(results, dim=-1)
+        return self.avg_layer(x).reshape(n_seqs, -1)
