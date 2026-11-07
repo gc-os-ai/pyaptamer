@@ -71,6 +71,21 @@ html_logo = "../assets/pyaptamer_banner.png"
 html_favicon = "../assets/pyaptamer_icon.png"
 
 html_theme_options = {
+    "logo": {
+        "image_light": "../assets/pyaptamer_banner.png",
+        "image_dark": "../assets/pyaptamer_banner.png",
+    },
+    "navbar_align": "left",
+    "navbar_start": ["navbar-logo"],
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["search-button", "theme-switcher", "navbar-icon-links"],
+    "navbar_persistent": [],
+    "external_links": [
+        {
+            "name": "Examples",
+            "url": "https://github.com/gc-os-ai/pyaptamer/tree/main/examples",
+        },
+    ],
     "icon_links": [
         {
             "name": "GitHub",
@@ -83,8 +98,19 @@ html_theme_options = {
             "icon": "fa-solid fa-box",
         },
     ],
+    "secondary_sidebar_items": ["page-toc", "edit-this-page"],
+    "use_edit_page_button": True,
+    "show_toc_level": 2,
+    "navigation_depth": 2,
     "show_prev_next": False,
     "navigation_with_keys": False,
+    "footer_start": ["copyright"],
+    "footer_end": [],
+}
+
+html_sidebars = {
+    "index": [],
+    "installation": [],
 }
 
 html_context = {
