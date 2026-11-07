@@ -46,6 +46,49 @@ def test_sequence_one_hot_encoder_raises_on_variable_sequence_lengths():
         SequenceOneHotEncoder().fit_transform(X)
 
 
+def test_sequence_one_hot_encoder_seq_len_pads_with_zero_vectors():
+    """With seq_len, positions after the end of a sequence are all-zero vectors."""
+    X = pd.DataFrame({"seq": ["AT", "GCA"]})
+    Xt = SequenceOneHotEncoder(seq_len=3).fit_transform(X)
+
+    # one (V, L) block per row: classes A, T, G, C by positions 0 to 2
+    expected = np.array(
+        [
+            [[1, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, 0, 1], [0, 0, 0], [1, 0, 0], [0, 1, 0]],
+        ],
+        dtype=np.float32,
+    ).reshape(2, -1)
+    np.testing.assert_array_equal(Xt.to_numpy(), expected)
+
+
+def test_sequence_one_hot_encoder_seq_len_keeps_sequence_positions():
+    """Padding leaves the encoding of the positions inside the sequence unchanged."""
+    X = pd.DataFrame({"seq": [SEQUENCE]})
+    unpadded = SequenceOneHotEncoder().fit_transform(X).to_numpy()
+    padded = SequenceOneHotEncoder(seq_len=50).fit_transform(X).to_numpy()
+
+    padded = padded.reshape(1, 4, 50)
+    np.testing.assert_array_equal(
+        padded[:, :, : len(SEQUENCE)], unpadded.reshape(1, 4, -1)
+    )
+    assert not padded[:, :, len(SEQUENCE) :].any()
+
+
+def test_sequence_one_hot_encoder_seq_len_rejects_longer_sequences():
+    """A sequence longer than seq_len raises a ValueError."""
+    X = pd.DataFrame({"seq": [SEQUENCE]})
+    with pytest.raises(ValueError, match="exceeds seq_len=40"):
+        SequenceOneHotEncoder(seq_len=40).fit_transform(X)
+
+
+def test_sequence_one_hot_encoder_seq_len_empty_input():
+    """With seq_len, an empty frame encodes to the full padded width."""
+    X = pd.DataFrame({"seq": pd.Series([], dtype=object)})
+    Xt = SequenceOneHotEncoder(seq_len=5).fit_transform(X)
+    assert Xt.shape == (0, 20)
+
+
 def test_sequence_one_hot_encoder_accepts_moleculeloader():
     """A MoleculeLoader of sequences encodes to a frame of the expected shape."""
     X = MoleculeLoader(data={"seq": [SEQUENCE, SEQUENCE.lower()]})
@@ -142,6 +185,23 @@ def test_sequence_one_hot_encoder_inverse_transform():
 
     assert isinstance(decoded_df, pd.DataFrame)
     assert decoded_df["sequence"].iloc[0] == SEQUENCE
+
+
+def test_sequence_one_hot_encoder_seq_len_inverse_transform_drops_padding():
+    """Decoding a padded frame gives each sequence back at its own length."""
+    X = pd.DataFrame({"seq": ["ACGT", "AC", "G"]})
+    encoder = SequenceOneHotEncoder(seq_len=6)
+
+    decoded_df = encoder.inverse_transform(encoder.fit_transform(X))
+
+    assert decoded_df["sequence"].tolist() == ["ACGT", "AC", "G"]
+
+
+def test_sequence_one_hot_encoder_seq_len_inverse_transform_index_tensor():
+    """With seq_len, -1 in a 2D index tensor is padding and is dropped."""
+    encoder = SequenceOneHotEncoder(seq_len=4)
+    decoded_df = encoder.inverse_transform(torch.tensor([[0, 3, -1, -1]]))
+    assert decoded_df["sequence"].iloc[0] == "AC"
 
 
 def test_sequence_one_hot_encoder_inverse_transform_unknown_token():

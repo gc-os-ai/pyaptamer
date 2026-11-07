@@ -38,6 +38,36 @@ def test_rejects_variable_lengths():
         SequenceIndexEncoder().fit_transform(pd.DataFrame({"seq": ["ACGT", "ACG"]}))
 
 
+def test_seq_len_pads_shorter_sequences_with_minus_one():
+    """With seq_len, positions after the end of a sequence hold -1."""
+    X = pd.DataFrame({"seq": ["ATG", "ATGCA"]})
+    Xt = SequenceIndexEncoder(seq_len=5).fit_transform(X)
+    np.testing.assert_array_equal(Xt.to_numpy(), [[0, 1, 2, -1, -1], [0, 1, 2, 3, 0]])
+
+
+def test_seq_len_rejects_longer_sequences():
+    """A sequence longer than seq_len raises a ValueError."""
+    with pytest.raises(ValueError, match="exceeds seq_len=3"):
+        SequenceIndexEncoder(seq_len=3).fit_transform(pd.DataFrame({"seq": ["ACGT"]}))
+
+
+def test_seq_len_drop_skips_bad_rows_and_pads_the_rest():
+    """handle_unknown='drop' skips bad rows and pads the kept ones to seq_len."""
+    X = pd.DataFrame({"seq": ["ACG", None, "ACGN", "TT"]}, index=[10, 11, 12, 13])
+    Xt = SequenceIndexEncoder(handle_unknown="drop", seq_len=4).fit_transform(X)
+    assert Xt.index.tolist() == [10, 13]
+    np.testing.assert_array_equal(Xt.to_numpy(), [[0, 3, 2, -1], [1, 1, -1, -1]])
+
+
+@pytest.mark.parametrize("seq_len", [0, -1, 2.5, "5"])
+def test_rejects_invalid_seq_len(seq_len):
+    """seq_len must be None or a positive int."""
+    with pytest.raises(ValueError, match="seq_len must be None or a positive int"):
+        SequenceIndexEncoder(seq_len=seq_len).fit_transform(
+            pd.DataFrame({"seq": ["ACGT"]})
+        )
+
+
 def test_rejects_unknown_characters():
     """A character outside the vocab raises a ValueError naming it."""
     with pytest.raises(ValueError, match=r"\['N'\]"):
