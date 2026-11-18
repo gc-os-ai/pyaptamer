@@ -2,6 +2,10 @@ __author__ = "satvshr"
 __all__ = ["load_hf_to_dataset"]
 
 import os
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import logging
+
+logger = logging.getLogger(__name__)
 
 import requests
 from datasets import load_dataset
@@ -9,7 +13,12 @@ from datasets import load_dataset
 # File formats not natively supported by `datasets.load_dataset`
 FILE_FORMATS = ["fasta", "pdb"]
 
-
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(requests.exceptions.RequestException),
+    reraise=True
+)
 def _download_to_cwd(url):
     """Download URL into ./hf_datasets/ preserving the filename."""
     os.makedirs("hf_datasets", exist_ok=True)
@@ -19,10 +28,17 @@ def _download_to_cwd(url):
 
     # Download only if file doesn't already exist
     if not os.path.exists(local_path):
-        r = requests.get(url)
-        r.raise_for_status()
-        with open(local_path, "wb") as f:
-            f.write(r.content)
+        try:
+            logger.info(f"Downloading file from {url}")
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+
+            with open(local_path, "wb") as f:
+                f.write(r.content)
+
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Download failed for {url}, retrying... Error: {e}")
+            raise
 
     return local_path
 
