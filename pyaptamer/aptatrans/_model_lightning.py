@@ -102,11 +102,12 @@ class AptaTransLightning(L.LightningModule):
         # (input aptamers, input proteins, ground-truth targets)
         x_apta, x_prot, y = batch
         y_hat = torch.flatten(self.model(x_apta, x_prot))
-        loss = F.binary_cross_entropy(y_hat, y.float())
+        y = y.view(-1).float()  # ensure y matches y_hat shape [B]
+        loss = F.binary_cross_entropy(y_hat, y)
 
         # compute accuracy
         y_pred = (y_hat > 0.5).float()
-        accuracy = (y_pred == y.float()).float().mean()
+        accuracy = (y_pred == y).float().mean()
 
         self._log_metric(f"{stage}_loss", loss)
         self._log_metric(f"{stage}_accuracy", accuracy)
