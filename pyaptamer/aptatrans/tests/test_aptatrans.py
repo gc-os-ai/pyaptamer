@@ -2,11 +2,52 @@
 
 __author__ = ["nennomp"]
 
+import os
+
 import pytest
 import torch
 import torch.nn as nn
 
 from pyaptamer.aptatrans import AptaTrans, AptaTransPipeline, EncoderPredictorConfig
+
+PRETRAINED_WEIGHTS_SUFFIX = os.path.join("weights", "pretrained.pt")
+PRETRAINED_WEIGHTS_URL = (
+    "https://huggingface.co/ecospecs/pyaptamer-aptatrans/resolve/main/pretrained.pt"
+)
+
+
+def _make_small_aptatrans(
+    embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    pretrained: bool = False,
+    n_encoder_layers: int = 1,
+) -> AptaTrans:
+    """Create a small AptaTrans model, so that weight loading tests stay fast."""
+    return AptaTrans(
+        apta_embedding=embeddings[0],
+        prot_embedding=embeddings[1],
+        in_dim=32,
+        n_encoder_layers=n_encoder_layers,
+        n_heads=4,
+        conv_layers=[1, 1, 1],
+        pretrained=pretrained,
+    )
+
+
+def _assert_same_weights(model_a: nn.Module, model_b: nn.Module) -> None:
+    """Check that two models have exactly the same parameters and buffers."""
+    state_a, state_b = model_a.state_dict(), model_b.state_dict()
+    assert state_a.keys() == state_b.keys()
+    for key in state_a:
+        assert torch.equal(state_a[key], state_b[key]), f"Mismatch in '{key}'."
+
+
+def _weights_differ(model_a: nn.Module, model_b: nn.Module) -> bool:
+    """Check whether at least one parameter differs between two models."""
+    state_b = model_b.state_dict()
+    return any(
+        not torch.equal(value, state_b[key])
+        for key, value in model_a.state_dict().items()
+    )
 
 
 class TestAptaTransModel:
@@ -40,6 +81,138 @@ class TestAptaTransModel:
                 in_dim=128,
                 n_heads=3,
             )
+
+    def test_load_pretrained_weights_from_local_file(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Check that `pretrained=True` loads weights from the local weights file when it
+        exists, without downloading anything.
+        """
+        # export the weights of a reference model to a temporary file
+        reference = _make_small_aptatrans(embeddings)
+        weights_file = tmp_path / "pretrained.pt"
+        torch.save(reference.state_dict(), weights_file)
+
+        # pretend the local weights file exists, and redirect loading to the
+        # temporary file, so that the package directory is never written to
+        real_exists = os.path.exists
+        real_load = torch.load
+        loaded_paths = []
+
+        def fake_exists(path):
+            if str(path).endswith(PRETRAINED_WEIGHTS_SUFFIX):
+                return True
+            return real_exists(path)
+
+        def fake_load(path, *args, **kwargs):
+            loaded_paths.append(str(path))
+            return real_load(weights_file, *args, **kwargs)
+
+        def fail_download(*args, **kwargs):
+            raise AssertionError("Weights should not be downloaded.")
+
+        monkeypatch.setattr("pyaptamer.aptatrans._model.os.path.exists", fake_exists)
+        monkeypatch.setattr("pyaptamer.aptatrans._model.torch.load", fake_load)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+            fail_download,
+        )
+
+        # import the weights into a new model
+        model = _make_small_aptatrans(embeddings, pretrained=True)
+
+        assert len(loaded_paths) == 1
+        assert loaded_paths[0].endswith(PRETRAINED_WEIGHTS_SUFFIX)
+        _assert_same_weights(model, reference)
+
+    def test_load_pretrained_weights_downloads_if_missing(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        monkeypatch,
+    ):
+        """
+        Check that weights are downloaded from hugging face when the local weights file
+        does not exist. The download itself is mocked, so no network is needed.
+        """
+        reference = _make_small_aptatrans(embeddings)
+        model = _make_small_aptatrans(embeddings)
+        assert _weights_differ(model, reference)
+
+        real_exists = os.path.exists
+        download_calls = []
+
+        def fake_exists(path):
+            if str(path).endswith(PRETRAINED_WEIGHTS_SUFFIX):
+                return False
+            return real_exists(path)
+
+        def fake_download(url, model_dir, map_location):
+            download_calls.append(
+                {"url": url, "model_dir": model_dir, "map_location": map_location}
+            )
+            return reference.state_dict()
+
+        monkeypatch.setattr("pyaptamer.aptatrans._model.os.path.exists", fake_exists)
+        monkeypatch.setattr(
+            "pyaptamer.aptatrans._model.torch.hub.load_state_dict_from_url",
+            fake_download,
+        )
+
+        model.load_pretrained_weights()
+
+        assert len(download_calls) == 1
+        assert download_calls[0]["url"] == PRETRAINED_WEIGHTS_URL
+        assert os.path.basename(download_calls[0]["model_dir"]) == "weights"
+        assert download_calls[0]["map_location"] == torch.device("cpu")
+        _assert_same_weights(model, reference)
+
+    def test_load_pretrained_weights_mismatched_architecture(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Check that loading weights saved from a model with a different architecture
+        raises an error, since weights are loaded with `strict=True`. The other model
+        has an extra encoder layer, so its weights have keys the model does not expect.
+        """
+        other = _make_small_aptatrans(embeddings, n_encoder_layers=2)
+        weights_file = tmp_path / "pretrained.pt"
+        torch.save(other.state_dict(), weights_file)
+
+        real_exists = os.path.exists
+        real_load = torch.load
+
+        def fake_exists(path):
+            if str(path).endswith(PRETRAINED_WEIGHTS_SUFFIX):
+                return True
+            return real_exists(path)
+
+        def fake_load(path, *args, **kwargs):
+            return real_load(weights_file, *args, **kwargs)
+
+        monkeypatch.setattr("pyaptamer.aptatrans._model.os.path.exists", fake_exists)
+        monkeypatch.setattr("pyaptamer.aptatrans._model.torch.load", fake_load)
+
+        model = _make_small_aptatrans(embeddings)
+        with pytest.raises(RuntimeError, match="Unexpected key"):
+            model.load_pretrained_weights()
+
+    def test_forward_encoder_invalid_encoder_type(
+        self,
+        embeddings: tuple[EncoderPredictorConfig, EncoderPredictorConfig],
+    ):
+        """Check that forward_encoder() raises a ValueError for an unknown type."""
+        model = _make_small_aptatrans(embeddings)
+        x = torch.randint(0, 16, (2, 16))
+
+        with pytest.raises(ValueError, match="Unknown encoder_type: dna"):
+            model.forward_encoder(x=(x, x), encoder_type="dna")
 
     @pytest.mark.parametrize(
         "batch_size, seq_len_apta, seq_len_prot, in_dim",
