@@ -67,7 +67,8 @@ class DeepDNAShape(BaseTransform):
 
     Internally each sequence is one-hot encoded, padded with two ``N``
     bases on each side, and scored in both forward and reverse-complement
-    orientations. The two predictions are averaged.
+    orientations. The two predictions are averaged. Sequences of the same
+    length are scored together in batches.
 
     Original author: Jinsen Li.
     Original implementation: https://github.com/JinsenLi/deepDNAshape
@@ -80,6 +81,11 @@ class DeepDNAShape(BaseTransform):
     layer : int, default=4
         Message-passing depth to read (``0`` = initial convolution only,
         ``7`` = deepest layer).
+    batch_size : int, default=256
+        Maximum number of sequences of the same length scored in one pass
+        through the model. Each sequence is scored on both strands, so a pass
+        holds up to ``2 * batch_size`` rows. Lower it to reduce memory use for
+        long sequences. It does not change the predictions.
 
     Examples
     --------
@@ -99,17 +105,25 @@ class DeepDNAShape(BaseTransform):
         "capability:y": False,
     }
 
-    def __init__(self, feature="MGW", layer=4):
+    def __init__(self, feature="MGW", layer=4, batch_size=256):
         self.feature = feature
         self.layer = layer
+        self.batch_size = batch_size
         super().__init__()
 
         if self.feature not in FEATURES:
             raise ValueError(f"Unknown feature. Must be one of {sorted(FEATURES)}.")
         if not 0 <= self.layer <= 7:
             raise ValueError(f"layer must be between 0 and 7, got {self.layer}.")
+        if self.batch_size < 1:
+            raise ValueError(f"batch_size must be at least 1, got {self.batch_size}.")
 
         self._model = None
+
+    @classmethod
+    def get_test_params(cls):
+        """Return parameter sets for the shared transformer tests."""
+        return [{}, {"feature": "Roll", "layer": 2, "batch_size": 2}]
 
     def _load_model(self):
         """Load and cache the pretrained model for ``self.feature``."""
@@ -134,31 +148,45 @@ class DeepDNAShape(BaseTransform):
         self._model = model
 
     @torch.no_grad()
-    def _predict_one(self, seq):
-        """Predict shape values for a single DNA sequence string.
+    def _predict_batch(self, seqs):
+        """Predict shape values for DNA sequence strings of one length.
 
-        As in the original deepDNAshape, the sequence is flanked with two ``N``
-        on each side, and both strands are predicted. The reverse-strand
-        prediction is flipped back to forward order, negated for features with
-        ``flip_rev``, and averaged with the forward one. The flank positions are
-        then dropped and the column for ``layer`` is returned.
+        As in the original deepDNAshape, each sequence is flanked with two ``N``
+        on each side, and both strands are predicted, all in one pass through
+        the model. The reverse-strand prediction is flipped back to forward
+        order, negated for features with ``flip_rev``, and averaged with the
+        forward one. The flank positions are then dropped and the column for
+        ``layer`` is returned.
+
+        Parameters
+        ----------
+        seqs : list of str
+            DNA sequences, all of the same length.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (``len(seqs)``, number of positions).
         """
         if self._model is None:
             self._load_model()
         params = FEATURES[self.feature]
 
-        forward = "NN" + seq + "NN"
-        reverse = forward[::-1].translate(str.maketrans("ACGTN", "TGCAN"))
+        complement = str.maketrans("ACGTN", "TGCAN")
+        forward = ["NN" + seq + "NN" for seq in seqs]
+        reverse = [seq[::-1].translate(complement) for seq in forward]
+        batch = torch.stack(
+            [_encode(seq, params.interbase) for seq in forward + reverse]
+        )
 
-        pred_fwd = self._model(_encode(forward, params.interbase)).numpy()
-        pred_rev = self._model(_encode(reverse, params.interbase)).numpy()
-        pred_fwd = pred_fwd * params.scale + params.offset
-        pred_rev = pred_rev * params.scale + params.offset
+        pred = self._model(batch)[..., self.layer].numpy()
+        pred = pred * params.scale + params.offset
+        pred_fwd, pred_rev = pred[: len(seqs)], pred[len(seqs) :]
         if params.flip_rev:
             pred_rev = -pred_rev
 
-        predictions = (pred_fwd + pred_rev[::-1]) / 2
-        return predictions[2:-2, self.layer]
+        predictions = (pred_fwd + pred_rev[:, ::-1]) / 2
+        return predictions[:, 2:-2]
 
     def _transform(self, X):
         """Transform DNA sequences into shape feature rows.
@@ -197,5 +225,16 @@ class DeepDNAShape(BaseTransform):
                     "Allowed bases are A, C, G, T, N."
                 )
 
-        preds = [self._predict_one(seq) for seq in X.iloc[:, 0]]
+        seqs = X.iloc[:, 0].tolist()
+        by_length = {}
+        for i, seq in enumerate(seqs):
+            by_length.setdefault(len(seq), []).append(i)
+
+        preds = [None] * len(seqs)
+        for rows in by_length.values():
+            for start in range(0, len(rows), self.batch_size):
+                chunk = rows[start : start + self.batch_size]
+                values = self._predict_batch([seqs[i] for i in chunk])
+                for i, row in zip(chunk, values, strict=True):
+                    preds[i] = row
         return pd.DataFrame(preds, index=X.index, dtype=np.float64).add_prefix("pos_")

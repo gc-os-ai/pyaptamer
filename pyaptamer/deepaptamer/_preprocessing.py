@@ -49,11 +49,14 @@ def _one_hot(seq, seq_len):
     return encoded
 
 
-def _shape_features(X, seq_len, full_dna_shape):
+_SHAPE_EDGES = {"MGW": 2, "HelT": 1, "ProT": 2, "Roll": 1}
+
+
+def _shape_features(X, seq_len, full_dna_shape, transformers):
     """
     Turn a batch of DNA sequences into normalized shape vectors.
 
-    For each shape feature (MGW, HelT, ProT, Roll), `DeepDNAShape` predicts the
+    For each shape feature (MGW, HelT, ProT, Roll), its `DeepDNAShape` predicts the
     values of every sequence, read from message-passing layer 2 (a 5-base
     window). Each sequence's values are then trimmed, normalized to zero mean and
     unit variance, and right-padded with zeros to their length for a ``seq_len``
@@ -74,6 +77,8 @@ def _shape_features(X, seq_len, full_dna_shape):
         Length the shape features are padded to.
     full_dna_shape : bool
         If True, skip trimming (138 values for a 35-mer instead of 126).
+    transformers : dict of str to DeepDNAShape
+        The `DeepDNAShape` to use for each of MGW, HelT, ProT and Roll.
 
     Returns
     -------
@@ -83,8 +88,8 @@ def _shape_features(X, seq_len, full_dna_shape):
     """
     seqs = X.iloc[:, 0]
     blocks = []
-    for feature, edge in {"MGW": 2, "HelT": 1, "ProT": 2, "Roll": 1}.items():
-        predictions = DeepDNAShape(feature=feature, layer=2).fit_transform(X)
+    for feature, edge in _SHAPE_EDGES.items():
+        predictions = transformers[feature].fit_transform(X)
         if full_dna_shape:
             edge = 0
         block = []
@@ -168,7 +173,15 @@ class DeepAptamerFeatures(BaseTransform):
         """
         seqs = X.iloc[:, 0].tolist()
         X_ohe = np.stack([_one_hot(seq, self.seq_len).ravel() for seq in seqs])
-        X_shape = _shape_features(X, self.seq_len, self.full_dna_shape)
+        # built on first use and kept, so each model is loaded once per instance
+        if getattr(self, "_shape_transformers", None) is None:
+            self._shape_transformers = {
+                feature: DeepDNAShape(feature=feature, layer=2)
+                for feature in _SHAPE_EDGES
+            }
+        X_shape = _shape_features(
+            X, self.seq_len, self.full_dna_shape, self._shape_transformers
+        )
         return pd.DataFrame(np.hstack([X_ohe, X_shape]), index=X.index)
 
     @classmethod
