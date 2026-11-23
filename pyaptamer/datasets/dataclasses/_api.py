@@ -1,6 +1,8 @@
 __author__ = ["nennomp"]
 __all__ = ["APIDataset"]
 
+import warnings
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -86,13 +88,36 @@ class APIDataset(Dataset):
             x_prot = np.concatenate([x_prot, x_prot])
             y = np.concatenate([y, y])
 
-        x_apta = torch.tensor(
+        # `rna2vec` drops sequences too short to form a triplet, so encode one
+        # sequence at a time to know which rows survive, and drop the matching
+        # protein sequences and labels. Otherwise the three arrays fall out of
+        # alignment and aptamers get paired with the wrong protein and label.
+        encoded = [
             rna2vec(
-                sequence_list=x_apta,
+                sequence_list=[seq],
                 max_sequence_length=self.apta_max_len,
                 sequence_type="rna",
             )
-        )
+            for seq in x_apta
+        ]
+        keep = np.array([len(e) > 0 for e in encoded], dtype=bool)
+        if not keep.any():
+            raise ValueError(
+                "No aptamer sequence is long enough to form a triplet "
+                "(at least 3 nucleotides are required)."
+            )
+        n_dropped = int((~keep).sum())
+        if n_dropped > 0:
+            warnings.warn(
+                f"Dropped {n_dropped} sample(s) whose aptamer sequence is too short "
+                "to form a triplet (fewer than 3 nucleotides).",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        x_apta = torch.tensor(np.concatenate([e for e in encoded if len(e) > 0]))
+        x_prot = np.asarray(x_prot)[keep]
+        y = np.asarray(y)[keep]
         x_prot = encode_rna(
             sequences=x_prot,
             words=self.prot_words,
