@@ -117,8 +117,8 @@ This page documents the public API.
    :toctree: generated
    :nosignatures:
 
-   AptaDiff
    AptaDiffGenerator
+   AptaDiffModel
    AptaDiffLightning
    AptaDiffDiffusion
    AptaDiffDenoiser
@@ -217,6 +217,18 @@ Scoring functions that connect a model to the search.
    :nosignatures:
 
    Benchmarking
+```
+
+## Base classes
+
+```{eval-rst}
+.. currentmodule:: pyaptamer.base
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   BasePipelineDelegator
 ```
 
 ## Utilities

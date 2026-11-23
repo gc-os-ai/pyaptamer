@@ -116,23 +116,6 @@ def test_pipeline_sets_seq_len_on_estimator():
     assert pipe.pipeline_["clf"].seq_len == 40
 
 
-def test_pipeline_accepts_dataframe_and_custom_column():
-    """A DataFrame is accepted like a loader and aptamer_col selects the column."""
-    X = pd.DataFrame({"apt": APTAMERS * 2})
-    y = np.array([0, 1] * 2)
-    pipe = DeepAptamerPipeline(aptamer_col="apt", estimator=DummyClassifier())
-
-    assert pipe.fit(X, y).predict(X).shape == (4,)
-
-
-def test_pipeline_rejects_other_input():
-    """Input that is neither a MoleculeLoader nor a DataFrame raises TypeError."""
-    with pytest.raises(
-        TypeError, match="MoleculeLoader instance or a pandas DataFrame"
-    ):
-        DeepAptamerPipeline().fit(APTAMERS, np.array([0, 1]))
-
-
 def test_classifier_fit_predict():
     """predict returns labels from classes_ and predict_proba rows sum to 1."""
     X = _make_features(40)

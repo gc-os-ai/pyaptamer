@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from sklearn.pipeline import Pipeline
 
 from pyaptamer.data import MoleculeLoader
 from pyaptamer.raptgen import RaptGenGenerator, RaptGenModel
@@ -47,10 +48,11 @@ def test_fit_transform_shape():
     assert Z.shape == (len(SEQS), 6)
 
 
+@pytest.mark.parametrize("fast", [False, True])
 @pytest.mark.parametrize("most_likely", [True, False])
-def test_inverse_transform_returns_nucleotides(most_likely):
+def test_inverse_transform_returns_nucleotides(most_likely, fast):
     """Both decoding modes return plain A/T/G/C strings, one per latent point."""
-    model = _model().fit(_encoded())
+    model = _model(fast=fast).fit(_encoded())
     Z = model.transform(_encoded()[:3])
     seqs = model.inverse_transform(Z, most_likely=most_likely)
     assert len(seqs) == 3
@@ -111,7 +113,7 @@ def test_generator_clones_estimator():
 
 def test_generator_rejects_missing_column():
     """A frame without the aptamer column raises a ValueError naming the columns."""
-    with pytest.raises(ValueError, match="no column 'aptamer'"):
+    with pytest.raises(ValueError, match="aptamer_col"):
         RaptGenGenerator().fit(pd.DataFrame({"seq": SEQS}))
 
 
@@ -119,6 +121,13 @@ def test_generator_rejects_mixed_lengths():
     """Sequences of different length raise a ValueError."""
     with pytest.raises(ValueError, match="same fixed length"):
         RaptGenGenerator().fit(pd.DataFrame({"aptamer": ["ATGC", "ATG"]}))
+
+
+def test_generator_as_last_step_of_sklearn_pipeline():
+    """A scikit-learn Pipeline ending in the generator gives one latent per row."""
+    X = pd.DataFrame({"aptamer": SEQS})
+    pipe = Pipeline([("gen", RaptGenGenerator(estimator=_model()))]).fit(X)
+    assert pipe.transform(X).shape == (len(SEQS), 10)
 
 
 def test_transform_is_encoder_mean():

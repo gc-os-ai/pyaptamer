@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 import torch
 
+from pyaptamer.raptgen import CNNPHMMVAE, CNNPHMMVAEFast
 from pyaptamer.raptgen.layers._decoder import DecoderPHMM
-from pyaptamer.raptgen.layers._loss import profile_hmm_loss
 from pyaptamer.raptgen.layers._sampler import ProfileHMMSampler
 from pyaptamer.raptgen.layers._utils import State, Transition, seq_to_indices
 
@@ -52,18 +52,18 @@ def test_most_probable_insert_at_every_position():
     assert [s for _, s in states] == [State.M, State.I, State.M, State.I, State.M]
 
 
-def test_calc_seq_proba_matches_profile_hmm_loss():
-    """calc_seq_proba equals the negated batched forward-algorithm loss."""
+@pytest.mark.parametrize("model_cls", [CNNPHMMVAE, CNNPHMMVAEFast])
+def test_calc_seq_proba_matches_training_loss(model_cls):
+    """calc_seq_proba equals the negated profile HMM loss the model trains on."""
     torch.manual_seed(0)
-    motif_len, embed_size = 6, 8
-    decoder = DecoderPHMM(
-        motif_len=motif_len, embed_size=embed_size, hidden_size=embed_size
-    ).eval()
+    model = model_cls(motif_len=6, embed_size=8).eval()
+    z = torch.randn(1, 8)
     with torch.no_grad():
-        a, e = decoder(torch.randn(1, embed_size))
+        a, e = model.decoder(z)
     sampler = ProfileHMMSampler(a[0].numpy(), e[0].numpy(), proba_is_log=True)
 
     seq = "ATGCATGC"
-    loss = profile_hmm_loss((a, e), torch.tensor([seq_to_indices(seq)]))
+    x = torch.tensor([seq_to_indices(seq)])
+    loss, _ = model.loss_fn(x, (a, e), z, torch.zeros_like(z), test=True)
 
-    assert torch.allclose(sampler.calc_seq_proba(seq), -loss, atol=1e-4)
+    assert sampler.calc_seq_proba(seq).item() == pytest.approx(-loss, abs=1e-4)

@@ -14,14 +14,13 @@ authors = [
 
 dependencies = [
     "biopython>=1.88",
-    "datasets>=5.1.0",
+    "datasets>=5.2.0",
     "lightning>=2.6.6",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-base",
     "torch>=2.14.1",
-    # <1.8.0: see issue #735 for sklearn upperbound #TODO: fix it later
-    "scikit-learn>=1.7.2,<1.8.0",
+    "scikit-learn>=1.7.2",
     "skorch",
     "imblearn",
     "requests",
@@ -35,8 +34,8 @@ Issues = "https://github.com/gc-os-ai/pyaptamer/issues"
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.17.2",
-    "pytest>=9.1.1",
+    "ruff>=0.17.6",
+    "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
     "pre-commit",
 ]
@@ -46,6 +45,9 @@ docs = [
     "numpydoc>=1.11.0",
     "myst-parser>=4.0.1",
     "sphinx-copybutton>=0.5",
+]
+plot = [
+    "matplotlib>=3.10.9",
 ]
 
 [tool.ruff]
@@ -85,9 +87,3 @@ omit = [
 
 [tool.coverage.report]
 show_missing = true
-
-[tool.pytest.ini_options]
-filterwarnings = [
-    # transformers lack __sklearn_tags__; deferred, sklearn<1.8.0 pin guards. #735
-    "ignore:.*__sklearn_tags__.*:DeprecationWarning",
-]

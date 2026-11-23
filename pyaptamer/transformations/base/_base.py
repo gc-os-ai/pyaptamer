@@ -3,10 +3,10 @@
 __author__ = ["fkiraly", "siddharth7113"]
 __all__ = ["BaseTransform"]
 
-import pandas as pd
 from skbase.base import BaseEstimator
+from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
 
-from pyaptamer.data import MoleculeLoader
+from pyaptamer.utils._check_x import check_X
 
 
 class BaseTransform(BaseEstimator):
@@ -174,19 +174,36 @@ class BaseTransform(BaseEstimator):
         """
         return self.fit(X, y).transform(X)
 
+    def __sklearn_is_fitted__(self):
+        """Return whether ``fit`` has been called.
+
+        scikit-learn's ``check_is_fitted`` calls this, for example in a
+        ``Pipeline`` whose last step is this transformer.
+        """
+        return self.is_fitted
+
+    def __sklearn_tags__(self):
+        """Return the scikit-learn tags of the transformer.
+
+        scikit-learn reads these when the transformer is a step of one of its
+        meta-estimators. ``requires_fit`` is True for every transformer,
+        including those with ``property:fit_is_empty``, since ``transform``
+        raises before ``fit``.
+        """
+        return Tags(
+            estimator_type=None,
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(preserves_dtype=[]),
+            input_tags=InputTags(two_d_array=True, string=True),
+            requires_fit=True,
+        )
+
     def _check_X_y(self, X, y):  # noqa: N802
         """Check X and y inputs.
 
         Coerces X to a pd.DataFrame.
         """
-        if isinstance(X, MoleculeLoader):
-            X = X.to_dataframe()
-        if not isinstance(X, pd.DataFrame):
-            raise TypeError(
-                "X must be a MoleculeLoader instance"
-                " or a pandas DataFrame. "
-                f"Got {type(X)} instead."
-            )
+        X = check_X(X)
 
         if not self.get_tag("capability:multivariate", False) and X.shape[1] > 1:
             raise ValueError(
