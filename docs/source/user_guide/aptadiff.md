@@ -7,21 +7,22 @@ trains a multinomial diffusion model to generate sequences conditioned on
 those coordinates. A Gaussian mixture fitted to the same coordinates supplies
 the latent points that new sequences are generated from.
 
-The entry point is {class}`~pyaptamer.aptadiff.AptaDiff`. The diffusion model
-is exposed separately as {class}`~pyaptamer.aptadiff.AptaDiffGenerator`.
+The entry point is {class}`~pyaptamer.aptadiff.AptaDiffGenerator`. The
+diffusion model is exposed separately as
+{class}`~pyaptamer.aptadiff.AptaDiffModel`.
 
-AptaDiff is unsupervised and generative, so it has no `predict`. New sequences
-come from `sample`, and `y` is ignored by `fit`.
+`AptaDiffGenerator` is unsupervised and generative, so it has no `predict`.
+New sequences come from `sample`, and `y` is ignored by `fit`.
 
 ## Building the estimator
 
-`AptaDiff` composes three parts that are passed in: the latent model `vae`,
-the `trimmer` that cleans the reads, and the `generator` that trains the
+`AptaDiffGenerator` composes three parts that are passed in: the latent model
+`vae`, the `trimmer` that cleans the reads, and the `generator` that trains the
 diffusion model.
 
 ```python
 import torch
-from pyaptamer.aptadiff import AptaDiff, AptaDiffGenerator
+from pyaptamer.aptadiff import AptaDiffGenerator, AptaDiffModel
 from pyaptamer.datasets import load_sample_fastq
 from pyaptamer.raptgen import CNNPHMMVAE
 from pyaptamer.transformations.transform import PrimerTrimmer
@@ -37,12 +38,11 @@ trimmer = PrimerTrimmer(
     variable_length=40,
 )
 
-generator = AptaDiffGenerator(
-    num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
+generator = AptaDiffModel(
     num_timesteps=5, dim=32, depth=1, max_epochs=1, random_state=0
 )
 
-aptadiff = AptaDiff(
+aptadiff = AptaDiffGenerator(
     vae=vae,
     trimmer=trimmer,
     generator=generator,
@@ -58,10 +58,10 @@ a FASTQ file, which `tiling="samples"` turns into one row per read, see
 {doc}`molecule_loader` for the loader's options.
 
 `vae` maps integer-encoded sequences to latent coordinates. It is used for
-inference only, and is never trained, inspected or migrated by `AptaDiff`.
-Pass a fitted {class}`~pyaptamer.raptgen.RaptGenModel`, any other object with
-a `transform` method, or a module with `encoder` and `h2mu` attributes, such
-as {class}`~pyaptamer.raptgen.CNNPHMMVAE`. The weights
+inference only, and is never trained, inspected or migrated by
+`AptaDiffGenerator`. Pass a fitted {class}`~pyaptamer.raptgen.RaptGenModel`,
+any other object with a `transform` method, or a module with `encoder` and
+`h2mu` attributes, such as {class}`~pyaptamer.raptgen.CNNPHMMVAE`. The weights
 must be trained, as an untrained model gives random, unusable coordinates and
 therefore meaningless sequences.
 
@@ -79,7 +79,9 @@ to supply a custom vocabulary or to make unknown characters raise:
 ```python
 from pyaptamer.transformations.encode import SequenceOneHotEncoder
 
-aptadiff = AptaDiff(vae=vae, encoder=SequenceOneHotEncoder(handle_unknown="raise"))
+aptadiff = AptaDiffGenerator(
+    vae=vae, encoder=SequenceOneHotEncoder(handle_unknown="raise")
+)
 ```
 
 ## Generating sequences
@@ -129,18 +131,18 @@ coordinates.
 number of fits attempted, of which the one with the lowest AIC is kept:
 
 ```python
-aptadiff = AptaDiff(vae=vae, n_clusters=8, gmm_restarts=100)
+aptadiff = AptaDiffGenerator(vae=vae, n_clusters=8, gmm_restarts=100)
 ```
 
 ## Configuring the diffusion model
 
-`AptaDiff` delegates diffusion training to
-{class}`~pyaptamer.aptadiff.AptaDiffGenerator`, whose defaults match the
+`AptaDiffGenerator` delegates diffusion training to
+{class}`~pyaptamer.aptadiff.AptaDiffModel`, whose defaults match the
 original implementation and are sized for full SELEX datasets. Pass a
 configured generator to change them:
 
 ```python
-generator = AptaDiffGenerator(
+generator = AptaDiffModel(
     num_timesteps=1000,
     dim=512,
     depth=12,
@@ -151,7 +153,7 @@ generator = AptaDiffGenerator(
     verbose=1,
 )
 
-aptadiff = AptaDiff(vae=vae, generator=generator)
+aptadiff = AptaDiffGenerator(vae=vae, generator=generator)
 ```
 
 `num_timesteps` is the number of diffusion steps, and generation runs one

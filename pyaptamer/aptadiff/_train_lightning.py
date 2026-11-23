@@ -19,7 +19,7 @@ class AptaDiffLightning(L.LightningModule):
     `Trainer`. This class handles only the per-batch loss and the optimizer
     configuration. The training loop, device, gradient accumulation
     and checkpointing belong to the `Trainer`, and are configured by
-    :class:`~pyaptamer.aptadiff.AptaDiffGenerator`.
+    :class:`~pyaptamer.aptadiff.AptaDiffModel`.
 
     The loss is the diffusion model's variational bound in bits per character
     (BPC), as reported by the original implementation. It is logged as `train_loss`
