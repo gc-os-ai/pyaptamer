@@ -52,7 +52,7 @@ benchmarking
 * - {doc}`AptaNet <aptanet>`
   - Aptamer-protein interaction prediction.
 * - {doc}`AptaTrans <aptatrans>`
-  - Interaction scoring and candidate aptamer generation.
+  - Aptamer-protein interaction prediction and candidate aptamer generation.
 * - {doc}`DeepAptamer <deepaptamer>`
   - Binding prediction for DNA aptamers from sequence and DNA shape.
 * - {doc}`AptaDiff <aptadiff>`

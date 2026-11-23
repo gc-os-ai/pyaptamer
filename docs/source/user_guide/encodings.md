@@ -10,6 +10,7 @@ strings into a numeric table with one row per sequence. They take a one-column
 | {class}`~pyaptamer.transformations.encode.PSeAAC` | protein sequences | pseudo amino acid composition, 350 values by default |
 | {class}`~pyaptamer.transformations.encode.KMerFrequencies` | nucleotide sequences | frequency of every k-mer up to length `k`, 340 values by default |
 | {class}`~pyaptamer.transformations.encode.ConjointTriad` | protein sequences | frequency of every k-mer up to length `k` over 7 amino acid groups, 399 values by default |
+| {class}`~pyaptamer.transformations.encode.KMerIndexEncoder` | nucleotide sequences | one id per overlapping k-mer of length `k` |
 | {class}`~pyaptamer.transformations.encode.GreedyEncoder` | any sequences | one token index per position |
 
 ## Pseudo amino acid composition of proteins
@@ -218,6 +219,35 @@ ConjointTriad().fit_transform(X).shape
 ```text
 (2, 399)
 ```
+
+## K-mer ids of nucleotides
+
+{class}`~pyaptamer.transformations.encode.KMerIndexEncoder` keeps the order
+of the sequence. Each overlapping k-mer becomes one id, from 1 to
+`len(alphabet) ** k`, in the order `AAA, AAC, AAG, ...`. Id 0 is padding,
+and also marks a k-mer with a letter outside the alphabet. Rows are
+zero-padded to the longest sequence, or truncated and padded to `max_len`.
+
+```python
+import pandas as pd
+from pyaptamer.transformations.encode import KMerIndexEncoder
+
+X = pd.DataFrame({"sequence": ["ACGUA", "GGAC", "AC"]})
+
+KMerIndexEncoder(k=3, alphabet="ACGU").fit_transform(X)
+```
+
+```text
+    0   1   2
+0   7  28  45
+1  41  34   0
+2   0   0   0
+```
+
+`ACGUA` has the triplets `ACG`, `CGU` and `GUA`. `AC` is shorter than `k`
+and gives a row of zeros. Lower-case letters are upper-cased.
+{class}`~pyaptamer.aptatrans.AptaTransPipeline` encodes aptamers with `k=3`
+and `alphabet="ACGUN"`.
 
 ## Tables with more than one column
 

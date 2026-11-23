@@ -5,9 +5,8 @@ __author__ = ["nennomp"]
 
 import numpy as np
 import pytest
-import torch
 
-from pyaptamer.experiments import AptamerEvalAptaNet, AptamerEvalAptaTrans
+from pyaptamer.experiments import AptamerEvalAptaNet
 from pyaptamer.mcts import MCTS
 from pyaptamer.mcts._algorithm import TreeNode
 
@@ -174,38 +173,9 @@ class TestTreeNode:
         assert child2.exploitation_score == 10.0
 
 
-class MockModel:
-    def __init__(self):
-        self.apta_embedding = type("obj", (object,), {"max_len": 128})
-        self.prot_embedding = type("obj", (object,), {"max_len": 128})
-
-    def eval(self):
-        pass
-
-    def __call__(self, *args, **kwargs):
-        return torch.tensor([0.5])
-
-
 class MockPipeline:
     def predict_proba(self, X):
         return np.array([[0.5, 0.5]])
-
-
-class MockExperimentAptaTrans(AptamerEvalAptaTrans):
-    def __init__(
-        self,
-        target,
-        model,
-        device,
-        prot_words,
-        fixed_score=0.5,
-    ):
-        super().__init__(target, model, device, prot_words)
-        self.fixed_score = fixed_score
-
-    def evaluate(self, aptamer_candidate):
-        # return a fixed score for deterministic testing
-        return torch.tensor([self.fixed_score])
 
 
 class MockExperimentAptaNet(AptamerEvalAptaNet):
@@ -223,19 +193,9 @@ class MockExperimentAptaNet(AptamerEvalAptaNet):
         return np.float64(self.fixed_score)
 
 
-@pytest.fixture(params=["aptatrans", "aptanet"])
-def mcts(request):
-    if request.param == "aptatrans":
-        mock_model = MockModel()
-        device = torch.device("cpu")
-        prot_words = {"AAA": 0.5, "AAC": 0.3, "AAG": 0.2}
-
-        experiment = MockExperimentAptaTrans(
-            target="ACGU", model=mock_model, device=device, prot_words=prot_words
-        )
-    else:  # aptanet
-        mock_pipeline = MockPipeline()
-        experiment = MockExperimentAptaNet(target="ACGU", pipeline=mock_pipeline)
+@pytest.fixture
+def mcts():
+    experiment = MockExperimentAptaNet(target="ACGU", pipeline=MockPipeline())
 
     mcts = MCTS(
         experiment=experiment,
