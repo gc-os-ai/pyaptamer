@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import Pipeline
 from sklearn.utils.multiclass import type_of_target
-from sklearn.utils.validation import check_is_fitted, validate_data
+from sklearn.utils.validation import check_is_fitted, validate_data, check_array
 from torch import optim
 
 from pyaptamer.aptanet._aptanet_nn import AptaNetMLP
@@ -143,7 +143,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
             Probability estimates for each class.
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
+        X = check_array(X).astype(np.float32, copy=False)
         return self.pipeline_.predict_proba(X)
 
     def predict(self, X):
@@ -161,7 +161,7 @@ class AptaNetClassifier(ClassifierMixin, BaseEstimator):
             Predicted class labels.
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
+        X = check_array(X).astype(np.float32, copy=False)
         y = self.pipeline_.predict(X).astype(int, copy=False)
         return self.classes_[y]
 
@@ -326,7 +326,7 @@ class AptaNetRegressor(RegressorMixin, BaseEstimator):
             Predicted continuous values.
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False).astype(np.float32, copy=False)
+        X = check_array(X).astype(np.float32, copy=False)
         return self.pipeline_.predict(X).reshape(-1)
 
     def score(self, X, y):
