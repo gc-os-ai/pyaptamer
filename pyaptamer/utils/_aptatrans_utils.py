@@ -61,43 +61,32 @@ def seq2vec(
     outputs = []
     outputs_ss = []
 
+    valid_words = [w for w, idx in words.items() if idx != 0 and len(w) <= word_max_len]
+    valid_words.sort(key=len, reverse=True)
+    
+    if not valid_words:
+        return np.zeros((0, seq_max_len)), np.zeros((0, seq_max_len))
+
+    import re
+    pattern = re.compile("|".join(map(re.escape, valid_words)))
+
     for seq, ss in zip(*sequence_list, strict=False):
         output = []
         output_ss = []
-        i = 0
 
-        while i < len(seq):
-            matched = False
+        for match in pattern.finditer(seq):
+            substring = match.group()
+            substring_ss = ss[match.start() : match.end()]
 
-            # try to match longest possible substring first
-            for j in range(word_max_len, 0, -1):
-                if i + j <= len(seq):
-                    substring = seq[i : i + j]
-                    substring_ss = ss[i : i + j]
+            output.append(words[substring])
+            output_ss.append(words_ss.get(substring_ss, 0))
 
-                    # check if substring exists in vocabulary (0 is unknown token)
-                    word_idx = words.get(substring, 0)
-                    if word_idx != 0:
-                        matched = True
-                        output.append(word_idx)
-                        # 0 marks unknown secondary structure tokens
-                        output_ss.append(words_ss.get(substring_ss, 0))
+            if len(output) == seq_max_len:
+                outputs.append(np.array(output))
+                outputs_ss.append(np.array(output_ss))
+                output = []
+                output_ss = []
 
-                        # if at `seq_max_len`, store and reset
-                        if len(output) == seq_max_len:
-                            outputs.append(np.array(output))
-                            outputs_ss.append(np.array(output_ss))
-                            output = []
-                            output_ss = []
-
-                        i += j
-                        break
-
-            # skip character if no match found
-            if not matched:
-                i += 1
-
-        # add remaining output if not empty
         if len(output) > 0:
             outputs.append(np.array(output))
             outputs_ss.append(np.array(output_ss))
