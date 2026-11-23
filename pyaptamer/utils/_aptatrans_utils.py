@@ -95,6 +95,16 @@ def seq2vec(
 
             # skip character if no match found
             if not matched:
+                output.append(0)
+                output_ss.append(0)
+
+                # if at `seq_max_len`, store and reset
+                if len(output) == seq_max_len:
+                    outputs.append(np.array(output))
+                    outputs_ss.append(np.array(output_ss))
+                    output = []
+                    output_ss = []
+
                 i += 1
 
         # add remaining output if not empty
