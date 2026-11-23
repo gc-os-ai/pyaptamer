@@ -11,21 +11,28 @@ from pyaptamer.raptgen.layers._utils import State, Transition, seq_to_indices
 
 logger = logging.getLogger(__name__)
 
+_FROM = [State.M, State.M, State.M, State.I, State.I, State.D, State.D]
+_TO = [State.M, State.I, State.D, State.M, State.I, State.M, State.D]
+
 
 class ProfileHMMSampler:
     """
     Sampler for aptamer sequences from the decoder's profile HMM probabilities.
 
     Takes the transition and emission probabilities produced by
-    `DecoderPHMM` and uses them to generate concrete A/T/G/C sequences,
-    either by random sampling or by a greedy walk through the model.
-    Also scores a given sequence under the model via the profile HMM
-    forward algorithm.
+    `DecoderPHMM` or `DecoderPHMMFast` and uses them to generate concrete
+    A/T/G/C sequences, either by random sampling or by a greedy walk through
+    the model. Also scores a given sequence under the model via the profile
+    HMM forward algorithm.
 
     Parameters
     ----------
     transition_proba : ndarray
-        Per-position transition probabilities between states.
+        Per-position transition probabilities between states, either of shape
+        (motif_len + 1, 7) as returned by `DecoderPHMM`, or of shape
+        (3, 3, motif_len + 1) as returned by `DecoderPHMMFast`. The second
+        layout is indexed as [from_state, to_state, position] and is reduced
+        to the seven transitions in `Transition`.
     emission_proba : ndarray
         Per-position nucleotide emission probabilities.
 
@@ -51,6 +58,8 @@ class ProfileHMMSampler:
     ):
         self.e = emission_proba
         self.a = transition_proba
+        if self.a.ndim == 3:
+            self.a = self.a[_FROM, _TO].T
         self.rng = np.random.default_rng(random_state)
         if proba_is_log:
             self.e = np.exp(self.e)

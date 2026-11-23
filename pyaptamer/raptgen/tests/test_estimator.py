@@ -48,10 +48,11 @@ def test_fit_transform_shape():
     assert Z.shape == (len(SEQS), 6)
 
 
+@pytest.mark.parametrize("fast", [False, True])
 @pytest.mark.parametrize("most_likely", [True, False])
-def test_inverse_transform_returns_nucleotides(most_likely):
+def test_inverse_transform_returns_nucleotides(most_likely, fast):
     """Both decoding modes return plain A/T/G/C strings, one per latent point."""
-    model = _model().fit(_encoded())
+    model = _model(fast=fast).fit(_encoded())
     Z = model.transform(_encoded()[:3])
     seqs = model.inverse_transform(Z, most_likely=most_likely)
     assert len(seqs) == 3

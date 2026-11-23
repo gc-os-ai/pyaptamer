@@ -6,6 +6,8 @@ __all__ = ["DecoderPHMM", "DecoderPHMMFast"]
 import torch
 from torch import nn
 
+from pyaptamer.raptgen.layers._utils import State
+
 
 class DecoderPHMM(nn.Module):
     """
@@ -131,28 +133,31 @@ class DecoderPHMMFast(nn.Module):
         Projects the latent point to the shared hidden representation.
 
     transition : nn.Sequential
-        Predicts the log-probabilities of all 3x3 state transitions per
-        position, normalized over the to-state axis.
+        Predicts unnormalized scores for all 3x3 state transitions per
+        position. `forward` sets insert to delete and delete to insert to
+        probability zero and normalizes over the to-state axis.
 
     emission : nn.Sequential
         Predicts per-position emission log-probabilities over the 4 nucleotides.
 
     Notes
     -----
-    This is a different model from `DecoderPHMM`, not a faster implementation
-    of it. The differences are:
+    Both decoders define the same profile HMM, with the seven transitions in
+    `Transition`. The differences from `DecoderPHMM` are:
 
     - The transition output has shape (batch, 3, 3, motif_len + 1), indexed
       as [from_state, to_state, position]. `DecoderPHMM` returns
-      (batch, motif_len + 1, 7), the seven transitions the profile HMM allows.
-    - All nine transitions are predicted, including insert to delete and
-      delete to insert, which `DecoderPHMM` and `profile_hmm_loss` exclude.
+      (batch, motif_len + 1, 7).
+    - Insert to delete and delete to insert are part of the 3x3 layout but
+      always have probability zero.
     - There are no BatchNorm layers, so a batch of one works in train mode.
     - The output is consumed by `torch_multi_polytope_dp_log` through
-      `profile_hmm_loss_fn_fast`, not by `profile_hmm_loss`.
+      `profile_hmm_loss_fn_fast`, which computes the same loss as
+      `profile_hmm_loss` with parallel dynamic programming.
+    - `ProfileHMMSampler` accepts the 3x3 layout directly.
 
-    Because the parameterisations differ, weights and losses of the two
-    decoders are not comparable.
+    The original RaptGen fast decoder gives insert to delete and delete to
+    insert nonzero probability. This decoder does not.
     """
 
     def __init__(self, motif_len, embed_size, hidden_size=32):
@@ -169,7 +174,6 @@ class DecoderPHMMFast(nn.Module):
             nn.Linear(hidden_size, 3 * 3 * (motif_len + 1)),
             nn.LeakyReLU(negative_slope=0.01, inplace=True),
             nn.Unflatten(1, (3, 3, motif_len + 1)),
-            nn.LogSoftmax(dim=2),
         )
 
         self.emission = nn.Sequential(
@@ -181,10 +185,16 @@ class DecoderPHMMFast(nn.Module):
             nn.LogSoftmax(dim=2),
         )
 
+        forbidden = torch.zeros(3, 3, 1, dtype=torch.bool)
+        forbidden[State.I, State.D] = True
+        forbidden[State.D, State.I] = True
+        self.register_buffer("forbidden", forbidden, persistent=False)
+
     def forward(self, input):
         x = self.fc(input)
 
-        transition_proba = self.transition(x)
+        scores = self.transition(x).masked_fill(self.forbidden, float("-inf"))
+        transition_proba = scores.log_softmax(dim=2)
         emission_proba = self.emission(x)
 
         return (transition_proba, emission_proba)
