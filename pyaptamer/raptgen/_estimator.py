@@ -266,20 +266,7 @@ class RaptGenModel(BaseEstimator, TransformerMixin):
         z = torch.as_tensor(np.asarray(Z), dtype=torch.float32).to(device)
         with torch.no_grad():
             transition_proba, emission_proba = self.model_.decoder(z)
-        if self.fast:
-            t = transition_proba
-            transition_proba = torch.stack(
-                [
-                    t[:, 0, 0],
-                    t[:, 0, 1],
-                    t[:, 0, 2],  # M2M, M2I, M2D
-                    t[:, 1, 0],
-                    t[:, 1, 1],  # I2M, I2I
-                    t[:, 2, 0],
-                    t[:, 2, 2],  # D2M, D2D
-                ],
-                dim=-1,
-            )
+
         rng = np.random.default_rng(self.random_state)
         sequences = []
         for i in range(z.shape[0]):

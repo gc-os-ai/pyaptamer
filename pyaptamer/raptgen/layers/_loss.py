@@ -249,7 +249,7 @@ def torch_multi_polytope_dp_log(
             string_length + 1, model_index_pre
         ):
             d_slice = arange[
-                max(1, model_index_pre - model_length) : min(
+                max(0, model_index_pre - model_length) : min(
                     string_length + 1, model_index_pre
                 )
             ]
