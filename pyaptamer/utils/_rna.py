@@ -207,8 +207,13 @@ def encode_rna(
 
     Returns
     -------
-    Tensor
+    Tensor or np.ndarray
         Encoded sequences with shape (n_sequences, `max_len`).
+
+    Raises
+    ------
+    ValueError
+        If `return_type` is not "tensor" or "numpy".
 
     Examples
     --------
@@ -217,6 +222,9 @@ def encode_rna(
     >>> print(encode_rna("ACD", words, max_len=5))
     tensor([[4, 3, 0, 0, 0]])
     """
+    if return_type not in ("tensor", "numpy"):
+        raise ValueError("`return_type` must be either 'tensor' or 'numpy'.")
+
     # handle single protein input
     if isinstance(sequences, str):
         sequences = [sequences]

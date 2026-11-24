@@ -281,3 +281,10 @@ def test_encode_rna(sequences, words, max_len, word_max_len, expected):
 
     # verify all values are non-negative
     assert (encoded >= 0).all()
+
+
+def test_encode_rna_invalid_return_type():
+    """Check `encode_rna` rejects unknown `return_type` instead of silently
+    falling back to a tensor."""
+    with pytest.raises(ValueError, match="`return_type` must be either"):
+        encode_rna(["ACG"], {"A": 1}, max_len=3, return_type="nmupy")
