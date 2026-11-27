@@ -43,6 +43,12 @@ def test_default_matches_aptanet_solution():
     np.testing.assert_allclose(Xt.to_numpy()[0], solution, atol=1e-3)
 
 
+def test_empty_batch_keeps_feature_width():
+    """An empty frame retains the PSeAAC feature width."""
+    X = pd.DataFrame({"protein": pd.Series([], dtype=object)})
+    assert PSeAAC().fit_transform(X).shape == (0, 350)
+
+
 @pytest.mark.parametrize(
     "prop_indices,group_props,custom_groups,width",
     [

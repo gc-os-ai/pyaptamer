@@ -53,6 +53,17 @@ def test_empty_sequence_is_all_zero():
     assert Xt.to_numpy().sum() == 0
 
 
+def test_empty_batch_keeps_feature_width():
+    """An empty frame has the same feature width as a non-empty transform."""
+    X = pd.DataFrame(
+        {"seq": pd.Series([], dtype=object)}, index=pd.Index([], name="id")
+    )
+    Xt = KMerFrequencies(k=2).fit_transform(X)
+
+    assert Xt.shape == (0, 20)
+    assert Xt.index.name == "id"
+
+
 def test_normalize_by_length():
     """normalize="length" divides every count by the sequence length."""
     Xt = KMerFrequencies(k=2, normalize="length").fit_transform(_frame("ACGT"))
