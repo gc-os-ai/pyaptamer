@@ -28,8 +28,9 @@ __author__ = ["Alleny244"]
 
 import argparse
 import sys
+import os
 from pathlib import Path
-
+import tempfile
 import numpy as np
 
 INTRABASE_FEATURES = {
@@ -193,6 +194,43 @@ def _validate(state_dict, feature: str) -> None:
     model(torch.randn(seq_len, input_features))
 
 
+def _atomic_save(state_dict, out_path: Path) -> None:
+    """
+    Save a PyTorch state dict atomically.
+
+    The temporary file is created in the destination directory
+    so os.replace() operates on the same filesystem.
+    """
+    import torch
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=out_path.parent,
+            prefix=f".{out_path.stem}_",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        torch.save(state_dict, temp_path)
+
+        # Ensure serialized data has been flushed to disk.
+        with temp_path.open("rb") as file:
+            os.fsync(file.fileno())
+
+        # Atomically replace the destination.
+        os.replace(temp_path, out_path)
+
+    except Exception:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+        raise
+    
+
 def convert(
     models_dir: Path,
     outdir: Path,
@@ -225,8 +263,10 @@ def convert(
             if validate:
                 _validate(state_dict, feature)
             out_path = outdir / f"{feature}.pt"
-            torch.save(state_dict, out_path)
+
+            _atomic_save(state_dict, out_path)
             print(f"OK → {out_path.name}")
+
             succeeded.append(feature)
         except Exception as exc:
             print(f"FAILED ({exc})")
