@@ -3,6 +3,7 @@
 __author__ = ["siddharth7113"]
 __all__ = ["SequenceIndexEncoder"]
 
+import numbers
 import warnings
 from typing import Literal
 
@@ -18,6 +19,10 @@ class SequenceIndexEncoder(BaseTransform):
 
     Each sequence of length ``L`` becomes ``L`` integer columns. Column ``l``
     holds the vocab index of the character at position ``l``.
+
+    By default all sequences must have the same length. Set ``seq_len`` to
+    encode sequences of different lengths: each one is right-padded to
+    ``seq_len`` positions, and the padding positions hold ``-1``.
 
     Input can be a :class:`~pyaptamer.data.loader.MoleculeLoader` or a
     ``pandas.DataFrame`` with exactly one column of sequences.
@@ -36,6 +41,11 @@ class SequenceIndexEncoder(BaseTransform):
 
         - "raise" : raise a ``ValueError`` naming the problem.
         - "drop" : skip that row in the encoded output.
+    seq_len : int or None, default=None
+        Number of positions to right-pad every sequence to. If None, all
+        sequences must have the same length. If an int, the positions after
+        the end of a shorter sequence hold ``-1``, and a longer sequence
+        raises a ``ValueError``.
 
     Examples
     --------
@@ -60,9 +70,11 @@ class SequenceIndexEncoder(BaseTransform):
         self,
         vocab: dict[str, int] | None = None,
         handle_unknown: Literal["raise", "drop"] = "raise",
+        seq_len: int | None = None,
     ):
         self.vocab = vocab
         self.handle_unknown = handle_unknown
+        self.seq_len = seq_len
         super().__init__()
 
     def _resolve_vocab(self):
@@ -78,6 +90,12 @@ class SequenceIndexEncoder(BaseTransform):
             raise ValueError(
                 f"handle_unknown must be one of {sorted(valid_handle_unknown)}, "
                 f"got {self.handle_unknown!r}."
+            )
+        if self.seq_len is not None and (
+            not isinstance(self.seq_len, numbers.Integral) or self.seq_len < 1
+        ):
+            raise ValueError(
+                f"seq_len must be None or a positive int, got {self.seq_len!r}."
             )
 
     def _check_sequences(self, X):
@@ -115,15 +133,17 @@ class SequenceIndexEncoder(BaseTransform):
         -------
         pandas.DataFrame
             Shape ``(n_samples, sequence_length)``, int64, indexed by the
-            input rows that were encoded. Rows skipped by
-            ``handle_unknown="drop"`` are not included.
+            input rows that were encoded. ``sequence_length`` is ``seq_len``
+            if it is set. Rows skipped by ``handle_unknown="drop"`` are not
+            included.
 
         Raises
         ------
         TypeError
             If the first column of X does not hold str sequences.
         ValueError
-            If sequences have varying lengths, or if
+            If ``seq_len`` is None and sequences have varying lengths, if a
+            sequence is longer than ``seq_len``, or if
             ``handle_unknown="raise"`` and a sequence has None/NaN value, or
             contains a character outside the vocab.
         """
@@ -136,12 +156,22 @@ class SequenceIndexEncoder(BaseTransform):
         reads = X.iloc[:, 0]
         lengths = reads.dropna().str.len()
 
-        if lengths.nunique() > 1:
+        if self.seq_len is not None:
+            if (lengths > self.seq_len).any():
+                raise ValueError(
+                    f"{name} found a sequence of length {lengths.max()}, which "
+                    f"exceeds seq_len={self.seq_len}."
+                )
+            seq_len = self.seq_len
+        elif lengths.nunique() > 1:
             raise ValueError(
                 f"{name} requires all sequences to be the same fixed length, got "
                 f"lengths {sorted(lengths.unique())}. Route raw reads through "
-                "PrimerTrimmer first to produce fixed-length regions."
+                "PrimerTrimmer first to produce fixed-length regions, or set "
+                "seq_len to pad the shorter ones."
             )
+        else:
+            seq_len = int(lengths.iloc[0]) if not lengths.empty else 0
 
         encoded_seqs, kept_pos = [], []
         vocab_chars = vocab.keys()
@@ -167,7 +197,8 @@ class SequenceIndexEncoder(BaseTransform):
                     )
                 continue
 
-            encoded_seqs.append([vocab[char] for char in seq])
+            padding = [-1] * (seq_len - len(seq))
+            encoded_seqs.append([vocab[char] for char in seq] + padding)
             kept_pos.append(pos)
 
         dropped = len(reads) - len(encoded_seqs)
@@ -185,7 +216,6 @@ class SequenceIndexEncoder(BaseTransform):
                     "could not be encoded."
                 )
 
-        seq_len = int(lengths.iloc[0]) if not lengths.empty else 0
         encoded = np.array(encoded_seqs, dtype=np.int64).reshape(
             len(encoded_seqs), seq_len
         )
@@ -200,4 +230,8 @@ class SequenceIndexEncoder(BaseTransform):
         params : list of dict
             Test parameters for SequenceIndexEncoder.
         """
-        return [{}, {"vocab": {"A": 0, "C": 1, "G": 2, "T": 3, "U": 3}}]
+        return [
+            {},
+            {"vocab": {"A": 0, "C": 1, "G": 2, "T": 3, "U": 3}},
+            {"seq_len": 50},
+        ]

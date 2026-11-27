@@ -22,6 +22,10 @@ class SequenceOneHotEncoder(BaseTransform):
     ``v`` at position ``l``. Reshape with ``.to_numpy().reshape(n, V, L)`` to
     recover the ``(V, L)`` matrix per sequence.
 
+    By default all sequences must have the same length. Set ``seq_len`` to
+    encode sequences of different lengths: each one is right-padded to
+    ``seq_len`` positions with all-zero vectors, so ``L`` is ``seq_len``.
+
     Sequences are validated and mapped to indices by
     :class:`SequenceIndexEncoder`, then one-hot encoded.
 
@@ -45,6 +49,11 @@ class SequenceOneHotEncoder(BaseTransform):
 
         - "raise" : raise a ``ValueError`` naming the problem.
         - "drop" : skip that row in the encoded output.
+    seq_len : int or None, default=None
+        Number of positions to right-pad every sequence to. If None, all
+        sequences must have the same length. If an int, the positions after
+        the end of a shorter sequence are all-zero vectors, and a longer
+        sequence raises a ``ValueError``.
 
     Notes
     -----
@@ -69,6 +78,17 @@ class SequenceOneHotEncoder(BaseTransform):
     >>> decoded = enc.inverse_transform(Xt)
     >>> decoded["sequence"].iloc[0]
     'ATGCAT'
+
+    Sequences of different lengths are padded to ``seq_len``, and decoding
+    drops the padding again:
+
+    >>> X = MoleculeLoader(data={"seq": ["ATGCAT", "GCTA"]})
+    >>> enc = SequenceOneHotEncoder(seq_len=8)
+    >>> Xt = enc.fit_transform(X)
+    >>> Xt.shape
+    (2, 32)
+    >>> enc.inverse_transform(Xt)["sequence"].tolist()
+    ['ATGCAT', 'GCTA']
     """
 
     _tags = {
@@ -83,10 +103,12 @@ class SequenceOneHotEncoder(BaseTransform):
         vocab: dict[str, int] | None = None,
         inverse_vocab: dict[int, str] | None = None,
         handle_unknown: Literal["raise", "drop"] = "raise",
+        seq_len: int | None = None,
     ):
         self.vocab = vocab
         self.inverse_vocab = inverse_vocab
         self.handle_unknown = handle_unknown
+        self.seq_len = seq_len
         super().__init__()
 
     def _resolve_vocab(self):
@@ -107,7 +129,8 @@ class SequenceOneHotEncoder(BaseTransform):
         -------
         pandas.DataFrame
             Shape ``(n_samples, num_classes * sequence_length)``, float32,
-            indexed by the input rows that were encoded. Rows skipped by
+            indexed by the input rows that were encoded.
+            ``sequence_length`` is ``seq_len`` if it is set. Rows skipped by
             ``handle_unknown="drop"`` are not included.
 
         Raises
@@ -115,7 +138,8 @@ class SequenceOneHotEncoder(BaseTransform):
         TypeError
             If the first column of X does not hold str sequences.
         ValueError
-            If sequences have varying lengths, or if
+            If ``seq_len`` is None and sequences have varying lengths, if a
+            sequence is longer than ``seq_len``, or if
             ``handle_unknown="raise"`` and a sequence has None/NaN value, or
             contains a character outside the vocab.
         """
@@ -123,7 +147,7 @@ class SequenceOneHotEncoder(BaseTransform):
         num_classes = max(vocab.values()) + 1
 
         indices = SequenceIndexEncoder(
-            vocab=vocab, handle_unknown=self.handle_unknown
+            vocab=vocab, handle_unknown=self.handle_unknown, seq_len=self.seq_len
         ).fit_transform(X)
 
         if indices.empty:
@@ -133,7 +157,10 @@ class SequenceOneHotEncoder(BaseTransform):
             )
 
         int_tensor = torch.tensor(indices.to_numpy(), dtype=torch.long)
-        one_hot = F.one_hot(int_tensor, num_classes=num_classes).to(torch.float32)
+        # padding is -1: shifted by one it is class 0, which is dropped, so
+        # padding positions become all-zero vectors
+        one_hot = F.one_hot(int_tensor + 1, num_classes=num_classes + 1)[..., 1:]
+        one_hot = one_hot.to(torch.float32)
         flat = one_hot.permute(0, 2, 1).reshape(len(indices), -1).numpy()
 
         return pd.DataFrame(flat, index=indices.index)
@@ -165,6 +192,10 @@ class SequenceOneHotEncoder(BaseTransform):
         Indices outside ``inverse_vocab`` decode to ``"X"``. Such sequences
         cannot be passed back through ``transform``, since ``"X"`` is not in
         the vocabulary.
+
+        If ``seq_len`` is set, padding positions are dropped, so each sequence
+        decodes to its length before padding. Padding is an all-zero vector
+        in a frame or 3D tensor and ``-1`` in a 2D index tensor.
         """
         vocab = self._resolve_vocab()
         if self.inverse_vocab is not None:
@@ -200,11 +231,15 @@ class SequenceOneHotEncoder(BaseTransform):
 
         if X.dim() == 3:
             indices = X.argmax(dim=1)
+            if self.seq_len is not None:
+                indices[(X == 0).all(dim=1)] = -1
         else:
             indices = X
 
         decoded_seqs = []
         for row in indices.tolist():
+            if self.seq_len is not None:
+                row = [idx for idx in row if idx != -1]
             seq = "".join([inverse_vocab.get(idx, "X") for idx in row])
             decoded_seqs.append(seq)
 
@@ -224,4 +259,5 @@ class SequenceOneHotEncoder(BaseTransform):
             "vocab": {"A": 0, "C": 1, "G": 2, "T": 3, "U": 3},
             "inverse_vocab": {0: "A", 1: "C", 2: "G", 3: "T"},
         }
-        return [param0, param1]
+        param2 = {"seq_len": 50}
+        return [param0, param1, param2]
