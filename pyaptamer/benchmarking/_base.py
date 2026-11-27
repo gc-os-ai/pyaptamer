@@ -128,8 +128,21 @@ class Benchmarking:
         self.scorers_ = self._to_scorers(self.metrics)
         results = {}
 
+        # pre-cout class names so samclass estimaters get unique keys
+        name_counts = {}
         for estimator in self.estimators:
-            est_name = estimator.__class__.__name__
+            base = estimator.__class__.__name__
+            name_counts[base] = name_counts.get(base, 0) + 1
+
+        name_indices = {}
+        for estimator in self.estimators:
+            base = estimator.__class__.__name__
+            if name_counts[base] > 1:
+                idx = name_indices.get(base, 0)
+                est_name = f"{base}_{idx}"
+                name_indices[base] = idx + 1
+            else:
+                est_name = base
 
             cv_results = cross_validate(
                 estimator,
